@@ -2,6 +2,7 @@ export interface AppFeatures {
   comparison: boolean;
   comparisonMode?: "basic" | "advanced";
   chartPage: boolean;
+  aiParser?: boolean;
 }
 
 export interface BrandConfig {

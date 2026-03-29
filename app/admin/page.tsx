@@ -22,7 +22,7 @@ function AdminContent() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
-  const [activeTab, setActiveTab] = useState<"data" | "funds" | "branding" | "settings" | "monthly-history">("data");
+  const [activeTab, setActiveTab] = useState<"data" | "funds" | "branding" | "settings" | "monthly-history" | "ai-parser">("data");
   const brand = useBrand(clientKey);
   const [showAddFund, setShowAddFund] = useState(false);
   const [addFundCategory, setAddFundCategory] = useState("");
@@ -337,6 +337,7 @@ function AdminContent() {
             { id: "funds" as const, label: "ניהול קרנות" },
             ...(role === "super" ? [
               { id: "monthly-history" as const, label: "היסטוריה חודשית" },
+              ...(brand.features?.aiParser ? [{ id: "ai-parser" as const, label: "🤖 קליטת נתונים" }] : []),
               { id: "branding" as const, label: "מיתוג ודוחות" },
               { id: "settings" as const, label: "הגדרות" },
             ] : []),
@@ -404,6 +405,9 @@ function AdminContent() {
               }),
             });
           }} />
+        )}
+        {activeTab === "ai-parser" && brand.features?.aiParser && (
+          <AiParserTab password={passwordRef.current} clientKey={clientKey} data={data} onStatus={showStatus} onReload={loadData} />
         )}
         {activeTab === "branding" && (
           <BrandingTab password={passwordRef.current} clientKey={clientKey} onStatus={showStatus} />
@@ -1152,6 +1156,15 @@ function BrandingTab({ password, clientKey, onStatus }: { password: string; clie
               setForm((prev) => prev ? { ...prev, features: feat } : prev);
             }}
           />
+          <FeatureToggle
+            label="🤖 AI קליטת נתונים"
+            description="אפשר קליטת נתונים חכמה מטקסט באמצעות AI (דורש ANTHROPIC_API_KEY)"
+            checked={form.features?.aiParser ?? false}
+            onChange={(v) => {
+              const feat = { ...(form.features || { comparison: true, chartPage: true }), aiParser: v };
+              setForm((prev) => prev ? { ...prev, features: feat } : prev);
+            }}
+          />
         </div>
       </SectionCard>
 
@@ -1473,6 +1486,451 @@ function FundModal({ title, categories, selectedCategory, existingFund, onCatego
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ================================================================== */
+/*  AI Parser Tab (Super Admin only, feature-flagged)                   */
+/* ================================================================== */
+function AiParserTab({ password, clientKey, data, onStatus, onReload }: {
+  password: string;
+  clientKey: string;
+  data: FundsData;
+  onStatus: (msg: string) => void;
+  onReload: () => void;
+}) {
+  const [inputText, setInputText] = useState("");
+  const [parsing, setParsing] = useState(false);
+  const [parseResult, setParseResult] = useState<{
+    fundName: string;
+    fundNameConfidence: number;
+    fields: { key: string; value: string | number | null; confidence: number }[];
+    match: { fundId: string | null; fundName: string | null; similarity: number; categoryId: string | null } | null;
+  } | null>(null);
+  const [approvedFields, setApprovedFields] = useState<Set<string>>(new Set());
+  const [drafts, setDrafts] = useState<{
+    id: string; createdAt: string; status: string;
+    extracted: { fundName: string; fields: { key: string; value: string | number | null; confidence: number }[] };
+    match: { fundId: string | null; fundName: string | null; similarity: number; categoryId: string | null } | null;
+    source: { preview: string };
+  }[]>([]);
+  const [view, setView] = useState<"input" | "review" | "drafts">("input");
+  const [selectedMatchFundId, setSelectedMatchFundId] = useState<string>("");
+  const [selectedMatchCatId, setSelectedMatchCatId] = useState<string>("");
+
+  const headers = { "x-admin-password": password };
+
+  // Load drafts
+  const loadDrafts = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/parse?action=drafts&client=${encodeURIComponent(clientKey)}`, { headers });
+      if (res.ok) setDrafts(await res.json());
+    } catch { /* ignore */ }
+  }, [clientKey]);
+
+  useEffect(() => { loadDrafts(); }, [loadDrafts]);
+
+  // All funds flat list for matching dropdown
+  const allFunds: { id: string; name: string; catId: string; catName: string }[] = [];
+  data.categories.forEach((cat) => {
+    cat.funds.forEach((fund) => {
+      allFunds.push({ id: fund.id, name: fund.name, catId: cat.id, catName: cat.name });
+    });
+  });
+
+  const handleParse = async () => {
+    if (!inputText.trim() || inputText.trim().length < 10) {
+      onStatus("❌ הטקסט קצר מדי (מינימום 10 תווים)");
+      return;
+    }
+    setParsing(true);
+    try {
+      const res = await fetch(`/api/parse?action=parse&client=${encodeURIComponent(clientKey)}`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ text: inputText }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        onStatus(`❌ ${err.error || "שגיאה בפענוח"}`);
+        setParsing(false);
+        return;
+      }
+      const result = await res.json();
+      setParseResult(result);
+      // Auto-approve high confidence fields
+      const approved = new Set<string>();
+      for (const f of result.fields || []) {
+        if (f.confidence >= 0.7) approved.add(f.key);
+      }
+      setApprovedFields(approved);
+      // Auto-set match
+      if (result.match?.fundId) {
+        setSelectedMatchFundId(result.match.fundId);
+        setSelectedMatchCatId(result.match.categoryId || "");
+      }
+      setView("review");
+    } catch {
+      onStatus("❌ שגיאה בחיבור לשרת");
+    }
+    setParsing(false);
+  };
+
+  const handleSaveDraft = async () => {
+    if (!parseResult) return;
+    const approvedFieldsList = parseResult.fields.filter((f) => approvedFields.has(f.key));
+    const match = selectedMatchFundId ? {
+      fundId: selectedMatchFundId,
+      fundName: allFunds.find((f) => f.id === selectedMatchFundId)?.name || null,
+      similarity: parseResult.match?.similarity || 0,
+      categoryId: selectedMatchCatId,
+    } : null;
+
+    const res = await fetch(`/api/parse?action=save-draft&client=${encodeURIComponent(clientKey)}`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sourceText: inputText,
+        fundName: parseResult.fundName,
+        fundNameConfidence: parseResult.fundNameConfidence,
+        fields: approvedFieldsList,
+        match,
+      }),
+    });
+    if (res.ok) {
+      onStatus("✓ טיוטה נשמרה");
+      setView("input");
+      setParseResult(null);
+      setInputText("");
+      loadDrafts();
+    } else {
+      onStatus("❌ שגיאה בשמירה");
+    }
+  };
+
+  const handleApplyDraft = async (draft: typeof drafts[0]) => {
+    if (!draft.match?.fundId || !draft.match?.categoryId) {
+      onStatus("❌ לא נבחרה קרן להתאמה");
+      return;
+    }
+    if (!window.confirm(`לעדכן את הקרן "${draft.match.fundName}" עם הנתונים מהטיוטה?`)) return;
+
+    const res = await fetch(`/api/parse?action=apply&client=${encodeURIComponent(clientKey)}`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        draftId: draft.id,
+        fundId: draft.match.fundId,
+        categoryId: draft.match.categoryId,
+        approvedFields: draft.extracted.fields,
+      }),
+    });
+    if (res.ok) {
+      onStatus("✓ הנתונים עודכנו בקרן");
+      loadDrafts();
+      onReload();
+    } else {
+      const err = await res.json();
+      onStatus(`❌ ${err.error || "שגיאה בעדכון"}`);
+    }
+  };
+
+  const handleRejectDraft = async (draftId: string) => {
+    if (!window.confirm("לדחות טיוטה זו?")) return;
+    const res = await fetch(`/api/parse?action=reject&client=${encodeURIComponent(clientKey)}`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ draftId }),
+    });
+    if (res.ok) {
+      onStatus("✓ טיוטה נדחתה");
+      loadDrafts();
+    }
+  };
+
+  const fieldLabel = (key: string): string => {
+    const labels: Record<string, string> = {
+      monthlyReturn: "תשואה חודשית",
+      manager: "מנהל",
+      classification: "סיווג",
+      "returns.ytd2026": "מצטבר 2026",
+      "returns.y2025": "תשואה 2025",
+      "returns.y2024": "תשואה 2024",
+      "returns.y2023": "תשואה 2023",
+      "returns.y2022": "תשואה 2022",
+      "returns.y2021": "תשואה 2021",
+      "returns.y2020": "תשואה 2020",
+      "returns.y2019": "תשואה 2019",
+    };
+    return labels[key] || key;
+  };
+
+  const formatValue = (key: string, val: string | number | null): string => {
+    if (val === null) return "—";
+    if (typeof val === "number" && (key.startsWith("returns") || key === "monthlyReturn")) {
+      return `${(val * 100).toFixed(2)}%`;
+    }
+    return String(val);
+  };
+
+  const confidenceBadge = (c: number) => {
+    const color = c >= 0.9 ? "#059669" : c >= 0.7 ? "#f59e0b" : "#ef4444";
+    const label = c >= 0.9 ? "גבוה" : c >= 0.7 ? "בינוני" : "נמוך";
+    return (
+      <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, backgroundColor: `${color}15`, color, fontWeight: 600 }}>
+        {label} ({Math.round(c * 100)}%)
+      </span>
+    );
+  };
+
+  const pendingDrafts = drafts.filter((d) => d.status === "pending");
+
+  return (
+    <div style={{ maxWidth: 800 }}>
+      {/* Sub-navigation */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+        <button onClick={() => setView("input")}
+          style={{ padding: "6px 16px", fontSize: 12, fontWeight: view === "input" ? 600 : 400, backgroundColor: view === "input" ? "var(--accent)" : "var(--bg-surface)", color: view === "input" ? "#fff" : "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer" }}>
+          קליטה חדשה
+        </button>
+        <button onClick={() => { setView("drafts"); loadDrafts(); }}
+          style={{ padding: "6px 16px", fontSize: 12, fontWeight: view === "drafts" ? 600 : 400, backgroundColor: view === "drafts" ? "var(--accent)" : "var(--bg-surface)", color: view === "drafts" ? "#fff" : "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer" }}>
+          טיוטות ({pendingDrafts.length})
+        </button>
+      </div>
+
+      {/* INPUT VIEW */}
+      {view === "input" && (
+        <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 10, padding: 20 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 8px" }}>
+            הדבק טקסט מדיווח קרן
+          </h3>
+          <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 14px" }}>
+            העתק טקסט ממייל, פאקט שיט, או כל מקור אחר. ה-AI יחלץ את הנתונים אוטומטית.
+          </p>
+          <textarea
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            placeholder={"לדוגמה:\nקרן אלפא גלובל\nתשואה חודשית: 1.2%\nתשואה 2024: 11.5%\nתשואה 2023: 8.7%\nמנהל: ישראל ישראלי"}
+            style={{
+              width: "100%",
+              minHeight: 200,
+              border: "1px solid var(--border)",
+              borderRadius: 8,
+              padding: 14,
+              fontSize: 13,
+              fontFamily: "inherit",
+              backgroundColor: "var(--bg-input)",
+              color: "var(--text-primary)",
+              resize: "vertical",
+              direction: "rtl",
+            }}
+          />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
+            <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+              {inputText.length} / 10,000 תווים
+            </span>
+            <button
+              onClick={handleParse}
+              disabled={parsing || inputText.trim().length < 10}
+              style={{
+                backgroundColor: parsing || inputText.trim().length < 10 ? "var(--text-muted)" : "var(--accent)",
+                color: "#fff",
+                fontWeight: 700,
+                padding: "8px 24px",
+                borderRadius: 6,
+                border: "none",
+                cursor: parsing ? "wait" : "pointer",
+                fontSize: 13,
+                opacity: parsing || inputText.trim().length < 10 ? 0.4 : 1,
+              }}
+            >
+              {parsing ? "מפענח..." : "🤖 פענח טקסט"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* REVIEW VIEW */}
+      {view === "review" && parseResult && (
+        <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 10, padding: 20 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 4px" }}>
+            תוצאות פענוח
+          </h3>
+          <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 16px" }}>
+            בדוק את הנתונים, סמן את השדות לאישור, ובחר קרן מתאימה.
+          </p>
+
+          {/* Extracted fund name */}
+          <div style={{ padding: "10px 14px", backgroundColor: "var(--bg-input)", borderRadius: 8, marginBottom: 14, border: "1px solid var(--border)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>שם קרן: {parseResult.fundName || "לא זוהה"}</span>
+              {confidenceBadge(parseResult.fundNameConfidence)}
+            </div>
+          </div>
+
+          {/* Match selection */}
+          <div style={{ padding: "10px 14px", backgroundColor: "var(--bg-input)", borderRadius: 8, marginBottom: 14, border: "1px solid var(--border)" }}>
+            <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 6 }}>
+              התאמה לקרן קיימת:
+            </label>
+            {parseResult.match?.fundName && (
+              <p style={{ fontSize: 11, color: "#059669", margin: "0 0 6px" }}>
+                💡 הצעת AI: &quot;{parseResult.match.fundName}&quot; (דמיון: {Math.round((parseResult.match.similarity || 0) * 100)}%)
+              </p>
+            )}
+            <select
+              value={selectedMatchFundId}
+              onChange={(e) => {
+                setSelectedMatchFundId(e.target.value);
+                const f = allFunds.find((fund) => fund.id === e.target.value);
+                setSelectedMatchCatId(f?.catId || "");
+              }}
+              style={{
+                width: "100%",
+                border: "1px solid var(--border)",
+                borderRadius: 6,
+                padding: "6px 10px",
+                fontSize: 12,
+                backgroundColor: "var(--bg-surface)",
+                color: "var(--text-primary)",
+              }}
+            >
+              <option value="">-- בחר קרן --</option>
+              {allFunds.map((f) => (
+                <option key={f.id} value={f.id}>{f.name} ({f.catName})</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Fields table */}
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginBottom: 16 }}>
+            <thead>
+              <tr style={{ backgroundColor: "var(--bg-surface-alt)" }}>
+                <th style={{ padding: "7px 10px", textAlign: "center", width: 40 }}>✓</th>
+                <th style={{ padding: "7px 10px", textAlign: "right" }}>שדה</th>
+                <th style={{ padding: "7px 10px", textAlign: "center" }}>ערך</th>
+                <th style={{ padding: "7px 10px", textAlign: "center" }}>ביטחון</th>
+              </tr>
+            </thead>
+            <tbody>
+              {parseResult.fields.map((field, idx) => (
+                <tr key={idx} style={{ borderBottom: "1px solid var(--border-table)", backgroundColor: idx % 2 === 0 ? "var(--bg-surface)" : "var(--bg-surface-alt)" }}>
+                  <td style={{ padding: "6px 10px", textAlign: "center" }}>
+                    <input
+                      type="checkbox"
+                      checked={approvedFields.has(field.key)}
+                      onChange={(e) => {
+                        const next = new Set(approvedFields);
+                        if (e.target.checked) next.add(field.key); else next.delete(field.key);
+                        setApprovedFields(next);
+                      }}
+                    />
+                  </td>
+                  <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: 500 }}>{fieldLabel(field.key)}</td>
+                  <td style={{ padding: "6px 10px", textAlign: "center", direction: "ltr" }}>{formatValue(field.key, field.value)}</td>
+                  <td style={{ padding: "6px 10px", textAlign: "center" }}>{confidenceBadge(field.confidence)}</td>
+                </tr>
+              ))}
+              {parseResult.fields.length === 0 && (
+                <tr><td colSpan={4} style={{ padding: 20, textAlign: "center", color: "var(--text-muted)" }}>לא נמצאו שדות</td></tr>
+              )}
+            </tbody>
+          </table>
+
+          {/* Actions */}
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-start" }}>
+            <button onClick={handleSaveDraft}
+              disabled={approvedFields.size === 0}
+              style={{
+                backgroundColor: approvedFields.size === 0 ? "var(--text-muted)" : "#059669",
+                color: "#fff", fontWeight: 700, padding: "8px 20px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12,
+                opacity: approvedFields.size === 0 ? 0.4 : 1,
+              }}>
+              💾 שמור טיוטה ({approvedFields.size} שדות)
+            </button>
+            <button onClick={() => { setView("input"); setParseResult(null); }}
+              style={{ backgroundColor: "var(--bg-surface-alt)", color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: 6, padding: "8px 20px", cursor: "pointer", fontSize: 12 }}>
+              ← חזרה
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* DRAFTS VIEW */}
+      {view === "drafts" && (
+        <div>
+          {drafts.length === 0 ? (
+            <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 10, padding: 40, textAlign: "center" }}>
+              <p style={{ color: "var(--text-muted)", fontSize: 13 }}>אין טיוטות עדיין</p>
+            </div>
+          ) : (
+            drafts.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((draft) => (
+              <div key={draft.id} style={{
+                backgroundColor: "var(--bg-surface)",
+                border: `1px solid ${draft.status === "applied" ? "#05966930" : draft.status === "rejected" ? "#ef444430" : "var(--border)"}`,
+                borderRadius: 10,
+                padding: 16,
+                marginBottom: 12,
+                opacity: draft.status === "rejected" ? 0.5 : 1,
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <div>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>{draft.extracted.fundName || "קרן לא מזוהה"}</span>
+                    {draft.match?.fundName && (
+                      <span style={{ fontSize: 11, color: "var(--text-muted)", marginRight: 8 }}>
+                        → {draft.match.fundName}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{
+                      fontSize: 10, padding: "2px 10px", borderRadius: 10, fontWeight: 600,
+                      backgroundColor: draft.status === "applied" ? "#05966915" : draft.status === "rejected" ? "#ef444415" : "#f59e0b15",
+                      color: draft.status === "applied" ? "#059669" : draft.status === "rejected" ? "#ef4444" : "#f59e0b",
+                    }}>
+                      {draft.status === "applied" ? "✓ הוחל" : draft.status === "rejected" ? "✗ נדחה" : "⏳ ממתין"}
+                    </span>
+                    <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                      {new Date(draft.createdAt).toLocaleDateString("he-IL")} {new Date(draft.createdAt).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Fields summary */}
+                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8 }}>
+                  {draft.extracted.fields.map((f) => `${fieldLabel(f.key)}: ${formatValue(f.key, f.value)}`).join(" | ")}
+                </div>
+
+                {/* Source preview */}
+                <div style={{ fontSize: 10, color: "var(--text-muted)", backgroundColor: "var(--bg-input)", padding: "6px 10px", borderRadius: 6, marginBottom: 10, direction: "rtl" }}>
+                  {draft.source.preview}...
+                </div>
+
+                {/* Actions for pending */}
+                {draft.status === "pending" && (
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => handleApplyDraft(draft)}
+                      disabled={!draft.match?.fundId}
+                      style={{
+                        backgroundColor: draft.match?.fundId ? "#059669" : "var(--text-muted)",
+                        color: "#fff", fontWeight: 600, padding: "5px 16px", borderRadius: 5, border: "none", cursor: "pointer", fontSize: 11,
+                        opacity: draft.match?.fundId ? 1 : 0.4,
+                      }}>
+                      ✓ עדכן קרן
+                    </button>
+                    <button onClick={() => handleRejectDraft(draft.id)}
+                      style={{ backgroundColor: "var(--bg-surface-alt)", color: "#ef4444", border: "1px solid #ef444430", borderRadius: 5, padding: "5px 16px", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
+                      ✗ דחה
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }

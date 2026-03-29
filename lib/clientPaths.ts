@@ -45,6 +45,16 @@ export function backupsDir(clientKey: string): string {
   return dir;
 }
 
+/** /data/{clientKey}/parse-drafts.json */
+export function parseDraftsPath(clientKey: string): string {
+  return path.join(clientDataDir(clientKey), "parse-drafts.json");
+}
+
+/** /data/{clientKey}/parse-log.json */
+export function parseLogPath(clientKey: string): string {
+  return path.join(clientDataDir(clientKey), "parse-log.json");
+}
+
 /** /public/branding/{clientKey}/ — logo upload folder */
 export function logoUploadDir(clientKey: string): string {
   const dir = path.join(ROOT, "public", "branding", clientKey);

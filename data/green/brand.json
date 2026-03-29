@@ -18,6 +18,7 @@
   "features": {
     "comparison": true,
     "comparisonMode": "advanced",
-    "chartPage": true
+    "chartPage": true,
+    "aiParser": true
   }
 }
