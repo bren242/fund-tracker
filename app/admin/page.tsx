@@ -79,7 +79,15 @@ function AdminContent() {
           ...cat,
           funds: cat.funds.map((fund) => {
             if (fund.id !== fundId) return fund;
-            if (field === "monthlyReturn") return { ...fund, monthlyReturn: numVal };
+            if (field === "monthlyReturn") {
+              // Also save to monthlyReturns history based on lastUpdated
+              const mr = { ...(fund.monthlyReturns || {}) };
+              if (data.lastUpdated && numVal !== null) {
+                const monthKey = data.lastUpdated.slice(0, 7); // "2026-02" from "2026-02-28"
+                mr[monthKey] = numVal;
+              }
+              return { ...fund, monthlyReturn: numVal, monthlyReturns: mr };
+            }
             if (field === "ytd2026") return { ...fund, returns: { ...fund.returns, ytd2026: numVal } };
             return fund;
           }),
