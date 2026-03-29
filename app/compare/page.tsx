@@ -88,6 +88,11 @@ function CompareContent() {
               <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                 <BrandLogo brand={brand} height={28} variant="light" />
                 <span style={{ fontSize: 14, color: "var(--text-primary)", fontWeight: 600 }}>השוואת קרנות</span>
+                {brand.version && (
+                  <span style={{ fontSize: 10, color: "var(--text-muted)", backgroundColor: "var(--bg-input)", padding: "2px 8px", borderRadius: 4, fontWeight: 500 }}>
+                    v{brand.version}
+                  </span>
+                )}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <button

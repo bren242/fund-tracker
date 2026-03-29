@@ -5,15 +5,16 @@ import {
   ScatterChart, Scatter, XAxis, YAxis, Tooltip,
   CartesianGrid, Cell, ZAxis, Label, LabelList,
 } from "recharts";
-import { FundsData, Fund, Category } from "@/lib/types";
+import { FundsData, Fund } from "@/lib/types";
 import { ThemeToggle } from "@/components/ThemeProvider";
 import { formatDate } from "@/lib/format";
 import { useBrand } from "@/lib/useBrand";
 import { useClientKey, withClient } from "@/lib/useClientKey";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import BrandLogo from "@/components/BrandLogo";
 import ClientGate from "@/components/ClientGate";
 import { brandCssVars } from "@/lib/colors";
+import { useFilters } from "@/lib/useFilters";
+import FilterBar from "@/components/FilterBar";
 
 /* ------------------------------------------------------------------ */
 /*  Chart uses annual average data only — no year selection             */
@@ -21,20 +22,6 @@ import { brandCssVars } from "@/lib/colors";
 const RETURN_KEY = "_avg";
 const RETURN_LABEL = "תשואה שנתית ממוצעת";
 
-/* ------------------------------------------------------------------ */
-/*  Category-based grouping for usable selector                        */
-/*  Uses exact category names from the data (9 groups)                 */
-/* ------------------------------------------------------------------ */
-function getCategoryOptions(data: FundsData): { id: string; label: string; count: number }[] {
-  return data.categories
-    .filter((cat) => cat.funds.length > 0)
-    .map((cat) => ({ id: cat.id, label: cat.name, count: cat.funds.length }));
-}
-
-function fundsForCategory(data: FundsData, categoryId: string): Fund[] {
-  const cat = data.categories.find((c) => c.id === categoryId);
-  return cat ? cat.funds : [];
-}
 
 /* ------------------------------------------------------------------ */
 /*  Scatter helpers                                                    */
@@ -81,21 +68,8 @@ const COLORS = { top: "#059669", bottom: "#dc2626", normal: "#64748b" };
 /* ================================================================== */
 function ChartsContent() {
   const clientKey = useClientKey();
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
   const [data, setData] = useState<FundsData | null>(null);
-  const [categoryId, setCategoryId] = useState<string>(searchParams.get("cat") || "");
   const brand = useBrand(clientKey);
-
-  // Group filter from URL
-  const chartGroup = searchParams.get("group") || "הכל";
-  const setChartGroup = (v: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (v === "הכל") params.delete("group"); else params.set("group", v);
-    params.delete("cat"); // reset category when group changes
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  };
 
   useEffect(() => {
     fetch(`/api/funds?client=${encodeURIComponent(clientKey)}`).then((r) => r.json()).then((d: FundsData) => {
@@ -103,37 +77,24 @@ function ChartsContent() {
     });
   }, [clientKey]);
 
-  // Unique group options
-  const groupOptions = useMemo(() => {
-    if (!data) return [];
-    const set = new Set<string>();
-    for (const cat of data.categories) set.add(cat.parentSection || "כללי");
-    return Array.from(set);
-  }, [data]);
+  // Shared cascading filters — same hook as report page
+  const {
+    group, category, classification, search,
+    options, setFilter, clearAll, filtered, activeFilterCount, ALL,
+  } = useFilters(data?.categories || []);
 
-  // Filter categories by group
-  const filteredCategories = useMemo(() => {
-    if (!data) return [];
-    if (chartGroup === "הכל") return data.categories;
-    return data.categories.filter((c) => (c.parentSection || "כללי") === chartGroup);
-  }, [data, chartGroup]);
-
-  const categoryOptions = useMemo(() => getCategoryOptions({ categories: filteredCategories } as FundsData), [filteredCategories]);
-
-  // Auto-select first category when options change
-  useEffect(() => {
-    if (categoryOptions.length > 0 && !categoryOptions.find((o) => o.id === categoryId)) {
-      setCategoryId(categoryOptions[0].id);
-    }
-  }, [categoryOptions, categoryId]);
-
-  const selectedCategory = filteredCategories.find((c) => c.id === categoryId);
-  const selectedCategoryLabel = selectedCategory?.name || "";
-
+  // Flatten all funds from filtered categories for the chart
   const funds = useMemo(
-    () => (categoryId ? fundsForCategory({ categories: filteredCategories } as FundsData, categoryId) : []),
-    [filteredCategories, categoryId],
+    () => filtered.flatMap((cat) => cat.funds),
+    [filtered],
   );
+
+  // Label for print header
+  const selectedCategoryLabel = useMemo(() => {
+    if (category !== ALL) return category;
+    if (group !== ALL) return group;
+    return "כל הקרנות";
+  }, [group, category, ALL]);
 
   const points = useMemo(
     () => buildScatterData(funds, RETURN_KEY),
@@ -160,6 +121,11 @@ function ChartsContent() {
           </div>
           <div className="no-print" style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>עדכון: {formatDate(data.lastUpdated)}</span>
+            {brand.version && (
+              <span style={{ fontSize: 10, color: "var(--text-muted)", backgroundColor: "var(--bg-input)", padding: "2px 8px", borderRadius: 4, fontWeight: 500 }}>
+                v{brand.version}
+              </span>
+            )}
             <button
               onClick={() => window.print()}
               style={{ backgroundColor: brand.primaryColor, color: "#fff", fontWeight: 700, padding: "6px 16px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12 }}
@@ -176,17 +142,21 @@ function ChartsContent() {
         </div>
       </div>
 
-      {/* Screen controls */}
-      <div className="no-print" style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 24px 0" }}>
-        <div style={{ display: "flex", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
-          {groupOptions.length > 1 && (
-            <SelectBox label="קבוצה" value={chartGroup} onChange={setChartGroup}
-              options={[{ value: "הכל", label: "הכל" }, ...groupOptions.map((g) => ({ value: g, label: g }))]} />
-          )}
-          <SelectBox label="סיווג" value={categoryId} onChange={setCategoryId}
-            options={categoryOptions.map((c) => ({ value: c.id, label: `${c.label} (${c.count})` }))} wide />
-        </div>
-      </div>
+      {/* Filter bar — same as report page */}
+      <FilterBar
+        group={group}
+        category={category}
+        classification={classification}
+        search={search}
+        options={options}
+        activeFilterCount={activeFilterCount}
+        onGroupChange={(v) => setFilter("group", v)}
+        onCategoryChange={(v) => setFilter("category", v)}
+        onClassificationChange={(v) => setFilter("classification", v)}
+        onSearchChange={(v) => setFilter("search", v)}
+        onClearAll={clearAll}
+        accentColor={brand.primaryColor}
+      />
 
       {/* All content in one table — thead repeats on every printed page */}
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -289,22 +259,6 @@ function ChartsContent() {
 /*  Sub-components                                                     */
 /* ================================================================== */
 
-function SelectBox({ label, value, onChange, options, wide }: {
-  label: string; value: string; onChange: (v: string) => void;
-  options: { value: string; label: string }[]; wide?: boolean;
-}) {
-  return (
-    <div>
-      <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4, fontWeight: 500, letterSpacing: 0.2 }}>{label}</label>
-      <select value={value} onChange={(e) => onChange(e.target.value)}
-        style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid var(--border)", fontSize: 13, color: "var(--text-primary)",
-          backgroundColor: "var(--bg-input)", minWidth: wide ? 280 : 170, cursor: "pointer",
-          boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
-        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
-    </div>
-  );
-}
 
 function CustomTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: ScatterPoint }> }) {
   if (!active || !payload?.[0]) return null;

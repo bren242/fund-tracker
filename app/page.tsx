@@ -94,6 +94,11 @@ function ReportContent() {
               <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
                 {subtitle}
               </span>
+              {brand.version && (
+                <span style={{ fontSize: 10, color: "var(--text-muted)", backgroundColor: "var(--bg-input)", padding: "2px 8px", borderRadius: 4, fontWeight: 500 }}>
+                  v{brand.version}
+                </span>
+              )}
               <div style={{ display: "flex", alignItems: "center", gap: 6, position: "relative" }}>
                 <button
                   onClick={() => setShowYearPicker((v) => !v)}
