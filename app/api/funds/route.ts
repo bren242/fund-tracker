@@ -1,24 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
 import { getClientKeyFromRequest } from "@/lib/clientKey";
-import { fundsPath, backupsDir } from "@/lib/clientPaths";
+import { storageRead, storageWrite } from "@/lib/storage";
 
 const DEFAULT_ADMIN_PASSWORD = "admin2026";
 const SUPER_ADMIN_PASSWORD = "super2026";
 
-function readData(clientKey: string) {
-  try {
-    const raw = fs.readFileSync(fundsPath(clientKey), "utf-8");
-    return JSON.parse(raw);
-  } catch {
-    // Return minimal structure if file doesn't exist yet
-    return { lastUpdated: "", categories: [], adminPassword: DEFAULT_ADMIN_PASSWORD };
-  }
+const DEFAULT_FUNDS = { lastUpdated: "", categories: [], adminPassword: DEFAULT_ADMIN_PASSWORD };
+
+async function readData(clientKey: string) {
+  return storageRead(`funds:${clientKey}`, DEFAULT_FUNDS);
 }
 
-function writeData(clientKey: string, data: unknown) {
-  fs.writeFileSync(fundsPath(clientKey), JSON.stringify(data, null, 2), "utf-8");
+async function writeData(clientKey: string, data: unknown) {
+  await storageWrite(`funds:${clientKey}`, data);
 }
 
 function getAdminPassword(data: Record<string, unknown>): string {
@@ -34,7 +28,7 @@ function isAuthorized(req: NextRequest, data: Record<string, unknown>): "super" 
 
 export async function GET(req: NextRequest) {
   const clientKey = getClientKeyFromRequest(req.url);
-  const data = readData(clientKey);
+  const data = await readData(clientKey);
   const url = new URL(req.url);
 
   // Export endpoint — returns raw data for backup
@@ -70,7 +64,7 @@ export async function GET(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   const clientKey = getClientKeyFromRequest(req.url);
-  const data = readData(clientKey);
+  const data = await readData(clientKey);
   const auth = isAuthorized(req, data);
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -86,48 +80,32 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Password too short" }, { status: 400 });
     }
     data.adminPassword = newPassword;
-    writeData(clientKey, data);
+    await writeData(clientKey, data);
     return NextResponse.json({ success: true });
   }
 
   // Import/restore endpoint
   if (url.searchParams.get("action") === "import") {
     const body = await req.json();
-    // Create backup before import
-    const bDir = backupsDir(clientKey);
-    const backupFile = path.join(bDir, `pre-import-${Date.now()}.json`);
-    fs.writeFileSync(backupFile, JSON.stringify(data, null, 2), "utf-8");
     // Preserve current passwords if not in import
     if (!body.adminPassword) body.adminPassword = data.adminPassword;
-    writeData(clientKey, body);
+    await writeData(clientKey, body);
     return NextResponse.json({ success: true });
   }
 
   // Regular save
   const body = await req.json();
-  // Auto-backup before save
-  const bDir = backupsDir(clientKey);
-  // Keep only last 10 backups
-  try {
-    const backups = fs.readdirSync(bDir).sort();
-    while (backups.length >= 10) {
-      fs.unlinkSync(path.join(bDir, backups.shift()!));
-    }
-  } catch { /* ignore */ }
-  const backupFile = path.join(bDir, `auto-${Date.now()}.json`);
-  fs.writeFileSync(backupFile, JSON.stringify(data, null, 2), "utf-8");
-
   // Preserve passwords
   if (!body.adminPassword && data.adminPassword) {
     body.adminPassword = data.adminPassword;
   }
-  writeData(clientKey, body);
+  await writeData(clientKey, body);
   return NextResponse.json({ success: true });
 }
 
 export async function POST(req: NextRequest) {
   const clientKey = getClientKeyFromRequest(req.url);
-  const data = readData(clientKey);
+  const data = await readData(clientKey);
   const auth = isAuthorized(req, data);
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

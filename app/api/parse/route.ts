@@ -1,48 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs";
 import { getClientKeyFromRequest } from "@/lib/clientKey";
-import { fundsPath, parseDraftsPath, parseLogPath } from "@/lib/clientPaths";
+import { storageRead, storageWrite, storageAppend } from "@/lib/storage";
 import { ParseDraft, ParseLogEntry, ParsedField, APPLY_WHITELIST } from "@/lib/parseTypes";
 
 const SUPER_ADMIN_PASSWORD = "super2026";
 const DEFAULT_ADMIN_PASSWORD = "admin2026";
 
-function readJson(filePath: string, fallback: unknown = []) {
-  try {
-    return JSON.parse(fs.readFileSync(filePath, "utf-8"));
-  } catch {
-    return fallback;
-  }
-}
-
-function writeJson(filePath: string, data: unknown) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
-}
-
-function isAuthorized(req: NextRequest, clientKey: string): "super" | "admin" | false {
+async function isAuthorized(req: NextRequest, clientKey: string): Promise<"super" | "admin" | false> {
   const password = req.headers.get("x-admin-password") || "";
   if (password === SUPER_ADMIN_PASSWORD) return "super";
-  const fundsData = readJson(fundsPath(clientKey), {});
-  const adminPw = fundsData.adminPassword || DEFAULT_ADMIN_PASSWORD;
+  const fundsData = await storageRead<Record<string, unknown>>(`funds:${clientKey}`, {});
+  const adminPw = (fundsData.adminPassword as string) || DEFAULT_ADMIN_PASSWORD;
   if (password === adminPw) return "admin";
   return false;
 }
 
-function isAiParserEnabled(clientKey: string): boolean {
-  try {
-    const brandPath = require("path").join(process.cwd(), "data", clientKey, "brand.json");
-    const brand = JSON.parse(fs.readFileSync(brandPath, "utf-8"));
-    return brand.features?.aiParser === true;
-  } catch {
-    return false;
-  }
-}
-
-function appendLog(clientKey: string, entry: ParseLogEntry) {
-  const logPath = parseLogPath(clientKey);
-  const log: ParseLogEntry[] = readJson(logPath, []);
-  log.push(entry);
-  writeJson(logPath, log);
+async function isAiParserEnabled(clientKey: string): Promise<boolean> {
+  const brand = await storageRead<Record<string, unknown>>(`brand:${clientKey}`, {});
+  const features = brand.features as Record<string, unknown> | undefined;
+  return features?.aiParser === true;
 }
 
 function generateId(): string {
@@ -59,11 +35,11 @@ function generateId(): string {
  */
 export async function GET(req: NextRequest) {
   const clientKey = getClientKeyFromRequest(req.url);
-  const auth = isAuthorized(req, clientKey);
+  const auth = await isAuthorized(req, clientKey);
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (!isAiParserEnabled(clientKey)) {
+  if (!(await isAiParserEnabled(clientKey))) {
     return NextResponse.json({ error: "AI Parser is not enabled for this client" }, { status: 403 });
   }
 
@@ -71,12 +47,12 @@ export async function GET(req: NextRequest) {
   const action = url.searchParams.get("action");
 
   if (action === "drafts") {
-    const drafts: ParseDraft[] = readJson(parseDraftsPath(clientKey), []);
+    const drafts = await storageRead<ParseDraft[]>(`parse-drafts:${clientKey}`, []);
     return NextResponse.json(drafts);
   }
 
   if (action === "log") {
-    const log: ParseLogEntry[] = readJson(parseLogPath(clientKey), []);
+    const log = await storageRead<ParseLogEntry[]>(`parse-log:${clientKey}`, []);
     return NextResponse.json(log);
   }
 
@@ -85,11 +61,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const clientKey = getClientKeyFromRequest(req.url);
-  const auth = isAuthorized(req, clientKey);
+  const auth = await isAuthorized(req, clientKey);
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (!isAiParserEnabled(clientKey)) {
+  if (!(await isAiParserEnabled(clientKey))) {
     return NextResponse.json({ error: "AI Parser is not enabled for this client" }, { status: 403 });
   }
 
@@ -115,7 +91,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Load existing fund names for matching context
-    const fundsData = readJson(fundsPath(clientKey), { categories: [] });
+    const fundsData = await storageRead<{ categories: { id: string; funds: { id: string; name: string }[] }[] }>(`funds:${clientKey}`, { categories: [] });
     const existingFunds: { id: string; name: string; categoryId: string }[] = [];
     for (const cat of fundsData.categories || []) {
       for (const fund of cat.funds || []) {
@@ -238,12 +214,11 @@ Respond in valid JSON with this exact structure:
       status: "pending",
     };
 
-    const draftsPath = parseDraftsPath(clientKey);
-    const drafts: ParseDraft[] = readJson(draftsPath, []);
+    const drafts = await storageRead<ParseDraft[]>(`parse-drafts:${clientKey}`, []);
     drafts.push(draft);
-    writeJson(draftsPath, drafts);
+    await storageWrite(`parse-drafts:${clientKey}`, drafts);
 
-    appendLog(clientKey, {
+    await storageAppend<ParseLogEntry>(`parse-log:${clientKey}`, {
       id: generateId(),
       timestamp: new Date().toISOString(),
       action: "parse",
@@ -281,36 +256,37 @@ Respond in valid JSON with this exact structure:
     }
 
     // Load funds data
-    const fPath = fundsPath(clientKey);
-    const fundsData = readJson(fPath, { categories: [] });
+    const fundsData = await storageRead<Record<string, unknown>>(`funds:${clientKey}`, { categories: [] });
 
     // Find the fund
     let fundFound = false;
-    for (const cat of fundsData.categories) {
+    for (const cat of (fundsData.categories as Record<string, unknown>[]) || []) {
       if (cat.id !== categoryId) continue;
-      for (let i = 0; i < cat.funds.length; i++) {
-        if (cat.funds[i].id !== fundId) continue;
+      const funds = cat.funds as Record<string, unknown>[];
+      for (let i = 0; i < funds.length; i++) {
+        if (funds[i].id !== fundId) continue;
         fundFound = true;
 
         // Apply whitelisted fields only
         for (const field of validFields) {
           if (field.key === "monthlyReturn") {
-            cat.funds[i].monthlyReturn = field.value as number;
+            funds[i].monthlyReturn = field.value as number;
             // Sync to monthlyReturns history
             if (field.value !== null && fundsData.lastUpdated) {
-              const monthKey = fundsData.lastUpdated.slice(0, 7);
-              if (!cat.funds[i].monthlyReturns) cat.funds[i].monthlyReturns = {};
-              cat.funds[i].monthlyReturns[monthKey] = field.value as number;
+              const monthKey = (fundsData.lastUpdated as string).slice(0, 7);
+              if (!funds[i].monthlyReturns) funds[i].monthlyReturns = {};
+              (funds[i].monthlyReturns as Record<string, number>)[monthKey] = field.value as number;
             }
           } else if (field.key.startsWith("returns.")) {
             const yearKey = field.key.split(".")[1]; // "y2024"
-            if (yearKey && cat.funds[i].returns.hasOwnProperty(yearKey)) {
-              cat.funds[i].returns[yearKey] = field.value as number;
+            const returns = funds[i].returns as Record<string, unknown>;
+            if (yearKey && returns.hasOwnProperty(yearKey)) {
+              returns[yearKey] = field.value as number;
             }
           } else if (field.key === "manager") {
-            cat.funds[i].manager = field.value as string;
+            funds[i].manager = field.value as string;
           } else if (field.key === "classification") {
-            cat.funds[i].classification = field.value as string;
+            funds[i].classification = field.value as string;
           }
         }
         break;
@@ -323,20 +299,19 @@ Respond in valid JSON with this exact structure:
     }
 
     // Save funds data
-    writeJson(fPath, fundsData);
+    await storageWrite(`funds:${clientKey}`, fundsData);
 
     // Update draft status
-    const draftsPath = parseDraftsPath(clientKey);
-    const drafts: ParseDraft[] = readJson(draftsPath, []);
+    const drafts = await storageRead<ParseDraft[]>(`parse-drafts:${clientKey}`, []);
     const draftIdx = drafts.findIndex((d) => d.id === draftId);
     if (draftIdx >= 0) {
       drafts[draftIdx].status = "applied";
       drafts[draftIdx].appliedAt = new Date().toISOString();
-      writeJson(draftsPath, drafts);
+      await storageWrite(`parse-drafts:${clientKey}`, drafts);
     }
 
     // Log
-    appendLog(clientKey, {
+    await storageAppend<ParseLogEntry>(`parse-log:${clientKey}`, {
       id: generateId(),
       timestamp: new Date().toISOString(),
       action: "apply",
@@ -360,8 +335,7 @@ Respond in valid JSON with this exact structure:
       return NextResponse.json({ error: "Missing draftId" }, { status: 400 });
     }
 
-    const draftsPath = parseDraftsPath(clientKey);
-    const drafts: ParseDraft[] = readJson(draftsPath, []);
+    const drafts = await storageRead<ParseDraft[]>(`parse-drafts:${clientKey}`, []);
     const draftIdx = drafts.findIndex((d) => d.id === draftId);
     if (draftIdx < 0) {
       return NextResponse.json({ error: "Draft not found" }, { status: 404 });
@@ -369,9 +343,9 @@ Respond in valid JSON with this exact structure:
 
     drafts[draftIdx].status = "rejected";
     drafts[draftIdx].rejectedAt = new Date().toISOString();
-    writeJson(draftsPath, drafts);
+    await storageWrite(`parse-drafts:${clientKey}`, drafts);
 
-    appendLog(clientKey, {
+    await storageAppend<ParseLogEntry>(`parse-log:${clientKey}`, {
       id: generateId(),
       timestamp: new Date().toISOString(),
       action: "reject",

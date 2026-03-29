@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs";
 import { getClientKeyFromRequest } from "@/lib/clientKey";
-import { fundsPath } from "@/lib/clientPaths";
+import { storageRead } from "@/lib/storage";
 
 const DEFAULT_ADMIN_PASSWORD = "admin2026";
 
@@ -15,12 +14,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const password = body.password || "";
 
-  let data: Record<string, unknown> = {};
-  try {
-    data = JSON.parse(fs.readFileSync(fundsPath(clientKey), "utf-8"));
-  } catch {
-    // If file doesn't exist, use defaults
-  }
+  const data = await storageRead<Record<string, unknown>>(`funds:${clientKey}`, {});
 
   const adminPassword = (data.adminPassword as string) || DEFAULT_ADMIN_PASSWORD;
   const superAdminPassword = (data.superAdminPassword as string) || "super2026";

@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs";
 import { BrandConfig, DEFAULT_BRAND } from "@/config/brand";
 import { getClientKeyFromRequest } from "@/lib/clientKey";
-import { brandPath } from "@/lib/clientPaths";
+import { storageRead, storageWrite } from "@/lib/storage";
 
 const SUPER_ADMIN_PASSWORD = "super2026";
 
-function readBrand(clientKey: string): BrandConfig {
-  try {
-    const raw = fs.readFileSync(brandPath(clientKey), "utf-8");
-    return { ...DEFAULT_BRAND, ...JSON.parse(raw) };
-  } catch {
-    return { ...DEFAULT_BRAND };
-  }
+async function readBrand(clientKey: string): Promise<BrandConfig> {
+  const data = await storageRead<Partial<BrandConfig>>(`brand:${clientKey}`, {});
+  return { ...DEFAULT_BRAND, ...data };
 }
 
 function isSuperAdmin(req: NextRequest): boolean {
@@ -23,7 +18,7 @@ function isSuperAdmin(req: NextRequest): boolean {
 /** GET — public, returns brand config (no auth needed) */
 export async function GET(req: NextRequest) {
   const clientKey = getClientKeyFromRequest(req.url);
-  return NextResponse.json(readBrand(clientKey));
+  return NextResponse.json(await readBrand(clientKey));
 }
 
 /** PUT — super admin only, saves brand config */
@@ -39,6 +34,6 @@ export async function PUT(req: NextRequest) {
     ...body,
   };
 
-  fs.writeFileSync(brandPath(clientKey), JSON.stringify(brand, null, 2), "utf-8");
+  await storageWrite(`brand:${clientKey}`, brand);
   return NextResponse.json({ success: true });
 }
