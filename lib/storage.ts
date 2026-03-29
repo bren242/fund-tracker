@@ -17,19 +17,31 @@ import fs from "fs";
 import path from "path";
 import { clientDataDir } from "./clientPaths";
 
-let kv: { get: (key: string) => Promise<unknown>; set: (key: string, value: unknown) => Promise<unknown> } | null = null;
+let kvInstance: { get: (key: string) => Promise<unknown>; set: (key: string, value: unknown) => Promise<unknown> } | null = null;
+let kvChecked = false;
 
 function isProduction(): boolean {
   return process.env.VERCEL === "1" || process.env.NODE_ENV === "production";
 }
 
+function hasKvEnvVars(): boolean {
+  return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+}
+
 async function getKv() {
-  if (kv) return kv;
-  // Dynamic import to avoid errors when @vercel/kv env vars are not set locally
+  if (kvChecked) return kvInstance;
+  kvChecked = true;
+
+  // Don't even try if env vars are missing
+  if (!hasKvEnvVars()) {
+    console.warn("KV env vars not set — using filesystem fallback");
+    return null;
+  }
+
   try {
     const mod = await import("@vercel/kv");
-    kv = mod.kv;
-    return kv;
+    kvInstance = mod.kv;
+    return kvInstance;
   } catch {
     return null;
   }
@@ -51,7 +63,11 @@ function keyToFilePath(key: string): string {
   if (!fileName || !clientKey) {
     throw new Error(`Invalid storage key: ${key}`);
   }
-  // brand.json lives in data/{clientKey}/ like everything else
+  // On Vercel (read-only), don't use clientDataDir (which calls ensureDir/mkdirSync).
+  // Just construct the path directly — the data/ folder exists from build.
+  if (isProduction()) {
+    return path.join(process.cwd(), "data", clientKey, fileName);
+  }
   return path.join(clientDataDir(clientKey), fileName);
 }
 
