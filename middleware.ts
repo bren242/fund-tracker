@@ -27,6 +27,18 @@ export function middleware(req: NextRequest) {
     return NextResponse.rewrite(url);
   }
 
+  // Block bare "/" and unknown paths (no valid client) — show 404
+  // Allow /admin with ?client= param, and internal pages that already have ?client=
+  const hasClientParam = req.nextUrl.searchParams.has("client");
+  const isAdminOrInternal = pathname === "/admin" || pathname === "/compare" || pathname === "/charts";
+
+  if (!hasClientParam && !isAdminOrInternal && pathname === "/") {
+    // Rewrite to Next.js not-found page
+    const url = req.nextUrl.clone();
+    url.pathname = "/_not-found";
+    return NextResponse.rewrite(url);
+  }
+
   return NextResponse.next();
 }
 
