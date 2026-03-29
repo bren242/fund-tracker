@@ -9,7 +9,7 @@ import { sanitizeKey } from "./clientKey";
  */
 export function useClientKey(): string {
   const params = useSearchParams();
-  return sanitizeKey(params.get("client") || "nox");
+  return sanitizeKey(params.get("client") || "green");
 }
 
 /** Build a query string param for the current client */
