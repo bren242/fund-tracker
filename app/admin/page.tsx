@@ -22,7 +22,7 @@ function AdminContent() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
-  const [activeTab, setActiveTab] = useState<"data" | "funds" | "branding" | "settings">("data");
+  const [activeTab, setActiveTab] = useState<"data" | "funds" | "branding" | "settings" | "monthly-history">("data");
   const brand = useBrand(clientKey);
   const [showAddFund, setShowAddFund] = useState(false);
   const [addFundCategory, setAddFundCategory] = useState("");
@@ -328,6 +328,7 @@ function AdminContent() {
             { id: "data" as const, label: "עדכון חודשי" },
             { id: "funds" as const, label: "ניהול קרנות" },
             ...(role === "super" ? [
+              { id: "monthly-history" as const, label: "היסטוריה חודשית" },
               { id: "branding" as const, label: "מיתוג ודוחות" },
               { id: "settings" as const, label: "הגדרות" },
             ] : []),
@@ -368,6 +369,33 @@ function AdminContent() {
             addFundCategory={addFundCategory}
             setAddFundCategory={setAddFundCategory}
           />
+        )}
+        {activeTab === "monthly-history" && (
+          <MonthlyHistoryTab data={data} onUpdateMonthlyReturn={(catId, fundId, month, value) => {
+            if (!data) return;
+            setDirty(true);
+            setSaved(false);
+            const numVal = value === "" ? undefined : parseFloat(value) / 100;
+            setData({
+              ...data,
+              categories: data.categories.map((cat) => {
+                if (cat.id !== catId) return cat;
+                return {
+                  ...cat,
+                  funds: cat.funds.map((fund) => {
+                    if (fund.id !== fundId) return fund;
+                    const mr = { ...(fund.monthlyReturns || {}) };
+                    if (numVal === undefined) {
+                      delete mr[month];
+                    } else {
+                      mr[month] = numVal;
+                    }
+                    return { ...fund, monthlyReturns: mr };
+                  }),
+                };
+              }),
+            });
+          }} />
         )}
         {activeTab === "branding" && (
           <BrandingTab password={passwordRef.current} clientKey={clientKey} onStatus={showStatus} />
@@ -551,6 +579,160 @@ function MonthlyRow({ fund, categoryId, odd, onUpdate }: {
       </td>
       <td style={{ padding: "6px 10px", textAlign: "center", color: "var(--text-muted)", fontSize: 11 }}>{fund.manager}</td>
     </tr>
+  );
+}
+
+/* ================================================================== */
+/*  Monthly History Tab (Super Admin only)                             */
+/* ================================================================== */
+function MonthlyHistoryTab({ data, onUpdateMonthlyReturn }: {
+  data: FundsData;
+  onUpdateMonthlyReturn: (catId: string, fundId: string, month: string, value: string) => void;
+}) {
+  const now = new Date();
+  const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const [selectedMonth, setSelectedMonth] = useState(defaultMonth);
+
+  // Generate month options (last 24 months)
+  const monthOptions: { value: string; label: string }[] = [];
+  for (let i = 0; i < 24; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const label = d.toLocaleDateString("he-IL", { year: "numeric", month: "long" });
+    monthOptions.push({ value: val, label });
+  }
+
+  // Count filled / total
+  let totalFunds = 0;
+  let filledFunds = 0;
+  data.categories.forEach((cat) => {
+    cat.funds.forEach((fund) => {
+      const isActive = fund.active !== undefined ? fund.active : true;
+      if (!isActive) return;
+      totalFunds++;
+      if (fund.monthlyReturns?.[selectedMonth] !== undefined) filledFunds++;
+    });
+  });
+
+  return (
+    <>
+      <div style={{ marginBottom: 20, backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px 20px", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+        <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap" }}>
+          חודש:
+        </label>
+        <select
+          value={selectedMonth}
+          onChange={(e) => setSelectedMonth(e.target.value)}
+          style={{
+            border: "1px solid var(--border)",
+            borderRadius: 6,
+            padding: "6px 12px",
+            fontSize: 13,
+            backgroundColor: "var(--bg-input)",
+            color: "var(--text-primary)",
+            cursor: "pointer",
+            minWidth: 180,
+          }}
+        >
+          {monthOptions.map((m) => (
+            <option key={m.value} value={m.value}>{m.label}</option>
+          ))}
+        </select>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{
+            fontSize: 12,
+            fontWeight: 600,
+            color: filledFunds === totalFunds ? "#059669" : "#f59e0b",
+            backgroundColor: filledFunds === totalFunds ? "rgba(5,150,105,0.1)" : "rgba(245,158,11,0.1)",
+            padding: "4px 12px",
+            borderRadius: 20,
+          }}>
+            {filledFunds}/{totalFunds} קרנות דווחו
+          </span>
+          {filledFunds === totalFunds && totalFunds > 0 && (
+            <span style={{ fontSize: 11, color: "#059669" }}>✓ הכל מעודכן</span>
+          )}
+        </div>
+      </div>
+
+      {data.categories.map((cat) => {
+        const visibleFunds = cat.funds.filter((f) => {
+          const active = f.active !== undefined ? f.active : true;
+          return active;
+        });
+        if (visibleFunds.length === 0) return null;
+
+        const catFilled = visibleFunds.filter((f) => f.monthlyReturns?.[selectedMonth] !== undefined).length;
+
+        return (
+          <div key={cat.id} style={{ marginBottom: 20 }}>
+            <div style={{ backgroundColor: "var(--bg-section)", color: "#fff", padding: "6px 16px", borderRadius: "8px 8px 0 0", fontWeight: 600, fontSize: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span>{cat.name} <span style={{ fontWeight: 400, fontSize: 10, opacity: 0.7 }}>({visibleFunds.length})</span></span>
+              <span style={{ fontSize: 10, opacity: 0.8 }}>{catFilled}/{visibleFunds.length} דווחו</span>
+            </div>
+            <div style={{ backgroundColor: "var(--bg-surface)", borderRadius: "0 0 8px 8px", overflow: "hidden", border: "1px solid var(--border)", borderTop: "none" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ backgroundColor: "var(--bg-surface-alt)" }}>
+                    <th style={thStyle(200)}>שם קרן</th>
+                    <th style={thStyle(140)}>תשואה חודשית (%)</th>
+                    <th style={thStyle(80)}>סטטוס</th>
+                    <th style={thStyle(undefined)}>מנהל</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleFunds.map((fund, idx) => {
+                    const val = fund.monthlyReturns?.[selectedMonth];
+                    const displayVal = val !== undefined ? (val * 100).toFixed(2) : "";
+                    const filled = val !== undefined;
+                    const bg = idx % 2 === 1 ? "var(--bg-surface-alt)" : "var(--bg-surface)";
+
+                    return (
+                      <tr key={fund.id} style={{ backgroundColor: bg, borderBottom: "1px solid var(--border-table)" }}>
+                        <td style={{ padding: "6px 12px", fontWeight: 600, textAlign: "right", fontSize: 12.5 }}>
+                          {fund.name}
+                        </td>
+                        <td style={{ padding: "5px 10px", textAlign: "center" }}>
+                          <input
+                            type="text"
+                            defaultValue={displayVal}
+                            key={`${fund.id}-${selectedMonth}`}
+                            onBlur={(e) => {
+                              const v = e.target.value.trim();
+                              if (v && isNaN(parseFloat(v))) { e.target.value = displayVal; return; }
+                              onUpdateMonthlyReturn(cat.id, fund.id, selectedMonth, v);
+                            }}
+                            style={{
+                              width: 80,
+                              textAlign: "center",
+                              border: "1px solid var(--border)",
+                              borderRadius: 6,
+                              padding: "4px 8px",
+                              fontSize: 13,
+                              backgroundColor: "var(--bg-input)",
+                              color: filled ? returnColorInline(val ?? null) : "var(--text-primary)",
+                            }}
+                            dir="ltr"
+                            placeholder="—"
+                          />
+                        </td>
+                        <td style={{ padding: "6px 10px", textAlign: "center", fontSize: 12 }}>
+                          {filled
+                            ? <span style={{ color: "#059669" }}>✓ דווח</span>
+                            : <span style={{ color: "#f59e0b" }}>⏳ חסר</span>
+                          }
+                        </td>
+                        <td style={{ padding: "6px 10px", textAlign: "center", color: "var(--text-muted)", fontSize: 11 }}>{fund.manager}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })}
+    </>
   );
 }
 

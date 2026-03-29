@@ -21,6 +21,7 @@ export interface Fund {
   stdDev: number | null;
   aumMillions: number | null;
   active?: boolean;
+  monthlyReturns?: Record<string, number>;
 }
 
 export interface Category {
