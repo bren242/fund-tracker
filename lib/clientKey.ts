@@ -1,8 +1,11 @@
 /**
  * Client key helpers.
  * Every client (NOX, GREEN, etc.) is identified by a simple string key.
- * It comes from the URL param ?client=xxx and defaults to "nox".
+ * Single source of truth for known client keys.
  */
+
+/** Known client keys — used by middleware and useClientKey */
+export const CLIENT_KEYS = new Set(["green", "nox"]);
 
 /** Extract clientKey from a NextRequest (server-side) */
 export function getClientKeyFromRequest(url: string): string {

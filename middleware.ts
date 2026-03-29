@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { CLIENT_KEYS } from "./lib/clientKey";
 
 /**
  * Client-routing middleware.
@@ -7,8 +8,6 @@ import { NextRequest, NextResponse } from "next/server";
  *
  * Existing ?client= param still works as fallback.
  */
-
-const CLIENT_KEYS = new Set(["green", "nox"]);
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

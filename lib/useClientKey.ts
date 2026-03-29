@@ -1,14 +1,27 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
-import { sanitizeKey } from "./clientKey";
+import { usePathname, useSearchParams } from "next/navigation";
+import { sanitizeKey, CLIENT_KEYS } from "./clientKey";
 
 /**
- * Client-side hook: reads ?client=xxx from URL, defaults to "nox".
- * Also provides a helper to build URLs that preserve the clientKey.
+ * Client-side hook: resolves the active client key.
+ *
+ * Priority:
+ *  1. Pathname prefix  — /green, /nox/compare  → "green", "nox"
+ *  2. ?client= param   — /?client=nox          → "nox"
+ *  3. Default           — "green"
  */
 export function useClientKey(): string {
+  const pathname = usePathname();
   const params = useSearchParams();
+
+  // 1. Check pathname prefix (browser still shows /nox even after rewrite)
+  const firstSegment = pathname.split("/").filter(Boolean)[0]?.toLowerCase();
+  if (firstSegment && CLIENT_KEYS.has(firstSegment)) {
+    return firstSegment;
+  }
+
+  // 2. Fallback to ?client= param
   return sanitizeKey(params.get("client") || "green");
 }
 
