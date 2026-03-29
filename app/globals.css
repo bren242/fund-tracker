@@ -1,0 +1,338 @@
+@import "tailwindcss";
+
+:root {
+  --bg-page: #f5f6f8;
+  --bg-surface: #ffffff;
+  --bg-surface-alt: #f8f9fb;
+  --bg-header: #0f1b2d;
+  --bg-header-secondary: #1a2d4a;
+  --bg-section: #1a365d;
+  --bg-super: #0a1628;
+  --bg-input: #ffffff;
+  --bg-modal: #ffffff;
+  --border: #dfe3e8;
+  --border-table: #e8eaed;
+  --text-primary: #1a1f2b;
+  --text-secondary: #5a6577;
+  --text-muted: #8893a4;
+  --text-header: #b0c4de;
+  --text-on-dark: #ffffff;
+  --accent: #c8a45e;
+  --accent-hover: #d4b06e;
+  --positive: #0d7c4a;
+  --negative: #c42b2b;
+  --ring: rgba(26, 54, 93, 0.3);
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.03);
+  --overlay: rgba(0,0,0,0.4);
+}
+
+.dark {
+  --bg-page: #0d1117;
+  --bg-surface: #161b22;
+  --bg-surface-alt: #1c2230;
+  --bg-header: #0a0f18;
+  --bg-header-secondary: #141c2b;
+  --bg-section: #1a2d4a;
+  --bg-super: #080c14;
+  --bg-input: #1c2230;
+  --bg-modal: #1c2230;
+  --border: #2a3244;
+  --border-table: #242d3d;
+  --text-primary: #e2e6ea;
+  --text-secondary: #8893a4;
+  --text-muted: #5a6577;
+  --text-header: #7a9cc6;
+  --text-on-dark: #e2e6ea;
+  --accent: #d4b06e;
+  --accent-hover: #e0c080;
+  --positive: #34d399;
+  --negative: #f87171;
+  --ring: rgba(100, 140, 200, 0.25);
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.2), 0 4px 12px rgba(0,0,0,0.15);
+  --overlay: rgba(0,0,0,0.6);
+}
+
+html {
+  direction: rtl;
+}
+
+body {
+  font-family: "Segoe UI", "Arial", sans-serif;
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  transition: background-color 0.2s, color 0.2s;
+}
+
+/* Return color classes */
+.return-positive { color: var(--positive) !important; }
+.return-negative { color: var(--negative) !important; }
+
+/* Screen-only: responsive table width when fewer years selected */
+@media screen {
+  .screen-fund-table {
+    display: inline-block;
+    min-width: 900px;
+    max-width: 100%;
+  }
+  .screen-fund-table .fund-data-table {
+    width: auto;
+  }
+}
+/* Ensure wrapper centers the inline-block table */
+.screen-fund-table-wrap {
+  text-align: center;
+}
+/* Print: table always full width */
+@media print {
+  .fund-data-table {
+    width: 100% !important;
+  }
+}
+
+/* ========== PRINT ========== */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 6mm 6mm 14mm 6mm;
+  }
+
+  html, body {
+    width: 100% !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    background: white !important;
+    color: #1a1f2b !important;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Hide screen version entirely — multiple selectors for safety */
+  .no-print,
+  .no-print *,
+  header,
+  nav,
+  .navbar,
+  .topbar,
+  .app-header {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Show print version */
+  .print-only,
+  .print-only * {
+    display: revert !important;
+    visibility: visible !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .print-only table,
+  thead.print-only table {
+    display: table !important;
+  }
+
+  .print-only thead,
+  thead.print-only {
+    display: table-header-group !important;
+  }
+
+  .print-only tfoot,
+  tfoot.print-only {
+    display: table-footer-group !important;
+  }
+
+  .print-only tbody {
+    display: table-row-group !important;
+  }
+
+  .print-only tr,
+  thead.print-only tr,
+  tfoot.print-only tr {
+    display: table-row !important;
+  }
+
+  .print-only th,
+  .print-only td,
+  thead.print-only th,
+  thead.print-only td,
+  tfoot.print-only th,
+  tfoot.print-only td {
+    display: table-cell !important;
+  }
+
+  .print-only colgroup {
+    display: table-column-group !important;
+  }
+
+  .print-only col {
+    display: table-column !important;
+  }
+
+  /* Table: native thead repeats, no tricks */
+  thead {
+    display: table-header-group !important;
+  }
+
+  tfoot {
+    display: table-footer-group !important;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Prevent category headers from being orphaned at bottom of page */
+  tbody tr[style*="backgroundColor"] {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  /* Keep table from overflowing page width */
+  table {
+    max-width: 100% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    overflow: hidden !important;
+    word-wrap: break-word;
+  }
+
+  td, th {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Charts: fit print page */
+  .chart-card {
+    width: auto !important;
+    max-width: 100% !important;
+    margin: 0 auto 16px !important;
+    padding: 12px !important;
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    overflow: visible !important;
+  }
+
+  /* Ensure scatter dots & labels are visible in print */
+  .chart-card .recharts-dot,
+  .chart-card .recharts-scatter-symbol,
+  .chart-card .recharts-symbols,
+  .chart-card circle,
+  .chart-card path[class*="recharts"] {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    fill-opacity: 1 !important;
+    stroke-opacity: 1 !important;
+    stroke-width: 2px !important;
+    opacity: 1 !important;
+  }
+
+  .chart-card .recharts-label-list text,
+  .chart-card .scatter-label,
+  .chart-card .recharts-text {
+    opacity: 1 !important;
+    fill: #1a1f2b !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .chart-card svg,
+  .chart-card .recharts-surface {
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Axis lines and ticks visible in print */
+  .chart-card .recharts-cartesian-axis-line,
+  .chart-card .recharts-cartesian-axis-tick-line,
+  .chart-card .recharts-cartesian-grid line {
+    stroke-opacity: 1 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Print legend table — centered on page */
+  .print-only-table {
+    display: table !important;
+    visibility: visible !important;
+    width: 65% !important;
+    margin: 0 auto 16px !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Rank cards side-by-side — centered on page */
+  .rank-cards-grid {
+    width: 65% !important;
+    margin: 0 auto !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Print footer — fixed to bottom of every page */
+  .print-footer {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    background: white !important;
+    padding: 0 8px !important;
+    z-index: 9999 !important;
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  /* Compare charts — print stable */
+  .compare-chart-wrap {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Force light return colors */
+  .return-positive { color: #0d7c4a !important; }
+  .return-negative { color: #c42b2b !important; }
+}
+
+/* Print-only elements hidden on screen */
+.print-only { display: none; }
+
+/* Hide comparison checkboxes in print */
+@media print {
+  input.no-print { display: none !important; }
+}
+
+/* Scatter labels: hidden on screen, visible in print */
+.scatter-label { opacity: 0; }
+@media print { .scatter-label { opacity: 1 !important; } }
+
+/* Admin input focus */
+input:focus, select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/* Scrollbar styling for dark mode */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.dark ::-webkit-scrollbar-track {
+  background: var(--bg-surface);
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
