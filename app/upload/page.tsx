@@ -73,6 +73,7 @@ function UploadContent() {
   const clientKey = useClientKey();
   const brand = useBrand(clientKey);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<FileResult[]>([]);
   const [processing, setProcessing] = useState(false);
   const [savingAll, setSavingAll] = useState(false);
@@ -320,17 +321,43 @@ function UploadContent() {
             >
               📎 בחר קבצים
             </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); cameraInputRef.current?.click(); }}
+              style={{
+                backgroundColor: "transparent",
+                color: brand.primaryColor,
+                border: `1px solid ${brand.primaryColor}`,
+                borderRadius: 8,
+                padding: "10px 20px",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              📷 צלם מסמך
+            </button>
           </div>
           <input
             ref={fileInputRef}
             type="file"
             accept={ACCEPTED_TYPES}
             multiple
-            capture="environment"
             style={{ display: "none" }}
             onChange={(e) => {
               handleFileSelect(e.target.files);
               e.target.value = ""; // allow re-select
+            }}
+          />
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              handleFileSelect(e.target.files);
+              e.target.value = "";
             }}
           />
         </div>
