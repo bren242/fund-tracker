@@ -78,13 +78,27 @@ function UploadContent() {
   const [processing, setProcessing] = useState(false);
   const [savingAll, setSavingAll] = useState(false);
 
-  // Get session password for API auth
+  // Get session password for API auth (stored by ClientGate on login)
   const [password, setPassword] = useState("");
+  const [needsReauth, setNeedsReauth] = useState(false);
   useEffect(() => {
-    // Read from sessionStorage (set by ClientGate)
     const stored = sessionStorage.getItem(`client-auth-password-${clientKey}`);
-    if (stored) setPassword(stored);
+    if (stored) {
+      setPassword(stored);
+    } else {
+      // Password not in sessionStorage (old session before fix).
+      // Clear auth flag so ClientGate forces a fresh login.
+      sessionStorage.removeItem(`client-auth-${clientKey}`);
+      setNeedsReauth(true);
+    }
   }, [clientKey]);
+
+  // Force reload to re-enter ClientGate login flow
+  useEffect(() => {
+    if (needsReauth) {
+      window.location.reload();
+    }
+  }, [needsReauth]);
 
   const handleFileSelect = useCallback((selectedFiles: FileList | null) => {
     if (!selectedFiles || selectedFiles.length === 0) return;
