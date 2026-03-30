@@ -733,6 +733,104 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================================
+    // ACTION: create-fund — Onboard a new fund from parsed data
+    // ============================================================
+    if (action === "create-fund") {
+      if (auth !== "super") {
+        return NextResponse.json({ error: "Only super admin can create funds" }, { status: 403 });
+      }
+
+      const body = await req.json();
+      const { draftId, categoryId, fundName, fields, reportMonth } = body;
+
+      if (!categoryId || !fundName || !fields || !Array.isArray(fields)) {
+        return NextResponse.json({ error: "Missing required fields: categoryId, fundName, fields" }, { status: 400 });
+      }
+
+      const validFields = sanitizeFields(fields);
+
+      // Generate new fund ID
+      const newFundId = `fund-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+      // Build new fund object
+      const newFund: Record<string, unknown> = {
+        id: newFundId,
+        name: fundName,
+        monthlyReturn: 0,
+        returns: { ytd2026: null, y2025: null, y2024: null, y2023: null, y2022: null },
+        monthlyReturns: {},
+      };
+
+      // Apply extracted fields
+      for (const field of validFields) {
+        if (field.key === "monthlyReturn" && typeof field.value === "number") {
+          newFund.monthlyReturn = field.value;
+          if (isValidReportMonth(reportMonth)) {
+            (newFund.monthlyReturns as Record<string, number>)[reportMonth] = field.value;
+          }
+        } else if (field.key.startsWith("returns.")) {
+          const yearKey = field.key.split(".")[1];
+          if (yearKey) {
+            (newFund.returns as Record<string, unknown>)[yearKey] = field.value;
+          }
+        } else if (field.key === "manager") {
+          newFund.manager = field.value;
+        } else if (field.key === "classification") {
+          newFund.classification = field.value;
+        }
+      }
+
+      // Load funds data and add the new fund
+      const fundsData = await storageRead<Record<string, unknown>>(`funds:${clientKey}`, { categories: [] });
+      let categoryFound = false;
+
+      for (const cat of (fundsData.categories as Record<string, unknown>[]) || []) {
+        if (cat.id !== categoryId) continue;
+        categoryFound = true;
+        if (!Array.isArray(cat.funds)) cat.funds = [];
+        (cat.funds as Record<string, unknown>[]).push(newFund);
+        break;
+      }
+
+      if (!categoryFound) {
+        return NextResponse.json({ error: "Category not found" }, { status: 404 });
+      }
+
+      await storageWrite(`funds:${clientKey}`, fundsData);
+
+      // Update draft status if draftId provided
+      if (draftId) {
+        const drafts = await storageRead<ParseDraft[]>(`parse-drafts:${clientKey}`, []);
+        const draftIdx = drafts.findIndex((d) => d.id === draftId);
+        if (draftIdx >= 0) {
+          drafts[draftIdx].status = "applied";
+          drafts[draftIdx].appliedAt = new Date().toISOString();
+          await storageWrite(`parse-drafts:${clientKey}`, drafts);
+        }
+      }
+
+      // Log
+      await storageAppend<ParseLogEntry>(`parse-log:${clientKey}`, {
+        id: generateId(),
+        timestamp: new Date().toISOString(),
+        action: "apply",
+        draftId: draftId || "direct-create",
+        fundName,
+        fundId: newFundId,
+        details: `New fund created: "${fundName}" in category ${categoryId}. Fields: ${validFields.map((f) => `${f.key}=${f.value}`).join(", ")}`,
+        reportMonth: reportMonth || null,
+        collision: false,
+        collisionDecision: "new",
+      });
+
+      return NextResponse.json({
+        success: true,
+        fundId: newFundId,
+        fundName,
+      });
+    }
+
+    // ============================================================
     // ACTION: parse-file — Parse uploaded PDF/Image via Vision API
     // ============================================================
     if (action === "parse-file") {

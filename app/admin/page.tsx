@@ -407,7 +407,7 @@ function AdminContent() {
           }} />
         )}
         {activeTab === "ai-parser" && brand.features?.aiParser && (
-          <AiParserTab password={passwordRef.current} clientKey={clientKey} data={data} onStatus={showStatus} onReload={loadData} />
+          <AiParserTab password={passwordRef.current} clientKey={clientKey} data={data} brand={brand} onStatus={showStatus} onReload={loadData} />
         )}
         {activeTab === "branding" && (
           <BrandingTab password={passwordRef.current} clientKey={clientKey} onStatus={showStatus} />
@@ -1165,6 +1165,51 @@ function BrandingTab({ password, clientKey, onStatus }: { password: string; clie
               setForm((prev) => prev ? { ...prev, features: feat } : prev);
             }}
           />
+          <FeatureToggle
+            label="📱 העלאה מנייד"
+            description="אפשר העלאת קבצים מנייד (PDF, תמונות)"
+            checked={form.features?.mobileUpload ?? false}
+            onChange={(v) => {
+              const feat = { ...(form.features || { comparison: true, chartPage: true }), mobileUpload: v };
+              setForm((prev) => prev ? { ...prev, features: feat } : prev);
+            }}
+          />
+          <FeatureToggle
+            label="🖥️ העלאה מדסקטופ"
+            description="אפשר העלאת קבצים מהמחשב בתוך עמוד הניהול"
+            checked={form.features?.desktopUpload ?? false}
+            onChange={(v) => {
+              const feat = { ...(form.features || { comparison: true, chartPage: true }), desktopUpload: v };
+              setForm((prev) => prev ? { ...prev, features: feat } : prev);
+            }}
+          />
+          <FeatureToggle
+            label="📊 העלאת אקסל"
+            description="אפשר העלאת קבצי Excel (בקרוב)"
+            checked={form.features?.excelUpload ?? false}
+            onChange={(v) => {
+              const feat = { ...(form.features || { comparison: true, chartPage: true }), excelUpload: v };
+              setForm((prev) => prev ? { ...prev, features: feat } : prev);
+            }}
+          />
+          <FeatureToggle
+            label="✏️ הזנה ידנית"
+            description="אפשר הזנת נתונים ידנית (בקרוב)"
+            checked={form.features?.manualUpload ?? false}
+            onChange={(v) => {
+              const feat = { ...(form.features || { comparison: true, chartPage: true }), manualUpload: v };
+              setForm((prev) => prev ? { ...prev, features: feat } : prev);
+            }}
+          />
+          <FeatureToggle
+            label="📧 קליטה ממייל"
+            description="אפשר קליטת נתונים אוטומטית ממייל (בקרוב)"
+            checked={form.features?.emailUpload ?? false}
+            onChange={(v) => {
+              const feat = { ...(form.features || { comparison: true, chartPage: true }), emailUpload: v };
+              setForm((prev) => prev ? { ...prev, features: feat } : prev);
+            }}
+          />
         </div>
       </SectionCard>
 
@@ -1493,13 +1538,15 @@ function FundModal({ title, categories, selectedCategory, existingFund, onCatego
 /* ================================================================== */
 /*  AI Parser Tab (Super Admin only, feature-flagged)                   */
 /* ================================================================== */
-function AiParserTab({ password, clientKey, data, onStatus, onReload }: {
+function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
   password: string;
   clientKey: string;
   data: FundsData;
+  brand: BrandConfig;
   onStatus: (msg: string) => void;
   onReload: () => void;
 }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [inputText, setInputText] = useState("");
   const [parsing, setParsing] = useState(false);
   const [parseResult, setParseResult] = useState<{
@@ -1578,6 +1625,58 @@ function AiParserTab({ password, clientKey, data, onStatus, onReload }: {
       setCollisions([]);
       setCollisionDecisions({});
       // Auto-set match
+      if (result.match?.fundId) {
+        setSelectedMatchFundId(result.match.fundId);
+        setSelectedMatchCatId(result.match.categoryId || "");
+      }
+      setView("review");
+    } catch {
+      onStatus("❌ שגיאה בחיבור לשרת");
+    }
+    setParsing(false);
+  };
+
+  const handleFileUpload = async (selectedFiles: FileList | null) => {
+    if (!selectedFiles || selectedFiles.length === 0) return;
+    const file = selectedFiles[0];
+
+    const validTypes = ["application/pdf", "image/png", "image/jpeg", "image/jpg", "image/webp"];
+    if (!validTypes.includes(file.type)) {
+      onStatus(`❌ סוג קובץ לא נתמך: ${file.type}`);
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      onStatus(`❌ קובץ גדול מדי (${(file.size / 1024 / 1024).toFixed(1)}MB). מקסימום 10MB`);
+      return;
+    }
+
+    setParsing(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch(`/api/parse?action=parse-file&client=${encodeURIComponent(clientKey)}`, {
+        method: "POST",
+        headers: { "x-admin-password": password },
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "שגיאה בפענוח" }));
+        onStatus(`❌ ${err.error || "שגיאה בפענוח"}`);
+        setParsing(false);
+        return;
+      }
+      const result = await res.json();
+      setParseResult(result);
+      setInputText(`[קובץ: ${file.name}]`);
+      const approved = new Set<string>();
+      for (const f of result.fields || []) {
+        if (f.confidence >= 0.7) approved.add(f.key);
+      }
+      setApprovedFields(approved);
+      setReportMonth(result.reportMonth || "");
+      setCollisions([]);
+      setCollisionDecisions({});
       if (result.match?.fundId) {
         setSelectedMatchFundId(result.match.fundId);
         setSelectedMatchCatId(result.match.categoryId || "");
@@ -1727,6 +1826,55 @@ function AiParserTab({ password, clientKey, data, onStatus, onReload }: {
     }
   };
 
+  // New fund onboarding state
+  const [newFundDraftId, setNewFundDraftId] = useState<string | null>(null);
+  const [newFundCategoryId, setNewFundCategoryId] = useState<string>("");
+  const [newFundName, setNewFundName] = useState<string>("");
+
+  const handleCreateFund = async (draft: typeof drafts[0]) => {
+    const fundName = newFundName || draft.extracted.fundName;
+    if (!fundName) {
+      onStatus("❌ חובה להזין שם קרן");
+      return;
+    }
+    if (!newFundCategoryId) {
+      onStatus("❌ חובה לבחור קטגוריה");
+      return;
+    }
+
+    const effectiveMonth = draftReportMonths[draft.id] ?? (draft.reportMonth || null);
+
+    if (!window.confirm(`ליצור קרן חדשה "${fundName}"?`)) return;
+
+    try {
+      const res = await fetch(`/api/parse?action=create-fund&client=${encodeURIComponent(clientKey)}`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          draftId: draft.id,
+          categoryId: newFundCategoryId,
+          fundName,
+          fields: draft.extracted.fields,
+          reportMonth: effectiveMonth,
+        }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        onStatus(`✓ קרן חדשה נוצרה: "${result.fundName}"`);
+        setNewFundDraftId(null);
+        setNewFundName("");
+        setNewFundCategoryId("");
+        loadDrafts();
+        onReload();
+      } else {
+        const err = await res.json();
+        onStatus(`❌ ${err.error || "שגיאה ביצירת קרן"}`);
+      }
+    } catch {
+      onStatus("❌ שגיאה בחיבור לשרת");
+    }
+  };
+
   const fieldLabel = (key: string): string => {
     const labels: Record<string, string> = {
       monthlyReturn: "תשואה חודשית",
@@ -1827,6 +1975,53 @@ function AiParserTab({ password, clientKey, data, onStatus, onReload }: {
               {parsing ? "מפענח..." : "🤖 פענח טקסט"}
             </button>
           </div>
+
+          {/* Desktop File Upload */}
+          {brand.features?.desktopUpload && (
+            <div style={{
+              marginTop: 16,
+              padding: 16,
+              border: "2px dashed var(--border)",
+              borderRadius: 8,
+              textAlign: "center",
+              backgroundColor: "var(--bg-surface-alt)",
+            }}>
+              <p style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 4px" }}>
+                📎 או העלה קובץ
+              </p>
+              <p style={{ fontSize: 10, color: "var(--text-muted)", margin: "0 0 10px" }}>
+                PDF · PNG · JPG — עד 10MB
+              </p>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={parsing}
+                style={{
+                  backgroundColor: parsing ? "var(--text-muted)" : "var(--accent)",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  padding: "8px 20px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: parsing ? "wait" : "pointer",
+                  opacity: parsing ? 0.4 : 1,
+                }}
+              >
+                {parsing ? "מפענח..." : "🖥️ בחר קובץ מהמחשב"}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.png,.jpg,.jpeg,.webp"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  handleFileUpload(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -2146,13 +2341,84 @@ function AiParserTab({ password, clientKey, data, onStatus, onReload }: {
                   </div>
                 )}
 
+                {/* New Fund Onboarding UI */}
+                {draft.status === "pending" && newFundDraftId === draft.id && (
+                  <div style={{
+                    backgroundColor: "#3b82f610",
+                    border: "1px solid #3b82f630",
+                    borderRadius: 8,
+                    padding: 12,
+                    marginBottom: 10,
+                  }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: "#3b82f6", margin: "0 0 8px" }}>
+                      🆕 יצירת קרן חדשה
+                    </p>
+                    <div style={{ marginBottom: 8 }}>
+                      <label style={{ fontSize: 11, fontWeight: 600, display: "block", marginBottom: 4 }}>שם הקרן:</label>
+                      <input
+                        type="text"
+                        value={newFundName || draft.extracted.fundName}
+                        onChange={(e) => setNewFundName(e.target.value)}
+                        style={{
+                          width: "100%",
+                          border: "1px solid var(--border)",
+                          borderRadius: 5,
+                          padding: "6px 10px",
+                          fontSize: 12,
+                          backgroundColor: "var(--bg-surface)",
+                          color: "var(--text-primary)",
+                          direction: "rtl",
+                        }}
+                      />
+                    </div>
+                    <div style={{ marginBottom: 10 }}>
+                      <label style={{ fontSize: 11, fontWeight: 600, display: "block", marginBottom: 4 }}>קטגוריה:</label>
+                      <select
+                        value={newFundCategoryId}
+                        onChange={(e) => setNewFundCategoryId(e.target.value)}
+                        style={{
+                          width: "100%",
+                          border: "1px solid var(--border)",
+                          borderRadius: 5,
+                          padding: "6px 10px",
+                          fontSize: 12,
+                          backgroundColor: "var(--bg-surface)",
+                          color: "var(--text-primary)",
+                        }}
+                      >
+                        <option value="">-- בחר קטגוריה --</option>
+                        {data.categories.map((cat) => (
+                          <option key={cat.id} value={cat.id}>{cat.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        onClick={() => handleCreateFund(draft)}
+                        disabled={!newFundCategoryId}
+                        style={{
+                          backgroundColor: newFundCategoryId ? "#3b82f6" : "var(--text-muted)",
+                          color: "#fff", fontWeight: 600, padding: "5px 16px", borderRadius: 5, border: "none", cursor: "pointer", fontSize: 11,
+                          opacity: newFundCategoryId ? 1 : 0.4,
+                        }}>
+                        ✓ צור קרן חדשה
+                      </button>
+                      <button
+                        onClick={() => { setNewFundDraftId(null); setNewFundName(""); setNewFundCategoryId(""); }}
+                        style={{ backgroundColor: "var(--bg-surface-alt)", color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: 5, padding: "5px 16px", cursor: "pointer", fontSize: 11 }}>
+                        ביטול
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Actions for pending */}
-                {draft.status === "pending" && collisions.length === 0 && (() => {
+                {draft.status === "pending" && collisions.length === 0 && newFundDraftId !== draft.id && (() => {
                   const effectiveMonth = draftReportMonths[draft.id] ?? (draft.reportMonth || "");
                   const needsMonth = draft.extracted.fields.some((f) => f.key === "monthlyReturn") && !effectiveMonth;
                   const canApply = !!draft.match?.fundId && draft.extracted.fields.length > 0 && !needsMonth;
                   return (
-                    <div style={{ display: "flex", gap: 8 }}>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                       <button onClick={() => handleApplyDraft(draft)}
                         disabled={!canApply}
                         style={{
@@ -2162,6 +2428,13 @@ function AiParserTab({ password, clientKey, data, onStatus, onReload }: {
                         }}
                         title={!draft.match?.fundId ? "לא נבחרה קרן" : needsMonth ? "יש לבחור חודש דיווח" : draft.extracted.fields.length === 0 ? "אין שדות" : `עדכן ${draft.extracted.fields.length} שדות`}>
                         ✓ עדכן קרן ({draft.extracted.fields.length})
+                      </button>
+                      <button
+                        onClick={() => { setNewFundDraftId(draft.id); setNewFundName(draft.extracted.fundName); setNewFundCategoryId(""); }}
+                        style={{
+                          backgroundColor: "var(--bg-surface-alt)", color: "#3b82f6", border: "1px solid #3b82f630", borderRadius: 5, padding: "5px 16px", cursor: "pointer", fontSize: 11, fontWeight: 600,
+                        }}>
+                        🆕 קרן חדשה
                       </button>
                       <button onClick={() => handleRejectDraft(draft.id)}
                         style={{ backgroundColor: "var(--bg-surface-alt)", color: "#ef4444", border: "1px solid #ef444430", borderRadius: 5, padding: "5px 16px", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>

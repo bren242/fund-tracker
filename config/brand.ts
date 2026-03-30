@@ -4,6 +4,10 @@ export interface AppFeatures {
   chartPage: boolean;
   aiParser?: boolean;
   mobileUpload?: boolean;
+  desktopUpload?: boolean;
+  excelUpload?: boolean;
+  manualUpload?: boolean;
+  emailUpload?: boolean;
 }
 
 export interface BrandConfig {

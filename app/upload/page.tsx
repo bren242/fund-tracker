@@ -31,6 +31,8 @@ interface FileResult {
     categoryId: string | null;
   } | null;
   sourceType?: "pdf" | "image";
+  reportMonth?: string | null;
+  reportMonthConfidence?: "high" | "low";
 }
 
 /* ================================================================== */
@@ -192,6 +194,8 @@ function UploadContent() {
                   fields: data.fields,
                   match: data.match,
                   sourceType: data.sourceType,
+                  reportMonth: data.reportMonth || null,
+                  reportMonthConfidence: data.reportMonthConfidence || "low",
                 }
               : f
           )
@@ -228,6 +232,8 @@ function UploadContent() {
             fundNameConfidence: fileResult.fundNameConfidence,
             fields: fileResult.fields,
             match: fileResult.match,
+            reportMonth: fileResult.reportMonth || null,
+            reportMonthConfidence: fileResult.reportMonthConfidence || "low",
           }),
         }
       );
