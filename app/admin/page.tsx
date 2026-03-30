@@ -2089,8 +2089,8 @@ function AiParserTab({ password, clientKey, data, onStatus, onReload }: {
                           <strong>{fieldLabel(c.field)}</strong> — חודש {c.month}
                         </div>
                         <div style={{ display: "flex", gap: 16, fontSize: 11, marginBottom: 8 }}>
-                          <span>ערך קיים: <strong style={{ color: "#ef4444" }}>{(c.existingValue * 100).toFixed(2)}%</strong></span>
-                          <span>ערך חדש: <strong style={{ color: "#059669" }}>{(c.newValue * 100).toFixed(2)}%</strong></span>
+                          <span style={{ color: "var(--text-muted)" }}>🕘 קיים: <strong style={{ color: c.existingValue < 0 ? "#ef4444" : "#059669" }}>{(c.existingValue * 100).toFixed(2)}%</strong></span>
+                          <span style={{ color: "#3b82f6" }}>✨ חדש: <strong style={{ color: c.newValue < 0 ? "#ef4444" : "#059669" }}>{(c.newValue * 100).toFixed(2)}%</strong></span>
                         </div>
                         <div style={{ display: "flex", gap: 8 }}>
                           <button
