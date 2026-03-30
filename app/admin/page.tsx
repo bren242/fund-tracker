@@ -1573,6 +1573,10 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
   const [collisions, setCollisions] = useState<{ field: string; month: string; existingValue: number; newValue: number }[]>([]);
   const [collisionDecisions, setCollisionDecisions] = useState<Record<string, "replace" | "keep">>({});
   const [draftReportMonths, setDraftReportMonths] = useState<Record<string, string>>({});
+  const [tokenUsage, setTokenUsage] = useState<{
+    inputTokens: number; outputTokens: number; callCount: number;
+    limit: number; callLimit: number; percent: number; warning: boolean; blocked: boolean;
+  } | null>(null);
 
   const headers = { "x-admin-password": password };
 
@@ -1584,7 +1588,15 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
     } catch { /* ignore */ }
   }, [clientKey]);
 
-  useEffect(() => { loadDrafts(); }, [loadDrafts]);
+  // Load token usage
+  const loadTokenUsage = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/parse?action=token-usage&client=${encodeURIComponent(clientKey)}`, { headers });
+      if (res.ok) setTokenUsage(await res.json());
+    } catch { /* ignore */ }
+  }, [clientKey]);
+
+  useEffect(() => { loadDrafts(); loadTokenUsage(); }, [loadDrafts, loadTokenUsage]);
 
   // All funds flat list for matching dropdown
   const allFunds: { id: string; name: string; catId: string; catName: string }[] = [];
@@ -1630,6 +1642,10 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
         setSelectedMatchCatId(result.match.categoryId || "");
       }
       setView("review");
+      loadTokenUsage();
+      if (result.tokenUsage?.warning) {
+        onStatus(`⚠️ שימוש ב-${result.tokenUsage.percent}% מהמכסה החודשית`);
+      }
     } catch {
       onStatus("❌ שגיאה בחיבור לשרת");
     }
@@ -1682,6 +1698,12 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
         setSelectedMatchCatId(result.match.categoryId || "");
       }
       setView("review");
+      loadTokenUsage();
+      if (result.tokenUsage?.warning) {
+        onStatus(`⚠️ שימוש ב-${result.tokenUsage.percent}% מהמכסה החודשית`);
+      } else if (result.fromCache) {
+        onStatus("✓ תוצאה מהמטמון — 0 טוקנים");
+      }
     } catch {
       onStatus("❌ שגיאה בחיבור לשרת");
     }
@@ -1925,6 +1947,55 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
           טיוטות ({pendingDrafts.length})
         </button>
       </div>
+
+      {/* Token Usage Widget */}
+      {tokenUsage && (
+        <div style={{
+          backgroundColor: "var(--bg-surface)",
+          border: `1px solid ${tokenUsage.blocked ? "#ef444440" : tokenUsage.warning ? "#f59e0b40" : "var(--border)"}`,
+          borderRadius: 10,
+          padding: "12px 16px",
+          marginBottom: 16,
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>
+              📊 שימוש חודשי בטוקנים
+            </span>
+            <span style={{
+              fontSize: 10, fontWeight: 600,
+              color: tokenUsage.blocked ? "#ef4444" : tokenUsage.warning ? "#f59e0b" : "#059669",
+            }}>
+              {tokenUsage.blocked ? "🚫 חריגת מכסה" : tokenUsage.warning ? "⚠️ מתקרב למכסה" : "✓ תקין"}
+            </span>
+          </div>
+          {/* Progress bar */}
+          <div style={{
+            width: "100%",
+            height: 6,
+            backgroundColor: "var(--border)",
+            borderRadius: 3,
+            overflow: "hidden",
+            marginBottom: 6,
+          }}>
+            <div style={{
+              width: `${Math.min(tokenUsage.percent, 100)}%`,
+              height: "100%",
+              backgroundColor: tokenUsage.blocked ? "#ef4444" : tokenUsage.warning ? "#f59e0b" : "#059669",
+              borderRadius: 3,
+              transition: "width 0.3s",
+            }} />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-muted)" }}>
+            <span>{(tokenUsage.inputTokens / 1000).toFixed(1)}K / {(tokenUsage.limit / 1000).toFixed(0)}K טוקנים ({tokenUsage.percent}%)</span>
+            <span>{tokenUsage.callCount} / {tokenUsage.callLimit} קריאות</span>
+          </div>
+          {tokenUsage.blocked && (
+            <p style={{ fontSize: 10, color: "#ef4444", margin: "6px 0 0", fontWeight: 500 }}>
+              הגעת למכסת הטוקנים החודשית. פנה למנהל להגדלת המכסה.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* INPUT VIEW */}
       {view === "input" && (

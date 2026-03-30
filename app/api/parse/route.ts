@@ -2,9 +2,153 @@ import { NextRequest, NextResponse } from "next/server";
 import { getClientKeyFromRequest } from "@/lib/clientKey";
 import { storageRead, storageWrite, storageAppend } from "@/lib/storage";
 import { ParseDraft, ParseLogEntry, ParsedField, CollisionInfo } from "@/lib/parseTypes";
+import { createHash } from "crypto";
 
 const SUPER_ADMIN_PASSWORD = "super2026";
 const DEFAULT_ADMIN_PASSWORD = "admin2026";
+
+/* ================================================================== */
+/*  Token Usage Tracking                                               */
+/* ================================================================== */
+
+interface TokenUsageData {
+  month: string; // YYYY-MM
+  inputTokens: number;
+  outputTokens: number;
+  callCount: number;
+  calls: {
+    timestamp: string;
+    action: string;
+    inputTokens: number;
+    outputTokens: number;
+    fileName?: string;
+    cached?: boolean;
+  }[];
+}
+
+interface ApiUsage {
+  input_tokens: number;
+  output_tokens: number;
+}
+
+const DEFAULT_MONTHLY_TOKEN_LIMIT = 500_000; // input tokens
+const DEFAULT_MONTHLY_CALL_LIMIT = 100;
+const WARN_THRESHOLD_PERCENT = 80;
+
+function getCurrentMonth(): string {
+  return new Date().toISOString().slice(0, 7); // "YYYY-MM"
+}
+
+async function getTokenUsage(clientKey: string): Promise<TokenUsageData> {
+  const currentMonth = getCurrentMonth();
+  const usage = await storageRead<TokenUsageData>(`token-usage:${clientKey}`, {
+    month: currentMonth,
+    inputTokens: 0,
+    outputTokens: 0,
+    callCount: 0,
+    calls: [],
+  });
+
+  // Auto-reset if month changed
+  if (usage.month !== currentMonth) {
+    return {
+      month: currentMonth,
+      inputTokens: 0,
+      outputTokens: 0,
+      callCount: 0,
+      calls: [],
+    };
+  }
+
+  return usage;
+}
+
+async function recordTokenUsage(
+  clientKey: string,
+  action: string,
+  apiUsage: ApiUsage,
+  fileName?: string,
+  cached?: boolean
+): Promise<TokenUsageData> {
+  const usage = await getTokenUsage(clientKey);
+
+  usage.inputTokens += apiUsage.input_tokens;
+  usage.outputTokens += apiUsage.output_tokens;
+  usage.callCount += 1;
+
+  // Keep last 200 call entries
+  usage.calls.push({
+    timestamp: new Date().toISOString(),
+    action,
+    inputTokens: apiUsage.input_tokens,
+    outputTokens: apiUsage.output_tokens,
+    fileName,
+    cached,
+  });
+  if (usage.calls.length > 200) {
+    usage.calls = usage.calls.slice(-200);
+  }
+
+  await storageWrite(`token-usage:${clientKey}`, usage);
+  return usage;
+}
+
+async function getClientTokenLimit(clientKey: string): Promise<{ monthlyInputTokens: number; monthlyCallCount: number }> {
+  const brand = await storageRead<Record<string, unknown>>(`brand:${clientKey}`, {});
+  const limits = brand.tokenLimits as Record<string, number> | undefined;
+  return {
+    monthlyInputTokens: limits?.monthlyInputTokens || DEFAULT_MONTHLY_TOKEN_LIMIT,
+    monthlyCallCount: limits?.monthlyCallCount || DEFAULT_MONTHLY_CALL_LIMIT,
+  };
+}
+
+async function checkTokenLimit(clientKey: string): Promise<{
+  allowed: boolean;
+  usage: TokenUsageData;
+  limit: number;
+  percent: number;
+  warning: boolean;
+}> {
+  const usage = await getTokenUsage(clientKey);
+  const limits = await getClientTokenLimit(clientKey);
+  const percent = limits.monthlyInputTokens > 0
+    ? Math.round((usage.inputTokens / limits.monthlyInputTokens) * 100)
+    : 0;
+
+  return {
+    allowed: usage.inputTokens < limits.monthlyInputTokens && usage.callCount < limits.monthlyCallCount,
+    usage,
+    limit: limits.monthlyInputTokens,
+    percent,
+    warning: percent >= WARN_THRESHOLD_PERCENT && percent < 100,
+  };
+}
+
+/* ================================================================== */
+/*  File Cache (hash-based duplicate detection)                        */
+/* ================================================================== */
+
+async function getCachedResult(clientKey: string, fileHash: string): Promise<Record<string, unknown> | null> {
+  const cached = await storageRead<{ result: Record<string, unknown>; cachedAt: string } | null>(
+    `parse-cache:${clientKey}:${fileHash}`, null
+  );
+  if (!cached) return null;
+
+  // Expire after 30 days
+  const cachedDate = new Date(cached.cachedAt);
+  const now = new Date();
+  const daysDiff = (now.getTime() - cachedDate.getTime()) / (1000 * 60 * 60 * 24);
+  if (daysDiff > 30) return null;
+
+  return cached.result;
+}
+
+async function setCachedResult(clientKey: string, fileHash: string, result: Record<string, unknown>): Promise<void> {
+  await storageWrite(`parse-cache:${clientKey}:${fileHash}`, {
+    result,
+    cachedAt: new Date().toISOString(),
+  });
+}
 
 // Allowed field key patterns (whitelist validation)
 const ALLOWED_FIELD_KEYS = new Set([
@@ -97,7 +241,7 @@ function validateDraft(draft: Partial<ParseDraft>): string | null {
 }
 
 /** Call Claude API with 1 retry on failure */
-async function callClaude(apiKey: string, systemPrompt: string, userText: string): Promise<{ success: true; content: string } | { success: false; error: string }> {
+async function callClaude(apiKey: string, systemPrompt: string, userText: string): Promise<{ success: true; content: string; usage: ApiUsage } | { success: false; error: string }> {
   const maxAttempts = 2;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
@@ -125,18 +269,19 @@ async function callClaude(apiKey: string, systemPrompt: string, userText: string
       if (!response.ok) {
         const errText = await response.text().catch(() => "Unknown error");
         console.error(`Claude API error (attempt ${attempt}):`, errText);
-        if (attempt < maxAttempts) continue; // retry
+        if (attempt < maxAttempts) continue;
         return { success: false, error: `AI service error (${response.status})` };
       }
 
       const result = await response.json();
       const content = result.content?.[0]?.text || "";
+      const usage: ApiUsage = result.usage || { input_tokens: 0, output_tokens: 0 };
       if (!content) {
         if (attempt < maxAttempts) continue;
         return { success: false, error: "Empty response from AI" };
       }
 
-      return { success: true, content };
+      return { success: true, content, usage };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error";
       console.error(`Claude API call failed (attempt ${attempt}):`, message);
@@ -156,7 +301,7 @@ async function callClaudeVision(
   systemPrompt: string,
   base64Data: string,
   mediaType: string
-): Promise<{ success: true; content: string } | { success: false; error: string }> {
+): Promise<{ success: true; content: string; usage: ApiUsage } | { success: false; error: string }> {
   const maxAttempts = 2;
 
   // PDFs use "document" content block, images use "image"
@@ -213,12 +358,13 @@ async function callClaudeVision(
 
       const result = await response.json();
       const content = result.content?.[0]?.text || "";
+      const usage: ApiUsage = result.usage || { input_tokens: 0, output_tokens: 0 };
       if (!content) {
         if (attempt < maxAttempts) continue;
         return { success: false, error: "Empty response from AI" };
       }
 
-      return { success: true, content };
+      return { success: true, content, usage };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error";
       console.error(`Claude Vision call failed (attempt ${attempt}):`, message);
@@ -385,6 +531,22 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(log);
     }
 
+    if (action === "token-usage") {
+      const usage = await getTokenUsage(clientKey);
+      const limits = await getClientTokenLimit(clientKey);
+      const percent = limits.monthlyInputTokens > 0
+        ? Math.round((usage.inputTokens / limits.monthlyInputTokens) * 100)
+        : 0;
+      return NextResponse.json({
+        ...usage,
+        limit: limits.monthlyInputTokens,
+        callLimit: limits.monthlyCallCount,
+        percent,
+        warning: percent >= WARN_THRESHOLD_PERCENT && percent < 100,
+        blocked: percent >= 100 || usage.callCount >= limits.monthlyCallCount,
+      });
+    }
+
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (err) {
     console.error("GET /api/parse error:", err);
@@ -435,6 +597,15 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // Check token limit before calling API
+      const tokenCheck = await checkTokenLimit(clientKey);
+      if (!tokenCheck.allowed) {
+        return NextResponse.json({
+          error: "חריגת מכסת טוקנים חודשית. פנה למנהל להגדלת המכסה.",
+          tokenUsage: { percent: tokenCheck.percent, used: tokenCheck.usage.inputTokens, limit: tokenCheck.limit },
+        }, { status: 429 });
+      }
+
       const systemPrompt = buildSystemPrompt(existingFunds);
 
       const claudeResult = await callClaude(apiKey, systemPrompt, text);
@@ -442,12 +613,26 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: claudeResult.error }, { status: 502 });
       }
 
+      // Record token usage
+      const updatedUsage = await recordTokenUsage(clientKey, "parse", claudeResult.usage);
+      const limits = await getClientTokenLimit(clientKey);
+      const usagePercent = Math.round((updatedUsage.inputTokens / limits.monthlyInputTokens) * 100);
+
       const result = parseCloudeResponse(claudeResult.content, existingFunds);
       if ("error" in result) {
         return NextResponse.json({ error: result.error }, { status: 500 });
       }
 
-      return NextResponse.json(result);
+      return NextResponse.json({
+        ...result,
+        tokenUsage: {
+          thisCall: claudeResult.usage.input_tokens,
+          monthlyUsed: updatedUsage.inputTokens,
+          monthlyLimit: limits.monthlyInputTokens,
+          percent: usagePercent,
+          warning: usagePercent >= WARN_THRESHOLD_PERCENT,
+        },
+      });
     }
 
     // ============================================================
@@ -885,6 +1070,31 @@ export async function POST(req: NextRequest) {
         base64Data = base64Data.slice(prefixMatch[0].length);
       }
 
+      // Check file cache — avoid re-processing identical files
+      const fileHash = createHash("sha256").update(Buffer.from(arrayBuffer)).digest("hex");
+      const cachedResult = await getCachedResult(clientKey, fileHash);
+      if (cachedResult) {
+        // Record as cached call (0 tokens)
+        await recordTokenUsage(clientKey, "parse-file", { input_tokens: 0, output_tokens: 0 }, file.name, true);
+        return NextResponse.json({
+          ...cachedResult,
+          sourceType: file.type.startsWith("image/") ? "image" : "pdf",
+          fileName: file.name,
+          fromCache: true,
+          tokenUsage: { thisCall: 0, cached: true },
+        });
+      }
+
+      // Check token limit before calling API
+      const tokenCheck = await checkTokenLimit(clientKey);
+      if (!tokenCheck.allowed) {
+        return NextResponse.json({
+          error: "חריגת מכסת טוקנים חודשית. פנה למנהל להגדלת המכסה.",
+          fileName: file.name,
+          tokenUsage: { percent: tokenCheck.percent, used: tokenCheck.usage.inputTokens, limit: tokenCheck.limit },
+        }, { status: 429 });
+      }
+
       const systemPrompt = buildSystemPrompt(existingFunds);
 
       const claudeResult = await callClaudeVision(apiKey, systemPrompt, base64Data, mimeType);
@@ -895,6 +1105,11 @@ export async function POST(req: NextRequest) {
         }, { status: 502 });
       }
 
+      // Record token usage
+      const updatedUsage = await recordTokenUsage(clientKey, "parse-file", claudeResult.usage, file.name);
+      const limits = await getClientTokenLimit(clientKey);
+      const usagePercent = Math.round((updatedUsage.inputTokens / limits.monthlyInputTokens) * 100);
+
       const result = parseCloudeResponse(claudeResult.content, existingFunds);
       if ("error" in result) {
         return NextResponse.json({
@@ -903,12 +1118,30 @@ export async function POST(req: NextRequest) {
         }, { status: 500 });
       }
 
+      // Cache the result for future duplicate uploads
+      const resultObj = {
+        fundName: result.fundName,
+        fundNameConfidence: result.fundNameConfidence,
+        reportMonth: result.reportMonth,
+        reportMonthConfidence: result.reportMonthConfidence,
+        fields: result.fields,
+        match: result.match,
+      };
+      await setCachedResult(clientKey, fileHash, resultObj);
+
       return NextResponse.json({
         ...result,
         sourceType: file.type.startsWith("image/") ? "image" : "pdf",
         fileName: file.name,
         reportMonth: result.reportMonth,
         reportMonthConfidence: result.reportMonthConfidence,
+        tokenUsage: {
+          thisCall: claudeResult.usage.input_tokens,
+          monthlyUsed: updatedUsage.inputTokens,
+          monthlyLimit: limits.monthlyInputTokens,
+          percent: usagePercent,
+          warning: usagePercent >= WARN_THRESHOLD_PERCENT,
+        },
       });
     }
 
