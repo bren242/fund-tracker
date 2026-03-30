@@ -1580,6 +1580,10 @@ function AiParserTab({ password, clientKey, data, onStatus, onReload }: {
   const handleSaveDraft = async () => {
     if (!parseResult) return;
     const approvedFieldsList = parseResult.fields.filter((f) => approvedFields.has(f.key));
+    if (approvedFieldsList.length === 0) {
+      onStatus("❌ יש לסמן לפחות שדה אחד לאישור");
+      return;
+    }
     const match = selectedMatchFundId ? {
       fundId: selectedMatchFundId,
       fundName: allFunds.find((f) => f.id === selectedMatchFundId)?.name || null,
@@ -1587,25 +1591,30 @@ function AiParserTab({ password, clientKey, data, onStatus, onReload }: {
       categoryId: selectedMatchCatId,
     } : null;
 
-    const res = await fetch(`/api/parse?action=save-draft&client=${encodeURIComponent(clientKey)}`, {
-      method: "POST",
-      headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sourceText: inputText,
-        fundName: parseResult.fundName,
-        fundNameConfidence: parseResult.fundNameConfidence,
-        fields: approvedFieldsList,
-        match,
-      }),
-    });
-    if (res.ok) {
-      onStatus("✓ טיוטה נשמרה");
-      setView("input");
-      setParseResult(null);
-      setInputText("");
-      loadDrafts();
-    } else {
-      onStatus("❌ שגיאה בשמירה");
+    try {
+      const res = await fetch(`/api/parse?action=save-draft&client=${encodeURIComponent(clientKey)}`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceText: inputText,
+          fundName: parseResult.fundName,
+          fundNameConfidence: parseResult.fundNameConfidence,
+          fields: approvedFieldsList,
+          match,
+        }),
+      });
+      if (res.ok) {
+        onStatus("✓ טיוטה נשמרה");
+        setView("input");
+        setParseResult(null);
+        setInputText("");
+        loadDrafts();
+      } else {
+        const err = await res.json();
+        onStatus(`❌ ${err.error || "שגיאה בשמירה"}`);
+      }
+    } catch {
+      onStatus("❌ שגיאה בחיבור לשרת");
     }
   };
 
@@ -1912,13 +1921,14 @@ function AiParserTab({ password, clientKey, data, onStatus, onReload }: {
                 {draft.status === "pending" && (
                   <div style={{ display: "flex", gap: 8 }}>
                     <button onClick={() => handleApplyDraft(draft)}
-                      disabled={!draft.match?.fundId}
+                      disabled={!draft.match?.fundId || draft.extracted.fields.length === 0}
                       style={{
-                        backgroundColor: draft.match?.fundId ? "#059669" : "var(--text-muted)",
+                        backgroundColor: draft.match?.fundId && draft.extracted.fields.length > 0 ? "#059669" : "var(--text-muted)",
                         color: "#fff", fontWeight: 600, padding: "5px 16px", borderRadius: 5, border: "none", cursor: "pointer", fontSize: 11,
-                        opacity: draft.match?.fundId ? 1 : 0.4,
-                      }}>
-                      ✓ עדכן קרן
+                        opacity: draft.match?.fundId && draft.extracted.fields.length > 0 ? 1 : 0.4,
+                      }}
+                      title={!draft.match?.fundId ? "לא נבחרה קרן" : draft.extracted.fields.length === 0 ? "אין שדות" : `עדכן ${draft.extracted.fields.length} שדות`}>
+                      ✓ עדכן קרן ({draft.extracted.fields.length})
                     </button>
                     <button onClick={() => handleRejectDraft(draft.id)}
                       style={{ backgroundColor: "var(--bg-surface-alt)", color: "#ef4444", border: "1px solid #ef444430", borderRadius: 5, padding: "5px 16px", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
