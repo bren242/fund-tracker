@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClientKeyFromRequest } from "@/lib/clientKey";
 import { storageRead, storageWrite, storageAppend } from "@/lib/storage";
-import { ParseDraft, ParseLogEntry, ParsedField } from "@/lib/parseTypes";
+import { ParseDraft, ParseLogEntry, ParsedField, CollisionInfo } from "@/lib/parseTypes";
 
 const SUPER_ADMIN_PASSWORD = "super2026";
 const DEFAULT_ADMIN_PASSWORD = "admin2026";
@@ -258,6 +258,12 @@ RULES:
 FIELDS TO EXTRACT (only these):
 - fundName: string (the fund's name as written)
 - monthlyReturn: number | null (latest monthly return as decimal)
+- reportMonth: string | null (the month this report covers, in "YYYY-MM" format)
+  IMPORTANT: Extract reportMonth from document header, title, date, or context.
+  Examples: "ינואר 2026" → "2026-01", "Feb 2026" → "2026-02", "דוח חודשי 03/2026" → "2026-03"
+  If the month cannot be clearly determined, set reportMonth to null.
+  NEVER guess or default to the current month.
+- reportMonthConfidence: "high" | "low" (how certain you are about the report month)
 - manager: string | null (fund manager name)
 - classification: string | null (fund type/classification)
 - returns: object with year keys like "y2024", "y2023", etc. (annual returns as decimals)
@@ -270,6 +276,8 @@ Respond in valid JSON with this exact structure:
 {
   "fundName": "...",
   "fundNameConfidence": 0.0-1.0,
+  "reportMonth": "YYYY-MM" or null,
+  "reportMonthConfidence": "high" or "low",
   "fields": [
     { "key": "monthlyReturn", "value": ..., "confidence": 0.0-1.0 },
     { "key": "returns.y2024", "value": ..., "confidence": 0.0-1.0 },
@@ -283,6 +291,12 @@ Respond in valid JSON with this exact structure:
 }`;
 }
 
+/** Validate reportMonth format YYYY-MM */
+function isValidReportMonth(val: unknown): val is string {
+  if (typeof val !== "string") return false;
+  return /^\d{4}-(0[1-9]|1[0-2])$/.test(val);
+}
+
 /** Parse Claude response JSON → structured result */
 function parseCloudeResponse(
   content: string,
@@ -290,6 +304,8 @@ function parseCloudeResponse(
 ): {
   fundName: string;
   fundNameConfidence: number;
+  reportMonth: string | null;
+  reportMonthConfidence: "high" | "low";
   fields: ParsedField[];
   match: { fundId: string; fundName: string; similarity: number; categoryId: string | null } | null;
 } | { error: string } {
@@ -306,6 +322,11 @@ function parseCloudeResponse(
   }
 
   const sanitizedFields = sanitizeFields(parsed.fields as unknown[]);
+
+  // Extract reportMonth
+  const reportMonth = isValidReportMonth(parsed.reportMonth) ? parsed.reportMonth : null;
+  const reportMonthConfidence: "high" | "low" =
+    reportMonth && parsed.reportMonthConfidence === "high" ? "high" : "low";
 
   let match = null;
   if (parsed.suggestedMatch && typeof parsed.suggestedMatch === "object") {
@@ -324,6 +345,8 @@ function parseCloudeResponse(
   return {
     fundName: String(parsed.fundName || ""),
     fundNameConfidence: normalizeConfidence(parsed.fundNameConfidence),
+    reportMonth,
+    reportMonthConfidence,
     fields: sanitizedFields,
     match,
   };
@@ -436,6 +459,9 @@ export async function POST(req: NextRequest) {
       // Sanitize fields before saving
       const sanitizedFields = sanitizeFields(body.fields || []);
 
+      // Validate reportMonth format if provided
+      const reportMonth = isValidReportMonth(body.reportMonth) ? body.reportMonth : null;
+
       const draft: ParseDraft = {
         id: generateId(),
         createdAt: new Date().toISOString(),
@@ -448,6 +474,8 @@ export async function POST(req: NextRequest) {
           fundNameConfidence: normalizeConfidence(body.fundNameConfidence),
           fields: sanitizedFields,
         },
+        reportMonth,
+        reportMonthConfidence: reportMonth && body.reportMonthConfidence === "high" ? "high" : "low",
         match: body.match || null,
         status: "pending",
       };
@@ -476,14 +504,67 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================================
+    // ACTION: check-collision — Pre-apply collision check
+    // ============================================================
+    if (action === "check-collision") {
+      const body = await req.json();
+      const { fundId, categoryId, reportMonth, approvedFields } = body;
+
+      if (!fundId || !categoryId || !reportMonth) {
+        return NextResponse.json({ collisions: [] });
+      }
+
+      const validFields = sanitizeFields(approvedFields || []);
+      const fundsData = await storageRead<Record<string, unknown>>(`funds:${clientKey}`, { categories: [] });
+
+      const collisions: CollisionInfo[] = [];
+
+      for (const cat of (fundsData.categories as Record<string, unknown>[]) || []) {
+        if (cat.id !== categoryId) continue;
+        const funds = cat.funds as Record<string, unknown>[];
+        for (const fund of funds) {
+          if (fund.id !== fundId) continue;
+
+          // Check monthlyReturn collision
+          const monthlyReturnField = validFields.find((f) => f.key === "monthlyReturn");
+          if (monthlyReturnField && monthlyReturnField.value !== null) {
+            const monthlyReturns = (fund.monthlyReturns || {}) as Record<string, number>;
+            if (reportMonth in monthlyReturns) {
+              collisions.push({
+                field: "monthlyReturn",
+                month: reportMonth,
+                existingValue: monthlyReturns[reportMonth],
+                newValue: monthlyReturnField.value as number,
+              });
+            }
+          }
+          break;
+        }
+        break;
+      }
+
+      return NextResponse.json({ collisions });
+    }
+
+    // ============================================================
     // ACTION: apply — Apply draft fields to fund in funds.json
     // ============================================================
     if (action === "apply") {
       const body = await req.json();
-      const { draftId, fundId, categoryId, approvedFields } = body;
+      const { draftId, fundId, categoryId, approvedFields, reportMonth, collisionDecisions } = body;
 
       if (!draftId || !fundId || !categoryId || !approvedFields) {
         return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+      }
+
+      // reportMonth is REQUIRED for monthlyReturn — block apply without it
+      const hasMonthlyReturn = (approvedFields as unknown[]).some(
+        (f: unknown) => (f as Record<string, unknown>).key === "monthlyReturn"
+      );
+      if (hasMonthlyReturn && !isValidReportMonth(reportMonth)) {
+        return NextResponse.json({
+          error: "חודש דיווח (reportMonth) חובה לעדכון תשואה חודשית",
+        }, { status: 400 });
       }
 
       // Re-sanitize approved fields against whitelist
@@ -493,12 +574,17 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "No valid fields to apply" }, { status: 400 });
       }
 
+      // Parse collision decisions: { "monthlyReturn": "replace" | "keep" }
+      const decisions = (collisionDecisions || {}) as Record<string, "replace" | "keep">;
+
       // Load funds data
       const fundsData = await storageRead<Record<string, unknown>>(`funds:${clientKey}`, { categories: [] });
 
       // Find the fund
       let fundFound = false;
       const appliedFieldNames: string[] = [];
+      const skippedFields: string[] = [];
+      let collisionOldValue: number | null = null;
 
       for (const cat of (fundsData.categories as Record<string, unknown>[]) || []) {
         if (cat.id !== categoryId) continue;
@@ -507,21 +593,49 @@ export async function POST(req: NextRequest) {
           if (funds[i].id !== fundId) continue;
           fundFound = true;
 
+          // Ensure monthlyReturns object exists
+          if (!funds[i].monthlyReturns) {
+            funds[i].monthlyReturns = {};
+          }
+          const monthlyReturns = funds[i].monthlyReturns as Record<string, number>;
+
           // Apply whitelisted fields only
           for (const field of validFields) {
             if (field.key === "monthlyReturn") {
+              // Collision check
+              if (reportMonth && reportMonth in monthlyReturns) {
+                const decision = decisions["monthlyReturn"];
+                if (!decision) {
+                  // No decision provided for a collision — block
+                  return NextResponse.json({
+                    error: "Collision detected — user decision required",
+                    collision: {
+                      field: "monthlyReturn",
+                      month: reportMonth,
+                      existingValue: monthlyReturns[reportMonth],
+                      newValue: field.value,
+                    },
+                  }, { status: 409 });
+                }
+                if (decision === "keep") {
+                  skippedFields.push("monthlyReturn");
+                  continue;
+                }
+                // decision === "replace" — proceed with overwrite
+                collisionOldValue = monthlyReturns[reportMonth];
+              }
+
               funds[i].monthlyReturn = field.value as number;
-              // Sync to monthlyReturns history
-              if (field.value !== null && fundsData.lastUpdated) {
-                const monthKey = (fundsData.lastUpdated as string).slice(0, 7);
-                if (!funds[i].monthlyReturns) funds[i].monthlyReturns = {};
-                (funds[i].monthlyReturns as Record<string, number>)[monthKey] = field.value as number;
+              // Write to monthlyReturns history
+              if (reportMonth) {
+                monthlyReturns[reportMonth] = field.value as number;
               }
               appliedFieldNames.push("monthlyReturn");
             } else if (field.key.startsWith("returns.")) {
               const yearKey = field.key.split(".")[1]; // "y2024"
+              if (!funds[i].returns) funds[i].returns = {};
               const returns = funds[i].returns as Record<string, unknown>;
-              if (yearKey && returns.hasOwnProperty(yearKey)) {
+              if (yearKey) {
                 returns[yearKey] = field.value as number;
                 appliedFieldNames.push(field.key);
               }
@@ -556,7 +670,11 @@ export async function POST(req: NextRequest) {
         await storageWrite(`parse-drafts:${clientKey}`, drafts);
       }
 
-      // Log with detailed field info
+      // Determine collision logging
+      const hadCollision = collisionOldValue !== null;
+      const collisionDecision = hadCollision ? "replace" : skippedFields.includes("monthlyReturn") ? "keep" : "new";
+
+      // Log with enhanced fields
       await storageAppend<ParseLogEntry>(`parse-log:${clientKey}`, {
         id: generateId(),
         timestamp: new Date().toISOString(),
@@ -564,10 +682,20 @@ export async function POST(req: NextRequest) {
         draftId,
         fundName: draftFundName,
         fundId,
-        details: `Applied ${appliedFieldNames.length} fields to fund: ${appliedFieldNames.join(", ")}. Values: ${validFields.map((f) => `${f.key}=${f.value}`).join(", ")}`,
+        details: `Applied ${appliedFieldNames.length} fields to fund: ${appliedFieldNames.join(", ")}${skippedFields.length > 0 ? `. Skipped: ${skippedFields.join(", ")}` : ""}. Values: ${validFields.map((f) => `${f.key}=${f.value}`).join(", ")}`,
+        reportMonth: reportMonth || null,
+        collision: hadCollision || skippedFields.length > 0,
+        collisionDecision: (hadCollision || skippedFields.length > 0) ? collisionDecision : undefined,
+        oldValue: collisionOldValue,
+        newValue: hadCollision ? (validFields.find((f) => f.key === "monthlyReturn")?.value as number) : undefined,
       });
 
-      return NextResponse.json({ success: true, appliedFields: appliedFieldNames.length });
+      return NextResponse.json({
+        success: true,
+        appliedFields: appliedFieldNames.length,
+        skippedFields: skippedFields.length,
+        reportMonth,
+      });
     }
 
     // ============================================================
@@ -681,6 +809,8 @@ export async function POST(req: NextRequest) {
         ...result,
         sourceType: file.type.startsWith("image/") ? "image" : "pdf",
         fileName: file.name,
+        reportMonth: result.reportMonth,
+        reportMonthConfidence: result.reportMonthConfidence,
       });
     }
 

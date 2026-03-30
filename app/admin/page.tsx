@@ -1505,6 +1505,8 @@ function AiParserTab({ password, clientKey, data, onStatus, onReload }: {
   const [parseResult, setParseResult] = useState<{
     fundName: string;
     fundNameConfidence: number;
+    reportMonth: string | null;
+    reportMonthConfidence: "high" | "low";
     fields: { key: string; value: string | number | null; confidence: number }[];
     match: { fundId: string | null; fundName: string | null; similarity: number; categoryId: string | null } | null;
   } | null>(null);
@@ -1514,10 +1516,15 @@ function AiParserTab({ password, clientKey, data, onStatus, onReload }: {
     extracted: { fundName: string; fields: { key: string; value: string | number | null; confidence: number }[] };
     match: { fundId: string | null; fundName: string | null; similarity: number; categoryId: string | null } | null;
     source: { preview: string };
+    reportMonth: string | null;
+    reportMonthConfidence: "high" | "low";
   }[]>([]);
   const [view, setView] = useState<"input" | "review" | "drafts">("input");
   const [selectedMatchFundId, setSelectedMatchFundId] = useState<string>("");
   const [selectedMatchCatId, setSelectedMatchCatId] = useState<string>("");
+  const [reportMonth, setReportMonth] = useState<string>("");
+  const [collisions, setCollisions] = useState<{ field: string; month: string; existingValue: number; newValue: number }[]>([]);
+  const [collisionDecisions, setCollisionDecisions] = useState<Record<string, "replace" | "keep">>({});
 
   const headers = { "x-admin-password": password };
 
@@ -1565,6 +1572,10 @@ function AiParserTab({ password, clientKey, data, onStatus, onReload }: {
         if (f.confidence >= 0.7) approved.add(f.key);
       }
       setApprovedFields(approved);
+      // Auto-set reportMonth from AI
+      setReportMonth(result.reportMonth || "");
+      setCollisions([]);
+      setCollisionDecisions({});
       // Auto-set match
       if (result.match?.fundId) {
         setSelectedMatchFundId(result.match.fundId);
@@ -1584,6 +1595,14 @@ function AiParserTab({ password, clientKey, data, onStatus, onReload }: {
       onStatus("❌ יש לסמן לפחות שדה אחד לאישור");
       return;
     }
+
+    // Require reportMonth if monthlyReturn is approved
+    const hasMonthlyReturn = approvedFieldsList.some((f) => f.key === "monthlyReturn");
+    if (hasMonthlyReturn && !reportMonth) {
+      onStatus("❌ חובה לבחור חודש דיווח לפני שמירה");
+      return;
+    }
+
     const match = selectedMatchFundId ? {
       fundId: selectedMatchFundId,
       fundName: allFunds.find((f) => f.id === selectedMatchFundId)?.name || null,
@@ -1601,6 +1620,8 @@ function AiParserTab({ password, clientKey, data, onStatus, onReload }: {
           fundNameConfidence: parseResult.fundNameConfidence,
           fields: approvedFieldsList,
           match,
+          reportMonth: reportMonth || null,
+          reportMonthConfidence: parseResult.reportMonthConfidence,
         }),
       });
       if (res.ok) {
@@ -1618,30 +1639,77 @@ function AiParserTab({ password, clientKey, data, onStatus, onReload }: {
     }
   };
 
-  const handleApplyDraft = async (draft: typeof drafts[0]) => {
+  const handleApplyDraft = async (draft: typeof drafts[0], overrideDecisions?: Record<string, "replace" | "keep">) => {
     if (!draft.match?.fundId || !draft.match?.categoryId) {
       onStatus("❌ לא נבחרה קרן להתאמה");
       return;
     }
+
+    const draftReportMonth = draft.reportMonth;
+    const hasMonthlyReturn = draft.extracted.fields.some((f) => f.key === "monthlyReturn");
+
+    if (hasMonthlyReturn && !draftReportMonth) {
+      onStatus("❌ לטיוטה זו חסר חודש דיווח — לא ניתן להחיל תשואה חודשית");
+      return;
+    }
+
+    // Step 1: Check for collisions (unless we already have decisions)
+    if (!overrideDecisions && hasMonthlyReturn && draftReportMonth) {
+      try {
+        const checkRes = await fetch(`/api/parse?action=check-collision&client=${encodeURIComponent(clientKey)}`, {
+          method: "POST",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fundId: draft.match.fundId,
+            categoryId: draft.match.categoryId,
+            reportMonth: draftReportMonth,
+            approvedFields: draft.extracted.fields,
+          }),
+        });
+        if (checkRes.ok) {
+          const { collisions: foundCollisions } = await checkRes.json();
+          if (foundCollisions && foundCollisions.length > 0) {
+            // Store collisions for UI — user must decide
+            setCollisions(foundCollisions);
+            setCollisionDecisions({});
+            onStatus(`⚠️ נמצאה התנגשות בנתונים לחודש ${draftReportMonth} — נדרשת החלטה`);
+            return;
+          }
+        }
+      } catch {
+        // If collision check fails, continue with apply (server-side will catch)
+      }
+    }
+
     if (!window.confirm(`לעדכן את הקרן "${draft.match.fundName}" עם הנתונים מהטיוטה?`)) return;
 
-    const res = await fetch(`/api/parse?action=apply&client=${encodeURIComponent(clientKey)}`, {
-      method: "POST",
-      headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        draftId: draft.id,
-        fundId: draft.match.fundId,
-        categoryId: draft.match.categoryId,
-        approvedFields: draft.extracted.fields,
-      }),
-    });
-    if (res.ok) {
-      onStatus("✓ הנתונים עודכנו בקרן");
-      loadDrafts();
-      onReload();
-    } else {
-      const err = await res.json();
-      onStatus(`❌ ${err.error || "שגיאה בעדכון"}`);
+    try {
+      const res = await fetch(`/api/parse?action=apply&client=${encodeURIComponent(clientKey)}`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          draftId: draft.id,
+          fundId: draft.match.fundId,
+          categoryId: draft.match.categoryId,
+          approvedFields: draft.extracted.fields,
+          reportMonth: draftReportMonth || null,
+          collisionDecisions: overrideDecisions || {},
+        }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        const skippedMsg = result.skippedFields > 0 ? ` (${result.skippedFields} שדות נשמרו ללא שינוי)` : "";
+        onStatus(`✓ הנתונים עודכנו בקרן${skippedMsg}`);
+        setCollisions([]);
+        setCollisionDecisions({});
+        loadDrafts();
+        onReload();
+      } else {
+        const err = await res.json();
+        onStatus(`❌ ${err.error || "שגיאה בעדכון"}`);
+      }
+    } catch {
+      onStatus("❌ שגיאה בחיבור לשרת");
     }
   };
 
@@ -1813,6 +1881,44 @@ function AiParserTab({ password, clientKey, data, onStatus, onReload }: {
             </select>
           </div>
 
+          {/* Report Month selector */}
+          <div style={{
+            padding: "10px 14px",
+            backgroundColor: !reportMonth ? "#fef3c715" : "var(--bg-input)",
+            borderRadius: 8,
+            marginBottom: 14,
+            border: `1px solid ${!reportMonth ? "#f59e0b60" : "var(--border)"}`,
+          }}>
+            <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 6 }}>
+              חודש דיווח:
+              {parseResult?.reportMonthConfidence === "low" && (
+                <span style={{ fontSize: 10, color: "#f59e0b", marginRight: 8, fontWeight: 400 }}>
+                  ⚠️ לא זוהה אוטומטית — יש לבחור ידנית
+                </span>
+              )}
+            </label>
+            <input
+              type="month"
+              value={reportMonth}
+              onChange={(e) => setReportMonth(e.target.value)}
+              style={{
+                border: `1px solid ${!reportMonth ? "#f59e0b" : "var(--border)"}`,
+                borderRadius: 6,
+                padding: "6px 10px",
+                fontSize: 12,
+                backgroundColor: "var(--bg-surface)",
+                color: "var(--text-primary)",
+                width: "100%",
+                maxWidth: 200,
+              }}
+            />
+            {!reportMonth && (
+              <p style={{ fontSize: 10, color: "#ef4444", margin: "4px 0 0", fontWeight: 500 }}>
+                * חובה — לא ניתן לשמור תשואה חודשית ללא חודש דיווח
+              </p>
+            )}
+          </div>
+
           {/* Fields table */}
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginBottom: 16 }}>
             <thead>
@@ -1917,8 +2023,99 @@ function AiParserTab({ password, clientKey, data, onStatus, onReload }: {
                   {draft.source.preview}...
                 </div>
 
-                {/* Actions for pending */}
+                {/* Report month badge */}
                 {draft.status === "pending" && (
+                  <div style={{ fontSize: 11, color: draft.reportMonth ? "var(--text-secondary)" : "#f59e0b", marginBottom: 8 }}>
+                    {draft.reportMonth
+                      ? `📅 חודש דיווח: ${draft.reportMonth}`
+                      : "⚠️ חסר חודש דיווח — לא ניתן להחיל תשואה חודשית"
+                    }
+                  </div>
+                )}
+
+                {/* Collision warning UI */}
+                {draft.status === "pending" && collisions.length > 0 && (
+                  <div style={{
+                    backgroundColor: "#fef3c720",
+                    border: "1px solid #f59e0b40",
+                    borderRadius: 8,
+                    padding: 12,
+                    marginBottom: 10,
+                  }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: "#f59e0b", margin: "0 0 8px" }}>
+                      ⚠️ התנגשות בנתונים
+                    </p>
+                    {collisions.map((c, ci) => (
+                      <div key={ci} style={{
+                        backgroundColor: "var(--bg-surface)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 6,
+                        padding: 10,
+                        marginBottom: 8,
+                      }}>
+                        <div style={{ fontSize: 11, marginBottom: 6 }}>
+                          <strong>{fieldLabel(c.field)}</strong> — חודש {c.month}
+                        </div>
+                        <div style={{ display: "flex", gap: 16, fontSize: 11, marginBottom: 8 }}>
+                          <span>ערך קיים: <strong style={{ color: "#ef4444" }}>{(c.existingValue * 100).toFixed(2)}%</strong></span>
+                          <span>ערך חדש: <strong style={{ color: "#059669" }}>{(c.newValue * 100).toFixed(2)}%</strong></span>
+                        </div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button
+                            onClick={() => setCollisionDecisions((prev) => ({ ...prev, [c.field]: "replace" }))}
+                            style={{
+                              backgroundColor: collisionDecisions[c.field] === "replace" ? "#059669" : "var(--bg-surface-alt)",
+                              color: collisionDecisions[c.field] === "replace" ? "#fff" : "var(--text-secondary)",
+                              border: "1px solid var(--border)",
+                              borderRadius: 5,
+                              padding: "4px 12px",
+                              cursor: "pointer",
+                              fontSize: 10,
+                              fontWeight: 600,
+                            }}>
+                            החלף בחדש
+                          </button>
+                          <button
+                            onClick={() => setCollisionDecisions((prev) => ({ ...prev, [c.field]: "keep" }))}
+                            style={{
+                              backgroundColor: collisionDecisions[c.field] === "keep" ? "#f59e0b" : "var(--bg-surface-alt)",
+                              color: collisionDecisions[c.field] === "keep" ? "#fff" : "var(--text-secondary)",
+                              border: "1px solid var(--border)",
+                              borderRadius: 5,
+                              padding: "4px 12px",
+                              cursor: "pointer",
+                              fontSize: 10,
+                              fontWeight: 600,
+                            }}>
+                            שמור קיים
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Apply with collision decisions */}
+                    {collisions.every((c) => collisionDecisions[c.field]) && (
+                      <button
+                        onClick={() => handleApplyDraft(draft, collisionDecisions)}
+                        style={{
+                          backgroundColor: "#059669",
+                          color: "#fff",
+                          fontWeight: 600,
+                          padding: "6px 16px",
+                          borderRadius: 5,
+                          border: "none",
+                          cursor: "pointer",
+                          fontSize: 11,
+                          marginTop: 4,
+                        }}>
+                        ✓ החל עם ההחלטות שנבחרו
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Actions for pending */}
+                {draft.status === "pending" && collisions.length === 0 && (
                   <div style={{ display: "flex", gap: 8 }}>
                     <button onClick={() => handleApplyDraft(draft)}
                       disabled={!draft.match?.fundId || draft.extracted.fields.length === 0}

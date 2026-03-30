@@ -1,5 +1,5 @@
 /**
- * AI Parser types — Phase 1 (text-only)
+ * AI Parser types — Phase 1 + Sprint 1 (month handling + collision safety)
  *
  * Whitelist of fields that can be applied to funds.json:
  *   - monthlyReturn
@@ -35,10 +35,21 @@ export interface ParseDraft {
     fundNameConfidence: number;
     fields: ParsedField[];
   };
+  /** Report month in YYYY-MM format, null if not detected */
+  reportMonth: string | null;
+  /** Confidence of reportMonth detection */
+  reportMonthConfidence: "high" | "low";
   match: FundMatch | null;
   status: "pending" | "applied" | "rejected";
   appliedAt?: string;
   rejectedAt?: string;
+}
+
+export interface CollisionInfo {
+  field: string;
+  month: string;
+  existingValue: number;
+  newValue: number;
 }
 
 export interface ParseLogEntry {
@@ -49,6 +60,12 @@ export interface ParseLogEntry {
   fundName: string;
   fundId: string | null;
   details: string;
+  /** Sprint 1: enhanced logging fields */
+  reportMonth?: string | null;
+  collision?: boolean;
+  collisionDecision?: "replace" | "keep" | "new";
+  oldValue?: number | null;
+  newValue?: number | null;
 }
 
 /** Fields allowed to be written to funds.json in Phase 1 */
