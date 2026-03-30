@@ -105,7 +105,7 @@ export default function PrintReport({ categories, lastUpdated, brand, printYears
           <td style={tdStyle({ textAlign: "center", color: returnColor(f.avgAnnualReturn), fontSize: baseFontSize })}>{pct(f.avgAnnualReturn)}</td>
           <td style={tdStyle({ textAlign: "center", fontSize: baseFontSize })}>{num(f.sharpe)}</td>
           <td style={tdStyle({ textAlign: "center", color: returnColor(f.stdDev), fontSize: baseFontSize })}>{pct(f.stdDev)}</td>
-          <td style={tdStyle({ textAlign: "center", fontSize: baseFontSize })}>{f.aumMillions !== null ? f.aumMillions.toLocaleString() : "—"}</td>
+          <td style={tdStyle({ textAlign: "center", fontSize: baseFontSize })}>{f.aumMillions != null ? f.aumMillions.toLocaleString() : "—"}</td>
         </tr>
       );
     }

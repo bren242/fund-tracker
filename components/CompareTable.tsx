@@ -44,7 +44,7 @@ const METRICS: MetricRow[] = [
   { label: "ממוצע שנתי", getValue: (f) => pct(f.avgAnnualReturn), getRaw: (f) => f.avgAnnualReturn, getColor: (f) => returnColor(f.avgAnnualReturn) },
   { label: "שארפ", getValue: (f) => num(f.sharpe), getRaw: (f) => f.sharpe },
   { label: "סטיית תקן", getValue: (f) => pct(f.stdDev), getRaw: (f) => f.stdDev, getColor: (f) => returnColor(f.stdDev), lowerIsBetter: true },
-  { label: "AUM (מ׳ ₪)", getValue: (f) => f.aumMillions !== null ? f.aumMillions.toLocaleString() : "—", isInfo: true },
+  { label: "AUM (מ׳ ₪)", getValue: (f) => f.aumMillions != null ? f.aumMillions.toLocaleString() : "—", isInfo: true },
 ];
 
 function getBestIdx(funds: Fund[], metric: MetricRow): number | null {

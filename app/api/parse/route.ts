@@ -970,12 +970,24 @@ export async function POST(req: NextRequest) {
       // Generate new fund ID
       const newFundId = `fund-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
-      // Build new fund object
+      // Build new fund object — ALL fields must be present to match Fund interface
       const newFund: Record<string, unknown> = {
         id: newFundId,
         name: fundName,
+        classification: "",
+        startDate: null,
+        manager: "",
+        lastReportDate: null,
         monthlyReturn: 0,
-        returns: { ytd2026: null, y2025: null, y2024: null, y2023: null, y2022: null },
+        returns: {
+          ytd2026: null, y2025: null, y2024: null, y2023: null,
+          y2022: null, y2021: null, y2020: null, y2019: null,
+        },
+        avgAnnualReturn: null,
+        sharpe: null,
+        stdDev: null,
+        aumMillions: null,
+        active: true,
         monthlyReturns: {},
         returnBasis: returnBasis === "ILS" || returnBasis === "USD" ? returnBasis : "ILS",
       };

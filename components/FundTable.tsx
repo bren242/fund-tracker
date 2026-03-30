@@ -113,7 +113,7 @@ function FundRow({ fund, even, comparisonEnabled, isSelected, onToggle, activeYe
       </td>
       <ReturnCell value={fund.stdDev} />
       <td style={{ padding: "5px 6px", textAlign: "center", borderBottom: "1px solid var(--border-table)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
-        {fund.aumMillions !== null ? fund.aumMillions.toLocaleString() : "—"}
+        {fund.aumMillions != null ? fund.aumMillions.toLocaleString() : "—"}
       </td>
     </tr>
   );

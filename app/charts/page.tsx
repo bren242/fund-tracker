@@ -269,8 +269,8 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Array<
       <div style={{ fontWeight: 700, marginBottom: 8, color: "var(--text-primary)", fontSize: 14 }}>{p.name}</div>
       <TipRow label="תשואה" value={p.x.toFixed(2) + "%"} />
       <TipRow label="ס״ת" value={p.y.toFixed(2) + "%"} />
-      {p.sharpe !== null && <TipRow label="שארפ" value={p.sharpe.toFixed(2)} />}
-      {p.aum !== null && <TipRow label="AUM" value={p.aum.toLocaleString() + " מ׳"} />}
+      {p.sharpe != null && <TipRow label="שארפ" value={p.sharpe.toFixed(2)} />}
+      {p.aum != null && <TipRow label="AUM" value={p.aum.toLocaleString() + " מ׳"} />}
     </div>
   );
 }
@@ -335,8 +335,8 @@ function PrintLegend({ points, returnLabel }: { points: ScatterPoint[]; returnLa
               {p.x.toFixed(2)}%
             </td>
             <td style={{ padding: "6px 8px", textAlign: "center", color: "#475569" }}>{p.y.toFixed(2)}%</td>
-            <td style={{ padding: "6px 8px", textAlign: "center", color: "#475569" }}>{p.sharpe !== null ? p.sharpe.toFixed(2) : "—"}</td>
-            <td style={{ padding: "6px 8px", textAlign: "center", color: "#475569" }}>{p.aum !== null ? p.aum.toLocaleString() : "—"}</td>
+            <td style={{ padding: "6px 8px", textAlign: "center", color: "#475569" }}>{p.sharpe != null ? p.sharpe.toFixed(2) : "—"}</td>
+            <td style={{ padding: "6px 8px", textAlign: "center", color: "#475569" }}>{p.aum != null ? p.aum.toLocaleString() : "—"}</td>
           </tr>
         ))}
       </tbody>
