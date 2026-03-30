@@ -7,6 +7,8 @@ interface CompareTableProps {
   funds: Fund[];
   accentColor: string;
   compact?: boolean;
+  /** If provided, only show these year keys (e.g., ["y2024", "y2023", "ytd2026"]) */
+  selectedYears?: string[];
 }
 
 function returnColor(v: number | null): string {
@@ -23,20 +25,22 @@ type MetricRow = {
   getColor?: (f: Fund) => string;
   lowerIsBetter?: boolean;
   isInfo?: boolean;
+  /** Year key for filtering (e.g., "ytd2026", "y2024") — only set on year rows */
+  yearKey?: string;
 };
 
 const METRICS: MetricRow[] = [
   { label: "סיווג", getValue: (f) => f.classification || "—", isInfo: true },
   { label: "מנהל", getValue: (f) => f.manager || "—", isInfo: true },
   { label: "תשואה חודשית", getValue: (f) => pct(f.monthlyReturn), getRaw: (f) => f.monthlyReturn, getColor: (f) => returnColor(f.monthlyReturn) },
-  { label: "מצטבר 2026", getValue: (f) => pct(f.returns.ytd2026), getRaw: (f) => f.returns.ytd2026, getColor: (f) => returnColor(f.returns.ytd2026) },
-  { label: "2025", getValue: (f) => pct(f.returns.y2025), getRaw: (f) => f.returns.y2025, getColor: (f) => returnColor(f.returns.y2025) },
-  { label: "2024", getValue: (f) => pct(f.returns.y2024), getRaw: (f) => f.returns.y2024, getColor: (f) => returnColor(f.returns.y2024) },
-  { label: "2023", getValue: (f) => pct(f.returns.y2023), getRaw: (f) => f.returns.y2023, getColor: (f) => returnColor(f.returns.y2023) },
-  { label: "2022", getValue: (f) => pct(f.returns.y2022), getRaw: (f) => f.returns.y2022, getColor: (f) => returnColor(f.returns.y2022) },
-  { label: "2021", getValue: (f) => pct(f.returns.y2021), getRaw: (f) => f.returns.y2021, getColor: (f) => returnColor(f.returns.y2021) },
-  { label: "2020", getValue: (f) => pct(f.returns.y2020), getRaw: (f) => f.returns.y2020, getColor: (f) => returnColor(f.returns.y2020) },
-  { label: "2019", getValue: (f) => pct(f.returns.y2019), getRaw: (f) => f.returns.y2019, getColor: (f) => returnColor(f.returns.y2019) },
+  { label: "מצטבר 2026", getValue: (f) => pct(f.returns.ytd2026), getRaw: (f) => f.returns.ytd2026, getColor: (f) => returnColor(f.returns.ytd2026), yearKey: "ytd2026" },
+  { label: "2025", getValue: (f) => pct(f.returns.y2025), getRaw: (f) => f.returns.y2025, getColor: (f) => returnColor(f.returns.y2025), yearKey: "y2025" },
+  { label: "2024", getValue: (f) => pct(f.returns.y2024), getRaw: (f) => f.returns.y2024, getColor: (f) => returnColor(f.returns.y2024), yearKey: "y2024" },
+  { label: "2023", getValue: (f) => pct(f.returns.y2023), getRaw: (f) => f.returns.y2023, getColor: (f) => returnColor(f.returns.y2023), yearKey: "y2023" },
+  { label: "2022", getValue: (f) => pct(f.returns.y2022), getRaw: (f) => f.returns.y2022, getColor: (f) => returnColor(f.returns.y2022), yearKey: "y2022" },
+  { label: "2021", getValue: (f) => pct(f.returns.y2021), getRaw: (f) => f.returns.y2021, getColor: (f) => returnColor(f.returns.y2021), yearKey: "y2021" },
+  { label: "2020", getValue: (f) => pct(f.returns.y2020), getRaw: (f) => f.returns.y2020, getColor: (f) => returnColor(f.returns.y2020), yearKey: "y2020" },
+  { label: "2019", getValue: (f) => pct(f.returns.y2019), getRaw: (f) => f.returns.y2019, getColor: (f) => returnColor(f.returns.y2019), yearKey: "y2019" },
   { label: "ממוצע שנתי", getValue: (f) => pct(f.avgAnnualReturn), getRaw: (f) => f.avgAnnualReturn, getColor: (f) => returnColor(f.avgAnnualReturn) },
   { label: "שארפ", getValue: (f) => num(f.sharpe), getRaw: (f) => f.sharpe },
   { label: "סטיית תקן", getValue: (f) => pct(f.stdDev), getRaw: (f) => f.stdDev, getColor: (f) => returnColor(f.stdDev), lowerIsBetter: true },
@@ -61,8 +65,13 @@ function getBestIdx(funds: Fund[], metric: MetricRow): number | null {
   return bestIdx;
 }
 
-export default function CompareTable({ funds, accentColor, compact }: CompareTableProps) {
+export default function CompareTable({ funds, accentColor, compact, selectedYears }: CompareTableProps) {
   if (funds.length < 2) return null;
+
+  // Filter metrics based on selected years (if provided)
+  const visibleMetrics = selectedYears && selectedYears.length > 0
+    ? METRICS.filter((m) => !m.yearKey || selectedYears.includes(m.yearKey))
+    : METRICS;
 
   const fs = compact ? { th: 8, thName: 9, td: 8, label: 8, star: 8, legend: 0, padH: "5px 8px", padD: "4px 8px", lower: 6 }
                       : { th: 11, thName: 13, td: 12, label: 12, star: 9, legend: 10, padH: "10px 14px", padD: "8px 12px", lower: 9 };
@@ -94,7 +103,7 @@ export default function CompareTable({ funds, accentColor, compact }: CompareTab
           </tr>
         </thead>
         <tbody>
-          {METRICS.map((metric, rowIdx) => {
+          {visibleMetrics.map((metric, rowIdx) => {
             const bestIdx = getBestIdx(funds, metric);
             const bg = rowIdx % 2 === 0 ? "#ffffff" : "#f8f9fb";
 

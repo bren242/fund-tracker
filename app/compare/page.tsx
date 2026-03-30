@@ -30,6 +30,30 @@ function CompareContent() {
   const [data, setData] = useState<FundsData | null>(null);
   const mode = brand.features?.comparisonMode ?? "basic";
 
+  // Available year keys and their labels
+  const YEAR_OPTIONS = [
+    { key: "ytd2026", label: "מצטבר 2026" },
+    { key: "y2025", label: "2025" },
+    { key: "y2024", label: "2024" },
+    { key: "y2023", label: "2023" },
+    { key: "y2022", label: "2022" },
+    { key: "y2021", label: "2021" },
+    { key: "y2020", label: "2020" },
+    { key: "y2019", label: "2019" },
+  ];
+
+  // Default: show all years
+  const [selectedYears, setSelectedYears] = useState<string[]>(YEAR_OPTIONS.map((y) => y.key));
+
+  const toggleYear = (key: string) => {
+    setSelectedYears((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  };
+
+  const selectAllYears = () => setSelectedYears(YEAR_OPTIONS.map((y) => y.key));
+  const clearAllYears = () => setSelectedYears([]);
+
   useEffect(() => {
     fetch(`/api/funds?client=${encodeURIComponent(clientKey)}`)
       .then((r) => r.json())
@@ -109,8 +133,61 @@ function CompareContent() {
           </div>
 
           <div style={{ maxWidth: 960, margin: "0 auto", padding: "24px 24px 20px" }}>
+            {/* Year selector */}
+            <div style={{
+              backgroundColor: "var(--bg-surface)",
+              border: "1px solid var(--border)",
+              borderRadius: 10,
+              padding: "12px 16px",
+              marginBottom: 20,
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
+                  📅 בחר שנים להשוואה
+                </span>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button onClick={selectAllYears}
+                    style={{ fontSize: 10, padding: "3px 10px", borderRadius: 4, border: "1px solid var(--border)", backgroundColor: "var(--bg-surface-alt)", color: "var(--text-secondary)", cursor: "pointer" }}>
+                    בחר הכל
+                  </button>
+                  <button onClick={clearAllYears}
+                    style={{ fontSize: 10, padding: "3px 10px", borderRadius: 4, border: "1px solid var(--border)", backgroundColor: "var(--bg-surface-alt)", color: "var(--text-secondary)", cursor: "pointer" }}>
+                    נקה
+                  </button>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {YEAR_OPTIONS.map((y) => {
+                  const active = selectedYears.includes(y.key);
+                  return (
+                    <button
+                      key={y.key}
+                      onClick={() => toggleYear(y.key)}
+                      style={{
+                        padding: "5px 14px",
+                        borderRadius: 6,
+                        border: `1px solid ${active ? brand.primaryColor : "var(--border)"}`,
+                        backgroundColor: active ? `${brand.primaryColor}15` : "var(--bg-surface)",
+                        color: active ? brand.primaryColor : "var(--text-secondary)",
+                        fontWeight: active ? 700 : 400,
+                        fontSize: 12,
+                        cursor: "pointer",
+                        transition: "all 0.15s",
+                      }}>
+                      {y.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedYears.length === 0 && (
+                <p style={{ fontSize: 11, color: "#f59e0b", margin: "8px 0 0", fontWeight: 500 }}>
+                  ⚠️ לא נבחרו שנים — הטבלה תציג רק נתונים כלליים
+                </p>
+              )}
+            </div>
+
             <CompareSummary funds={funds} accentColor={brand.primaryColor} />
-            <CompareTable funds={funds} accentColor={brand.primaryColor} />
+            <CompareTable funds={funds} accentColor={brand.primaryColor} selectedYears={selectedYears} />
             {mode === "advanced" && <CompareCharts funds={funds} accentColor={brand.primaryColor} />}
           </div>
 
