@@ -1525,6 +1525,7 @@ function AiParserTab({ password, clientKey, data, onStatus, onReload }: {
   const [reportMonth, setReportMonth] = useState<string>("");
   const [collisions, setCollisions] = useState<{ field: string; month: string; existingValue: number; newValue: number }[]>([]);
   const [collisionDecisions, setCollisionDecisions] = useState<Record<string, "replace" | "keep">>({});
+  const [draftReportMonths, setDraftReportMonths] = useState<Record<string, string>>({});
 
   const headers = { "x-admin-password": password };
 
@@ -1645,7 +1646,7 @@ function AiParserTab({ password, clientKey, data, onStatus, onReload }: {
       return;
     }
 
-    const draftReportMonth = draft.reportMonth;
+    const draftReportMonth = draftReportMonths[draft.id] || draft.reportMonth;
     const hasMonthlyReturn = draft.extracted.fields.some((f) => f.key === "monthlyReturn");
 
     if (hasMonthlyReturn && !draftReportMonth) {
@@ -2023,15 +2024,46 @@ function AiParserTab({ password, clientKey, data, onStatus, onReload }: {
                   {draft.source.preview}...
                 </div>
 
-                {/* Report month badge */}
-                {draft.status === "pending" && (
-                  <div style={{ fontSize: 11, color: draft.reportMonth ? "var(--text-secondary)" : "#f59e0b", marginBottom: 8 }}>
-                    {draft.reportMonth
-                      ? `📅 חודש דיווח: ${draft.reportMonth}`
-                      : "⚠️ חסר חודש דיווח — לא ניתן להחיל תשואה חודשית"
-                    }
-                  </div>
-                )}
+                {/* Report month — editable for pending drafts */}
+                {draft.status === "pending" && (() => {
+                  const currentMonth = draftReportMonths[draft.id] ?? (draft.reportMonth || "");
+                  const hasMonthlyReturn = draft.extracted.fields.some((f) => f.key === "monthlyReturn");
+                  const missing = hasMonthlyReturn && !currentMonth;
+                  return (
+                    <div style={{
+                      padding: "8px 12px",
+                      backgroundColor: missing ? "#fef3c715" : "var(--bg-input)",
+                      border: `1px solid ${missing ? "#f59e0b60" : "var(--border)"}`,
+                      borderRadius: 6,
+                      marginBottom: 10,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      flexWrap: "wrap",
+                    }}>
+                      <label style={{ fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>📅 חודש דיווח:</label>
+                      <input
+                        type="month"
+                        value={currentMonth}
+                        onChange={(e) => setDraftReportMonths((prev) => ({ ...prev, [draft.id]: e.target.value }))}
+                        style={{
+                          border: `1px solid ${missing ? "#f59e0b" : "var(--border)"}`,
+                          borderRadius: 5,
+                          padding: "4px 8px",
+                          fontSize: 11,
+                          backgroundColor: "var(--bg-surface)",
+                          color: "var(--text-primary)",
+                          maxWidth: 160,
+                        }}
+                      />
+                      {missing && (
+                        <span style={{ fontSize: 10, color: "#ef4444", fontWeight: 500 }}>
+                          יש לבחור חודש דיווח
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Collision warning UI */}
                 {draft.status === "pending" && collisions.length > 0 && (
@@ -2115,24 +2147,29 @@ function AiParserTab({ password, clientKey, data, onStatus, onReload }: {
                 )}
 
                 {/* Actions for pending */}
-                {draft.status === "pending" && collisions.length === 0 && (
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button onClick={() => handleApplyDraft(draft)}
-                      disabled={!draft.match?.fundId || draft.extracted.fields.length === 0}
-                      style={{
-                        backgroundColor: draft.match?.fundId && draft.extracted.fields.length > 0 ? "#059669" : "var(--text-muted)",
-                        color: "#fff", fontWeight: 600, padding: "5px 16px", borderRadius: 5, border: "none", cursor: "pointer", fontSize: 11,
-                        opacity: draft.match?.fundId && draft.extracted.fields.length > 0 ? 1 : 0.4,
-                      }}
-                      title={!draft.match?.fundId ? "לא נבחרה קרן" : draft.extracted.fields.length === 0 ? "אין שדות" : `עדכן ${draft.extracted.fields.length} שדות`}>
-                      ✓ עדכן קרן ({draft.extracted.fields.length})
-                    </button>
-                    <button onClick={() => handleRejectDraft(draft.id)}
-                      style={{ backgroundColor: "var(--bg-surface-alt)", color: "#ef4444", border: "1px solid #ef444430", borderRadius: 5, padding: "5px 16px", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
-                      ✗ דחה
-                    </button>
-                  </div>
-                )}
+                {draft.status === "pending" && collisions.length === 0 && (() => {
+                  const effectiveMonth = draftReportMonths[draft.id] ?? (draft.reportMonth || "");
+                  const needsMonth = draft.extracted.fields.some((f) => f.key === "monthlyReturn") && !effectiveMonth;
+                  const canApply = !!draft.match?.fundId && draft.extracted.fields.length > 0 && !needsMonth;
+                  return (
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={() => handleApplyDraft(draft)}
+                        disabled={!canApply}
+                        style={{
+                          backgroundColor: canApply ? "#059669" : "var(--text-muted)",
+                          color: "#fff", fontWeight: 600, padding: "5px 16px", borderRadius: 5, border: "none", cursor: "pointer", fontSize: 11,
+                          opacity: canApply ? 1 : 0.4,
+                        }}
+                        title={!draft.match?.fundId ? "לא נבחרה קרן" : needsMonth ? "יש לבחור חודש דיווח" : draft.extracted.fields.length === 0 ? "אין שדות" : `עדכן ${draft.extracted.fields.length} שדות`}>
+                        ✓ עדכן קרן ({draft.extracted.fields.length})
+                      </button>
+                      <button onClick={() => handleRejectDraft(draft.id)}
+                        style={{ backgroundColor: "var(--bg-surface-alt)", color: "#ef4444", border: "1px solid #ef444430", borderRadius: 5, padding: "5px 16px", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
+                        ✗ דחה
+                      </button>
+                    </div>
+                  );
+                })()}
               </div>
             ))
           )}
