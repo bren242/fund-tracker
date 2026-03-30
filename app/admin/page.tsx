@@ -1602,13 +1602,38 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
 
   useEffect(() => { loadDrafts(); loadTokenUsage(); }, [loadDrafts, loadTokenUsage]);
 
-  // All funds flat list for matching dropdown
+  // All funds flat list for matching dropdown — sorted alphabetically
   const allFunds: { id: string; name: string; catId: string; catName: string }[] = [];
   data.categories.forEach((cat) => {
     cat.funds.forEach((fund) => {
       allFunds.push({ id: fund.id, name: fund.name, catId: cat.id, catName: cat.name });
     });
   });
+  allFunds.sort((a, b) => a.name.localeCompare(b.name, "he"));
+
+  // Fund search state
+  const [fundSearch, setFundSearch] = useState("");
+  const [fundDropdownOpen, setFundDropdownOpen] = useState(false);
+  const fundSearchRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (fundSearchRef.current && !fundSearchRef.current.contains(e.target as Node)) {
+        setFundDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Filtered funds based on search
+  const filteredFunds = fundSearch.trim()
+    ? allFunds.filter((f) =>
+        f.name.toLowerCase().includes(fundSearch.toLowerCase()) ||
+        f.catName.toLowerCase().includes(fundSearch.toLowerCase())
+      )
+    : allFunds;
 
   const handleParse = async () => {
     if (!inputText.trim() || inputText.trim().length < 10) {
@@ -2129,7 +2154,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
             </div>
           </div>
 
-          {/* Match selection */}
+          {/* Match selection — searchable */}
           <div style={{ padding: "10px 14px", backgroundColor: "var(--bg-input)", borderRadius: 8, marginBottom: 14, border: "1px solid var(--border)" }}>
             <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 6 }}>
               התאמה לקרן קיימת:
@@ -2139,28 +2164,110 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
                 💡 הצעת AI: &quot;{parseResult.match.fundName}&quot; (דמיון: {Math.round((parseResult.match.similarity || 0) * 100)}%)
               </p>
             )}
-            <select
-              value={selectedMatchFundId}
-              onChange={(e) => {
-                setSelectedMatchFundId(e.target.value);
-                const f = allFunds.find((fund) => fund.id === e.target.value);
-                setSelectedMatchCatId(f?.catId || "");
-              }}
-              style={{
-                width: "100%",
-                border: "1px solid var(--border)",
-                borderRadius: 6,
-                padding: "6px 10px",
-                fontSize: 12,
-                backgroundColor: "var(--bg-surface)",
-                color: "var(--text-primary)",
-              }}
-            >
-              <option value="">-- בחר קרן --</option>
-              {allFunds.map((f) => (
-                <option key={f.id} value={f.id}>{f.name} ({f.catName})</option>
-              ))}
-            </select>
+
+            {/* Selected fund display */}
+            {selectedMatchFundId && (() => {
+              const sel = allFunds.find((f) => f.id === selectedMatchFundId);
+              return sel ? (
+                <div style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                  padding: "6px 10px", backgroundColor: "#05966910", border: "1px solid #05966930",
+                  borderRadius: 6, marginBottom: 8, fontSize: 12,
+                }}>
+                  <span style={{ fontWeight: 600, color: "#059669" }}>✓ {sel.name} ({sel.catName})</span>
+                  <button onClick={() => { setSelectedMatchFundId(""); setSelectedMatchCatId(""); setFundSearch(""); }}
+                    style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 14, padding: 0 }}>✕</button>
+                </div>
+              ) : null;
+            })()}
+
+            {/* Search input */}
+            <div ref={fundSearchRef} style={{ position: "relative" }}>
+              <input
+                type="text"
+                placeholder="🔍 חפש קרן לפי שם..."
+                value={fundSearch}
+                onChange={(e) => { setFundSearch(e.target.value); setFundDropdownOpen(true); }}
+                onFocus={() => setFundDropdownOpen(true)}
+                style={{
+                  width: "100%",
+                  border: "1px solid var(--border)",
+                  borderRadius: 6,
+                  padding: "6px 10px",
+                  fontSize: 12,
+                  backgroundColor: "var(--bg-surface)",
+                  color: "var(--text-primary)",
+                  direction: "rtl",
+                }}
+              />
+
+              {/* Dropdown results */}
+              {fundDropdownOpen && (
+                <div style={{
+                  position: "absolute",
+                  top: "100%",
+                  left: 0, right: 0,
+                  maxHeight: 200,
+                  overflowY: "auto",
+                  backgroundColor: "var(--bg-surface)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "0 0 6px 6px",
+                  zIndex: 10,
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                }}>
+                  {filteredFunds.length === 0 ? (
+                    <div style={{ padding: 12, textAlign: "center" }}>
+                      <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 8px" }}>
+                        הקרן לא ברשימה. האם ברצונך להקים קרן חדשה?
+                      </p>
+                      <button
+                        onClick={() => {
+                          setFundDropdownOpen(false);
+                          setView("input");
+                          onStatus("💡 השתמש בלחצן \"קרן חדשה\" בטיוטות ליצירת קרן");
+                        }}
+                        style={{
+                          backgroundColor: "#3b82f6",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: 5,
+                          padding: "5px 14px",
+                          fontSize: 11,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}>
+                        🆕 כן, הקם קרן חדשה
+                      </button>
+                    </div>
+                  ) : (
+                    filteredFunds.map((f) => (
+                      <div
+                        key={f.id}
+                        onClick={() => {
+                          setSelectedMatchFundId(f.id);
+                          setSelectedMatchCatId(f.catId);
+                          setFundSearch("");
+                          setFundDropdownOpen(false);
+                        }}
+                        style={{
+                          padding: "7px 12px",
+                          fontSize: 12,
+                          cursor: "pointer",
+                          borderBottom: "1px solid var(--border)",
+                          backgroundColor: selectedMatchFundId === f.id ? "#05966910" : "transparent",
+                          direction: "rtl",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--bg-surface-alt)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = selectedMatchFundId === f.id ? "#05966910" : "transparent")}
+                      >
+                        <span style={{ fontWeight: 500 }}>{f.name}</span>
+                        <span style={{ fontSize: 10, color: "var(--text-muted)", marginRight: 6 }}>({f.catName})</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Report Month selector */}
