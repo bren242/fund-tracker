@@ -39,6 +39,8 @@ export interface ParseDraft {
   reportMonth: string | null;
   /** Confidence of reportMonth detection */
   reportMonthConfidence: "high" | "low";
+  /** Currency basis detected from document */
+  returnBasis: "ILS" | "USD" | null;
   match: FundMatch | null;
   status: "pending" | "applied" | "rejected";
   appliedAt?: string;
@@ -62,6 +64,7 @@ export interface ParseLogEntry {
   details: string;
   /** Sprint 1: enhanced logging fields */
   reportMonth?: string | null;
+  returnBasis?: "ILS" | "USD" | null;
   collision?: boolean;
   collisionDecision?: "replace" | "keep" | "new";
   oldValue?: number | null;

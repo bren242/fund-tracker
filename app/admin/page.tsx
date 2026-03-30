@@ -1554,6 +1554,8 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
     fundNameConfidence: number;
     reportMonth: string | null;
     reportMonthConfidence: "high" | "low";
+    returnBasis: "ILS" | "USD" | null;
+    returnBasisOptions: ("ILS" | "USD")[];
     fields: { key: string; value: string | number | null; confidence: number }[];
     match: { fundId: string | null; fundName: string | null; similarity: number; categoryId: string | null } | null;
   } | null>(null);
@@ -1565,11 +1567,13 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
     source: { preview: string };
     reportMonth: string | null;
     reportMonthConfidence: "high" | "low";
+    returnBasis: "ILS" | "USD" | null;
   }[]>([]);
   const [view, setView] = useState<"input" | "review" | "drafts">("input");
   const [selectedMatchFundId, setSelectedMatchFundId] = useState<string>("");
   const [selectedMatchCatId, setSelectedMatchCatId] = useState<string>("");
   const [reportMonth, setReportMonth] = useState<string>("");
+  const [returnBasis, setReturnBasis] = useState<"ILS" | "USD" | null>(null);
   const [collisions, setCollisions] = useState<{ field: string; month: string; existingValue: number; newValue: number }[]>([]);
   const [collisionDecisions, setCollisionDecisions] = useState<Record<string, "replace" | "keep">>({});
   const [draftReportMonths, setDraftReportMonths] = useState<Record<string, string>>({});
@@ -1634,6 +1638,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
       setApprovedFields(approved);
       // Auto-set reportMonth from AI
       setReportMonth(result.reportMonth || "");
+      setReturnBasis(result.returnBasis || null);
       setCollisions([]);
       setCollisionDecisions({});
       // Auto-set match
@@ -1643,7 +1648,10 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
       }
       setView("review");
       loadTokenUsage();
-      if (result.tokenUsage?.warning) {
+      // Show dual currency notification if both found
+      if (result.returnBasisOptions?.length === 2) {
+        onStatus("⚠️ הדיווח כולל תשואות שקליות ודולריות — בחר את המטבע הרלוונטי");
+      } else if (result.tokenUsage?.warning) {
         onStatus(`⚠️ שימוש ב-${result.tokenUsage.percent}% מהמכסה החודשית`);
       }
     } catch {
@@ -1691,6 +1699,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
       }
       setApprovedFields(approved);
       setReportMonth(result.reportMonth || "");
+      setReturnBasis(result.returnBasis || null);
       setCollisions([]);
       setCollisionDecisions({});
       if (result.match?.fundId) {
@@ -1699,7 +1708,9 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
       }
       setView("review");
       loadTokenUsage();
-      if (result.tokenUsage?.warning) {
+      if (result.returnBasisOptions?.length === 2) {
+        onStatus("⚠️ הדיווח כולל תשואות שקליות ודולריות — בחר את המטבע הרלוונטי");
+      } else if (result.tokenUsage?.warning) {
         onStatus(`⚠️ שימוש ב-${result.tokenUsage.percent}% מהמכסה החודשית`);
       } else if (result.fromCache) {
         onStatus("✓ תוצאה מהמטמון — 0 טוקנים");
@@ -1744,6 +1755,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
           match,
           reportMonth: reportMonth || null,
           reportMonthConfidence: parseResult.reportMonthConfidence,
+          returnBasis: returnBasis,
         }),
       });
       if (res.ok) {
@@ -1815,6 +1827,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
           categoryId: draft.match.categoryId,
           approvedFields: draft.extracted.fields,
           reportMonth: draftReportMonth || null,
+          returnBasis: draft.returnBasis || null,
           collisionDecisions: overrideDecisions || {},
         }),
       });
@@ -1852,6 +1865,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
   const [newFundDraftId, setNewFundDraftId] = useState<string | null>(null);
   const [newFundCategoryId, setNewFundCategoryId] = useState<string>("");
   const [newFundName, setNewFundName] = useState<string>("");
+  const [newFundReturnBasis, setNewFundReturnBasis] = useState<"ILS" | "USD">("ILS");
 
   const handleCreateFund = async (draft: typeof drafts[0]) => {
     const fundName = newFundName || draft.extracted.fundName;
@@ -1878,6 +1892,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
           fundName,
           fields: draft.extracted.fields,
           reportMonth: effectiveMonth,
+          returnBasis: newFundReturnBasis,
         }),
       });
       if (res.ok) {
@@ -2186,6 +2201,54 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
             )}
           </div>
 
+          {/* Currency selector */}
+          <div style={{
+            padding: "10px 14px",
+            backgroundColor: "var(--bg-input)",
+            borderRadius: 8,
+            marginBottom: 14,
+            border: "1px solid var(--border)",
+          }}>
+            <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 6 }}>
+              מטבע קרן:
+              {parseResult?.returnBasisOptions && parseResult.returnBasisOptions.length === 2 && (
+                <span style={{ fontSize: 10, color: "#f59e0b", marginRight: 8, fontWeight: 400 }}>
+                  ⚠️ הדיווח כולל תשואות שקליות ודולריות — בחר את המטבע
+                </span>
+              )}
+            </label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() => setReturnBasis("ILS")}
+                style={{
+                  padding: "6px 16px",
+                  borderRadius: 6,
+                  border: `1px solid ${returnBasis === "ILS" ? "#059669" : "var(--border)"}`,
+                  backgroundColor: returnBasis === "ILS" ? "#05966915" : "var(--bg-surface)",
+                  color: returnBasis === "ILS" ? "#059669" : "var(--text-secondary)",
+                  fontWeight: returnBasis === "ILS" ? 700 : 400,
+                  fontSize: 12,
+                  cursor: "pointer",
+                }}>
+                ₪ שקלי (ILS)
+              </button>
+              <button
+                onClick={() => setReturnBasis("USD")}
+                style={{
+                  padding: "6px 16px",
+                  borderRadius: 6,
+                  border: `1px solid ${returnBasis === "USD" ? "#3b82f6" : "var(--border)"}`,
+                  backgroundColor: returnBasis === "USD" ? "#3b82f615" : "var(--bg-surface)",
+                  color: returnBasis === "USD" ? "#3b82f6" : "var(--text-secondary)",
+                  fontWeight: returnBasis === "USD" ? 700 : 400,
+                  fontSize: 12,
+                  cursor: "pointer",
+                }}>
+                $ דולרי (USD)
+              </button>
+            </div>
+          </div>
+
           {/* Fields table */}
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginBottom: 16 }}>
             <thead>
@@ -2331,6 +2394,33 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
                   );
                 })()}
 
+                {/* Currency badge */}
+                {draft.status === "pending" && (
+                  <div style={{
+                    padding: "6px 12px",
+                    backgroundColor: "var(--bg-input)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 6,
+                    marginBottom: 10,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: 11,
+                  }}>
+                    <span style={{ fontWeight: 600 }}>💱 מטבע:</span>
+                    <span style={{
+                      padding: "2px 8px",
+                      borderRadius: 4,
+                      backgroundColor: draft.returnBasis === "USD" ? "#3b82f615" : "#05966915",
+                      color: draft.returnBasis === "USD" ? "#3b82f6" : "#059669",
+                      fontWeight: 600,
+                      fontSize: 10,
+                    }}>
+                      {draft.returnBasis === "USD" ? "$ דולרי" : "₪ שקלי"}
+                    </span>
+                  </div>
+                )}
+
                 {/* Collision warning UI */}
                 {draft.status === "pending" && collisions.length > 0 && (
                   <div style={{
@@ -2463,6 +2553,33 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
                         ))}
                       </select>
                     </div>
+                    <div style={{ marginBottom: 10 }}>
+                      <label style={{ fontSize: 11, fontWeight: 600, display: "block", marginBottom: 4 }}>מטבע קרן:</label>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button
+                          onClick={() => setNewFundReturnBasis("ILS")}
+                          style={{
+                            padding: "4px 12px", borderRadius: 5, fontSize: 11, cursor: "pointer",
+                            border: `1px solid ${newFundReturnBasis === "ILS" ? "#059669" : "var(--border)"}`,
+                            backgroundColor: newFundReturnBasis === "ILS" ? "#05966915" : "var(--bg-surface)",
+                            color: newFundReturnBasis === "ILS" ? "#059669" : "var(--text-secondary)",
+                            fontWeight: newFundReturnBasis === "ILS" ? 700 : 400,
+                          }}>
+                          ₪ שקלי
+                        </button>
+                        <button
+                          onClick={() => setNewFundReturnBasis("USD")}
+                          style={{
+                            padding: "4px 12px", borderRadius: 5, fontSize: 11, cursor: "pointer",
+                            border: `1px solid ${newFundReturnBasis === "USD" ? "#3b82f6" : "var(--border)"}`,
+                            backgroundColor: newFundReturnBasis === "USD" ? "#3b82f615" : "var(--bg-surface)",
+                            color: newFundReturnBasis === "USD" ? "#3b82f6" : "var(--text-secondary)",
+                            fontWeight: newFundReturnBasis === "USD" ? 700 : 400,
+                          }}>
+                          $ דולרי
+                        </button>
+                      </div>
+                    </div>
                     <div style={{ display: "flex", gap: 8 }}>
                       <button
                         onClick={() => handleCreateFund(draft)}
@@ -2475,7 +2592,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
                         ✓ צור קרן חדשה
                       </button>
                       <button
-                        onClick={() => { setNewFundDraftId(null); setNewFundName(""); setNewFundCategoryId(""); }}
+                        onClick={() => { setNewFundDraftId(null); setNewFundName(""); setNewFundCategoryId(""); setNewFundReturnBasis("ILS"); }}
                         style={{ backgroundColor: "var(--bg-surface-alt)", color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: 5, padding: "5px 16px", cursor: "pointer", fontSize: 11 }}>
                         ביטול
                       </button>
@@ -2501,7 +2618,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
                         ✓ עדכן קרן ({draft.extracted.fields.length})
                       </button>
                       <button
-                        onClick={() => { setNewFundDraftId(draft.id); setNewFundName(draft.extracted.fundName); setNewFundCategoryId(""); }}
+                        onClick={() => { setNewFundDraftId(draft.id); setNewFundName(draft.extracted.fundName); setNewFundCategoryId(""); setNewFundReturnBasis(draft.returnBasis || "ILS"); }}
                         style={{
                           backgroundColor: "var(--bg-surface-alt)", color: "#3b82f6", border: "1px solid #3b82f630", borderRadius: 5, padding: "5px 16px", cursor: "pointer", fontSize: 11, fontWeight: 600,
                         }}>

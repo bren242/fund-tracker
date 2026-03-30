@@ -410,6 +410,11 @@ FIELDS TO EXTRACT (only these):
   If the month cannot be clearly determined, set reportMonth to null.
   NEVER guess or default to the current month.
 - reportMonthConfidence: "high" | "low" (how certain you are about the report month)
+- returnBasis: "ILS" | "USD" | null (the currency basis of the returns)
+  Detect from document context: ₪, שקלי, שקלית, ILS → "ILS"; $, דולרי, דולרית, USD → "USD"
+  If both currencies appear, set returnBasis to the PRIMARY one used for the main return figures.
+  If unclear, set to null.
+- returnBasisOptions: ["ILS"] or ["USD"] or ["ILS","USD"] (all currency bases found in the document)
 - manager: string | null (fund manager name)
 - classification: string | null (fund type/classification)
 - returns: object with year keys like "y2024", "y2023", etc. (annual returns as decimals)
@@ -424,6 +429,8 @@ Respond in valid JSON with this exact structure:
   "fundNameConfidence": 0.0-1.0,
   "reportMonth": "YYYY-MM" or null,
   "reportMonthConfidence": "high" or "low",
+  "returnBasis": "ILS" or "USD" or null,
+  "returnBasisOptions": ["ILS"] or ["USD"] or ["ILS","USD"],
   "fields": [
     { "key": "monthlyReturn", "value": ..., "confidence": 0.0-1.0 },
     { "key": "returns.y2024", "value": ..., "confidence": 0.0-1.0 },
@@ -452,6 +459,8 @@ function parseCloudeResponse(
   fundNameConfidence: number;
   reportMonth: string | null;
   reportMonthConfidence: "high" | "low";
+  returnBasis: "ILS" | "USD" | null;
+  returnBasisOptions: ("ILS" | "USD")[];
   fields: ParsedField[];
   match: { fundId: string; fundName: string; similarity: number; categoryId: string | null } | null;
 } | { error: string } {
@@ -474,6 +483,21 @@ function parseCloudeResponse(
   const reportMonthConfidence: "high" | "low" =
     reportMonth && parsed.reportMonthConfidence === "high" ? "high" : "low";
 
+  // Extract returnBasis
+  const rawBasis = parsed.returnBasis;
+  const returnBasis: "ILS" | "USD" | null =
+    rawBasis === "ILS" ? "ILS" : rawBasis === "USD" ? "USD" : null;
+
+  // Extract returnBasisOptions (all currencies found in document)
+  const rawOptions = Array.isArray(parsed.returnBasisOptions) ? parsed.returnBasisOptions : [];
+  const returnBasisOptions: ("ILS" | "USD")[] = rawOptions.filter(
+    (o: unknown) => o === "ILS" || o === "USD"
+  ) as ("ILS" | "USD")[];
+  // Ensure at least the detected basis is in options
+  if (returnBasis && !returnBasisOptions.includes(returnBasis)) {
+    returnBasisOptions.push(returnBasis);
+  }
+
   let match = null;
   if (parsed.suggestedMatch && typeof parsed.suggestedMatch === "object") {
     const sm = parsed.suggestedMatch as Record<string, unknown>;
@@ -493,6 +517,8 @@ function parseCloudeResponse(
     fundNameConfidence: normalizeConfidence(parsed.fundNameConfidence),
     reportMonth,
     reportMonthConfidence,
+    returnBasis,
+    returnBasisOptions,
     fields: sanitizedFields,
     match,
   };
@@ -661,6 +687,7 @@ export async function POST(req: NextRequest) {
         },
         reportMonth,
         reportMonthConfidence: reportMonth && body.reportMonthConfidence === "high" ? "high" : "low",
+        returnBasis: body.returnBasis === "ILS" ? "ILS" : body.returnBasis === "USD" ? "USD" : null,
         match: body.match || null,
         status: "pending",
       };
@@ -736,7 +763,7 @@ export async function POST(req: NextRequest) {
     // ============================================================
     if (action === "apply") {
       const body = await req.json();
-      const { draftId, fundId, categoryId, approvedFields, reportMonth, collisionDecisions } = body;
+      const { draftId, fundId, categoryId, approvedFields, reportMonth, collisionDecisions, returnBasis: applyReturnBasis } = body;
 
       if (!draftId || !fundId || !categoryId || !approvedFields) {
         return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -832,6 +859,12 @@ export async function POST(req: NextRequest) {
               appliedFieldNames.push("classification");
             }
           }
+
+          // Set returnBasis on fund if provided (fund-level currency)
+          if (applyReturnBasis === "ILS" || applyReturnBasis === "USD") {
+            funds[i].returnBasis = applyReturnBasis;
+          }
+
           break;
         }
         if (fundFound) break;
@@ -926,7 +959,7 @@ export async function POST(req: NextRequest) {
       }
 
       const body = await req.json();
-      const { draftId, categoryId, fundName, fields, reportMonth } = body;
+      const { draftId, categoryId, fundName, fields, reportMonth, returnBasis } = body;
 
       if (!categoryId || !fundName || !fields || !Array.isArray(fields)) {
         return NextResponse.json({ error: "Missing required fields: categoryId, fundName, fields" }, { status: 400 });
@@ -944,6 +977,7 @@ export async function POST(req: NextRequest) {
         monthlyReturn: 0,
         returns: { ytd2026: null, y2025: null, y2024: null, y2023: null, y2022: null },
         monthlyReturns: {},
+        returnBasis: returnBasis === "ILS" || returnBasis === "USD" ? returnBasis : "ILS",
       };
 
       // Apply extracted fields
@@ -1002,8 +1036,9 @@ export async function POST(req: NextRequest) {
         draftId: draftId || "direct-create",
         fundName,
         fundId: newFundId,
-        details: `New fund created: "${fundName}" in category ${categoryId}. Fields: ${validFields.map((f) => `${f.key}=${f.value}`).join(", ")}`,
+        details: `New fund created: "${fundName}" (${returnBasis || "ILS"}) in category ${categoryId}. Fields: ${validFields.map((f) => `${f.key}=${f.value}`).join(", ")}`,
         reportMonth: reportMonth || null,
+        returnBasis: returnBasis || "ILS",
         collision: false,
         collisionDecision: "new",
       });
