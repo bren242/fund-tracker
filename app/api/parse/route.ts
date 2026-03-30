@@ -158,6 +158,13 @@ async function callClaudeVision(
   mediaType: string
 ): Promise<{ success: true; content: string } | { success: false; error: string }> {
   const maxAttempts = 2;
+
+  // PDFs use "document" content block, images use "image"
+  const isPdf = mediaType === "application/pdf";
+  const contentBlockType = isPdf ? "document" : "image";
+
+  console.log(`[parse-file] type=${contentBlockType}, media_type=${mediaType}, base64_length=${base64Data.length}`);
+
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const controller = new AbortController();
@@ -178,7 +185,7 @@ async function callClaudeVision(
             role: "user",
             content: [
               {
-                type: "image",
+                type: contentBlockType,
                 source: {
                   type: "base64",
                   media_type: mediaType,
@@ -643,13 +650,17 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Convert file to base64
+      // Convert file to raw base64 (no data URI prefix)
       const arrayBuffer = await file.arrayBuffer();
-      const base64Data = Buffer.from(arrayBuffer).toString("base64");
+      let base64Data = Buffer.from(arrayBuffer).toString("base64");
+      // Strip data URI prefix if present (safety guard)
+      const prefixMatch = base64Data.match(/^data:[^;]+;base64,/);
+      if (prefixMatch) {
+        base64Data = base64Data.slice(prefixMatch[0].length);
+      }
 
       const systemPrompt = buildSystemPrompt(existingFunds);
 
-      // For PDFs, Claude Vision accepts them as images with application/pdf mime type
       const claudeResult = await callClaudeVision(apiKey, systemPrompt, base64Data, mimeType);
       if (!claudeResult.success) {
         return NextResponse.json({
