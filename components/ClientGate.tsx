@@ -35,6 +35,7 @@ export default function ClientGate({ clientKey, children }: { clientKey: string;
     });
     if (res.ok) {
       sessionStorage.setItem(SESSION_KEY, "1");
+      sessionStorage.setItem(`client-auth-password-${clientKey}`, password);
       setAuthed(true);
     } else {
       setError("סיסמה שגויה");

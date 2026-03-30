@@ -3,6 +3,7 @@ export interface AppFeatures {
   comparisonMode?: "basic" | "advanced";
   chartPage: boolean;
   aiParser?: boolean;
+  mobileUpload?: boolean;
 }
 
 export interface BrandConfig {

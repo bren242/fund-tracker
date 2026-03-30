@@ -35,6 +35,7 @@ Designed for institutional-grade reporting and print output for top-tier clients
 | Charts | `/{client}/charts` | Scatter plot (risk vs return) with print support |
 | Compare | `/{client}/compare` | Fund comparison (basic/advanced) |
 | Admin | `/{client}/admin` | Brand config, fund management, AI parser |
+| Upload | `/{client}/upload` | Mobile-first PDF/image upload for AI parsing |
 | 404 | `/` | Custom branded guide for missing client |
 
 ### Active Clients
@@ -100,14 +101,20 @@ Designed for institutional-grade reporting and print output for top-tier clients
   - Draft schema validation (must have fund name or match + at least 1 field)
   - Apply button disabled when no fund selected or no valid fields
   - All endpoints return structured JSON (no crashes)
-- [x] Phase 2 backend stub: `parse-file` action (returns mock, no UI yet)
+- [x] Phase 2: real `parse-file` action with Vision API (replaces stub)
 
-### AI Parser — Phase 2 Prepared (backend stub)
-- [x] `parse-file` API action exists (accepts fileName/fileType)
-- [x] Returns stub response with `stub: true` flag
-- [x] `sourceType: "text" | "file"` internal flag ready
-- [ ] Vision API integration (not yet)
-- [ ] File upload UI (not yet)
+### AI Parser — Phase 2: PDF/Image Upload (v1.2)
+- [x] Claude Vision API integration (`callClaudeVision()` with 45s timeout + retry)
+- [x] `parse-file` API action: multipart/form-data, validates type/size, base64 → Vision API
+- [x] Shared helpers: `buildSystemPrompt()`, `parseCloudeResponse()` (used by text + file)
+- [x] Allowed MIME types: PDF, PNG, JPG, WebP — max 10MB
+- [x] Mobile upload page (`/upload`) — drag/drop, file picker, camera capture
+- [x] Sequential multi-file processing (up to 10 files)
+- [x] Per-file status cards (queued → uploading → parsed → saved / error)
+- [x] Save individual draft or "Save All" from mobile
+- [x] Feature flag: `brand.features.mobileUpload` (per client)
+- [x] ClientGate password persistence for API auth from upload page
+- [x] Middleware updated for `/upload` route
 
 ### Fund Comparison
 - [x] Select up to 4 funds from report table (inline checkbox)
@@ -167,7 +174,6 @@ Designed for institutional-grade reporting and print output for top-tier clients
 
 ## Future Considerations
 
-- AI Parser Phase 2: PDF/Image upload via Claude Vision API
 - AI Parser Phase 3: Chat interface ("Ask your data")
 - Fund Narrator: AI-generated fund/comparison summaries
 - One-Pager Generator: standardized per-fund PDF output

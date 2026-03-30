@@ -19,6 +19,7 @@
     "comparison": true,
     "comparisonMode": "advanced",
     "chartPage": true,
-    "aiParser": true
+    "aiParser": true,
+    "mobileUpload": true
   }
 }

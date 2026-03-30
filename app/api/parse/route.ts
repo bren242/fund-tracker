@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClientKeyFromRequest } from "@/lib/clientKey";
 import { storageRead, storageWrite, storageAppend } from "@/lib/storage";
-import { ParseDraft, ParseLogEntry, ParsedField, APPLY_WHITELIST } from "@/lib/parseTypes";
+import { ParseDraft, ParseLogEntry, ParsedField } from "@/lib/parseTypes";
 
 const SUPER_ADMIN_PASSWORD = "super2026";
 const DEFAULT_ADMIN_PASSWORD = "admin2026";
@@ -150,6 +150,178 @@ async function callClaude(apiKey: string, systemPrompt: string, userText: string
   return { success: false, error: "AI service unavailable" };
 }
 
+/** Call Claude Vision API for image/PDF parsing with 1 retry */
+async function callClaudeVision(
+  apiKey: string,
+  systemPrompt: string,
+  base64Data: string,
+  mediaType: string
+): Promise<{ success: true; content: string } | { success: false; error: string }> {
+  const maxAttempts = 2;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 45000); // 45s for files
+
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1024,
+          system: systemPrompt,
+          messages: [{
+            role: "user",
+            content: [
+              {
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: mediaType,
+                  data: base64Data,
+                },
+              },
+              {
+                type: "text",
+                text: "Extract fund performance data from this document. Return valid JSON only.",
+              },
+            ],
+          }],
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        const errText = await response.text().catch(() => "Unknown error");
+        console.error(`Claude Vision API error (attempt ${attempt}):`, errText);
+        if (attempt < maxAttempts) continue;
+        return { success: false, error: `AI service error (${response.status})` };
+      }
+
+      const result = await response.json();
+      const content = result.content?.[0]?.text || "";
+      if (!content) {
+        if (attempt < maxAttempts) continue;
+        return { success: false, error: "Empty response from AI" };
+      }
+
+      return { success: true, content };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      console.error(`Claude Vision call failed (attempt ${attempt}):`, message);
+      if (attempt < maxAttempts) continue;
+      if (message.includes("abort")) {
+        return { success: false, error: "AI service timeout (45s)" };
+      }
+      return { success: false, error: "Failed to connect to AI service" };
+    }
+  }
+  return { success: false, error: "AI service unavailable" };
+}
+
+/** Supported file MIME types for parse-file */
+const ALLOWED_MIME_TYPES: Record<string, string> = {
+  "application/pdf": "application/pdf",
+  "image/png": "image/png",
+  "image/jpeg": "image/jpeg",
+  "image/jpg": "image/jpeg",
+  "image/webp": "image/webp",
+};
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+/** Build the extraction system prompt (shared between text and file parsing) */
+function buildSystemPrompt(existingFunds: { id: string; name: string }[]): string {
+  return `You are a financial data extraction assistant for an Israeli fund tracking system.
+Extract fund performance data from the provided Hebrew or English text or document.
+
+RULES:
+- Extract ONLY factual data explicitly stated in the text/document
+- Do NOT infer, calculate, or estimate any values
+- All return values should be decimal numbers (e.g., 5.2% → 0.052)
+- Fund name must be extracted in its original language
+- If a field is not clearly present, omit it
+
+FIELDS TO EXTRACT (only these):
+- fundName: string (the fund's name as written)
+- monthlyReturn: number | null (latest monthly return as decimal)
+- manager: string | null (fund manager name)
+- classification: string | null (fund type/classification)
+- returns: object with year keys like "y2024", "y2023", etc. (annual returns as decimals)
+- ytd2026: number | null (year-to-date return for 2026)
+
+EXISTING FUNDS IN SYSTEM (for matching):
+${existingFunds.map((f) => `- "${f.name}" (id: ${f.id})`).join("\n")}
+
+Respond in valid JSON with this exact structure:
+{
+  "fundName": "...",
+  "fundNameConfidence": 0.0-1.0,
+  "fields": [
+    { "key": "monthlyReturn", "value": ..., "confidence": 0.0-1.0 },
+    { "key": "returns.y2024", "value": ..., "confidence": 0.0-1.0 },
+    ...
+  ],
+  "suggestedMatch": {
+    "fundId": "..." or null,
+    "fundName": "..." or null,
+    "similarity": 0.0-1.0
+  }
+}`;
+}
+
+/** Parse Claude response JSON → structured result */
+function parseCloudeResponse(
+  content: string,
+  existingFunds: { id: string; name: string; categoryId: string }[]
+): {
+  fundName: string;
+  fundNameConfidence: number;
+  fields: ParsedField[];
+  match: { fundId: string; fundName: string; similarity: number; categoryId: string | null } | null;
+} | { error: string } {
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    return { error: "Could not parse AI response — invalid JSON" };
+  }
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(jsonMatch[0]);
+  } catch {
+    return { error: "Could not parse AI response — malformed JSON" };
+  }
+
+  const sanitizedFields = sanitizeFields(parsed.fields as unknown[]);
+
+  let match = null;
+  if (parsed.suggestedMatch && typeof parsed.suggestedMatch === "object") {
+    const sm = parsed.suggestedMatch as Record<string, unknown>;
+    if (sm.fundId) {
+      const matchedFund = existingFunds.find((f) => f.id === sm.fundId);
+      match = {
+        fundId: String(sm.fundId),
+        fundName: matchedFund?.name || String(sm.fundName || ""),
+        similarity: normalizeConfidence(sm.similarity),
+        categoryId: matchedFund?.categoryId || null,
+      };
+    }
+  }
+
+  return {
+    fundName: String(parsed.fundName || ""),
+    fundNameConfidence: normalizeConfidence(parsed.fundNameConfidence),
+    fields: sanitizedFields,
+    match,
+  };
+}
+
 /**
  * POST /api/parse?action=parse — Parse text via Claude API
  * POST /api/parse?action=save-draft — Save parsed result as draft
@@ -233,85 +405,19 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      const systemPrompt = `You are a financial data extraction assistant for an Israeli fund tracking system.
-Extract fund performance data from the provided Hebrew or English text.
-
-RULES:
-- Extract ONLY factual data explicitly stated in the text
-- Do NOT infer, calculate, or estimate any values
-- All return values should be decimal numbers (e.g., 5.2% → 0.052)
-- Fund name must be extracted in its original language
-- If a field is not clearly present, omit it
-
-FIELDS TO EXTRACT (only these):
-- fundName: string (the fund's name as written)
-- monthlyReturn: number | null (latest monthly return as decimal)
-- manager: string | null (fund manager name)
-- classification: string | null (fund type/classification)
-- returns: object with year keys like "y2024", "y2023", etc. (annual returns as decimals)
-- ytd2026: number | null (year-to-date return for 2026)
-
-EXISTING FUNDS IN SYSTEM (for matching):
-${existingFunds.map((f) => `- "${f.name}" (id: ${f.id})`).join("\n")}
-
-Respond in valid JSON with this exact structure:
-{
-  "fundName": "...",
-  "fundNameConfidence": 0.0-1.0,
-  "fields": [
-    { "key": "monthlyReturn", "value": ..., "confidence": 0.0-1.0 },
-    { "key": "returns.y2024", "value": ..., "confidence": 0.0-1.0 },
-    ...
-  ],
-  "suggestedMatch": {
-    "fundId": "..." or null,
-    "fundName": "..." or null,
-    "similarity": 0.0-1.0
-  }
-}`;
+      const systemPrompt = buildSystemPrompt(existingFunds);
 
       const claudeResult = await callClaude(apiKey, systemPrompt, text);
       if (!claudeResult.success) {
         return NextResponse.json({ error: claudeResult.error }, { status: 502 });
       }
 
-      // Extract JSON from response
-      const jsonMatch = claudeResult.content.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        return NextResponse.json({ error: "Could not parse AI response — invalid JSON" }, { status: 500 });
+      const result = parseCloudeResponse(claudeResult.content, existingFunds);
+      if ("error" in result) {
+        return NextResponse.json({ error: result.error }, { status: 500 });
       }
 
-      let parsed: Record<string, unknown>;
-      try {
-        parsed = JSON.parse(jsonMatch[0]);
-      } catch {
-        return NextResponse.json({ error: "Could not parse AI response — malformed JSON" }, { status: 500 });
-      }
-
-      // Sanitize and validate fields (whitelist + type normalization)
-      const sanitizedFields = sanitizeFields(parsed.fields as unknown[]);
-
-      // Build match info
-      let match = null;
-      if (parsed.suggestedMatch && typeof parsed.suggestedMatch === "object") {
-        const sm = parsed.suggestedMatch as Record<string, unknown>;
-        if (sm.fundId) {
-          const matchedFund = existingFunds.find((f) => f.id === sm.fundId);
-          match = {
-            fundId: String(sm.fundId),
-            fundName: matchedFund?.name || String(sm.fundName || ""),
-            similarity: normalizeConfidence(sm.similarity),
-            categoryId: matchedFund?.categoryId || null,
-          };
-        }
-      }
-
-      return NextResponse.json({
-        fundName: String(parsed.fundName || ""),
-        fundNameConfidence: normalizeConfidence(parsed.fundNameConfidence),
-        fields: sanitizedFields,
-        match,
-      });
+      return NextResponse.json(result);
     }
 
     // ============================================================
@@ -492,27 +598,78 @@ Respond in valid JSON with this exact structure:
     }
 
     // ============================================================
-    // ACTION: parse-file — Phase 2 stub (PDF/Image)
+    // ACTION: parse-file — Parse uploaded PDF/Image via Vision API
     // ============================================================
     if (action === "parse-file") {
-      const body = await req.json();
-      const { fileName, fileType } = body;
-
-      if (!fileName || !fileType) {
-        return NextResponse.json({ error: "Missing fileName or fileType" }, { status: 400 });
+      const contentType = req.headers.get("content-type") || "";
+      if (!contentType.includes("multipart/form-data")) {
+        return NextResponse.json({ error: "Expected multipart/form-data" }, { status: 400 });
       }
 
-      // Phase 2 stub — returns mock result
+      const formData = await req.formData();
+      const file = formData.get("file") as File | null;
+      if (!file) {
+        return NextResponse.json({ error: "No file provided" }, { status: 400 });
+      }
+
+      // Validate file type
+      const mimeType = ALLOWED_MIME_TYPES[file.type];
+      if (!mimeType) {
+        return NextResponse.json({
+          error: `Unsupported file type: ${file.type}. Allowed: PDF, PNG, JPG`,
+        }, { status: 400 });
+      }
+
+      // Validate file size
+      if (file.size > MAX_FILE_SIZE) {
+        return NextResponse.json({
+          error: `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum: 10MB`,
+        }, { status: 400 });
+      }
+
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (!apiKey) {
+        return NextResponse.json({
+          error: "ANTHROPIC_API_KEY not configured.",
+        }, { status: 500 });
+      }
+
+      // Load existing funds for matching
+      const fundsData = await storageRead<{ categories: { id: string; funds: { id: string; name: string }[] }[] }>(`funds:${clientKey}`, { categories: [] });
+      const existingFunds: { id: string; name: string; categoryId: string }[] = [];
+      for (const cat of fundsData.categories || []) {
+        for (const fund of cat.funds || []) {
+          existingFunds.push({ id: fund.id, name: fund.name, categoryId: cat.id });
+        }
+      }
+
+      // Convert file to base64
+      const arrayBuffer = await file.arrayBuffer();
+      const base64Data = Buffer.from(arrayBuffer).toString("base64");
+
+      const systemPrompt = buildSystemPrompt(existingFunds);
+
+      // For PDFs, Claude Vision accepts them as images with application/pdf mime type
+      const claudeResult = await callClaudeVision(apiKey, systemPrompt, base64Data, mimeType);
+      if (!claudeResult.success) {
+        return NextResponse.json({
+          error: claudeResult.error,
+          fileName: file.name,
+        }, { status: 502 });
+      }
+
+      const result = parseCloudeResponse(claudeResult.content, existingFunds);
+      if ("error" in result) {
+        return NextResponse.json({
+          error: result.error,
+          fileName: file.name,
+        }, { status: 500 });
+      }
+
       return NextResponse.json({
-        stub: true,
-        message: "File parsing is not yet available (Phase 2). Use text parsing for now.",
-        sourceType: "file",
-        fileName,
-        fileType,
-        fundName: "",
-        fundNameConfidence: 0,
-        fields: [],
-        match: null,
+        ...result,
+        sourceType: file.type.startsWith("image/") ? "image" : "pdf",
+        fileName: file.name,
       });
     }
 
