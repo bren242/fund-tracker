@@ -1223,6 +1223,11 @@ export async function POST(req: NextRequest) {
           newFund.sharpe = field.value;
         } else if (field.key === "stdDev" && typeof field.value === "number") {
           newFund.stdDev = field.value;
+        } else if (field.key.startsWith("monthlyReturns.") && typeof field.value === "number") {
+          const month = field.key.split(".")[1];
+          if (month && isValidReportMonth(month)) {
+            (newFund.monthlyReturns as Record<string, number>)[month] = field.value;
+          }
         }
       }
 
@@ -1235,12 +1240,30 @@ export async function POST(req: NextRequest) {
       const fundsData = await storageRead<Record<string, unknown>>(`funds:${clientKey}`, { categories: [] });
       let categoryFound = false;
 
-      for (const cat of (fundsData.categories as Record<string, unknown>[]) || []) {
-        if (cat.id !== categoryId) continue;
-        categoryFound = true;
-        if (!Array.isArray(cat.funds)) cat.funds = [];
-        (cat.funds as Record<string, unknown>[]).push(newFund);
-        break;
+      // Handle new category creation: "__new__:{id}:{name}:{parentSection}"
+      if (typeof categoryId === "string" && categoryId.startsWith("__new__:")) {
+        const parts = categoryId.split(":");
+        if (parts.length >= 4) {
+          const newCat = {
+            id: parts[1],
+            name: parts[2],
+            parentSection: parts.slice(3).join(":"), // parentSection may contain colons
+            funds: [newFund],
+          };
+          if (!Array.isArray(fundsData.categories)) fundsData.categories = [];
+          (fundsData.categories as Record<string, unknown>[]).push(newCat);
+          categoryFound = true;
+        }
+      }
+
+      if (!categoryFound) {
+        for (const cat of (fundsData.categories as Record<string, unknown>[]) || []) {
+          if (cat.id !== categoryId) continue;
+          categoryFound = true;
+          if (!Array.isArray(cat.funds)) cat.funds = [];
+          (cat.funds as Record<string, unknown>[]).push(newFund);
+          break;
+        }
       }
 
       if (!categoryFound) {

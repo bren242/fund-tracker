@@ -2521,6 +2521,13 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
   const [newFundName, setNewFundName] = useState<string>("");
   const [newFundReturnBasis, setNewFundReturnBasis] = useState<"ILS" | "USD">("ILS");
   const [newFundClassification, setNewFundClassification] = useState<string>("");
+  // 3-layer classification state for new fund onboarding
+  const [nfParentSection, setNfParentSection] = useState<string>("");
+  const [nfIsNewParent, setNfIsNewParent] = useState(false);
+  const [nfNewParentName, setNfNewParentName] = useState("");
+  const [nfIsNewCategory, setNfIsNewCategory] = useState(false);
+  const [nfNewCategoryName, setNfNewCategoryName] = useState("");
+  const [nfIsNewClassification, setNfIsNewClassification] = useState(false);
 
   const handleCreateFund = async (draft: typeof drafts[0]) => {
     const fundName = newFundName || draft.extracted.fundName;
@@ -2528,7 +2535,19 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
       onStatus("❌ חובה להזין שם קרן");
       return;
     }
-    if (!newFundCategoryId) {
+
+    // Resolve categoryId: existing or __new__
+    let effectiveCategoryId = newFundCategoryId;
+    if (nfIsNewCategory && nfNewCategoryName.trim()) {
+      const ps = nfIsNewParent ? nfNewParentName.trim() : nfParentSection;
+      if (!ps) {
+        onStatus("❌ חובה לבחור או ליצור קבוצה ראשית");
+        return;
+      }
+      effectiveCategoryId = `__new__:cat-${Date.now()}:${nfNewCategoryName.trim()}:${ps}`;
+    }
+
+    if (!effectiveCategoryId) {
       onStatus("❌ חובה לבחור קטגוריה");
       return;
     }
@@ -2559,7 +2578,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({
           draftId: draft.id,
-          categoryId: newFundCategoryId,
+          categoryId: effectiveCategoryId,
           fundName,
           fields: draft.extracted.fields,
           reportMonth: effectiveMonth,
@@ -2574,6 +2593,9 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
         setNewFundName("");
         setNewFundCategoryId("");
         setNewFundClassification("");
+        setNfParentSection(""); setNfIsNewParent(false); setNfNewParentName("");
+        setNfIsNewCategory(false); setNfNewCategoryName("");
+        setNfIsNewClassification(false);
         loadDrafts();
         onReload();
       } else {
@@ -3414,52 +3436,108 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
                         }}
                       />
                     </div>
-                    <div style={{ marginBottom: 10 }}>
-                      <label style={{ fontSize: 11, fontWeight: 600, display: "block", marginBottom: 4 }}>קטגוריה:</label>
-                      <select
-                        value={newFundCategoryId}
-                        onChange={(e) => setNewFundCategoryId(e.target.value)}
-                        style={{
-                          width: "100%",
-                          border: "1px solid var(--border)",
-                          borderRadius: 5,
-                          padding: "6px 10px",
-                          fontSize: 12,
-                          backgroundColor: "var(--bg-surface)",
-                          color: "var(--text-primary)",
-                        }}
-                      >
-                        <option value="">-- בחר קטגוריה --</option>
-                        {data.categories.map((cat) => (
-                          <option key={cat.id} value={cat.id}>{cat.name}</option>
-                        ))}
-                      </select>
+                    {/* === LAYER 1: parentSection === */}
+                    <div style={{ marginBottom: 8 }}>
+                      <label style={{ fontSize: 11, fontWeight: 600, display: "block", marginBottom: 4 }}>שכבה 1 — קבוצה ראשית:</label>
+                      {!nfIsNewParent ? (
+                        <select
+                          value={nfParentSection}
+                          onChange={(e) => {
+                            if (e.target.value === "__new__") {
+                              setNfIsNewParent(true); setNfParentSection(""); setNfIsNewCategory(true); setNfNewCategoryName(""); setNewFundCategoryId("");
+                            } else {
+                              setNfParentSection(e.target.value); setNfIsNewCategory(false); setNfNewCategoryName("");
+                              const firstCat = data.categories.find((c) => c.parentSection === e.target.value);
+                              if (firstCat) setNewFundCategoryId(firstCat.id); else setNewFundCategoryId("");
+                            }
+                          }}
+                          style={{ width: "100%", border: "1px solid var(--border)", borderRadius: 5, padding: "6px 10px", fontSize: 12, backgroundColor: "var(--bg-surface)", color: "var(--text-primary)" }}
+                        >
+                          <option value="">— בחר קבוצה —</option>
+                          {Array.from(new Set(data.categories.map((c) => c.parentSection).filter(Boolean))).sort().map((ps) => (
+                            <option key={ps} value={ps}>{ps}</option>
+                          ))}
+                          <option value="__new__">➕ קבוצה חדשה...</option>
+                        </select>
+                      ) : (
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <input value={nfNewParentName} onChange={(e) => setNfNewParentName(e.target.value)} placeholder="שם קבוצה חדשה" autoFocus
+                            style={{ flex: 1, border: "1px solid var(--border)", borderRadius: 5, padding: "6px 10px", fontSize: 12, backgroundColor: "var(--bg-surface)", color: "var(--text-primary)" }} />
+                          <button type="button" onClick={() => { setNfIsNewParent(false); setNfParentSection(""); }}
+                            style={{ background: "none", border: "1px solid var(--border)", borderRadius: 5, padding: "4px 8px", cursor: "pointer", color: "var(--text-muted)", fontSize: 11 }}>✕</button>
+                        </div>
+                      )}
                     </div>
-                    <div style={{ marginBottom: 10 }}>
-                      <label style={{ fontSize: 11, fontWeight: 600, display: "block", marginBottom: 4 }}>סיווג (אופציונלי):</label>
-                      <input
-                        type="text"
-                        list="classification-options"
-                        value={newFundClassification}
-                        onChange={(e) => setNewFundClassification(e.target.value)}
-                        placeholder="בחר או הקלד סיווג חדש..."
-                        style={{
-                          width: "100%",
-                          border: "1px solid var(--border)",
-                          borderRadius: 5,
-                          padding: "6px 10px",
-                          fontSize: 12,
-                          backgroundColor: "var(--bg-surface)",
-                          color: "var(--text-primary)",
-                          direction: "rtl",
-                        }}
-                      />
-                      <datalist id="classification-options">
-                        {Array.from(new Set(data.categories.flatMap((cat) => cat.funds.map((f) => f.classification)).filter(Boolean))).sort((a, b) => a.localeCompare(b, "he")).map((c) => (
-                          <option key={c} value={c} />
-                        ))}
-                      </datalist>
-                    </div>
+
+                    {/* === LAYER 2: category (filtered by layer 1) === */}
+                    {(nfParentSection || (nfIsNewParent && nfNewParentName.trim())) && (
+                      <div style={{ marginBottom: 8 }}>
+                        <label style={{ fontSize: 11, fontWeight: 600, display: "block", marginBottom: 4 }}>שכבה 2 — קטגוריה:</label>
+                        {!nfIsNewCategory ? (
+                          <select
+                            value={newFundCategoryId}
+                            onChange={(e) => {
+                              if (e.target.value === "__new__") {
+                                setNfIsNewCategory(true); setNfNewCategoryName(""); setNewFundCategoryId("");
+                              } else {
+                                setNewFundCategoryId(e.target.value);
+                              }
+                            }}
+                            style={{ width: "100%", border: "1px solid var(--border)", borderRadius: 5, padding: "6px 10px", fontSize: 12, backgroundColor: "var(--bg-surface)", color: "var(--text-primary)" }}
+                          >
+                            <option value="">— בחר קטגוריה —</option>
+                            {data.categories.filter((c) => c.parentSection === nfParentSection).map((c) => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                            <option value="__new__">➕ קטגוריה חדשה...</option>
+                          </select>
+                        ) : (
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <input value={nfNewCategoryName} onChange={(e) => setNfNewCategoryName(e.target.value)} placeholder="שם קטגוריה חדשה" autoFocus
+                              style={{ flex: 1, border: "1px solid var(--border)", borderRadius: 5, padding: "6px 10px", fontSize: 12, backgroundColor: "var(--bg-surface)", color: "var(--text-primary)" }} />
+                            {!nfIsNewParent && (
+                              <button type="button" onClick={() => { setNfIsNewCategory(false); const fc = data.categories.find((c) => c.parentSection === nfParentSection); if (fc) setNewFundCategoryId(fc.id); }}
+                                style={{ background: "none", border: "1px solid var(--border)", borderRadius: 5, padding: "4px 8px", cursor: "pointer", color: "var(--text-muted)", fontSize: 11 }}>✕</button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* === LAYER 3: classification (filtered by layer 2) === */}
+                    {(newFundCategoryId || (nfIsNewCategory && nfNewCategoryName.trim())) && (
+                      <div style={{ marginBottom: 10 }}>
+                        <label style={{ fontSize: 11, fontWeight: 600, display: "block", marginBottom: 4 }}>שכבה 3 — סיווג:</label>
+                        {(() => {
+                          const activePs = nfIsNewParent ? nfNewParentName.trim() : nfParentSection;
+                          const clsList = nfIsNewCategory
+                            ? data.categories.filter((c) => c.parentSection === activePs).flatMap((c) => c.funds.map((f) => f.classification)).filter(Boolean)
+                            : (data.categories.find((c) => c.id === newFundCategoryId)?.funds.map((f) => f.classification).filter(Boolean) || []);
+                          const uniqueCls = Array.from(new Set(clsList)).sort();
+                          return !nfIsNewClassification ? (
+                            <select
+                              value={newFundClassification}
+                              onChange={(e) => {
+                                if (e.target.value === "__new__") { setNfIsNewClassification(true); setNewFundClassification(""); }
+                                else { setNewFundClassification(e.target.value); }
+                              }}
+                              style={{ width: "100%", border: "1px solid var(--border)", borderRadius: 5, padding: "6px 10px", fontSize: 12, backgroundColor: "var(--bg-surface)", color: "var(--text-primary)" }}
+                            >
+                              <option value="">— בחר סיווג —</option>
+                              {uniqueCls.map((cls) => <option key={cls} value={cls}>{cls}</option>)}
+                              <option value="__new__">➕ סיווג חדש...</option>
+                            </select>
+                          ) : (
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <input value={newFundClassification} onChange={(e) => setNewFundClassification(e.target.value)} placeholder="סיווג חדש" autoFocus
+                                style={{ flex: 1, border: "1px solid var(--border)", borderRadius: 5, padding: "6px 10px", fontSize: 12, backgroundColor: "var(--bg-surface)", color: "var(--text-primary)", direction: "rtl" }} />
+                              <button type="button" onClick={() => { setNfIsNewClassification(false); setNewFundClassification(""); }}
+                                style={{ background: "none", border: "1px solid var(--border)", borderRadius: 5, padding: "4px 8px", cursor: "pointer", color: "var(--text-muted)", fontSize: 11 }}>✕</button>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
                     <div style={{ marginBottom: 10 }}>
                       <label style={{ fontSize: 11, fontWeight: 600, display: "block", marginBottom: 4 }}>מטבע קרן:</label>
                       <div style={{ display: "flex", gap: 6 }}>
@@ -3488,18 +3566,23 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 8 }}>
+                      {(() => {
+                        const canCreate = !!(newFundCategoryId || (nfIsNewCategory && nfNewCategoryName.trim()));
+                        return (
+                          <button
+                            onClick={() => handleCreateFund(draft)}
+                            disabled={!canCreate}
+                            style={{
+                              backgroundColor: canCreate ? "#3b82f6" : "var(--text-muted)",
+                              color: "#fff", fontWeight: 600, padding: "5px 16px", borderRadius: 5, border: "none", cursor: "pointer", fontSize: 11,
+                              opacity: canCreate ? 1 : 0.4,
+                            }}>
+                            ✓ צור קרן חדשה
+                          </button>
+                        );
+                      })()}
                       <button
-                        onClick={() => handleCreateFund(draft)}
-                        disabled={!newFundCategoryId}
-                        style={{
-                          backgroundColor: newFundCategoryId ? "#3b82f6" : "var(--text-muted)",
-                          color: "#fff", fontWeight: 600, padding: "5px 16px", borderRadius: 5, border: "none", cursor: "pointer", fontSize: 11,
-                          opacity: newFundCategoryId ? 1 : 0.4,
-                        }}>
-                        ✓ צור קרן חדשה
-                      </button>
-                      <button
-                        onClick={() => { setNewFundDraftId(null); setNewFundName(""); setNewFundCategoryId(""); setNewFundReturnBasis("ILS"); setNewFundClassification(""); }}
+                        onClick={() => { setNewFundDraftId(null); setNewFundName(""); setNewFundCategoryId(""); setNewFundReturnBasis("ILS"); setNewFundClassification(""); setNfParentSection(""); setNfIsNewParent(false); setNfNewParentName(""); setNfIsNewCategory(false); setNfNewCategoryName(""); setNfIsNewClassification(false); }}
                         style={{ backgroundColor: "var(--bg-surface-alt)", color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: 5, padding: "5px 16px", cursor: "pointer", fontSize: 11 }}>
                         ביטול
                       </button>
@@ -3525,7 +3608,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
                         ✓ עדכן קרן ({draft.extracted.fields.length})
                       </button>
                       <button
-                        onClick={() => { setNewFundDraftId(draft.id); setNewFundName(draft.extracted.fundName); setNewFundCategoryId(""); setNewFundReturnBasis(draft.returnBasis || "ILS"); }}
+                        onClick={() => { setNewFundDraftId(draft.id); setNewFundName(draft.extracted.fundName); setNewFundCategoryId(""); setNewFundReturnBasis(draft.returnBasis || "ILS"); setNewFundClassification(""); setNfParentSection(""); setNfIsNewParent(false); setNfNewParentName(""); setNfIsNewCategory(false); setNfNewCategoryName(""); setNfIsNewClassification(false); }}
                         style={{
                           backgroundColor: "var(--bg-surface-alt)", color: "#3b82f6", border: "1px solid #3b82f630", borderRadius: 5, padding: "5px 16px", cursor: "pointer", fontSize: 11, fontWeight: 600,
                         }}>

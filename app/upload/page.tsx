@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect, Suspense } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo, Suspense } from "react";
 import { useClientKey } from "@/lib/useClientKey";
 import { useBrand } from "@/lib/useBrand";
 import ClientGate from "@/components/ClientGate";
@@ -31,9 +31,8 @@ interface FileResult {
   error?: string;
   fundName?: string;
   fundNameConfidence?: number;
+  /** Top-level fields from API (primary currency) — never mutated after parse */
   fields?: ParsedField[];
-  /** Original top-level fields preserved for currency-independent extraction */
-  baseFields?: ParsedField[];
   match?: {
     fundId: string | null;
     fundName: string | null;
@@ -43,7 +42,8 @@ interface FileResult {
   sourceType?: "pdf" | "image";
   reportMonth?: string | null;
   reportMonthConfidence?: "high" | "low";
-  returnBasis?: "ILS" | "USD" | null;
+  /** Currently selected currency — drives which fields are displayed */
+  selectedBasis?: "ILS" | "USD" | null;
   returnBasisOptions?: ("ILS" | "USD")[];
   dualCurrencyData?: DualCurrencyEntry[];
 }
@@ -70,12 +70,10 @@ const fieldLabel = (key: string): string => {
     stdDev: "סט״ד",
   };
   if (staticLabels[key]) return staticLabels[key];
-  // returns.yYYYY → "2025", returns.ytdYYYY → "מצטבר YYYY"
   const yearMatch = key.match(/^returns\.y(\d{4})$/);
   if (yearMatch) return yearMatch[1];
   const ytdMatch = key.match(/^returns\.ytd(\d{4})$/);
   if (ytdMatch) return `מצטבר ${ytdMatch[1]}`;
-  // monthlyReturns.YYYY-MM → "ינואר/2025"
   const mrMatch = key.match(/^monthlyReturns\.(\d{4})-(0[1-9]|1[0-2])$/);
   if (mrMatch) {
     return `${MONTH_NAMES_HE[mrMatch[2]] || mrMatch[2]}/${mrMatch[1]}`;
@@ -91,6 +89,24 @@ const formatValue = (key: string, val: string | number | null): string => {
   return String(val);
 };
 
+/** Compute display fields: for dual-currency, merge independent base fields
+ *  with the selected currency entry's fields. For single currency, return as-is. */
+function getDisplayFields(file: FileResult): ParsedField[] {
+  const baseFields = file.fields || [];
+  if (!file.dualCurrencyData || file.dualCurrencyData.length < 2 || !file.selectedBasis) {
+    return baseFields;
+  }
+  const entry = file.dualCurrencyData.find((d) => d.returnBasis === file.selectedBasis);
+  if (!entry) return baseFields;
+  // Currency-independent fields from original parse (manager, classification, etc.)
+  const independent = baseFields.filter((f) => CURRENCY_INDEPENDENT_KEYS.has(f.key));
+  const entryKeySet = new Set(entry.fields.map((f) => f.key));
+  return [
+    ...independent.filter((f) => !entryKeySet.has(f.key)),
+    ...entry.fields,
+  ];
+}
+
 /* ================================================================== */
 /*  Upload Page Content                                                */
 /* ================================================================== */
@@ -104,7 +120,6 @@ function UploadContent() {
   const [processing, setProcessing] = useState(false);
   const [savingAll, setSavingAll] = useState(false);
 
-  // Get session password for API auth (stored by ClientGate on login)
   const [password, setPassword] = useState("");
   const [needsReauth, setNeedsReauth] = useState(false);
   useEffect(() => {
@@ -112,18 +127,13 @@ function UploadContent() {
     if (stored) {
       setPassword(stored);
     } else {
-      // Password not in sessionStorage (old session before fix).
-      // Clear auth flag so ClientGate forces a fresh login.
       sessionStorage.removeItem(`client-auth-${clientKey}`);
       setNeedsReauth(true);
     }
   }, [clientKey]);
 
-  // Force reload to re-enter ClientGate login flow
   useEffect(() => {
-    if (needsReauth) {
-      window.location.reload();
-    }
+    if (needsReauth) window.location.reload();
   }, [needsReauth]);
 
   const handleFileSelect = useCallback((selectedFiles: FileList | null) => {
@@ -132,37 +142,20 @@ function UploadContent() {
     const newFiles: FileResult[] = [];
     for (let i = 0; i < Math.min(selectedFiles.length, 10); i++) {
       const f = selectedFiles[i];
-      // Validate type
       const validTypes = ["application/pdf", "image/png", "image/jpeg", "image/jpg", "image/webp"];
       if (!validTypes.includes(f.type)) {
-        newFiles.push({
-          id: `file-${Date.now()}-${i}`,
-          fileName: f.name,
-          status: "error",
-          error: `סוג קובץ לא נתמך: ${f.type}`,
-        });
+        newFiles.push({ id: `file-${Date.now()}-${i}`, fileName: f.name, status: "error", error: `סוג קובץ לא נתמך: ${f.type}` });
         continue;
       }
-      // Validate size
       if (f.size > MAX_SIZE_MB * 1024 * 1024) {
-        newFiles.push({
-          id: `file-${Date.now()}-${i}`,
-          fileName: f.name,
-          status: "error",
-          error: `קובץ גדול מדי (${(f.size / 1024 / 1024).toFixed(1)}MB). מקסימום ${MAX_SIZE_MB}MB`,
-        });
+        newFiles.push({ id: `file-${Date.now()}-${i}`, fileName: f.name, status: "error", error: `קובץ גדול מדי (${(f.size / 1024 / 1024).toFixed(1)}MB). מקסימום ${MAX_SIZE_MB}MB` });
         continue;
       }
-      newFiles.push({
-        id: `file-${Date.now()}-${i}`,
-        fileName: f.name,
-        status: "queued",
-      });
+      newFiles.push({ id: `file-${Date.now()}-${i}`, fileName: f.name, status: "queued" });
     }
 
     setFiles((prev) => [...prev, ...newFiles]);
 
-    // Process queued files
     const validFiles = Array.from(selectedFiles).filter((f) => {
       const validTypes = ["application/pdf", "image/png", "image/jpeg", "image/jpg", "image/webp"];
       return validTypes.includes(f.type) && f.size <= MAX_SIZE_MB * 1024 * 1024;
@@ -180,7 +173,6 @@ function UploadContent() {
       const resultId = fileResults[i]?.id;
       if (!resultId) continue;
 
-      // Update status to uploading
       setFiles((prev) => prev.map((f) => f.id === resultId ? { ...f, status: "uploading" as const } : f));
 
       try {
@@ -189,20 +181,12 @@ function UploadContent() {
 
         const res = await fetch(
           `/api/parse?action=parse-file&client=${encodeURIComponent(clientKey)}`,
-          {
-            method: "POST",
-            headers: { "x-admin-password": password },
-            body: formData,
-          }
+          { method: "POST", headers: { "x-admin-password": password }, body: formData }
         );
 
         if (!res.ok) {
           const err = await res.json().catch(() => ({ error: "שגיאה בשרת" }));
-          setFiles((prev) =>
-            prev.map((f) =>
-              f.id === resultId ? { ...f, status: "error" as const, error: err.error || "שגיאה בפענוח" } : f
-            )
-          );
+          setFiles((prev) => prev.map((f) => f.id === resultId ? { ...f, status: "error" as const, error: err.error || "שגיאה בפענוח" } : f));
           continue;
         }
 
@@ -216,12 +200,11 @@ function UploadContent() {
                   fundName: data.fundName,
                   fundNameConfidence: data.fundNameConfidence,
                   fields: data.fields,
-                  baseFields: data.fields, // preserve original for currency merging
                   match: data.match,
                   sourceType: data.sourceType,
                   reportMonth: data.reportMonth || null,
                   reportMonthConfidence: data.reportMonthConfidence || "low",
-                  returnBasis: data.returnBasis || null,
+                  selectedBasis: data.returnBasis || null,
                   returnBasisOptions: data.returnBasisOptions || [],
                   dualCurrencyData: data.dualCurrencyData || undefined,
                 }
@@ -229,22 +212,16 @@ function UploadContent() {
           )
         );
       } catch {
-        setFiles((prev) =>
-          prev.map((f) =>
-            f.id === resultId ? { ...f, status: "error" as const, error: "שגיאה בחיבור לשרת" } : f
-          )
-        );
+        setFiles((prev) => prev.map((f) => f.id === resultId ? { ...f, status: "error" as const, error: "שגיאה בחיבור לשרת" } : f));
       }
     }
     setProcessing(false);
   };
 
   const saveDraft = async (fileResult: FileResult) => {
-    if (!fileResult.fields || fileResult.fields.length === 0) return;
-
-    // Determine which fields to save: if user selected a currency via toggle,
-    // use that currency's fields from dualCurrencyData
-    const fieldsToSave = fileResult.fields;
+    // Compute actual fields to save (respects currency toggle)
+    const fieldsToSave = getDisplayFields(fileResult);
+    if (fieldsToSave.length === 0) return;
 
     setFiles((prev) => prev.map((f) => f.id === fileResult.id ? { ...f, status: "uploading" as const } : f));
 
@@ -253,10 +230,7 @@ function UploadContent() {
         `/api/parse?action=save-draft&client=${encodeURIComponent(clientKey)}`,
         {
           method: "POST",
-          headers: {
-            "x-admin-password": password,
-            "Content-Type": "application/json",
-          },
+          headers: { "x-admin-password": password, "Content-Type": "application/json" },
           body: JSON.stringify({
             sourceText: fileResult.fileName,
             sourceType: "file",
@@ -266,7 +240,7 @@ function UploadContent() {
             match: fileResult.match,
             reportMonth: fileResult.reportMonth || null,
             reportMonthConfidence: fileResult.reportMonthConfidence || "low",
-            returnBasis: fileResult.returnBasis || null,
+            returnBasis: fileResult.selectedBasis || null,
           }),
         }
       );
@@ -283,40 +257,17 @@ function UploadContent() {
   };
 
   const saveAllDrafts = async () => {
-    const parsedFiles = files.filter((f) => f.status === "parsed" && f.fields && f.fields.length > 0);
+    const parsedFiles = files.filter((f) => f.status === "parsed" && (f.fields?.length || 0) > 0);
     if (parsedFiles.length === 0) return;
     setSavingAll(true);
-    for (const f of parsedFiles) {
-      await saveDraft(f);
-    }
+    for (const f of parsedFiles) { await saveDraft(f); }
     setSavingAll(false);
   };
 
-  const clearAll = () => {
-    setFiles([]);
-  };
-
-  /** Switch currency for a dual-currency file result.
-   *  Merges currency-independent fields (manager, classification) from
-   *  the original top-level fields with currency-specific fields from
-   *  the selected dualCurrencyData entry. */
+  /** Toggle only updates selectedBasis — display fields are DERIVED at render time */
   const switchCurrency = (fileId: string, basis: "ILS" | "USD") => {
     setFiles((prev) =>
-      prev.map((f) => {
-        if (f.id !== fileId || !f.dualCurrencyData) return f;
-        const entry = f.dualCurrencyData.find((d) => d.returnBasis === basis);
-        if (!entry) return f;
-        // Keep currency-independent fields from original top-level parse
-        const baseIndependent = (f.baseFields || f.fields || [])
-          .filter((field) => CURRENCY_INDEPENDENT_KEYS.has(field.key));
-        const entryKeySet = new Set(entry.fields.map((ef) => ef.key));
-        // Merge: independent fields not overridden + all entry fields
-        const merged = [
-          ...baseIndependent.filter((bf) => !entryKeySet.has(bf.key)),
-          ...entry.fields,
-        ];
-        return { ...f, fields: merged, returnBasis: basis };
-      })
+      prev.map((f) => f.id === fileId ? { ...f, selectedBasis: basis } : f)
     );
   };
 
@@ -325,132 +276,55 @@ function UploadContent() {
   const errorCount = files.filter((f) => f.status === "error").length;
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      backgroundColor: "var(--bg-page)",
-      direction: "rtl",
-    }}>
+    <div style={{ minHeight: "100vh", backgroundColor: "var(--bg-page)", direction: "rtl" }}>
       {/* Header */}
       <div style={{
-        backgroundColor: "var(--bg-surface)",
-        borderBottom: "1px solid var(--border)",
-        padding: "12px 16px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
+        backgroundColor: "var(--bg-surface)", borderBottom: "1px solid var(--border)",
+        padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <BrandLogo brand={brand} height={28} variant="light" />
-          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
-            העלאת דיווחים
-          </span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>העלאת דיווחים</span>
         </div>
-        <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
-          v{brand.version}
-        </span>
+        <span style={{ fontSize: 10, color: "var(--text-muted)" }}>v{brand.version}</span>
       </div>
 
-      {/* Main content */}
       <div style={{ padding: "16px", maxWidth: 600, margin: "0 auto" }}>
-
         {/* Upload zone */}
         <div
           onClick={() => fileInputRef.current?.click()}
           onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = brand.primaryColor; }}
           onDragLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; }}
-          onDrop={(e) => {
-            e.preventDefault();
-            e.currentTarget.style.borderColor = "var(--border)";
-            handleFileSelect(e.dataTransfer.files);
-          }}
+          onDrop={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--border)"; handleFileSelect(e.dataTransfer.files); }}
           style={{
-            backgroundColor: "var(--bg-surface)",
-            border: "2px dashed var(--border)",
-            borderRadius: 12,
-            padding: "32px 20px",
-            textAlign: "center",
-            cursor: "pointer",
-            marginBottom: 16,
-            transition: "border-color 0.2s",
+            backgroundColor: "var(--bg-surface)", border: "2px dashed var(--border)", borderRadius: 12,
+            padding: "32px 20px", textAlign: "center", cursor: "pointer", marginBottom: 16, transition: "border-color 0.2s",
           }}
         >
           <div style={{ fontSize: 36, marginBottom: 8 }}>📤</div>
-          <p style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 4px" }}>
-            לחץ או גרור קבצים
-          </p>
-          <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 12px" }}>
-            PDF · PNG · JPG — עד {MAX_SIZE_MB}MB לקובץ
-          </p>
+          <p style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 4px" }}>לחץ או גרור קבצים</p>
+          <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 12px" }}>PDF · PNG · JPG — עד {MAX_SIZE_MB}MB לקובץ</p>
           <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
-              style={{
-                backgroundColor: brand.primaryColor,
-                color: "#fff",
-                border: "none",
-                borderRadius: 8,
-                padding: "10px 20px",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
+            <button type="button" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+              style={{ backgroundColor: brand.primaryColor, color: "#fff", border: "none", borderRadius: 8, padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
               📎 בחר קבצים
             </button>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); cameraInputRef.current?.click(); }}
-              style={{
-                backgroundColor: "transparent",
-                color: brand.primaryColor,
-                border: `1px solid ${brand.primaryColor}`,
-                borderRadius: 8,
-                padding: "10px 20px",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
+            <button type="button" onClick={(e) => { e.stopPropagation(); cameraInputRef.current?.click(); }}
+              style={{ backgroundColor: "transparent", color: brand.primaryColor, border: `1px solid ${brand.primaryColor}`, borderRadius: 8, padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
               📷 צלם מסמך
             </button>
           </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={ACCEPTED_TYPES}
-            multiple
-            style={{ display: "none" }}
-            onChange={(e) => {
-              handleFileSelect(e.target.files);
-              e.target.value = ""; // allow re-select
-            }}
-          />
-          <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            style={{ display: "none" }}
-            onChange={(e) => {
-              handleFileSelect(e.target.files);
-              e.target.value = "";
-            }}
-          />
+          <input ref={fileInputRef} type="file" accept={ACCEPTED_TYPES} multiple style={{ display: "none" }}
+            onChange={(e) => { handleFileSelect(e.target.files); e.target.value = ""; }} />
+          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }}
+            onChange={(e) => { handleFileSelect(e.target.files); e.target.value = ""; }} />
         </div>
 
         {/* Summary bar */}
         {files.length > 0 && (
           <div style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 12,
-            padding: "8px 12px",
-            backgroundColor: "var(--bg-surface)",
-            borderRadius: 8,
-            border: "1px solid var(--border)",
-            fontSize: 11,
+            display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12,
+            padding: "8px 12px", backgroundColor: "var(--bg-surface)", borderRadius: 8, border: "1px solid var(--border)", fontSize: 11,
           }}>
             <div style={{ display: "flex", gap: 12 }}>
               {parsedCount > 0 && <span style={{ color: "#059669" }}>✓ {parsedCount} מוכנים</span>}
@@ -460,36 +334,13 @@ function UploadContent() {
             </div>
             <div style={{ display: "flex", gap: 6 }}>
               {parsedCount > 0 && (
-                <button
-                  onClick={saveAllDrafts}
-                  disabled={savingAll}
-                  style={{
-                    backgroundColor: "#059669",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: 5,
-                    padding: "4px 12px",
-                    fontSize: 10,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    opacity: savingAll ? 0.5 : 1,
-                  }}
-                >
+                <button onClick={saveAllDrafts} disabled={savingAll}
+                  style={{ backgroundColor: "#059669", color: "#fff", border: "none", borderRadius: 5, padding: "4px 12px", fontSize: 10, fontWeight: 600, cursor: "pointer", opacity: savingAll ? 0.5 : 1 }}>
                   {savingAll ? "שומר..." : `💾 שמור הכל (${parsedCount})`}
                 </button>
               )}
-              <button
-                onClick={clearAll}
-                style={{
-                  backgroundColor: "transparent",
-                  color: "var(--text-muted)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 5,
-                  padding: "4px 12px",
-                  fontSize: 10,
-                  cursor: "pointer",
-                }}
-              >
+              <button onClick={() => setFiles([])}
+                style={{ backgroundColor: "transparent", color: "var(--text-muted)", border: "1px solid var(--border)", borderRadius: 5, padding: "4px 12px", fontSize: 10, cursor: "pointer" }}>
                 נקה
               </button>
             </div>
@@ -507,14 +358,8 @@ function UploadContent() {
           />
         ))}
 
-        {/* Empty state */}
         {files.length === 0 && (
-          <div style={{
-            textAlign: "center",
-            padding: "40px 20px",
-            color: "var(--text-muted)",
-            fontSize: 12,
-          }}>
+          <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text-muted)", fontSize: 12 }}>
             <p>העלה PDF או תמונה של פאקט שיט, דיווח חודשי, או צילום מסך</p>
             <p>הנתונים יישמרו כטיוטה לאישור ב-Admin</p>
           </div>
@@ -543,31 +388,23 @@ function FileCard({ file, onSave, onSwitchCurrency, primaryColor }: {
   };
 
   const s = statusConfig[file.status] || statusConfig.queued;
-
   const hasDualCurrency = file.dualCurrencyData && file.dualCurrencyData.length >= 2;
+
+  // DERIVED display fields — computed from selectedBasis + dualCurrencyData
+  // This is the ONLY source of truth for what fields are shown.
+  const displayFields = useMemo(() => getDisplayFields(file), [file]);
 
   return (
     <div style={{
       backgroundColor: "var(--bg-surface)",
       border: `1px solid ${file.status === "error" ? "#ef444430" : file.status === "saved" ? "#3b82f630" : "var(--border)"}`,
-      borderRadius: 10,
-      padding: 14,
-      marginBottom: 10,
-      opacity: file.status === "saved" ? 0.7 : 1,
+      borderRadius: 10, padding: 14, marginBottom: 10, opacity: file.status === "saved" ? 0.7 : 1,
     }}>
       {/* File header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 16 }}>{file.fileName.endsWith(".pdf") ? "📄" : "🖼️"}</span>
-          <span style={{
-            fontSize: 12,
-            fontWeight: 500,
-            color: "var(--text-primary)",
-            maxWidth: 200,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}>
+          <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-primary)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {file.fileName}
           </span>
         </div>
@@ -576,7 +413,7 @@ function FileCard({ file, onSave, onSwitchCurrency, primaryColor }: {
         </span>
       </div>
 
-      {/* Error message */}
+      {/* Error */}
       {file.status === "error" && file.error && (
         <p style={{ fontSize: 11, color: "#ef4444", margin: "0 0 8px", padding: "6px 10px", backgroundColor: "#ef444410", borderRadius: 6 }}>
           {file.error}
@@ -588,49 +425,28 @@ function FileCard({ file, onSave, onSwitchCurrency, primaryColor }: {
         <div>
           {/* Fund name */}
           {file.fundName && (
-            <div style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              padding: "6px 10px",
-              backgroundColor: "var(--bg-input)",
-              borderRadius: 6,
-              marginBottom: 6,
-              fontSize: 12,
-            }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", backgroundColor: "var(--bg-input)", borderRadius: 6, marginBottom: 6, fontSize: 12 }}>
               <span style={{ fontWeight: 600 }}>{file.fundName}</span>
-              {file.match?.fundName && (
-                <span style={{ fontSize: 10, color: "#059669" }}>
-                  → {file.match.fundName}
-                </span>
-              )}
+              {file.match?.fundName && <span style={{ fontSize: 10, color: "#059669" }}>→ {file.match.fundName}</span>}
             </div>
           )}
 
-          {/* Currency toggle for dual-currency reports */}
+          {/* Currency toggle */}
           {hasDualCurrency && (
-            <div style={{
-              display: "flex",
-              gap: 4,
-              marginBottom: 6,
-            }}>
+            <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
               {file.dualCurrencyData!.map((entry) => {
-                const isActive = file.returnBasis === entry.returnBasis;
+                const isActive = file.selectedBasis === entry.returnBasis;
                 return (
                   <button
                     key={entry.returnBasis}
                     onClick={() => onSwitchCurrency(entry.returnBasis)}
                     style={{
-                      flex: 1,
-                      padding: "5px 10px",
-                      fontSize: 11,
-                      fontWeight: 600,
+                      flex: 1, padding: "5px 10px", fontSize: 11, fontWeight: 600,
                       border: isActive ? `2px solid ${primaryColor}` : "1px solid var(--border)",
                       borderRadius: 6,
                       backgroundColor: isActive ? `${primaryColor}15` : "transparent",
                       color: isActive ? primaryColor : "var(--text-muted)",
-                      cursor: "pointer",
-                      transition: "all 0.15s",
+                      cursor: "pointer", transition: "all 0.15s",
                     }}
                   >
                     {entry.returnBasis === "ILS" ? "₪ שקלי" : "$ דולרי"} ({entry.fields.length})
@@ -640,81 +456,42 @@ function FileCard({ file, onSave, onSwitchCurrency, primaryColor }: {
             </div>
           )}
 
-          {/* Fields */}
-          {file.fields.length > 0 ? (
+          {/* Fields — uses DERIVED displayFields, not raw file.fields */}
+          {displayFields.length > 0 ? (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
-              {file.fields.map((field, idx) => {
-                // Monthly returns use synthetic confidence — show neutral style
+              {displayFields.map((field, idx) => {
                 const isMonthly = field.key.startsWith("monthlyReturns.");
                 const isHigh = !isMonthly && field.confidence >= 0.7;
-                const isLow = !isMonthly && field.confidence < 0.7;
                 return (
-                  <span
-                    key={idx}
-                    style={{
-                      fontSize: 10,
-                      padding: "3px 8px",
-                      borderRadius: 6,
-                      backgroundColor: isMonthly ? "#3b82f612" : isHigh ? "#05966915" : "#f59e0b15",
-                      color: isMonthly ? "#3b82f6" : isHigh ? "#059669" : "#f59e0b",
-                      fontWeight: 500,
-                    }}
-                  >
+                  <span key={idx} style={{
+                    fontSize: 10, padding: "3px 8px", borderRadius: 6, fontWeight: 500,
+                    backgroundColor: isMonthly ? "#3b82f612" : isHigh ? "#05966915" : "#f59e0b15",
+                    color: isMonthly ? "#3b82f6" : isHigh ? "#059669" : "#f59e0b",
+                  }}>
                     {fieldLabel(field.key)}: {formatValue(field.key, field.value)}
                   </span>
                 );
               })}
             </div>
           ) : (
-            <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "4px 0 8px" }}>
-              לא נמצאו שדות לחילוץ
-            </p>
+            <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "4px 0 8px" }}>לא נמצאו שדות לחילוץ</p>
           )}
 
           {/* Save button */}
-          {file.status === "parsed" && file.fields.length > 0 && (
-            <button
-              onClick={onSave}
-              style={{
-                backgroundColor: primaryColor,
-                color: "#fff",
-                border: "none",
-                borderRadius: 6,
-                padding: "6px 16px",
-                fontSize: 11,
-                fontWeight: 600,
-                cursor: "pointer",
-                width: "100%",
-              }}
-            >
-              💾 שמור כטיוטה ({file.fields.length} שדות{file.returnBasis ? ` - ${file.returnBasis}` : ""})
+          {file.status === "parsed" && displayFields.length > 0 && (
+            <button onClick={onSave}
+              style={{ backgroundColor: primaryColor, color: "#fff", border: "none", borderRadius: 6, padding: "6px 16px", fontSize: 11, fontWeight: 600, cursor: "pointer", width: "100%" }}>
+              💾 שמור כטיוטה ({displayFields.length} שדות{file.selectedBasis ? ` - ${file.selectedBasis}` : ""})
             </button>
           )}
         </div>
       )}
 
-      {/* Processing spinner */}
+      {/* Spinner */}
       {file.status === "uploading" && (
-        <div style={{
-          textAlign: "center",
-          padding: "12px 0",
-          fontSize: 12,
-          color: "var(--text-muted)",
-        }}>
-          <div style={{
-            width: "100%",
-            height: 3,
-            backgroundColor: "var(--border)",
-            borderRadius: 2,
-            overflow: "hidden",
-          }}>
-            <div style={{
-              width: "60%",
-              height: "100%",
-              backgroundColor: primaryColor,
-              borderRadius: 2,
-              animation: "pulse 1.5s ease-in-out infinite",
-            }} />
+        <div style={{ textAlign: "center", padding: "12px 0", fontSize: 12, color: "var(--text-muted)" }}>
+          <div style={{ width: "100%", height: 3, backgroundColor: "var(--border)", borderRadius: 2, overflow: "hidden" }}>
+            <div style={{ width: "60%", height: "100%", backgroundColor: primaryColor, borderRadius: 2, animation: "pulse 1.5s ease-in-out infinite" }} />
           </div>
           <p style={{ margin: "8px 0 0", fontSize: 11 }}>מפענח באמצעות AI...</p>
         </div>
@@ -731,30 +508,12 @@ function UploadPage() {
   const clientKey = useClientKey();
   const brand = useBrand(clientKey);
 
-  // Check feature flag
   if (!brand.features?.mobileUpload && !brand.features?.aiParser) {
     return (
-      <div style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: "var(--bg-page)",
-        direction: "rtl",
-      }}>
-        <div style={{
-          backgroundColor: "var(--bg-surface)",
-          borderRadius: 12,
-          padding: 40,
-          textAlign: "center",
-          maxWidth: 360,
-        }}>
-          <p style={{ fontSize: 14, color: "var(--text-primary)", fontWeight: 600 }}>
-            העלאת קבצים לא זמינה
-          </p>
-          <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
-            הפיצ׳ר לא מופעל עבור לקוח זה
-          </p>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "var(--bg-page)", direction: "rtl" }}>
+        <div style={{ backgroundColor: "var(--bg-surface)", borderRadius: 12, padding: 40, textAlign: "center", maxWidth: 360 }}>
+          <p style={{ fontSize: 14, color: "var(--text-primary)", fontWeight: 600 }}>העלאת קבצים לא זמינה</p>
+          <p style={{ fontSize: 12, color: "var(--text-muted)" }}>הפיצ׳ר לא מופעל עבור לקוח זה</p>
         </div>
       </div>
     );
