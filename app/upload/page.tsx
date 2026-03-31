@@ -16,6 +16,11 @@ interface ParsedField {
   confidence: number;
 }
 
+interface DualCurrencyEntry {
+  returnBasis: "ILS" | "USD";
+  fields: ParsedField[];
+}
+
 interface FileResult {
   id: string;
   fileName: string;
@@ -33,6 +38,9 @@ interface FileResult {
   sourceType?: "pdf" | "image";
   reportMonth?: string | null;
   reportMonthConfidence?: "high" | "low";
+  returnBasis?: "ILS" | "USD" | null;
+  returnBasisOptions?: ("ILS" | "USD")[];
+  dualCurrencyData?: DualCurrencyEntry[];
 }
 
 /* ================================================================== */
@@ -207,6 +215,9 @@ function UploadContent() {
                   sourceType: data.sourceType,
                   reportMonth: data.reportMonth || null,
                   reportMonthConfidence: data.reportMonthConfidence || "low",
+                  returnBasis: data.returnBasis || null,
+                  returnBasisOptions: data.returnBasisOptions || [],
+                  dualCurrencyData: data.dualCurrencyData || undefined,
                 }
               : f
           )
@@ -225,6 +236,10 @@ function UploadContent() {
   const saveDraft = async (fileResult: FileResult) => {
     if (!fileResult.fields || fileResult.fields.length === 0) return;
 
+    // Determine which fields to save: if user selected a currency via toggle,
+    // use that currency's fields from dualCurrencyData
+    const fieldsToSave = fileResult.fields;
+
     setFiles((prev) => prev.map((f) => f.id === fileResult.id ? { ...f, status: "uploading" as const } : f));
 
     try {
@@ -241,10 +256,11 @@ function UploadContent() {
             sourceType: "file",
             fundName: fileResult.fundName,
             fundNameConfidence: fileResult.fundNameConfidence,
-            fields: fileResult.fields,
+            fields: fieldsToSave,
             match: fileResult.match,
             reportMonth: fileResult.reportMonth || null,
             reportMonthConfidence: fileResult.reportMonthConfidence || "low",
+            returnBasis: fileResult.returnBasis || null,
           }),
         }
       );
@@ -272,6 +288,18 @@ function UploadContent() {
 
   const clearAll = () => {
     setFiles([]);
+  };
+
+  /** Switch currency for a dual-currency file result */
+  const switchCurrency = (fileId: string, basis: "ILS" | "USD") => {
+    setFiles((prev) =>
+      prev.map((f) => {
+        if (f.id !== fileId || !f.dualCurrencyData) return f;
+        const entry = f.dualCurrencyData.find((d) => d.returnBasis === basis);
+        if (!entry) return f;
+        return { ...f, fields: entry.fields, returnBasis: basis };
+      })
+    );
   };
 
   const parsedCount = files.filter((f) => f.status === "parsed").length;
@@ -456,6 +484,7 @@ function UploadContent() {
             key={file.id}
             file={file}
             onSave={() => saveDraft(file)}
+            onSwitchCurrency={(basis) => switchCurrency(file.id, basis)}
             primaryColor={brand.primaryColor}
           />
         ))}
@@ -481,9 +510,10 @@ function UploadContent() {
 /*  File Card Component                                                */
 /* ================================================================== */
 
-function FileCard({ file, onSave, primaryColor }: {
+function FileCard({ file, onSave, onSwitchCurrency, primaryColor }: {
   file: FileResult;
   onSave: () => void;
+  onSwitchCurrency: (basis: "ILS" | "USD") => void;
   primaryColor: string;
 }) {
   const statusConfig: Record<string, { icon: string; label: string; color: string }> = {
@@ -495,6 +525,8 @@ function FileCard({ file, onSave, primaryColor }: {
   };
 
   const s = statusConfig[file.status] || statusConfig.queued;
+
+  const hasDualCurrency = file.dualCurrencyData && file.dualCurrencyData.length >= 2;
 
   return (
     <div style={{
@@ -557,6 +589,39 @@ function FileCard({ file, onSave, primaryColor }: {
             </div>
           )}
 
+          {/* Currency toggle for dual-currency reports */}
+          {hasDualCurrency && (
+            <div style={{
+              display: "flex",
+              gap: 4,
+              marginBottom: 6,
+            }}>
+              {file.dualCurrencyData!.map((entry) => {
+                const isActive = file.returnBasis === entry.returnBasis;
+                return (
+                  <button
+                    key={entry.returnBasis}
+                    onClick={() => onSwitchCurrency(entry.returnBasis)}
+                    style={{
+                      flex: 1,
+                      padding: "5px 10px",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      border: isActive ? `2px solid ${primaryColor}` : "1px solid var(--border)",
+                      borderRadius: 6,
+                      backgroundColor: isActive ? `${primaryColor}15` : "transparent",
+                      color: isActive ? primaryColor : "var(--text-muted)",
+                      cursor: "pointer",
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    {entry.returnBasis === "ILS" ? "₪ שקלי" : "$ דולרי"} ({entry.fields.length})
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {/* Fields */}
           {file.fields.length > 0 ? (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
@@ -598,7 +663,7 @@ function FileCard({ file, onSave, primaryColor }: {
                 width: "100%",
               }}
             >
-              💾 שמור כטיוטה ({file.fields.length} שדות)
+              💾 שמור כטיוטה ({file.fields.length} שדות{file.returnBasis ? ` - ${file.returnBasis}` : ""})
             </button>
           )}
         </div>
