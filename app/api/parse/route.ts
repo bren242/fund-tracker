@@ -170,6 +170,14 @@ const ALLOWED_FIELD_KEYS = new Set([
   "returns.y2019",
 ]);
 
+/** Check if a field key is allowed (static set + monthlyReturns.YYYY-MM pattern) */
+function isAllowedKey(key: string): boolean {
+  if (ALLOWED_FIELD_KEYS.has(key)) return true;
+  // Allow monthlyReturns.YYYY-MM pattern
+  if (/^monthlyReturns\.\d{4}-(0[1-9]|1[0-2])$/.test(key)) return true;
+  return false;
+}
+
 async function isAuthorized(req: NextRequest, clientKey: string): Promise<"super" | "admin" | false> {
   const password = req.headers.get("x-admin-password") || "";
   if (password === SUPER_ADMIN_PASSWORD) return "super";
@@ -271,7 +279,7 @@ function sanitizeFields(rawFields: unknown[]): ParsedField[] {
     const key = String(field.key || "");
 
     // Whitelist check
-    if (!ALLOWED_FIELD_KEYS.has(key)) continue;
+    if (!isAllowedKey(key)) continue;
 
     // Normalize value
     let value: string | number | null = null;
@@ -470,6 +478,11 @@ RULES:
 FIELDS TO EXTRACT (only these):
 - fundName: string (the fund's name as written)
 - monthlyReturn: number | null (latest monthly return as decimal)
+- allMonthlyReturns: object | null — extract ALL individual monthly returns found in the document.
+  Keys must be "YYYY-MM" format (e.g., "2025-01", "2025-06", "2025-12").
+  Values are decimal numbers (e.g., 3.5% → 0.035).
+  Extract every month that appears in the document, not just the latest.
+  If the document shows a performance table with Jan-Dec returns, extract all of them.
 - reportMonth: string | null (the month this report covers, in "YYYY-MM" format)
   IMPORTANT: Extract reportMonth from document header, title, date, or context.
   Examples: "ינואר 2026" → "2026-01", "Feb 2026" → "2026-02", "דוח חודשי 03/2026" → "2026-03"
@@ -485,7 +498,7 @@ FIELDS TO EXTRACT (only these):
 - classification: string | null (fund type/classification)
 - sharpe: number | null (Sharpe ratio, if explicitly stated in the document)
 - stdDev: number | null (standard deviation, סטיית תקן, if explicitly stated in the document)
-- returns: object with year keys like "y2024", "y2023", etc. (annual returns as decimals)
+- returns: object with year keys: "y2025", "y2024", "y2023", "y2022", "y2021", "y2020", "y2019" (annual returns as decimals)
 - ytd2026: number | null (year-to-date return for 2026)
 
 EXISTING FUNDS IN SYSTEM (for matching):
@@ -504,10 +517,12 @@ Respond in valid JSON with this exact structure:
   "reportMonthConfidence": "high" or "low",
   "returnBasis": "ILS" or "USD" or null,
   "returnBasisOptions": ["ILS"] or ["USD"] or ["ILS","USD"],
+  "allMonthlyReturns": { "2025-01": 0.032, "2025-02": -0.01, ... } or null,
   "fields": [
     { "key": "monthlyReturn", "value": ..., "confidence": 0.0-1.0 },
     { "key": "sharpe", "value": ..., "confidence": 0.0-1.0 },
     { "key": "stdDev", "value": ..., "confidence": 0.0-1.0 },
+    { "key": "returns.y2025", "value": ..., "confidence": 0.0-1.0 },
     { "key": "returns.y2024", "value": ..., "confidence": 0.0-1.0 },
     ...
   ],
@@ -576,7 +591,17 @@ function parseCloudeResponse(
     return { error: "Could not parse AI response — malformed JSON" };
   }
 
-  const sanitizedFields = sanitizeFields(parsed.fields as unknown[]);
+  // Convert allMonthlyReturns object into individual field entries before sanitization
+  const rawFields = [...(Array.isArray(parsed.fields) ? parsed.fields : [])] as unknown[];
+  if (parsed.allMonthlyReturns && typeof parsed.allMonthlyReturns === "object") {
+    const amr = parsed.allMonthlyReturns as Record<string, unknown>;
+    for (const [month, val] of Object.entries(amr)) {
+      if (/^\d{4}-(0[1-9]|1[0-2])$/.test(month) && typeof val === "number") {
+        rawFields.push({ key: `monthlyReturns.${month}`, value: val, confidence: 0.8 });
+      }
+    }
+  }
+  const sanitizedFields = sanitizeFields(rawFields);
 
   // Extract reportMonth
   const reportMonth = isValidReportMonth(parsed.reportMonth) ? parsed.reportMonth : null;
@@ -619,7 +644,17 @@ function parseCloudeResponse(
     for (const entry of parsed.dualCurrencyData as Record<string, unknown>[]) {
       const basis = entry.returnBasis;
       if (basis !== "ILS" && basis !== "USD") continue;
-      const entryFields = sanitizeFields(entry.fields as unknown[]);
+      const entryRawFields = [...(Array.isArray(entry.fields) ? entry.fields : [])] as unknown[];
+      // Convert allMonthlyReturns in dual currency entries too
+      if (entry.allMonthlyReturns && typeof entry.allMonthlyReturns === "object") {
+        const amr = entry.allMonthlyReturns as Record<string, unknown>;
+        for (const [month, val] of Object.entries(amr)) {
+          if (/^\d{4}-(0[1-9]|1[0-2])$/.test(month) && typeof val === "number") {
+            entryRawFields.push({ key: `monthlyReturns.${month}`, value: val, confidence: 0.8 });
+          }
+        }
+      }
+      const entryFields = sanitizeFields(entryRawFields);
       if (entryFields.length > 0) {
         dualCurrencyData.push({ returnBasis: basis, fields: entryFields });
       }
@@ -983,6 +1018,27 @@ export async function POST(req: NextRequest) {
                 monthlyReturns[reportMonth] = field.value as number;
               }
               appliedFieldNames.push("monthlyReturn");
+            } else if (field.key.startsWith("monthlyReturns.")) {
+              // Individual monthly return: monthlyReturns.YYYY-MM
+              const month = field.key.split(".")[1]; // "2025-01"
+              if (month && isValidReportMonth(month)) {
+                // Collision check for existing monthly data
+                if (month in monthlyReturns) {
+                  const decision = decisions[field.key] || decisions["monthlyReturns"];
+                  if (!decision) {
+                    // Skip silently if no decision — don't block the entire apply for bulk months
+                    // Only block for single monthlyReturn (the primary field)
+                    skippedFields.push(field.key);
+                    continue;
+                  }
+                  if (decision === "keep") {
+                    skippedFields.push(field.key);
+                    continue;
+                  }
+                }
+                monthlyReturns[month] = field.value as number;
+                appliedFieldNames.push(field.key);
+              }
             } else if (field.key.startsWith("returns.")) {
               const yearKey = field.key.split(".")[1]; // "y2024"
               if (!funds[i].returns) funds[i].returns = {};

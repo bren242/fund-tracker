@@ -234,13 +234,26 @@ function AdminContent() {
     if (!data) return;
     setDirty(true);
     setSaved(false);
-    setData({
-      ...data,
-      categories: data.categories.map((cat) => {
-        if (cat.id !== categoryId) return cat;
-        return { ...cat, funds: [...cat.funds, fund] };
-      }),
-    });
+
+    // Handle new category creation: "__new__:{id}:{name}:{parentSection}"
+    if (categoryId.startsWith("__new__:")) {
+      const parts = categoryId.split(":");
+      const newCat: Category = {
+        id: parts[1],
+        name: parts[2],
+        parentSection: parts.slice(3).join(":"), // parentSection may contain colons
+        funds: [fund],
+      };
+      setData({ ...data, categories: [...data.categories, newCat] });
+    } else {
+      setData({
+        ...data,
+        categories: data.categories.map((cat) => {
+          if (cat.id !== categoryId) return cat;
+          return { ...cat, funds: [...cat.funds, fund] };
+        }),
+      });
+    }
     setShowAddFund(false);
     showStatus("✓ הקרן נוספה — שמור לפרסום");
   };
@@ -1435,6 +1448,21 @@ function FundModal({ title, categories, selectedCategory, existingFund, onCatego
 }) {
   const isEdit = !!existingFund;
   const [catId, setCatId] = useState(selectedCategory);
+
+  // 3-layer classification state
+  const existingCat = categories.find((c) => c.id === selectedCategory);
+  const [selectedParentSection, setSelectedParentSection] = useState(existingCat?.parentSection || "");
+  const [newParentSection, setNewParentSection] = useState("");
+  const [isNewParentSection, setIsNewParentSection] = useState(false);
+  const [isNewCategory, setIsNewCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [isNewClassification, setIsNewClassification] = useState(false);
+
+  // Derived values for layer filtering
+  const parentSections = Array.from(new Set(categories.map((c) => c.parentSection).filter(Boolean))).sort();
+  const activeParentSection = isNewParentSection ? newParentSection : selectedParentSection;
+  const filteredCategories = categories.filter((c) => c.parentSection === activeParentSection);
+
   const [form, setForm] = useState<Record<string, string>>(() => {
     if (existingFund) {
       return {
@@ -1505,7 +1533,14 @@ function FundModal({ title, categories, selectedCategory, existingFund, onCatego
       active: existingFund?.active !== undefined ? existingFund.active : true,
     };
 
-    onSave(fund, catId);
+    // If creating a new category, pass special ID that addFund will handle
+    if (!isEdit && isNewCategory && newCategoryName.trim()) {
+      const newCatId = `cat-${Date.now()}`;
+      const ps = isNewParentSection ? newParentSection.trim() : selectedParentSection;
+      onSave(fund, `__new__:${newCatId}:${newCategoryName.trim()}:${ps}`);
+    } else {
+      onSave(fund, catId);
+    }
   };
 
   const fieldStyle: React.CSSProperties = {
@@ -1536,14 +1571,73 @@ function FundModal({ title, categories, selectedCategory, existingFund, onCatego
           <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "var(--text-muted)", padding: "4px 8px" }}>✕</button>
         </div>
 
-        {/* Category selector for new funds */}
+        {/* 3-layer classification selector for new funds */}
         {!isEdit && (
-          <div style={{ marginBottom: 16 }}>
-            <label style={labelStyle}>קטגוריה</label>
-            <select value={catId} onChange={(e) => { setCatId(e.target.value); onCategoryChange?.(e.target.value); }}
-              style={{ ...fieldStyle, cursor: "pointer" }}>
-              {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+          <div style={{ marginBottom: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+            {/* Layer 1: parentSection */}
+            <div>
+              <label style={labelStyle}>שכבה ראשונה (קבוצה ראשית)</label>
+              {!isNewParentSection ? (
+                <select value={selectedParentSection} onChange={(e) => {
+                  if (e.target.value === "__new__") {
+                    setIsNewParentSection(true);
+                    setSelectedParentSection("");
+                    setIsNewCategory(true);
+                    setNewCategoryName("");
+                    setCatId("");
+                  } else {
+                    setSelectedParentSection(e.target.value);
+                    setIsNewCategory(false);
+                    // Auto-select first category in this section
+                    const firstCat = categories.find((c) => c.parentSection === e.target.value);
+                    if (firstCat) { setCatId(firstCat.id); onCategoryChange?.(firstCat.id); }
+                  }
+                }} style={{ ...fieldStyle, cursor: "pointer" }}>
+                  <option value="">— בחר קבוצה —</option>
+                  {parentSections.map((ps) => <option key={ps} value={ps}>{ps}</option>)}
+                  <option value="__new__">➕ קבוצה חדשה...</option>
+                </select>
+              ) : (
+                <div style={{ display: "flex", gap: 6 }}>
+                  <input value={newParentSection} onChange={(e) => setNewParentSection(e.target.value)}
+                    placeholder="שם קבוצה חדשה" style={{ ...fieldStyle, flex: 1 }} autoFocus />
+                  <button type="button" onClick={() => { setIsNewParentSection(false); setSelectedParentSection(parentSections[0] || ""); }}
+                    style={{ background: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "4px 10px", cursor: "pointer", color: "var(--text-muted)", fontSize: 11 }}>✕</button>
+                </div>
+              )}
+            </div>
+
+            {/* Layer 2: category */}
+            {activeParentSection && (
+              <div>
+                <label style={labelStyle}>שכבה שנייה (קטגוריה)</label>
+                {!isNewCategory ? (
+                  <select value={catId} onChange={(e) => {
+                    if (e.target.value === "__new__") {
+                      setIsNewCategory(true);
+                      setNewCategoryName("");
+                      setCatId("");
+                    } else {
+                      setCatId(e.target.value);
+                      onCategoryChange?.(e.target.value);
+                    }
+                  }} style={{ ...fieldStyle, cursor: "pointer" }}>
+                    <option value="">— בחר קטגוריה —</option>
+                    {filteredCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    <option value="__new__">➕ קטגוריה חדשה...</option>
+                  </select>
+                ) : (
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)}
+                      placeholder="שם קטגוריה חדשה" style={{ ...fieldStyle, flex: 1 }} autoFocus />
+                    {!isNewParentSection && (
+                      <button type="button" onClick={() => { setIsNewCategory(false); const fc = filteredCategories[0]; if (fc) setCatId(fc.id); }}
+                        style={{ background: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "4px 10px", cursor: "pointer", color: "var(--text-muted)", fontSize: 11 }}>✕</button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -1553,14 +1647,32 @@ function FundModal({ title, categories, selectedCategory, existingFund, onCatego
             <label style={labelStyle}>שם קרן *</label>
             <input value={form.name} onChange={(e) => update("name", e.target.value)} style={fieldStyle} />
           </div>
+          {/* Layer 3: classification — select existing or type new */}
           <div>
-            <label style={labelStyle}>סיווג</label>
-            <select value={form.classification} onChange={(e) => update("classification", e.target.value)} style={{ ...fieldStyle, cursor: "pointer" }}>
-              <option value="">— בחר סיווג —</option>
-              {Array.from(new Set(categories.flatMap((c) => c.funds.map((f) => f.classification)).filter(Boolean))).sort().map((cls) => (
-                <option key={cls} value={cls}>{cls}</option>
-              ))}
-            </select>
+            <label style={labelStyle}>סיווג (שכבה שלישית)</label>
+            {!isNewClassification ? (
+              <select value={form.classification} onChange={(e) => {
+                if (e.target.value === "__new__") {
+                  setIsNewClassification(true);
+                  update("classification", "");
+                } else {
+                  update("classification", e.target.value);
+                }
+              }} style={{ ...fieldStyle, cursor: "pointer" }}>
+                <option value="">— בחר סיווג —</option>
+                {Array.from(new Set(categories.flatMap((c) => c.funds.map((f) => f.classification)).filter(Boolean))).sort().map((cls) => (
+                  <option key={cls} value={cls}>{cls}</option>
+                ))}
+                <option value="__new__">➕ סיווג חדש...</option>
+              </select>
+            ) : (
+              <div style={{ display: "flex", gap: 6 }}>
+                <input value={form.classification} onChange={(e) => update("classification", e.target.value)}
+                  placeholder="סיווג חדש" style={{ ...fieldStyle, flex: 1 }} autoFocus />
+                <button type="button" onClick={() => { setIsNewClassification(false); update("classification", ""); }}
+                  style={{ background: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "4px 10px", cursor: "pointer", color: "var(--text-muted)", fontSize: 11 }}>✕</button>
+              </div>
+            )}
           </div>
           <div>
             <label style={labelStyle}>מנהל</label>

@@ -42,6 +42,12 @@ interface FileResult {
 const ACCEPTED_TYPES = ".pdf,.png,.jpg,.jpeg,.webp";
 const MAX_SIZE_MB = 10;
 
+const MONTH_NAMES_HE: Record<string, string> = {
+  "01": "ינואר", "02": "פברואר", "03": "מרץ", "04": "אפריל",
+  "05": "מאי", "06": "יוני", "07": "יולי", "08": "אוגוסט",
+  "09": "ספטמבר", "10": "אוקטובר", "11": "נובמבר", "12": "דצמבר",
+};
+
 const fieldLabel = (key: string): string => {
   const labels: Record<string, string> = {
     monthlyReturn: "תשואה חודשית",
@@ -56,12 +62,18 @@ const fieldLabel = (key: string): string => {
     "returns.y2020": "2020",
     "returns.y2019": "2019",
   };
-  return labels[key] || key;
+  if (labels[key]) return labels[key];
+  // monthlyReturns.YYYY-MM → "ינואר 2025"
+  const mrMatch = key.match(/^monthlyReturns\.(\d{4})-(0[1-9]|1[0-2])$/);
+  if (mrMatch) {
+    return `${MONTH_NAMES_HE[mrMatch[2]] || mrMatch[2]}/${mrMatch[1]}`;
+  }
+  return key;
 };
 
 const formatValue = (key: string, val: string | number | null): string => {
   if (val === null) return "—";
-  if (typeof val === "number" && (key.startsWith("returns") || key === "monthlyReturn")) {
+  if (typeof val === "number" && (key.startsWith("returns") || key === "monthlyReturn" || key.startsWith("monthlyReturns."))) {
     return `${(val * 100).toFixed(2)}%`;
   }
   return String(val);

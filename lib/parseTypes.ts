@@ -74,6 +74,7 @@ export interface ParseLogEntry {
 /** Fields allowed to be written to funds.json */
 export const APPLY_WHITELIST = [
   "monthlyReturn",
+  "monthlyReturns",
   "returns",
   "manager",
   "classification",
