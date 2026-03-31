@@ -144,7 +144,8 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   if (!cached.result.returnBasisOptions) return null;
 
   // v2: invalidate caches created with max_tokens=1024 (truncated results)
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 2) return null;
+  // v3: dual currency entries now include allMonthlyReturns + full field sets
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 3) return null;
 
   return cached.result;
 }
@@ -505,7 +506,9 @@ ${existingFunds.map((f) => `- "${f.name}" (id: ${f.id})`).join("\n")}
 DUAL CURRENCY DOCUMENTS:
 If the document contains return data for BOTH ILS and USD (e.g., two separate performance tables),
 you MUST return a "dualCurrencyData" array with separate field sets for each currency.
-Each entry has its own returnBasis and fields. The top-level fields/returnBasis should use the FIRST currency found.
+Each entry has its own returnBasis, fields, AND allMonthlyReturns — each with the VALUES for THAT SPECIFIC CURRENCY.
+CRITICAL: Each entry must include ALL currency-dependent fields (monthlyReturn, returns.y*, sharpe, stdDev, allMonthlyReturns) with values specific to that currency. Do NOT copy the primary currency's values into the other entry.
+The top-level fields/returnBasis/allMonthlyReturns should use the FIRST currency found.
 
 Respond in valid JSON with this exact structure:
 {
@@ -533,17 +536,27 @@ Respond in valid JSON with this exact structure:
   "dualCurrencyData": [
     {
       "returnBasis": "USD",
+      "allMonthlyReturns": { "2025-01": 0.032, "2025-02": -0.01, ... },
       "fields": [
         { "key": "monthlyReturn", "value": ..., "confidence": 0.0-1.0 },
+        { "key": "sharpe", "value": ..., "confidence": 0.0-1.0 },
+        { "key": "stdDev", "value": ..., "confidence": 0.0-1.0 },
         { "key": "returns.y2025", "value": ..., "confidence": 0.0-1.0 },
+        { "key": "returns.y2024", "value": ..., "confidence": 0.0-1.0 },
+        { "key": "returns.ytd2026", "value": ..., "confidence": 0.0-1.0 },
         ...
       ]
     },
     {
       "returnBasis": "ILS",
+      "allMonthlyReturns": { "2025-01": 0.040, "2025-02": -0.008, ... },
       "fields": [
         { "key": "monthlyReturn", "value": ..., "confidence": 0.0-1.0 },
+        { "key": "sharpe", "value": ..., "confidence": 0.0-1.0 },
+        { "key": "stdDev", "value": ..., "confidence": 0.0-1.0 },
         { "key": "returns.y2025", "value": ..., "confidence": 0.0-1.0 },
+        { "key": "returns.y2024", "value": ..., "confidence": 0.0-1.0 },
+        { "key": "returns.ytd2026", "value": ..., "confidence": 0.0-1.0 },
         ...
       ]
     }
@@ -656,6 +669,23 @@ function parseCloudeResponse(
       const entryFields = sanitizeFields(entryRawFields);
       if (entryFields.length > 0) {
         dualCurrencyData.push({ returnBasis: basis, fields: entryFields });
+      }
+    }
+    // Propagate top-level returns.y*/returns.ytd* fields to entries that lack them.
+    // The AI sometimes puts annual returns only in top-level fields, not per-currency.
+    // Top-level uses "first currency found" so values are correct for the first entry
+    // and serve as a reasonable fallback for the second.
+    if (dualCurrencyData.length >= 2) {
+      const topLevelReturns = sanitizedFields.filter(
+        (f) => /^returns\.(y\d{4}|ytd\d{4})$/.test(f.key)
+      );
+      for (const entry of dualCurrencyData) {
+        const entryKeys = new Set(entry.fields.map((f) => f.key));
+        for (const topField of topLevelReturns) {
+          if (!entryKeys.has(topField.key)) {
+            entry.fields.push({ ...topField });
+          }
+        }
       }
     }
     if (dualCurrencyData.length < 2) dualCurrencyData = undefined;
@@ -1495,7 +1525,7 @@ export async function POST(req: NextRequest) {
       if (result.dualCurrencyData) {
         resultObj.dualCurrencyData = result.dualCurrencyData;
       }
-      resultObj._cacheVersion = 2;
+      resultObj._cacheVersion = 3;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({

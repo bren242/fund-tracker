@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect, useMemo, Suspense } from "react";
+import { useState, useRef, useCallback, useEffect, Suspense } from "react";
 import { useClientKey } from "@/lib/useClientKey";
 import { useBrand } from "@/lib/useBrand";
 import ClientGate from "@/components/ClientGate";
@@ -20,9 +20,6 @@ interface DualCurrencyEntry {
   returnBasis: "ILS" | "USD";
   fields: ParsedField[];
 }
-
-/** Keys that are currency-independent — always shown regardless of toggle */
-const CURRENCY_INDEPENDENT_KEYS = new Set(["manager", "classification"]);
 
 interface FileResult {
   id: string;
@@ -89,8 +86,13 @@ const formatValue = (key: string, val: string | number | null): string => {
   return String(val);
 };
 
-/** Compute display fields: for dual-currency, merge independent base fields
- *  with the selected currency entry's fields. For single currency, return as-is. */
+/** Keys that are currency-independent — always shown regardless of toggle */
+const CURRENCY_INDEPENDENT_KEYS = new Set(["manager", "classification"]);
+
+/** Compute display fields: for dual-currency, use the selected currency entry's
+ *  fields plus currency-independent base fields. For single currency, return as-is.
+ *  IMPORTANT: Do NOT fall back to baseFields for currency-dependent fields — that
+ *  would leak the primary currency's values when another currency is selected. */
 function getDisplayFields(file: FileResult): ParsedField[] {
   const baseFields = file.fields || [];
   if (!file.dualCurrencyData || file.dualCurrencyData.length < 2 || !file.selectedBasis) {
@@ -98,13 +100,12 @@ function getDisplayFields(file: FileResult): ParsedField[] {
   }
   const entry = file.dualCurrencyData.find((d) => d.returnBasis === file.selectedBasis);
   if (!entry) return baseFields;
-  // Currency-independent fields from original parse (manager, classification, etc.)
-  const independent = baseFields.filter((f) => CURRENCY_INDEPENDENT_KEYS.has(f.key));
+  // Only carry over currency-independent fields from base; everything else comes from the entry
   const entryKeySet = new Set(entry.fields.map((f) => f.key));
-  return [
-    ...independent.filter((f) => !entryKeySet.has(f.key)),
-    ...entry.fields,
-  ];
+  const independentFromBase = baseFields.filter(
+    (f) => CURRENCY_INDEPENDENT_KEYS.has(f.key) && !entryKeySet.has(f.key)
+  );
+  return [...independentFromBase, ...entry.fields];
 }
 
 /* ================================================================== */
@@ -390,9 +391,9 @@ function FileCard({ file, onSave, onSwitchCurrency, primaryColor }: {
   const s = statusConfig[file.status] || statusConfig.queued;
   const hasDualCurrency = file.dualCurrencyData && file.dualCurrencyData.length >= 2;
 
-  // DERIVED display fields — computed from selectedBasis + dualCurrencyData
-  // This is the ONLY source of truth for what fields are shown.
-  const displayFields = useMemo(() => getDisplayFields(file), [file]);
+  // DERIVED display fields — computed fresh every render from selectedBasis + dualCurrencyData.
+  // No useMemo: computation is trivial and avoids any caching-related staleness.
+  const displayFields = getDisplayFields(file);
 
   return (
     <div style={{

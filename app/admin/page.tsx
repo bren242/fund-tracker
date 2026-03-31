@@ -2192,6 +2192,17 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
         const firstEntry = result.dualCurrencyData[0];
         setReturnBasis(firstEntry.returnBasis);
         setParseResult({ ...result, fields: firstEntry.fields, returnBasis: firstEntry.returnBasis });
+        // Rebuild approved set from the ACTUAL displayed fields (firstEntry), not top-level
+        const dualApproved = new Set<string>();
+        for (const f of firstEntry.fields) {
+          if (f.confidence >= 0.7) dualApproved.add(f.key);
+        }
+        // Also include any approved keys from the second entry
+        const secondEntry = result.dualCurrencyData[1];
+        for (const f of secondEntry.fields) {
+          if (f.confidence >= 0.7) dualApproved.add(f.key);
+        }
+        setApprovedFields(dualApproved);
         onStatus("⚠️ נמצא דיווח כפול (שקלי + דולרי) — יש לשמור שני טיוטות נפרדות");
       } else if (result.returnBasisOptions?.length === 2) {
         onStatus("⚠️ הדיווח כולל תשואות שקליות ודולריות — בחר את המטבע הרלוונטי");
@@ -2257,6 +2268,16 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
         const firstEntry = result.dualCurrencyData[0];
         setReturnBasis(firstEntry.returnBasis);
         setParseResult({ ...result, fields: firstEntry.fields, returnBasis: firstEntry.returnBasis });
+        // Rebuild approved set from actual entry fields
+        const dualApproved = new Set<string>();
+        for (const f of firstEntry.fields) {
+          if (f.confidence >= 0.7) dualApproved.add(f.key);
+        }
+        const secondEntry = result.dualCurrencyData[1];
+        for (const f of secondEntry.fields) {
+          if (f.confidence >= 0.7) dualApproved.add(f.key);
+        }
+        setApprovedFields(dualApproved);
         onStatus("⚠️ נמצא דיווח כפול (שקלי + דולרי) — יש לשמור שני טיוטות נפרדות");
       } else if (result.returnBasisOptions?.length === 2) {
         onStatus("⚠️ הדיווח כולל תשואות שקליות ודולריות — בחר את המטבע הרלוונטי");
