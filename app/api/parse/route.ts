@@ -618,6 +618,16 @@ function parseCloudeResponse(
       }
     }
   }
+  // Convert top-level returns object into individual field entries (AI may return
+  // annual returns as a top-level "returns" object instead of inside "fields" array)
+  if (parsed.returns && typeof parsed.returns === "object" && !Array.isArray(parsed.returns)) {
+    const ret = parsed.returns as Record<string, unknown>;
+    for (const [yearKey, val] of Object.entries(ret)) {
+      if (/^(y\d{4}|ytd\d{4})$/.test(yearKey) && typeof val === "number") {
+        rawFields.push({ key: `returns.${yearKey}`, value: val, confidence: 0.85 });
+      }
+    }
+  }
   const sanitizedFields = sanitizeFields(rawFields);
 
   // Extract reportMonth
@@ -668,6 +678,15 @@ function parseCloudeResponse(
         for (const [month, val] of Object.entries(amr)) {
           if (/^\d{4}-(0[1-9]|1[0-2])$/.test(month) && typeof val === "number") {
             entryRawFields.push({ key: `monthlyReturns.${month}`, value: val, confidence: 0.95 });
+          }
+        }
+      }
+      // Convert top-level returns in dual currency entries too
+      if (entry.returns && typeof entry.returns === "object" && !Array.isArray(entry.returns)) {
+        const ret = entry.returns as Record<string, unknown>;
+        for (const [yearKey, val] of Object.entries(ret)) {
+          if (/^(y\d{4}|ytd\d{4})$/.test(yearKey) && typeof val === "number") {
+            entryRawFields.push({ key: `returns.${yearKey}`, value: val, confidence: 0.85 });
           }
         }
       }
