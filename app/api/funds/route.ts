@@ -31,8 +31,12 @@ export async function GET(req: NextRequest) {
   const data = await readData(clientKey);
   const url = new URL(req.url);
 
-  // Export endpoint — returns raw data for backup
+  // Export endpoint — returns raw data for backup (auth required)
   if (url.searchParams.get("export") === "true") {
+    const auth = isAuthorized(req, data);
+    if (!auth) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return new NextResponse(JSON.stringify(data, null, 2), {
       headers: {
         "Content-Type": "application/json",
@@ -41,14 +45,16 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // For public consumers, filter out inactive/hidden funds and strip passwords
+  /** Strip sensitive fields from data before sending to client */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { adminPassword: _ap, superAdminPassword: _sap, ...safeData } = data as Record<string, unknown>;
+
+  // For public consumers, filter out inactive/hidden funds
   const isAdmin = url.searchParams.get("admin") === "true";
   if (!isAdmin) {
     const publicData = {
-      ...data,
-      adminPassword: undefined,
-      superAdminPassword: undefined,
-      categories: (data.categories || []).map((cat: Record<string, unknown>) => ({
+      ...safeData,
+      categories: ((safeData.categories || []) as Record<string, unknown>[]).map((cat: Record<string, unknown>) => ({
         ...cat,
         funds: (cat.funds as Record<string, unknown>[]).filter((f: Record<string, unknown>) => {
           const active = f.active !== undefined ? f.active : true;
@@ -59,7 +65,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(publicData);
   }
 
-  return NextResponse.json(data);
+  // Admin view — still strip passwords (auth checked via headers on mutations)
+  return NextResponse.json(safeData);
 }
 
 export async function PUT(req: NextRequest) {
@@ -116,6 +123,33 @@ export async function POST(req: NextRequest) {
   // Verify password endpoint
   if (url.searchParams.get("action") === "verify") {
     return NextResponse.json({ role: auth });
+  }
+
+  // Move fund up/down within its category
+  if (url.searchParams.get("action") === "move-fund") {
+    const body = await req.json();
+    const { categoryId, fundId, direction } = body;
+    if (!categoryId || !fundId || (direction !== "up" && direction !== "down")) {
+      return NextResponse.json({ error: "Missing categoryId, fundId, or direction (up/down)" }, { status: 400 });
+    }
+    const categories = (data.categories || []) as Record<string, unknown>[];
+    const cat = categories.find((c) => c.id === categoryId);
+    if (!cat) {
+      return NextResponse.json({ error: "Category not found" }, { status: 404 });
+    }
+    const funds = cat.funds as Record<string, unknown>[];
+    const idx = funds.findIndex((f) => f.id === fundId);
+    if (idx < 0) {
+      return NextResponse.json({ error: "Fund not found" }, { status: 404 });
+    }
+    const newIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (newIdx < 0 || newIdx >= funds.length) {
+      return NextResponse.json({ success: true }); // already at edge
+    }
+    // Swap
+    [funds[idx], funds[newIdx]] = [funds[newIdx], funds[idx]];
+    await writeData(clientKey, data);
+    return NextResponse.json({ success: true });
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });

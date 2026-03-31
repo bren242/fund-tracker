@@ -52,13 +52,28 @@ async function getKv() {
  * Keys follow the pattern: "type:clientKey"
  */
 function keyToFilePath(key: string): string {
-  const [type, clientKey] = key.split(":");
+  const parts = key.split(":");
+  const type = parts[0];
+  const clientKey = parts[1];
   const fileMap: Record<string, string> = {
     funds: "funds.json",
     brand: "brand.json",
     "parse-drafts": "parse-drafts.json",
     "parse-log": "parse-log.json",
+    benchmarks: "benchmarks.json",
+    "undo-state": "undo-state.json",
+    "token-usage": "token-usage.json",
   };
+  // parse-cache has 3 segments: parse-cache:{clientKey}:{hash}
+  if (type === "parse-cache") {
+    const hash = parts[2] || "default";
+    const safeHash = hash.replace(/[^a-zA-Z0-9_-]/g, "_");
+    if (!clientKey) throw new Error(`Invalid storage key: ${key}`);
+    if (isProduction()) {
+      return path.join(process.cwd(), "data", clientKey, `parse-cache-${safeHash}.json`);
+    }
+    return path.join(clientDataDir(clientKey), `parse-cache-${safeHash}.json`);
+  }
   const fileName = fileMap[type];
   if (!fileName || !clientKey) {
     throw new Error(`Invalid storage key: ${key}`);

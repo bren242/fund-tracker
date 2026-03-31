@@ -31,6 +31,24 @@ export interface Category {
   funds: Fund[];
 }
 
+export interface Benchmark {
+  id: string;
+  name: string;
+  currency: "ILS" | "USD";
+  returns: {
+    ytd2026: number | null;
+    y2025: number | null;
+    y2024: number | null;
+    y2023: number | null;
+    y2022: number | null;
+    y2021: number | null;
+    y2020: number | null;
+    y2019: number | null;
+  };
+  monthlyReturns?: Record<string, number>;
+  active: boolean;
+}
+
 export interface FundsData {
   lastUpdated: string;
   categories: Category[];

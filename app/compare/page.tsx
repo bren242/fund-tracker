@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, Suspense } from "react";
 import dynamic from "next/dynamic";
-import { FundsData, Fund } from "@/lib/types";
+import { FundsData, Fund, Benchmark } from "@/lib/types";
 import { formatDate } from "@/lib/format";
 import { useBrand } from "@/lib/useBrand";
 import { useClientKey, withClient } from "@/lib/useClientKey";
@@ -28,7 +28,12 @@ function CompareContent() {
   const fundIds = useMemo(() => fundsParam.split(",").filter(Boolean), [fundsParam]);
 
   const [data, setData] = useState<FundsData | null>(null);
+  const [allBenchmarks, setAllBenchmarks] = useState<Benchmark[]>([]);
+  const benchmarksParam = searchParams.get("benchmarks") || "";
+  const benchmarkIds = useMemo(() => benchmarksParam.split(",").filter(Boolean), [benchmarksParam]);
+  const [selectedBmIds, setSelectedBmIds] = useState<string[]>([]);
   const mode = brand.features?.comparisonMode ?? "basic";
+  const benchmarksEnabled = brand.features?.benchmarks ?? false;
 
   // Available year keys and their labels
   const YEAR_OPTIONS = [
@@ -58,7 +63,18 @@ function CompareContent() {
     fetch(`/api/funds?client=${encodeURIComponent(clientKey)}`)
       .then((r) => r.json())
       .then(setData);
-  }, [clientKey]);
+    if (benchmarksEnabled) {
+      fetch(`/api/benchmarks?client=${encodeURIComponent(clientKey)}`)
+        .then((r) => r.json())
+        .then((bms: Benchmark[]) => {
+          setAllBenchmarks(bms);
+          // If URL has benchmark params, select them
+          if (benchmarkIds.length > 0) {
+            setSelectedBmIds(benchmarkIds.filter((id) => bms.some((b) => b.id === id)).slice(0, 2));
+          }
+        });
+    }
+  }, [clientKey, benchmarksEnabled]);
 
   const funds: Fund[] = useMemo(() => {
     if (!data || fundIds.length === 0) return [];
@@ -71,6 +87,18 @@ function CompareContent() {
     // Preserve original selection order
     return fundIds.map((id) => all.find((f) => f.id === id)).filter(Boolean) as Fund[];
   }, [data, fundIds]);
+
+  const selectedBenchmarks = useMemo(() =>
+    selectedBmIds.map((id) => allBenchmarks.find((b) => b.id === id)).filter(Boolean) as Benchmark[],
+  [selectedBmIds, allBenchmarks]);
+
+  const toggleBenchmark = (id: string) => {
+    setSelectedBmIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= 2) return prev; // max 2
+      return [...prev, id];
+    });
+  };
 
   // Feature gate
   const comparisonEnabled = brand.features?.comparison ?? true;
@@ -96,8 +124,6 @@ function CompareContent() {
       </div>
     );
   }
-
-  const currentYear = new Date().getFullYear();
 
   return (
     <ClientGate clientKey={clientKey}>
@@ -186,9 +212,58 @@ function CompareContent() {
               )}
             </div>
 
-            <CompareSummary funds={funds} accentColor={brand.primaryColor} />
-            <CompareTable funds={funds} accentColor={brand.primaryColor} selectedYears={selectedYears} />
-            {mode === "advanced" && <CompareCharts funds={funds} accentColor={brand.primaryColor} />}
+            {/* Benchmark selector */}
+            {benchmarksEnabled && allBenchmarks.length > 0 && (
+              <div style={{
+                backgroundColor: "var(--bg-surface)",
+                border: "1px solid var(--border)",
+                borderRadius: 10,
+                padding: "12px 16px",
+                marginBottom: 20,
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
+                    📊 מדדי ייחוס (עד 2)
+                  </span>
+                  {selectedBmIds.length > 0 && (
+                    <button onClick={() => setSelectedBmIds([])}
+                      style={{ fontSize: 10, padding: "3px 10px", borderRadius: 4, border: "1px solid var(--border)", backgroundColor: "var(--bg-surface-alt)", color: "var(--text-secondary)", cursor: "pointer" }}>
+                      נקה
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {allBenchmarks.map((bm) => {
+                    const active = selectedBmIds.includes(bm.id);
+                    const atMax = selectedBmIds.length >= 2 && !active;
+                    return (
+                      <button
+                        key={bm.id}
+                        onClick={() => toggleBenchmark(bm.id)}
+                        disabled={atMax}
+                        style={{
+                          padding: "5px 14px",
+                          borderRadius: 6,
+                          border: `1px solid ${active ? "#6366f1" : "var(--border)"}`,
+                          backgroundColor: active ? "#6366f115" : "var(--bg-surface)",
+                          color: active ? "#6366f1" : atMax ? "var(--text-muted)" : "var(--text-secondary)",
+                          fontWeight: active ? 700 : 400,
+                          fontSize: 12,
+                          cursor: atMax ? "default" : "pointer",
+                          opacity: atMax ? 0.4 : 1,
+                          transition: "all 0.15s",
+                        }}>
+                        {bm.currency === "USD" ? "$" : "₪"} {bm.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <CompareSummary funds={funds} accentColor={brand.primaryColor} selectedYears={selectedYears} />
+            <CompareTable funds={funds} accentColor={brand.primaryColor} selectedYears={selectedYears} benchmarks={selectedBenchmarks} />
+            {mode === "advanced" && <CompareCharts funds={funds} accentColor={brand.primaryColor} benchmarks={selectedBenchmarks} selectedYears={selectedYears} />}
           </div>
 
           {/* Screen disclaimer */}
@@ -206,7 +281,7 @@ function CompareContent() {
         </div>
 
         {/* ============ PRINT VERSION ============ */}
-        <ComparePrint funds={funds} brand={brand} lastUpdated={data.lastUpdated} mode={mode} />
+        <ComparePrint funds={funds} brand={brand} lastUpdated={data.lastUpdated} mode={mode} selectedYears={selectedYears} benchmarks={selectedBenchmarks} />
       </div>
     </ClientGate>
   );
@@ -215,11 +290,13 @@ function CompareContent() {
 /* ================================================================== */
 /*  Print-only comparison report                                        */
 /* ================================================================== */
-function ComparePrint({ funds, brand, lastUpdated, mode }: {
+function ComparePrint({ funds, brand, lastUpdated, mode, selectedYears, benchmarks }: {
   funds: Fund[];
   brand: BrandConfig;
   lastUpdated: string;
   mode: "basic" | "advanced";
+  selectedYears?: string[];
+  benchmarks?: Benchmark[];
 }) {
   const currentYear = new Date().getFullYear();
 
@@ -258,16 +335,16 @@ function ComparePrint({ funds, brand, lastUpdated, mode }: {
           <tr>
             <td style={{ padding: 0 }}>
               {/* Compact summary strip */}
-              <CompareSummary funds={funds} accentColor={brand.primaryColor} compact />
+              <CompareSummary funds={funds} accentColor={brand.primaryColor} compact selectedYears={selectedYears} />
 
               {/* Comparison table */}
-              <CompareTable funds={funds} accentColor={brand.primaryColor} compact />
+              <CompareTable funds={funds} accentColor={brand.primaryColor} compact selectedYears={selectedYears} benchmarks={benchmarks} />
 
               {/* Divider between table and chart */}
               {mode === "advanced" && (
                 <>
                   <div style={{ borderTop: "1px solid #dfe3e8", margin: "10px 0" }} />
-                  <CompareCharts funds={funds} accentColor={brand.primaryColor} compact />
+                  <CompareCharts funds={funds} accentColor={brand.primaryColor} compact benchmarks={benchmarks} selectedYears={selectedYears} />
                 </>
               )}
             </td>

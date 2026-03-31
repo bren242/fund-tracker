@@ -24,7 +24,7 @@ export function useBrand(clientKey: string = "nox"): BrandConfig {
         cache[clientKey] = b;
         setBrand(b);
       })
-      .catch(() => {});
+      .catch((err) => console.error(`Failed to load brand config for "${clientKey}":`, err));
   }, [clientKey]);
 
   return brand;

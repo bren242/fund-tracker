@@ -21,6 +21,7 @@
     "chartPage": true,
     "aiParser": true,
     "mobileUpload": true,
-    "desktopUpload": true
+    "desktopUpload": true,
+    "benchmarks": true
   }
 }

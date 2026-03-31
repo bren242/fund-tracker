@@ -71,12 +71,14 @@ export interface ParseLogEntry {
   newValue?: number | null;
 }
 
-/** Fields allowed to be written to funds.json in Phase 1 */
+/** Fields allowed to be written to funds.json */
 export const APPLY_WHITELIST = [
   "monthlyReturn",
   "returns",
   "manager",
   "classification",
+  "sharpe",
+  "stdDev",
 ] as const;
 
 export type ApplyableField = typeof APPLY_WHITELIST[number];

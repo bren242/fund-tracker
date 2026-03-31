@@ -1,5 +1,5 @@
 {
-  "name": "NOX ",
+  "name": "NOX",
   "fullName": "NOX Wealth Management",
   "logo": "",
   "logoLight": "/branding/nox/logoLight.png",
@@ -19,6 +19,9 @@
     "comparison": true,
     "comparisonMode": "basic",
     "chartPage": true,
-    "aiParser": false
+    "aiParser": false,
+    "mobileUpload": false,
+    "desktopUpload": false,
+    "benchmarks": false
   }
 }

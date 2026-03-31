@@ -140,6 +140,9 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   const daysDiff = (now.getTime() - cachedDate.getTime()) / (1000 * 60 * 60 * 24);
   if (daysDiff > 30) return null;
 
+  // Invalidate old format caches (missing returnBasisOptions)
+  if (!cached.result.returnBasisOptions) return null;
+
   return cached.result;
 }
 
@@ -155,6 +158,8 @@ const ALLOWED_FIELD_KEYS = new Set([
   "monthlyReturn",
   "manager",
   "classification",
+  "sharpe",
+  "stdDev",
   "returns.ytd2026",
   "returns.y2025",
   "returns.y2024",
@@ -187,6 +192,67 @@ function generateId(): string {
 /** Clamp a number between min and max */
 function clamp(val: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, val));
+}
+
+/* ================================================================== */
+/*  Sharpe & StdDev Auto-Calculation                                    */
+/* ================================================================== */
+
+const RISK_FREE_MONTHLY = 0.003; // ~3.6% annual risk-free rate (approx Israel)
+const MIN_OBSERVATIONS = 12;
+
+/**
+ * Calculate stdDev and Sharpe from monthly returns.
+ * Returns null if fewer than MIN_OBSERVATIONS observations.
+ * Does NOT overwrite values extracted from the document (AI-extracted values take priority).
+ */
+function calculateRiskMetrics(monthlyReturns: Record<string, number>): {
+  sharpe: number;
+  stdDev: number;
+} | null {
+  const values = Object.values(monthlyReturns).filter((v) => typeof v === "number" && !isNaN(v));
+  if (values.length < MIN_OBSERVATIONS) return null;
+
+  // Mean monthly return
+  const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
+
+  // Standard deviation (population)
+  const variance = values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / values.length;
+  const stdDev = Math.sqrt(variance);
+
+  // Sharpe ratio (annualized): (mean - riskFree) / stdDev * sqrt(12)
+  const sharpe = stdDev > 0 ? ((mean - RISK_FREE_MONTHLY) / stdDev) * Math.sqrt(12) : 0;
+
+  return {
+    sharpe: Math.round(sharpe * 100) / 100,    // 2 decimals
+    stdDev: Math.round(stdDev * 10000) / 10000, // 4 decimals (percentage precision)
+  };
+}
+
+/**
+ * Apply auto-calculated sharpe/stdDev to a fund object, respecting document-extracted values.
+ * @param fund - The fund record to update
+ * @param hasExtractedSharpe - Whether the AI extracted a sharpe value from the document
+ * @param hasExtractedStdDev - Whether the AI extracted a stdDev value from the document
+ */
+function applyRiskMetrics(
+  fund: Record<string, unknown>,
+  hasExtractedSharpe: boolean,
+  hasExtractedStdDev: boolean
+): void {
+  const monthlyReturns = fund.monthlyReturns as Record<string, number> | undefined;
+  if (!monthlyReturns) return;
+
+  const metrics = calculateRiskMetrics(monthlyReturns);
+  if (!metrics) return;
+
+  // Document-extracted values take priority
+  if (!hasExtractedSharpe) {
+    fund.sharpe = metrics.sharpe;
+  }
+  if (!hasExtractedStdDev) {
+    fund.stdDev = metrics.stdDev;
+  }
 }
 
 /** Normalize confidence: ensure number 0-1, default 0.5 if missing/invalid */
@@ -417,11 +483,18 @@ FIELDS TO EXTRACT (only these):
 - returnBasisOptions: ["ILS"] or ["USD"] or ["ILS","USD"] (all currency bases found in the document)
 - manager: string | null (fund manager name)
 - classification: string | null (fund type/classification)
+- sharpe: number | null (Sharpe ratio, if explicitly stated in the document)
+- stdDev: number | null (standard deviation, סטיית תקן, if explicitly stated in the document)
 - returns: object with year keys like "y2024", "y2023", etc. (annual returns as decimals)
 - ytd2026: number | null (year-to-date return for 2026)
 
 EXISTING FUNDS IN SYSTEM (for matching):
 ${existingFunds.map((f) => `- "${f.name}" (id: ${f.id})`).join("\n")}
+
+DUAL CURRENCY DOCUMENTS:
+If the document contains return data for BOTH ILS and USD (e.g., two separate performance tables),
+you MUST return a "dualCurrencyData" array with separate field sets for each currency.
+Each entry has its own returnBasis and fields. The top-level fields/returnBasis should use the FIRST currency found.
 
 Respond in valid JSON with this exact structure:
 {
@@ -433,6 +506,8 @@ Respond in valid JSON with this exact structure:
   "returnBasisOptions": ["ILS"] or ["USD"] or ["ILS","USD"],
   "fields": [
     { "key": "monthlyReturn", "value": ..., "confidence": 0.0-1.0 },
+    { "key": "sharpe", "value": ..., "confidence": 0.0-1.0 },
+    { "key": "stdDev", "value": ..., "confidence": 0.0-1.0 },
     { "key": "returns.y2024", "value": ..., "confidence": 0.0-1.0 },
     ...
   ],
@@ -440,7 +515,25 @@ Respond in valid JSON with this exact structure:
     "fundId": "..." or null,
     "fundName": "..." or null,
     "similarity": 0.0-1.0
-  }
+  },
+  "dualCurrencyData": [
+    {
+      "returnBasis": "USD",
+      "fields": [
+        { "key": "monthlyReturn", "value": ..., "confidence": 0.0-1.0 },
+        { "key": "returns.y2025", "value": ..., "confidence": 0.0-1.0 },
+        ...
+      ]
+    },
+    {
+      "returnBasis": "ILS",
+      "fields": [
+        { "key": "monthlyReturn", "value": ..., "confidence": 0.0-1.0 },
+        { "key": "returns.y2025", "value": ..., "confidence": 0.0-1.0 },
+        ...
+      ]
+    }
+  ]
 }`;
 }
 
@@ -448,6 +541,12 @@ Respond in valid JSON with this exact structure:
 function isValidReportMonth(val: unknown): val is string {
   if (typeof val !== "string") return false;
   return /^\d{4}-(0[1-9]|1[0-2])$/.test(val);
+}
+
+/** Dual currency data entry from Claude */
+interface DualCurrencyEntry {
+  returnBasis: "ILS" | "USD";
+  fields: ParsedField[];
 }
 
 /** Parse Claude response JSON → structured result */
@@ -463,6 +562,7 @@ function parseCloudeResponse(
   returnBasisOptions: ("ILS" | "USD")[];
   fields: ParsedField[];
   match: { fundId: string; fundName: string; similarity: number; categoryId: string | null } | null;
+  dualCurrencyData?: DualCurrencyEntry[];
 } | { error: string } {
   const jsonMatch = content.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
@@ -512,6 +612,21 @@ function parseCloudeResponse(
     }
   }
 
+  // Extract dualCurrencyData if present (dual ILS+USD reports)
+  let dualCurrencyData: DualCurrencyEntry[] | undefined;
+  if (Array.isArray(parsed.dualCurrencyData) && parsed.dualCurrencyData.length >= 2) {
+    dualCurrencyData = [];
+    for (const entry of parsed.dualCurrencyData as Record<string, unknown>[]) {
+      const basis = entry.returnBasis;
+      if (basis !== "ILS" && basis !== "USD") continue;
+      const entryFields = sanitizeFields(entry.fields as unknown[]);
+      if (entryFields.length > 0) {
+        dualCurrencyData.push({ returnBasis: basis, fields: entryFields });
+      }
+    }
+    if (dualCurrencyData.length < 2) dualCurrencyData = undefined;
+  }
+
   return {
     fundName: String(parsed.fundName || ""),
     fundNameConfidence: normalizeConfidence(parsed.fundNameConfidence),
@@ -521,6 +636,7 @@ function parseCloudeResponse(
     returnBasisOptions,
     fields: sanitizedFields,
     match,
+    dualCurrencyData,
   };
 }
 
@@ -549,7 +665,21 @@ export async function GET(req: NextRequest) {
 
     if (action === "drafts") {
       const drafts = await storageRead<ParseDraft[]>(`parse-drafts:${clientKey}`, []);
-      return NextResponse.json(drafts);
+
+      // Auto-cleanup: remove non-pending drafts older than 90 days
+      const CLEANUP_DAYS = 90;
+      const cutoff = Date.now() - CLEANUP_DAYS * 24 * 60 * 60 * 1000;
+      const before = drafts.length;
+      const cleaned = drafts.filter((d) => {
+        if (d.status === "pending") return true; // never auto-delete pending
+        const ts = d.appliedAt || d.rejectedAt || d.createdAt;
+        return new Date(ts).getTime() > cutoff;
+      });
+      if (cleaned.length < before) {
+        await storageWrite(`parse-drafts:${clientKey}`, cleaned);
+      }
+
+      return NextResponse.json(cleaned);
     }
 
     if (action === "log") {
@@ -614,11 +744,12 @@ export async function POST(req: NextRequest) {
         }, { status: 500 });
       }
 
-      // Load existing fund names for matching context
-      const fundsData = await storageRead<{ categories: { id: string; funds: { id: string; name: string }[] }[] }>(`funds:${clientKey}`, { categories: [] });
+      // Load existing fund names for matching context (active only)
+      const fundsData = await storageRead<{ categories: { id: string; funds: { id: string; name: string; active?: boolean }[] }[] }>(`funds:${clientKey}`, { categories: [] });
       const existingFunds: { id: string; name: string; categoryId: string }[] = [];
       for (const cat of fundsData.categories || []) {
         for (const fund of cat.funds || []) {
+          if (fund.active === false) continue;
           existingFunds.push({ id: fund.id, name: fund.name, categoryId: cat.id });
         }
       }
@@ -805,6 +936,15 @@ export async function POST(req: NextRequest) {
           if (funds[i].id !== fundId) continue;
           fundFound = true;
 
+          // Snapshot fund BEFORE changes for undo
+          await storageWrite(`undo-state:${clientKey}`, {
+            draftId,
+            fundId,
+            categoryId,
+            fundSnapshot: JSON.parse(JSON.stringify(funds[i])),
+            timestamp: new Date().toISOString(),
+          });
+
           // Ensure monthlyReturns object exists
           if (!funds[i].monthlyReturns) {
             funds[i].monthlyReturns = {};
@@ -857,13 +997,29 @@ export async function POST(req: NextRequest) {
             } else if (field.key === "classification") {
               funds[i].classification = field.value as string;
               appliedFieldNames.push("classification");
+            } else if (field.key === "sharpe") {
+              funds[i].sharpe = field.value as number;
+              appliedFieldNames.push("sharpe");
+            } else if (field.key === "stdDev") {
+              funds[i].stdDev = field.value as number;
+              appliedFieldNames.push("stdDev");
             }
+          }
+
+          // Update lastReportDate if reportMonth provided
+          if (isValidReportMonth(reportMonth)) {
+            funds[i].lastReportDate = reportMonth;
           }
 
           // Set returnBasis on fund if provided (fund-level currency)
           if (applyReturnBasis === "ILS" || applyReturnBasis === "USD") {
             funds[i].returnBasis = applyReturnBasis;
           }
+
+          // Auto-calculate sharpe/stdDev if 12+ observations (document values take priority)
+          const hasExtractedSharpe = appliedFieldNames.includes("sharpe");
+          const hasExtractedStdDev = appliedFieldNames.includes("stdDev");
+          applyRiskMetrics(funds[i], hasExtractedSharpe, hasExtractedStdDev);
 
           break;
         }
@@ -959,7 +1115,7 @@ export async function POST(req: NextRequest) {
       }
 
       const body = await req.json();
-      const { draftId, categoryId, fundName, fields, reportMonth, returnBasis } = body;
+      const { draftId, categoryId, fundName, fields, reportMonth, returnBasis, classification } = body;
 
       if (!categoryId || !fundName || !fields || !Array.isArray(fields)) {
         return NextResponse.json({ error: "Missing required fields: categoryId, fundName, fields" }, { status: 400 });
@@ -974,10 +1130,10 @@ export async function POST(req: NextRequest) {
       const newFund: Record<string, unknown> = {
         id: newFundId,
         name: fundName,
-        classification: "",
+        classification: typeof classification === "string" && classification ? classification : "",
         startDate: null,
         manager: "",
-        lastReportDate: null,
+        lastReportDate: isValidReportMonth(reportMonth) ? reportMonth : null,
         monthlyReturn: 0,
         returns: {
           ytd2026: null, y2025: null, y2024: null, y2023: null,
@@ -1008,8 +1164,17 @@ export async function POST(req: NextRequest) {
           newFund.manager = field.value;
         } else if (field.key === "classification") {
           newFund.classification = field.value;
+        } else if (field.key === "sharpe" && typeof field.value === "number") {
+          newFund.sharpe = field.value;
+        } else if (field.key === "stdDev" && typeof field.value === "number") {
+          newFund.stdDev = field.value;
         }
       }
+
+      // Auto-calculate sharpe/stdDev for new fund if 12+ observations
+      const hasExtractedSharpe = validFields.some((f) => f.key === "sharpe");
+      const hasExtractedStdDev = validFields.some((f) => f.key === "stdDev");
+      applyRiskMetrics(newFund, hasExtractedSharpe, hasExtractedStdDev);
 
       // Load funds data and add the new fund
       const fundsData = await storageRead<Record<string, unknown>>(`funds:${clientKey}`, { categories: [] });
@@ -1063,6 +1228,78 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================================
+    // ACTION: undo — Revert last apply action
+    // ============================================================
+    if (action === "undo") {
+      const undoState = await storageRead<{
+        draftId: string;
+        fundId: string;
+        categoryId: string;
+        fundSnapshot: Record<string, unknown>;
+        timestamp: string;
+      } | null>(`undo-state:${clientKey}`, null);
+
+      if (!undoState) {
+        return NextResponse.json({ error: "אין פעולה לביטול" }, { status: 404 });
+      }
+
+      // Check staleness — only allow undo within 30 minutes
+      const age = Date.now() - new Date(undoState.timestamp).getTime();
+      if (age > 30 * 60 * 1000) {
+        await storageWrite(`undo-state:${clientKey}`, null);
+        return NextResponse.json({ error: "חלון הביטול פג (30 דקות)" }, { status: 410 });
+      }
+
+      // Restore fund snapshot
+      const fundsData = await storageRead<Record<string, unknown>>(`funds:${clientKey}`, { categories: [] });
+      let restored = false;
+      for (const cat of (fundsData.categories as Record<string, unknown>[]) || []) {
+        if (cat.id !== undoState.categoryId) continue;
+        const funds = cat.funds as Record<string, unknown>[];
+        for (let i = 0; i < funds.length; i++) {
+          if (funds[i].id !== undoState.fundId) continue;
+          funds[i] = undoState.fundSnapshot;
+          restored = true;
+          break;
+        }
+        if (restored) break;
+      }
+
+      if (!restored) {
+        return NextResponse.json({ error: "לא נמצאה הקרן לשחזור" }, { status: 404 });
+      }
+
+      await storageWrite(`funds:${clientKey}`, fundsData);
+
+      // Revert draft status back to pending
+      if (undoState.draftId) {
+        const drafts = await storageRead<ParseDraft[]>(`parse-drafts:${clientKey}`, []);
+        const draftIdx = drafts.findIndex((d) => d.id === undoState.draftId);
+        if (draftIdx >= 0) {
+          drafts[draftIdx].status = "pending";
+          delete drafts[draftIdx].appliedAt;
+          await storageWrite(`parse-drafts:${clientKey}`, drafts);
+        }
+      }
+
+      // Clear undo state
+      await storageWrite(`undo-state:${clientKey}`, null);
+
+      // Log
+      await storageAppend<ParseLogEntry>(`parse-log:${clientKey}`, {
+        id: generateId(),
+        timestamp: new Date().toISOString(),
+        action: "reject",
+        draftId: undoState.draftId,
+        fundName: (undoState.fundSnapshot.name as string) || "",
+        fundId: undoState.fundId,
+        details: `Undo: reverted apply on fund "${undoState.fundSnapshot.name}" (draft ${undoState.draftId})`,
+      });
+
+      return NextResponse.json({ success: true, fundName: undoState.fundSnapshot.name });
+    }
+
+    // ============================================================
     // ACTION: parse-file — Parse uploaded PDF/Image via Vision API
     // ============================================================
     if (action === "parse-file") {
@@ -1099,11 +1336,12 @@ export async function POST(req: NextRequest) {
         }, { status: 500 });
       }
 
-      // Load existing funds for matching
-      const fundsData = await storageRead<{ categories: { id: string; funds: { id: string; name: string }[] }[] }>(`funds:${clientKey}`, { categories: [] });
+      // Load existing funds for matching (active only)
+      const fundsData = await storageRead<{ categories: { id: string; funds: { id: string; name: string; active?: boolean }[] }[] }>(`funds:${clientKey}`, { categories: [] });
       const existingFunds: { id: string; name: string; categoryId: string }[] = [];
       for (const cat of fundsData.categories || []) {
         for (const fund of cat.funds || []) {
+          if (fund.active === false) continue;
           existingFunds.push({ id: fund.id, name: fund.name, categoryId: cat.id });
         }
       }
@@ -1165,15 +1403,20 @@ export async function POST(req: NextRequest) {
         }, { status: 500 });
       }
 
-      // Cache the result for future duplicate uploads
-      const resultObj = {
+      // Cache the result for future duplicate uploads (full format including dual currency)
+      const resultObj: Record<string, unknown> = {
         fundName: result.fundName,
         fundNameConfidence: result.fundNameConfidence,
         reportMonth: result.reportMonth,
         reportMonthConfidence: result.reportMonthConfidence,
+        returnBasis: result.returnBasis,
+        returnBasisOptions: result.returnBasisOptions,
         fields: result.fields,
         match: result.match,
       };
+      if (result.dualCurrencyData) {
+        resultObj.dualCurrencyData = result.dualCurrencyData;
+      }
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({

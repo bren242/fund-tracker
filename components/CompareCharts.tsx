@@ -1,6 +1,6 @@
 "use client";
 
-import { Fund } from "@/lib/types";
+import { Fund, Benchmark } from "@/lib/types";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from "recharts";
@@ -9,10 +9,14 @@ interface CompareChartsProps {
   funds: Fund[];
   accentColor: string;
   compact?: boolean;
+  benchmarks?: Benchmark[];
+  selectedYears?: string[];
 }
 
 /* Fixed palette for up to 4 funds */
 const PALETTE = ["#1a365d", "#059669", "#c42b2b", "#7c3aed"];
+/* Benchmark palette — distinct from fund colors */
+const BM_PALETTE = ["#6366f1", "#ec4899"];
 
 type YearEntry = { key: keyof Fund["returns"]; label: string };
 
@@ -27,25 +31,33 @@ const YEAR_ENTRIES: YearEntry[] = [
   { key: "ytd2026", label: "2026" },
 ];
 
-function buildLineData(funds: Fund[]) {
-  return YEAR_ENTRIES.map((ye) => {
+function buildLineData(funds: Fund[], benchmarks: Benchmark[], selectedYears?: string[]) {
+  const entries = selectedYears && selectedYears.length > 0
+    ? YEAR_ENTRIES.filter((ye) => selectedYears.includes(ye.key))
+    : YEAR_ENTRIES;
+  return entries.map((ye) => {
     const entry: Record<string, string | number | null> = { year: ye.label };
     funds.forEach((f) => {
       const v = f.returns[ye.key];
       entry[f.name] = v !== null ? Math.round(v * 10000) / 100 : null;
     });
+    benchmarks.forEach((bm) => {
+      const v = bm.returns[ye.key];
+      entry[bm.name] = v !== null ? Math.round(v * 10000) / 100 : null;
+    });
     return entry;
   });
 }
 
-export default function CompareCharts({ funds, accentColor, compact }: CompareChartsProps) {
+export default function CompareCharts({ funds, accentColor, compact, benchmarks = [], selectedYears }: CompareChartsProps) {
   if (funds.length < 2) return null;
 
-  const lineData = buildLineData(funds);
-  const colors = funds.map((_, i) => PALETTE[i % PALETTE.length]);
-  colors[0] = accentColor;
+  const lineData = buildLineData(funds, benchmarks, selectedYears);
+  const fundColors = funds.map((_, i) => PALETTE[i % PALETTE.length]);
+  fundColors[0] = accentColor;
+  const bmColors = benchmarks.map((_, i) => BM_PALETTE[i % BM_PALETTE.length]);
 
-  /* Print-compact: portrait A4, clean size */
+  /* Print-compact */
   if (compact) {
     return (
       <div style={{ pageBreakInside: "avoid", breakInside: "avoid" }}>
@@ -61,14 +73,15 @@ export default function CompareCharts({ funds, accentColor, compact }: CompareCh
             <YAxis tick={{ fontSize: 7, fill: "#8893a4" }} unit="%" width={30} />
             <Legend wrapperStyle={{ fontSize: 7, paddingTop: 4 }} />
             {funds.map((f, i) => (
-              <Line
-                key={f.id}
-                type="monotone"
-                dataKey={f.name}
-                stroke={colors[i]}
-                strokeWidth={2}
-                dot={{ r: 3, fill: colors[i] }}
-                connectNulls={false}
+              <Line key={f.id} type="monotone" dataKey={f.name}
+                stroke={fundColors[i]} strokeWidth={2}
+                dot={{ r: 3, fill: fundColors[i] }} connectNulls={false}
+              />
+            ))}
+            {benchmarks.map((bm, i) => (
+              <Line key={bm.id} type="monotone" dataKey={bm.name}
+                stroke={bmColors[i]} strokeWidth={1.5} strokeDasharray="6 3"
+                dot={{ r: 2, fill: bmColors[i] }} connectNulls={false}
               />
             ))}
           </LineChart>
@@ -100,15 +113,17 @@ export default function CompareCharts({ funds, accentColor, compact }: CompareCh
             />
             <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
             {funds.map((f, i) => (
-              <Line
-                key={f.id}
-                type="monotone"
-                dataKey={f.name}
-                stroke={colors[i]}
-                strokeWidth={2.5}
-                dot={{ r: 4, fill: colors[i], strokeWidth: 0 }}
-                activeDot={{ r: 6 }}
-                connectNulls={false}
+              <Line key={f.id} type="monotone" dataKey={f.name}
+                stroke={fundColors[i]} strokeWidth={2.5}
+                dot={{ r: 4, fill: fundColors[i], strokeWidth: 0 }}
+                activeDot={{ r: 6 }} connectNulls={false}
+              />
+            ))}
+            {benchmarks.map((bm, i) => (
+              <Line key={bm.id} type="monotone" dataKey={bm.name}
+                stroke={bmColors[i]} strokeWidth={2} strokeDasharray="8 4"
+                dot={{ r: 3, fill: bmColors[i], strokeWidth: 0 }}
+                activeDot={{ r: 5 }} connectNulls={false}
               />
             ))}
           </LineChart>

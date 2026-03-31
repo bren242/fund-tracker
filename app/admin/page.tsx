@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef, Suspense } from "react";
-import { FundsData, Fund, Category } from "@/lib/types";
+import { FundsData, Fund, Category, Benchmark } from "@/lib/types";
 import { pct, returnColorInline } from "@/lib/format";
 import { ThemeToggle } from "@/components/ThemeProvider";
 import { useBrand, invalidateBrandCache } from "@/lib/useBrand";
@@ -22,7 +22,7 @@ function AdminContent() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
-  const [activeTab, setActiveTab] = useState<"data" | "funds" | "branding" | "settings" | "monthly-history" | "ai-parser">("data");
+  const [activeTab, setActiveTab] = useState<"data" | "funds" | "branding" | "settings" | "monthly-history" | "ai-parser" | "benchmarks">("data");
   const brand = useBrand(clientKey);
   const [showAddFund, setShowAddFund] = useState(false);
   const [addFundCategory, setAddFundCategory] = useState("");
@@ -31,14 +31,16 @@ function AdminContent() {
   const passwordRef = useRef(password);
   passwordRef.current = password;
 
+  const categoryInitRef = useRef(false);
   const loadData = useCallback(() => {
     fetch(`/api/funds?admin=true&client=${encodeURIComponent(clientKey)}`).then((r) => r.json()).then((d: FundsData) => {
       setData(d);
-      if (!addFundCategory && d.categories.length > 0) {
+      if (!categoryInitRef.current && d.categories.length > 0) {
         setAddFundCategory(d.categories[0].id);
+        categoryInitRef.current = true;
       }
     });
-  }, [addFundCategory]);
+  }, [clientKey]);
 
   useEffect(() => {
     if (role) loadData();
@@ -129,6 +131,22 @@ function AdminContent() {
         };
       }),
     });
+  };
+
+  const moveFund = async (categoryId: string, fundId: string, direction: "up" | "down") => {
+    if (!data) return;
+    try {
+      const res = await fetch(`/api/funds?action=move-fund&client=${encodeURIComponent(clientKey)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-password": password },
+        body: JSON.stringify({ categoryId, fundId, direction }),
+      });
+      if (res.ok) {
+        loadData();
+      }
+    } catch {
+      showStatus("❌ שגיאה בהזזת קרן");
+    }
   };
 
   const updateLastUpdated = (dateStr: string) => {
@@ -338,6 +356,7 @@ function AdminContent() {
             ...(role === "super" ? [
               { id: "monthly-history" as const, label: "היסטוריה חודשית" },
               ...(brand.features?.aiParser ? [{ id: "ai-parser" as const, label: "🤖 קליטת נתונים" }] : []),
+              ...(brand.features?.benchmarks ? [{ id: "benchmarks" as const, label: "📊 מדדי ייחוס" }] : []),
               { id: "branding" as const, label: "מיתוג ודוחות" },
               { id: "settings" as const, label: "הגדרות" },
             ] : []),
@@ -375,6 +394,7 @@ function AdminContent() {
             onDelete={deleteFund}
             onShowAdd={() => setShowAddFund(true)}
             onEdit={(catId, fund) => setEditingFund({ catId, fund })}
+            onMoveFund={moveFund}
             addFundCategory={addFundCategory}
             setAddFundCategory={setAddFundCategory}
           />
@@ -408,6 +428,9 @@ function AdminContent() {
         )}
         {activeTab === "ai-parser" && brand.features?.aiParser && (
           <AiParserTab password={passwordRef.current} clientKey={clientKey} data={data} brand={brand} onStatus={showStatus} onReload={loadData} />
+        )}
+        {activeTab === "benchmarks" && brand.features?.benchmarks && (
+          <BenchmarkTab password={passwordRef.current} clientKey={clientKey} onStatus={showStatus} />
         )}
         {activeTab === "branding" && (
           <BrandingTab password={passwordRef.current} clientKey={clientKey} onStatus={showStatus} />
@@ -751,18 +774,32 @@ function MonthlyHistoryTab({ data, onUpdateMonthlyReturn }: {
 /* ================================================================== */
 /*  Fund Management Tab                                                */
 /* ================================================================== */
-function FundManagementTab({ data, onToggleActive, onDelete, onShowAdd, onEdit, addFundCategory, setAddFundCategory }: {
+function FundManagementTab({ data, onToggleActive, onDelete, onShowAdd, onEdit, onMoveFund, addFundCategory, setAddFundCategory }: {
   data: FundsData;
   onToggleActive: (catId: string, fundId: string) => void;
   onDelete: (catId: string, fundId: string, fundName: string) => void;
   onShowAdd: () => void;
   onEdit: (catId: string, fund: Fund) => void;
+  onMoveFund: (catId: string, fundId: string, direction: "up" | "down") => void;
   addFundCategory: string;
   setAddFundCategory: (v: string) => void;
 }) {
+  const [search, setSearch] = useState("");
+  const searchLower = search.trim().toLowerCase();
+
+  // Count total matching funds
+  const totalFunds = data.categories.reduce((sum, cat) => sum + cat.funds.length, 0);
+  const matchingFunds = searchLower
+    ? data.categories.reduce((sum, cat) => sum + cat.funds.filter((f) =>
+        f.name.toLowerCase().includes(searchLower) ||
+        (f.classification || "").toLowerCase().includes(searchLower) ||
+        (f.manager || "").toLowerCase().includes(searchLower)
+      ).length, 0)
+    : totalFunds;
+
   return (
     <>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>ניהול קרנות</h3>
         <button
           onClick={onShowAdd}
@@ -781,10 +818,56 @@ function FundManagementTab({ data, onToggleActive, onDelete, onShowAdd, onEdit, 
         </button>
       </div>
 
-      {data.categories.map((cat) => (
+      {/* Search bar */}
+      <div style={{ marginBottom: 16, position: "relative" }}>
+        <input
+          type="text"
+          placeholder="חפש קרן לפי שם, סיווג או מנהל..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{
+            width: "100%",
+            padding: "9px 14px 9px 36px",
+            borderRadius: 8,
+            border: "1px solid var(--border)",
+            backgroundColor: "var(--bg-input)",
+            color: "var(--text-primary)",
+            fontSize: 13,
+            outline: "none",
+            direction: "rtl",
+          }}
+        />
+        <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "var(--text-muted)", pointerEvents: "none" }}>
+          🔍
+        </span>
+        {search && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+              {matchingFunds} מתוך {totalFunds} קרנות
+            </span>
+            <button onClick={() => setSearch("")}
+              style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "var(--text-secondary)", textDecoration: "underline" }}>
+              נקה חיפוש
+            </button>
+          </div>
+        )}
+      </div>
+
+      {data.categories.map((cat) => {
+        const filteredFunds = searchLower
+          ? cat.funds.filter((f) =>
+              f.name.toLowerCase().includes(searchLower) ||
+              (f.classification || "").toLowerCase().includes(searchLower) ||
+              (f.manager || "").toLowerCase().includes(searchLower)
+            )
+          : cat.funds;
+
+        if (searchLower && filteredFunds.length === 0) return null;
+
+        return (
         <div key={cat.id} style={{ marginBottom: 20 }}>
           <div style={{ backgroundColor: "var(--bg-section)", color: "#fff", padding: "6px 16px", borderRadius: "8px 8px 0 0", fontWeight: 600, fontSize: 12 }}>
-            {cat.name} <span style={{ fontWeight: 400, fontSize: 10, opacity: 0.7 }}>({cat.funds.length})</span>
+            {cat.name} <span style={{ fontWeight: 400, fontSize: 10, opacity: 0.7 }}>({filteredFunds.length}{searchLower ? `/${cat.funds.length}` : ""})</span>
           </div>
           <div style={{ backgroundColor: "var(--bg-surface)", borderRadius: "0 0 8px 8px", overflow: "hidden", border: "1px solid var(--border)", borderTop: "none" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
@@ -794,15 +877,28 @@ function FundManagementTab({ data, onToggleActive, onDelete, onShowAdd, onEdit, 
                   <th style={thStyle(130)}>סיווג</th>
                   <th style={thStyle(100)}>מנהל</th>
                   <th style={thStyle(80)}>פעיל</th>
+                  <th style={thStyle(50)}>סדר</th>
                   <th style={thStyle(120)}>פעולות</th>
                 </tr>
               </thead>
               <tbody>
-                {cat.funds.map((fund, idx) => {
+                {filteredFunds.map((fund, idx) => {
                   const isActive = fund.active !== undefined ? fund.active : true;
                   return (
                     <tr key={fund.id} style={{ backgroundColor: idx % 2 === 0 ? "var(--bg-surface)" : "var(--bg-surface-alt)", borderBottom: "1px solid var(--border-table)", opacity: isActive ? 1 : 0.5 }}>
-                      <td style={{ padding: "6px 12px", fontWeight: 600, textAlign: "right" }}>{fund.name}</td>
+                      <td style={{ padding: "6px 12px", fontWeight: 600, textAlign: "right" }}>
+                        {fund.name}
+                        {(() => {
+                          if (!fund.lastReportDate || !isActive) return null;
+                          const lastDate = new Date(fund.lastReportDate + "-01");
+                          const now = new Date();
+                          const monthsDiff = (now.getFullYear() - lastDate.getFullYear()) * 12 + (now.getMonth() - lastDate.getMonth());
+                          if (monthsDiff >= 3) {
+                            return <span style={{ fontSize: 9, color: "#f59e0b", marginRight: 6, fontWeight: 400 }} title={`עדכון אחרון: ${fund.lastReportDate}`}>⚠️ לא עודכנה {monthsDiff} חודשים</span>;
+                          }
+                          return null;
+                        })()}
+                      </td>
                       <td style={{ padding: "6px 8px", textAlign: "center", fontSize: 11, color: "var(--text-secondary)" }}>{fund.classification}</td>
                       <td style={{ padding: "6px 8px", textAlign: "center", fontSize: 11, color: "var(--text-muted)" }}>{fund.manager}</td>
                       <td style={{ padding: "6px 8px", textAlign: "center" }}>
@@ -810,6 +906,20 @@ function FundManagementTab({ data, onToggleActive, onDelete, onShowAdd, onEdit, 
                           style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16 }}
                           title={isActive ? "לחץ להשבתה" : "לחץ להפעלה"}>
                           {isActive ? "✅" : "❌"}
+                        </button>
+                      </td>
+                      <td style={{ padding: "6px 8px", textAlign: "center", whiteSpace: "nowrap" }}>
+                        <button onClick={() => onMoveFund(cat.id, fund.id, "up")}
+                          disabled={idx === 0}
+                          title="הזז למעלה"
+                          style={{ background: "none", border: "none", cursor: idx === 0 ? "default" : "pointer", fontSize: 13, opacity: idx === 0 ? 0.2 : 0.7, padding: "0 2px" }}>
+                          ▲
+                        </button>
+                        <button onClick={() => onMoveFund(cat.id, fund.id, "down")}
+                          disabled={idx === filteredFunds.length - 1}
+                          title="הזז למטה"
+                          style={{ background: "none", border: "none", cursor: idx === filteredFunds.length - 1 ? "default" : "pointer", fontSize: 13, opacity: idx === filteredFunds.length - 1 ? 0.2 : 0.7, padding: "0 2px" }}>
+                          ▼
                         </button>
                       </td>
                       <td style={{ padding: "6px 8px", textAlign: "center" }}>
@@ -829,7 +939,8 @@ function FundManagementTab({ data, onToggleActive, onDelete, onShowAdd, onEdit, 
             </table>
           </div>
         </div>
-      ))}
+        );
+      })}
     </>
   );
 }
@@ -1536,6 +1647,265 @@ function FundModal({ title, categories, selectedCategory, existingFund, onCatego
 }
 
 /* ================================================================== */
+/*  Benchmark Tab (Super Admin, feature-flagged)                        */
+/* ================================================================== */
+function BenchmarkTab({ password, clientKey, onStatus }: {
+  password: string;
+  clientKey: string;
+  onStatus: (msg: string) => void;
+}) {
+  const [benchmarks, setBenchmarks] = useState<Benchmark[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [newName, setNewName] = useState("");
+  const [newCurrency, setNewCurrency] = useState<"ILS" | "USD">("ILS");
+  const headers = { "x-admin-password": password };
+
+  const loadBenchmarks = useCallback(async () => {
+    setLoading(true);
+    const res = await fetch(`/api/benchmarks?admin=true&client=${encodeURIComponent(clientKey)}`, { headers });
+    if (res.ok) setBenchmarks(await res.json());
+    setLoading(false);
+  }, [clientKey]);
+
+  useEffect(() => { loadBenchmarks(); }, [loadBenchmarks]);
+
+  const handleCreate = async () => {
+    if (!newName.trim()) { onStatus("❌ חובה להזין שם מדד"); return; }
+    const res = await fetch(`/api/benchmarks?action=create&client=${encodeURIComponent(clientKey)}`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newName.trim(), currency: newCurrency }),
+    });
+    if (res.ok) {
+      setNewName("");
+      onStatus("✓ מדד ייחוס נוצר");
+      loadBenchmarks();
+    }
+  };
+
+  const handleUpdate = async (id: string, updates: Record<string, unknown>) => {
+    const res = await fetch(`/api/benchmarks?action=update&client=${encodeURIComponent(clientKey)}`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ id, ...updates }),
+    });
+    if (res.ok) loadBenchmarks();
+  };
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!window.confirm(`למחוק את המדד "${name}"?`)) return;
+    const res = await fetch(`/api/benchmarks?action=delete&client=${encodeURIComponent(clientKey)}`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    if (res.ok) {
+      onStatus("✓ מדד נמחק");
+      loadBenchmarks();
+    }
+  };
+
+  const YEAR_KEYS = [
+    { key: "ytd2026", label: "מצטבר 2026", editable: false },
+    { key: "y2025", label: "2025", editable: true },
+    { key: "y2024", label: "2024", editable: true },
+    { key: "y2023", label: "2023", editable: true },
+    { key: "y2022", label: "2022", editable: true },
+    { key: "y2021", label: "2021", editable: true },
+    { key: "y2020", label: "2020", editable: true },
+    { key: "y2019", label: "2019", editable: true },
+  ] as const;
+
+  const MONTHS_2026 = [
+    { key: "2026-01", label: "ינואר" }, { key: "2026-02", label: "פברואר" },
+    { key: "2026-03", label: "מרץ" }, { key: "2026-04", label: "אפריל" },
+    { key: "2026-05", label: "מאי" }, { key: "2026-06", label: "יוני" },
+    { key: "2026-07", label: "יולי" }, { key: "2026-08", label: "אוגוסט" },
+    { key: "2026-09", label: "ספטמבר" }, { key: "2026-10", label: "אוקטובר" },
+    { key: "2026-11", label: "נובמבר" }, { key: "2026-12", label: "דצמבר" },
+  ];
+
+  if (loading) return <div style={{ padding: 20, color: "var(--text-muted)" }}>טוען...</div>;
+
+  return (
+    <div style={{ maxWidth: 800 }}>
+      <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
+        📊 ניהול מדדי ייחוס
+      </h3>
+
+      {/* Add new benchmark */}
+      <div style={{
+        backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
+        borderRadius: 10, padding: "14px 18px", marginBottom: 20,
+      }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>הוספת מדד חדש</div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <input
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="שם המדד..."
+            style={{
+              flex: 1, minWidth: 160, padding: "7px 12px", borderRadius: 6,
+              border: "1px solid var(--border)", backgroundColor: "var(--bg-input)",
+              color: "var(--text-primary)", fontSize: 12, direction: "rtl",
+            }}
+          />
+          <div style={{ display: "flex", gap: 4 }}>
+            <button onClick={() => setNewCurrency("ILS")}
+              style={{
+                padding: "5px 12px", borderRadius: 5, fontSize: 11, cursor: "pointer",
+                border: `1px solid ${newCurrency === "ILS" ? "#059669" : "var(--border)"}`,
+                backgroundColor: newCurrency === "ILS" ? "#05966915" : "var(--bg-surface)",
+                color: newCurrency === "ILS" ? "#059669" : "var(--text-secondary)",
+                fontWeight: newCurrency === "ILS" ? 700 : 400,
+              }}>₪</button>
+            <button onClick={() => setNewCurrency("USD")}
+              style={{
+                padding: "5px 12px", borderRadius: 5, fontSize: 11, cursor: "pointer",
+                border: `1px solid ${newCurrency === "USD" ? "#3b82f6" : "var(--border)"}`,
+                backgroundColor: newCurrency === "USD" ? "#3b82f615" : "var(--bg-surface)",
+                color: newCurrency === "USD" ? "#3b82f6" : "var(--text-secondary)",
+                fontWeight: newCurrency === "USD" ? 700 : 400,
+              }}>$</button>
+          </div>
+          <button onClick={handleCreate}
+            style={{
+              backgroundColor: "#059669", color: "#fff", fontWeight: 600,
+              padding: "7px 18px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12,
+            }}>+ הוסף</button>
+        </div>
+      </div>
+
+      {/* Benchmark list */}
+      {benchmarks.length === 0 && (
+        <div style={{ textAlign: "center", padding: 30, color: "var(--text-muted)", fontSize: 13 }}>
+          אין מדדי ייחוס — הוסף מדד חדש למעלה
+        </div>
+      )}
+
+      {benchmarks.map((bm) => {
+        const isEditing = editingId === bm.id;
+        const currencySymbol = bm.currency === "USD" ? "$" : "₪";
+
+        return (
+          <div key={bm.id} style={{
+            backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
+            borderRadius: 10, padding: "14px 18px", marginBottom: 12,
+            opacity: bm.active ? 1 : 0.5,
+          }}>
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isEditing ? 14 : 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{
+                  fontSize: 10, padding: "2px 8px", borderRadius: 4, fontWeight: 600,
+                  backgroundColor: bm.currency === "USD" ? "#3b82f615" : "#05966915",
+                  color: bm.currency === "USD" ? "#3b82f6" : "#059669",
+                }}>{currencySymbol}</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{bm.name}</span>
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={() => setEditingId(isEditing ? null : bm.id)}
+                  style={{ background: "none", border: "1px solid var(--border)", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 11, color: isEditing ? "#059669" : "var(--text-secondary)" }}>
+                  {isEditing ? "סגור" : "ערוך"}
+                </button>
+                <button onClick={() => handleUpdate(bm.id, { active: !bm.active })}
+                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14 }}
+                  title={bm.active ? "השבת" : "הפעל"}>
+                  {bm.active ? "✅" : "❌"}
+                </button>
+                <button onClick={() => handleDelete(bm.id, bm.name)}
+                  style={{ background: "none", border: "1px solid var(--negative)", borderRadius: 4, padding: "3px 10px", cursor: "pointer", fontSize: 11, color: "var(--negative)" }}>
+                  מחק
+                </button>
+              </div>
+            </div>
+
+            {/* Editing panel */}
+            {isEditing && (
+              <div>
+                {/* Annual returns */}
+                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8 }}>תשואות שנתיות (%)</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, marginBottom: 14 }}>
+                  {YEAR_KEYS.map((y) => {
+                    const val = bm.returns[y.key as keyof typeof bm.returns];
+                    return (
+                      <div key={y.key}>
+                        <label style={{ fontSize: 10, color: "var(--text-muted)", display: "block", marginBottom: 2 }}>
+                          {y.label} {!y.editable && <span style={{ fontSize: 9, color: "#f59e0b" }}>(אוטומטי)</span>}
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          disabled={!y.editable}
+                          key={`${bm.id}-${y.key}-${val}`}
+                          defaultValue={val != null ? (val * 100).toFixed(2) : ""}
+                          placeholder="—"
+                          onBlur={(e) => {
+                            const v = e.target.value === "" ? null : parseFloat(e.target.value) / 100;
+                            if (v !== val) handleUpdate(bm.id, { returns: { [y.key]: v } });
+                          }}
+                          style={{
+                            width: "100%", padding: "5px 8px", borderRadius: 5,
+                            border: "1px solid var(--border)", backgroundColor: y.editable ? "var(--bg-input)" : "var(--bg-surface-alt)",
+                            color: "var(--text-primary)", fontSize: 12, textAlign: "center",
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Monthly returns 2026 */}
+                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8 }}>תשואות חודשיות 2026 (%)</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 6 }}>
+                  {MONTHS_2026.map((m) => {
+                    const val = bm.monthlyReturns?.[m.key];
+                    return (
+                      <div key={m.key}>
+                        <label style={{ fontSize: 9, color: "var(--text-muted)", display: "block", marginBottom: 2, textAlign: "center" }}>{m.label}</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          key={`${bm.id}-${m.key}-${val}`}
+                          defaultValue={val != null ? (val * 100).toFixed(2) : ""}
+                          placeholder="—"
+                          onBlur={(e) => {
+                            const v = e.target.value === "" ? null : parseFloat(e.target.value) / 100;
+                            if (v === val) return;
+                            if (v === null) {
+                              const mr = { ...(bm.monthlyReturns || {}) };
+                              delete mr[m.key];
+                              handleUpdate(bm.id, { monthlyReturns: mr });
+                            } else {
+                              handleUpdate(bm.id, { monthlyReturns: { [m.key]: v } });
+                            }
+                          }}
+                          style={{
+                            width: "100%", padding: "4px 6px", borderRadius: 5,
+                            border: "1px solid var(--border)", backgroundColor: "var(--bg-input)",
+                            color: "var(--text-primary)", fontSize: 11, textAlign: "center",
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+                {bm.returns.ytd2026 != null && (
+                  <div style={{ marginTop: 8, fontSize: 11, color: "#059669", fontWeight: 600 }}>
+                    מצטבר 2026 (מחושב): {(bm.returns.ytd2026 * 100).toFixed(2)}%
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ================================================================== */
 /*  AI Parser Tab (Super Admin only, feature-flagged)                   */
 /* ================================================================== */
 function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
@@ -1558,7 +1928,10 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
     returnBasisOptions: ("ILS" | "USD")[];
     fields: { key: string; value: string | number | null; confidence: number }[];
     match: { fundId: string | null; fundName: string | null; similarity: number; categoryId: string | null } | null;
+    dualCurrencyData?: { returnBasis: "ILS" | "USD"; fields: { key: string; value: string | number | null; confidence: number }[] }[];
   } | null>(null);
+  // Track which dual currency drafts have been saved
+  const [dualSaved, setDualSaved] = useState<Set<string>>(new Set());
   const [approvedFields, setApprovedFields] = useState<Set<string>>(new Set());
   const [drafts, setDrafts] = useState<{
     id: string; createdAt: string; status: string;
@@ -1570,6 +1943,9 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
     returnBasis: "ILS" | "USD" | null;
   }[]>([]);
   const [view, setView] = useState<"input" | "review" | "drafts">("input");
+  const [showArchive, setShowArchive] = useState(false);
+  const [archiveFilter, setArchiveFilter] = useState<"all" | "applied" | "rejected">("all");
+  const [archiveMonthFilter, setArchiveMonthFilter] = useState("");
   const [selectedMatchFundId, setSelectedMatchFundId] = useState<string>("");
   const [selectedMatchCatId, setSelectedMatchCatId] = useState<string>("");
   const [reportMonth, setReportMonth] = useState<string>("");
@@ -1581,6 +1957,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
     inputTokens: number; outputTokens: number; callCount: number;
     limit: number; callLimit: number; percent: number; warning: boolean; blocked: boolean;
   } | null>(null);
+  const [lastApplyInfo, setLastApplyInfo] = useState<{ fundName: string; timestamp: number } | null>(null);
 
   const headers = { "x-admin-password": password };
 
@@ -1602,10 +1979,11 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
 
   useEffect(() => { loadDrafts(); loadTokenUsage(); }, [loadDrafts, loadTokenUsage]);
 
-  // All funds flat list for matching dropdown — sorted alphabetically
+  // All funds flat list for matching dropdown — sorted alphabetically (active only)
   const allFunds: { id: string; name: string; catId: string; catName: string }[] = [];
   data.categories.forEach((cat) => {
     cat.funds.forEach((fund) => {
+      if (fund.active === false) return; // skip deleted/inactive funds
       allFunds.push({ id: fund.id, name: fund.name, catId: cat.id, catName: cat.name });
     });
   });
@@ -1673,8 +2051,15 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
       }
       setView("review");
       loadTokenUsage();
+      setDualSaved(new Set());
       // Show dual currency notification if both found
-      if (result.returnBasisOptions?.length === 2) {
+      if (result.dualCurrencyData?.length === 2) {
+        // Auto-set to first currency's fields
+        const firstEntry = result.dualCurrencyData[0];
+        setReturnBasis(firstEntry.returnBasis);
+        setParseResult({ ...result, fields: firstEntry.fields, returnBasis: firstEntry.returnBasis });
+        onStatus("⚠️ נמצא דיווח כפול (שקלי + דולרי) — יש לשמור שני טיוטות נפרדות");
+      } else if (result.returnBasisOptions?.length === 2) {
         onStatus("⚠️ הדיווח כולל תשואות שקליות ודולריות — בחר את המטבע הרלוונטי");
       } else if (result.tokenUsage?.warning) {
         onStatus(`⚠️ שימוש ב-${result.tokenUsage.percent}% מהמכסה החודשית`);
@@ -1733,7 +2118,13 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
       }
       setView("review");
       loadTokenUsage();
-      if (result.returnBasisOptions?.length === 2) {
+      setDualSaved(new Set());
+      if (result.dualCurrencyData?.length === 2) {
+        const firstEntry = result.dualCurrencyData[0];
+        setReturnBasis(firstEntry.returnBasis);
+        setParseResult({ ...result, fields: firstEntry.fields, returnBasis: firstEntry.returnBasis });
+        onStatus("⚠️ נמצא דיווח כפול (שקלי + דולרי) — יש לשמור שני טיוטות נפרדות");
+      } else if (result.returnBasisOptions?.length === 2) {
         onStatus("⚠️ הדיווח כולל תשואות שקליות ודולריות — בחר את המטבע הרלוונטי");
       } else if (result.tokenUsage?.warning) {
         onStatus(`⚠️ שימוש ב-${result.tokenUsage.percent}% מהמכסה החודשית`);
@@ -1746,9 +2137,16 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
     setParsing(false);
   };
 
-  const handleSaveDraft = async () => {
+  const handleSaveDraft = async (currencyOverride?: "ILS" | "USD") => {
     if (!parseResult) return;
-    const approvedFieldsList = parseResult.fields.filter((f) => approvedFields.has(f.key));
+    const saveBasis = currencyOverride || returnBasis;
+    // For dual currency saves, use the specific currency's fields
+    let fieldsForSave = parseResult.fields;
+    if (currencyOverride && parseResult.dualCurrencyData?.length === 2) {
+      const entry = parseResult.dualCurrencyData.find((e) => e.returnBasis === currencyOverride);
+      if (entry) fieldsForSave = entry.fields;
+    }
+    const approvedFieldsList = fieldsForSave.filter((f) => approvedFields.has(f.key));
     if (approvedFieldsList.length === 0) {
       onStatus("❌ יש לסמן לפחות שדה אחד לאישור");
       return;
@@ -1774,17 +2172,34 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({
           sourceText: inputText,
-          fundName: parseResult.fundName,
+          fundName: parseResult.dualCurrencyData?.length === 2 && saveBasis
+            ? `${parseResult.fundName} - ${saveBasis === "ILS" ? "שקלי" : "דולרי"}`
+            : parseResult.fundName,
           fundNameConfidence: parseResult.fundNameConfidence,
           fields: approvedFieldsList,
           match,
           reportMonth: reportMonth || null,
           reportMonthConfidence: parseResult.reportMonthConfidence,
-          returnBasis: returnBasis,
+          returnBasis: saveBasis,
         }),
       });
       if (res.ok) {
-        onStatus("✓ טיוטה נשמרה");
+        // Dual currency: track saved currency
+        if (parseResult.dualCurrencyData?.length === 2 && saveBasis) {
+          const newSaved = new Set(dualSaved);
+          newSaved.add(saveBasis);
+          setDualSaved(newSaved);
+
+          if (newSaved.size < 2) {
+            onStatus(`✓ טיוטה ${saveBasis === "ILS" ? "שקלית" : "דולרית"} נשמרה — שמור כעת את המטבע השני`);
+            loadDrafts();
+            return;
+          }
+          // Both saved
+          onStatus("✓ שתי הטיוטות נשמרו (שקלי + דולרי)");
+        } else {
+          onStatus("✓ טיוטה נשמרה");
+        }
         setView("input");
         setParseResult(null);
         setInputText("");
@@ -1810,6 +2225,61 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
     if (hasMonthlyReturn && !draftReportMonth) {
       onStatus("❌ לטיוטה זו חסר חודש דיווח — לא ניתן להחיל תשואה חודשית");
       return;
+    }
+
+    // Validation warnings before apply
+    if (hasMonthlyReturn && draftReportMonth && draft.match.fundId) {
+      // Find the fund to check its data
+      const matchedFund = data.categories
+        .flatMap((cat) => cat.funds)
+        .find((f) => f.id === draft.match!.fundId);
+
+      if (matchedFund) {
+        const monthlyReturns = matchedFund.monthlyReturns || {};
+        const existingMonths = Object.keys(monthlyReturns).sort();
+
+        // Warning 1: Month already updated
+        if (draftReportMonth in monthlyReturns) {
+          if (!window.confirm(`⚠️ שים לב — חודש ${draftReportMonth} כבר מעודכן בקרן "${matchedFund.name}" (ערך: ${(monthlyReturns[draftReportMonth] * 100).toFixed(2)}%). להמשיך?`)) return;
+        }
+
+        // Warning 2: Updating older month when newer exists
+        if (existingMonths.length > 0) {
+          const latestMonth = existingMonths[existingMonths.length - 1];
+          if (draftReportMonth < latestMonth) {
+            if (!window.confirm(`⚠️ שים לב — אתה מעדכן חודש ${draftReportMonth}, אבל במערכת כבר קיים חודש ${latestMonth}. להמשיך?`)) return;
+          }
+
+          // Warning 3: Gap in months
+          if (draftReportMonth > latestMonth) {
+            const [ly, lm] = latestMonth.split("-").map(Number);
+            const [dy, dm] = draftReportMonth.split("-").map(Number);
+            const monthDiff = (dy - ly) * 12 + (dm - lm);
+            if (monthDiff > 1) {
+              if (!window.confirm(`⚠️ שים לב — חודש אחרון במערכת: ${latestMonth}, אתה מעדכן ${draftReportMonth}. חסרים ${monthDiff - 1} חודשים. להמשיך?`)) return;
+            }
+          }
+        }
+
+        // Warning 4: Abnormal monthly return
+        const monthlyReturnField = draft.extracted.fields.find((f) => f.key === "monthlyReturn");
+        if (monthlyReturnField && typeof monthlyReturnField.value === "number") {
+          const absReturn = Math.abs(monthlyReturnField.value);
+          if (absReturn > 0.2) {
+            if (!window.confirm(`⚠️ שים לב — תשואה חודשית של ${(monthlyReturnField.value * 100).toFixed(2)}% נראית חריגה. להמשיך?`)) return;
+          }
+        }
+
+        // Warning 5: Identical value already exists
+        if (draftReportMonth in monthlyReturns) {
+          const existingVal = monthlyReturns[draftReportMonth];
+          const newField = draft.extracted.fields.find((f) => f.key === "monthlyReturn");
+          if (newField && newField.value === existingVal) {
+            onStatus("ℹ️ הערך זהה למה שכבר במערכת — אין צורך בעדכון");
+            return;
+          }
+        }
+      }
     }
 
     // Step 1: Check for collisions (unless we already have decisions)
@@ -1862,6 +2332,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
         onStatus(`✓ הנתונים עודכנו בקרן${skippedMsg}`);
         setCollisions([]);
         setCollisionDecisions({});
+        setLastApplyInfo({ fundName: draft.match!.fundName || draft.extracted.fundName, timestamp: Date.now() });
         loadDrafts();
         onReload();
       } else {
@@ -1886,11 +2357,36 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
     }
   };
 
+  const handleUndo = async () => {
+    if (!window.confirm("לבטל את העדכון האחרון ולשחזר את המצב הקודם?")) return;
+    try {
+      const res = await fetch(`/api/parse?action=undo&client=${encodeURIComponent(clientKey)}`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        onStatus(`✓ העדכון בוטל — הקרן "${result.fundName}" שוחזרה`);
+        setLastApplyInfo(null);
+        loadDrafts();
+        onReload();
+      } else {
+        const err = await res.json();
+        onStatus(`❌ ${err.error || "שגיאה בביטול"}`);
+        setLastApplyInfo(null);
+      }
+    } catch {
+      onStatus("❌ שגיאה בחיבור לשרת");
+    }
+  };
+
   // New fund onboarding state
   const [newFundDraftId, setNewFundDraftId] = useState<string | null>(null);
   const [newFundCategoryId, setNewFundCategoryId] = useState<string>("");
   const [newFundName, setNewFundName] = useState<string>("");
   const [newFundReturnBasis, setNewFundReturnBasis] = useState<"ILS" | "USD">("ILS");
+  const [newFundClassification, setNewFundClassification] = useState<string>("");
 
   const handleCreateFund = async (draft: typeof drafts[0]) => {
     const fundName = newFundName || draft.extracted.fundName;
@@ -1905,6 +2401,22 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
 
     const effectiveMonth = draftReportMonths[draft.id] ?? (draft.reportMonth || null);
 
+    // Warning 6: Similar fund name exists
+    const allExistingFunds = data.categories.flatMap((cat) => cat.funds);
+    const exactMatch = allExistingFunds.find((f) => f.name === fundName && f.active !== false);
+    if (exactMatch) {
+      onStatus(`❌ קרן בשם "${fundName}" כבר קיימת במערכת`);
+      return;
+    }
+    const similarFund = allExistingFunds.find((f) =>
+      f.active !== false && f.name !== fundName &&
+      (f.name.includes(fundName) || fundName.includes(f.name) ||
+       f.name.toLowerCase().replace(/[\s\-]/g, "") === fundName.toLowerCase().replace(/[\s\-]/g, ""))
+    );
+    if (similarFund) {
+      if (!window.confirm(`⚠️ קיימת קרן בשם דומה: "${similarFund.name}". ליצור בכל זאת?`)) return;
+    }
+
     if (!window.confirm(`ליצור קרן חדשה "${fundName}"?`)) return;
 
     try {
@@ -1918,6 +2430,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
           fields: draft.extracted.fields,
           reportMonth: effectiveMonth,
           returnBasis: newFundReturnBasis,
+          classification: newFundClassification || undefined,
         }),
       });
       if (res.ok) {
@@ -1926,6 +2439,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
         setNewFundDraftId(null);
         setNewFundName("");
         setNewFundCategoryId("");
+        setNewFundClassification("");
         loadDrafts();
         onReload();
       } else {
@@ -1942,6 +2456,8 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
       monthlyReturn: "תשואה חודשית",
       manager: "מנהל",
       classification: "סיווג",
+      sharpe: "שארפ",
+      stdDev: "סטיית תקן",
       "returns.ytd2026": "מצטבר 2026",
       "returns.y2025": "תשואה 2025",
       "returns.y2024": "תשואה 2024",
@@ -1987,6 +2503,28 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
           טיוטות ({pendingDrafts.length})
         </button>
       </div>
+
+      {/* Undo banner */}
+      {lastApplyInfo && (Date.now() - lastApplyInfo.timestamp) < 30 * 60 * 1000 && (
+        <div style={{
+          backgroundColor: "#3b82f610",
+          border: "1px solid #3b82f640",
+          borderRadius: 8,
+          padding: "8px 14px",
+          marginBottom: 12,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}>
+          <span style={{ fontSize: 12, color: "#3b82f6" }}>
+            עדכון אחרון: &quot;{lastApplyInfo.fundName}&quot;
+          </span>
+          <button onClick={handleUndo}
+            style={{ backgroundColor: "#3b82f6", color: "#fff", border: "none", borderRadius: 5, padding: "4px 14px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+            ↩ ביטול עדכון
+          </button>
+        </div>
+      )}
 
       {/* Token Usage Widget */}
       {tokenUsage && (
@@ -2308,117 +2846,220 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
             )}
           </div>
 
-          {/* Currency selector */}
-          <div style={{
-            padding: "10px 14px",
-            backgroundColor: "var(--bg-input)",
-            borderRadius: 8,
-            marginBottom: 14,
-            border: "1px solid var(--border)",
-          }}>
-            <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 6 }}>
-              מטבע קרן:
-              {parseResult?.returnBasisOptions && parseResult.returnBasisOptions.length === 2 && (
-                <span style={{ fontSize: 10, color: "#f59e0b", marginRight: 8, fontWeight: 400 }}>
-                  ⚠️ הדיווח כולל תשואות שקליות ודולריות — בחר את המטבע
-                </span>
-              )}
-            </label>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button
-                onClick={() => setReturnBasis("ILS")}
+          {/* Currency selector (single currency) */}
+          {(!parseResult.dualCurrencyData || parseResult.dualCurrencyData.length < 2) && (
+            <div style={{ padding: "10px 14px", backgroundColor: "var(--bg-input)", borderRadius: 8, marginBottom: 14, border: "1px solid var(--border)" }}>
+              <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 6 }}>מטבע קרן:</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => setReturnBasis("ILS")}
+                  style={{ padding: "6px 16px", borderRadius: 6, border: `1px solid ${returnBasis === "ILS" ? "#059669" : "var(--border)"}`, backgroundColor: returnBasis === "ILS" ? "#05966915" : "var(--bg-surface)", color: returnBasis === "ILS" ? "#059669" : "var(--text-secondary)", fontWeight: returnBasis === "ILS" ? 700 : 400, fontSize: 12, cursor: "pointer" }}>
+                  ₪ שקלי (ILS)
+                </button>
+                <button onClick={() => setReturnBasis("USD")}
+                  style={{ padding: "6px 16px", borderRadius: 6, border: `1px solid ${returnBasis === "USD" ? "#3b82f6" : "var(--border)"}`, backgroundColor: returnBasis === "USD" ? "#3b82f615" : "var(--bg-surface)", color: returnBasis === "USD" ? "#3b82f6" : "var(--text-secondary)", fontWeight: returnBasis === "USD" ? 700 : 400, fontSize: 12, cursor: "pointer" }}>
+                  $ דולרי (USD)
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Dual currency banner */}
+          {parseResult.dualCurrencyData?.length === 2 && (
+            <div style={{ padding: "12px 16px", backgroundColor: "#fef3c715", borderRadius: 8, marginBottom: 14, border: "1px solid #f59e0b40" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "#f59e0b" }}>⚠️ דיווח כפול — שקלי + דולרי</span>
+                {dualSaved.size === 2 && <span style={{ fontSize: 11, color: "#059669", fontWeight: 600 }}>✓ שתי הטיוטות נשמרו</span>}
+              </div>
+              <p style={{ fontSize: 11, color: "var(--text-secondary)", margin: 0 }}>
+                יש לשמור טיוטה נפרדת לכל מטבע. בחר שדות ושמור — המערכת תעבור אוטומטית למטבע השני.
+              </p>
+            </div>
+          )}
+
+          {/* Fields table — dual or single */}
+          {(() => {
+            const isDual = parseResult.dualCurrencyData?.length === 2;
+            const usdEntry = isDual ? parseResult.dualCurrencyData!.find((e) => e.returnBasis === "USD") : null;
+            const ilsEntry = isDual ? parseResult.dualCurrencyData!.find((e) => e.returnBasis === "ILS") : null;
+
+            // Merge field keys from both currencies for dual view
+            const allFieldKeys = isDual
+              ? Array.from(new Set([
+                  ...(usdEntry?.fields.map((f) => f.key) || []),
+                  ...(ilsEntry?.fields.map((f) => f.key) || []),
+                ]))
+              : parseResult.fields.map((f) => f.key);
+
+            return (
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginBottom: 16 }}>
+              <thead>
+                <tr style={{ backgroundColor: "var(--bg-surface-alt)" }}>
+                  <th style={{ padding: "7px 10px", textAlign: "center", width: 40 }}>✓</th>
+                  <th style={{ padding: "7px 10px", textAlign: "right" }}>שדה</th>
+                  {isDual ? (
+                    <>
+                      <th style={{ padding: "7px 10px", textAlign: "center", color: "#3b82f6" }}>$ דולרי</th>
+                      <th style={{ padding: "7px 10px", textAlign: "center", color: "#059669" }}>₪ שקלי</th>
+                    </>
+                  ) : (
+                    <th style={{ padding: "7px 10px", textAlign: "center" }}>ערך</th>
+                  )}
+                  <th style={{ padding: "7px 10px", textAlign: "center" }}>ביטחון</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isDual ? (
+                  allFieldKeys.map((key, idx) => {
+                    const usdField = usdEntry?.fields.find((f) => f.key === key);
+                    const ilsField = ilsEntry?.fields.find((f) => f.key === key);
+                    const bestConfidence = Math.max(usdField?.confidence || 0, ilsField?.confidence || 0);
+                    return (
+                      <tr key={idx} style={{ borderBottom: "1px solid var(--border-table)", backgroundColor: idx % 2 === 0 ? "var(--bg-surface)" : "var(--bg-surface-alt)" }}>
+                        <td style={{ padding: "6px 10px", textAlign: "center" }}>
+                          <input type="checkbox" checked={approvedFields.has(key)}
+                            onChange={(e) => { const next = new Set(approvedFields); if (e.target.checked) next.add(key); else next.delete(key); setApprovedFields(next); }} />
+                        </td>
+                        <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: 500 }}>{fieldLabel(key)}</td>
+                        <td style={{ padding: "6px 10px", textAlign: "center", direction: "ltr", color: "#3b82f6", fontWeight: 500 }}>
+                          {usdField ? formatValue(key, usdField.value) : "—"}
+                        </td>
+                        <td style={{ padding: "6px 10px", textAlign: "center", direction: "ltr", color: "#059669", fontWeight: 500 }}>
+                          {ilsField ? formatValue(key, ilsField.value) : "—"}
+                        </td>
+                        <td style={{ padding: "6px 10px", textAlign: "center" }}>{confidenceBadge(bestConfidence)}</td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  parseResult.fields.map((field, idx) => (
+                    <tr key={idx} style={{ borderBottom: "1px solid var(--border-table)", backgroundColor: idx % 2 === 0 ? "var(--bg-surface)" : "var(--bg-surface-alt)" }}>
+                      <td style={{ padding: "6px 10px", textAlign: "center" }}>
+                        <input type="checkbox" checked={approvedFields.has(field.key)}
+                          onChange={(e) => { const next = new Set(approvedFields); if (e.target.checked) next.add(field.key); else next.delete(field.key); setApprovedFields(next); }} />
+                      </td>
+                      <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: 500 }}>{fieldLabel(field.key)}</td>
+                      <td style={{ padding: "6px 10px", textAlign: "center", direction: "ltr" }}>{formatValue(field.key, field.value)}</td>
+                      <td style={{ padding: "6px 10px", textAlign: "center" }}>{confidenceBadge(field.confidence)}</td>
+                    </tr>
+                  ))
+                )}
+                {allFieldKeys.length === 0 && (
+                  <tr><td colSpan={isDual ? 5 : 4} style={{ padding: 20, textAlign: "center", color: "var(--text-muted)" }}>לא נמצאו שדות</td></tr>
+                )}
+              </tbody>
+            </table>
+            );
+          })()}
+
+          {/* Actions — dual currency: separate save buttons */}
+          {parseResult.dualCurrencyData?.length === 2 ? (
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-start", flexWrap: "wrap" }}>
+              <button onClick={() => handleSaveDraft("USD")}
+                disabled={approvedFields.size === 0 || dualSaved.has("USD")}
                 style={{
-                  padding: "6px 16px",
-                  borderRadius: 6,
-                  border: `1px solid ${returnBasis === "ILS" ? "#059669" : "var(--border)"}`,
-                  backgroundColor: returnBasis === "ILS" ? "#05966915" : "var(--bg-surface)",
-                  color: returnBasis === "ILS" ? "#059669" : "var(--text-secondary)",
-                  fontWeight: returnBasis === "ILS" ? 700 : 400,
-                  fontSize: 12,
-                  cursor: "pointer",
+                  backgroundColor: dualSaved.has("USD") ? "var(--text-muted)" : "#3b82f6",
+                  color: "#fff", fontWeight: 700, padding: "8px 20px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12,
+                  opacity: approvedFields.size === 0 || dualSaved.has("USD") ? 0.4 : 1,
                 }}>
-                ₪ שקלי (ILS)
+                {dualSaved.has("USD") ? "✓ דולרי נשמר" : "💾 שמור דולרי ($)"}
               </button>
-              <button
-                onClick={() => setReturnBasis("USD")}
+              <button onClick={() => handleSaveDraft("ILS")}
+                disabled={approvedFields.size === 0 || dualSaved.has("ILS")}
                 style={{
-                  padding: "6px 16px",
-                  borderRadius: 6,
-                  border: `1px solid ${returnBasis === "USD" ? "#3b82f6" : "var(--border)"}`,
-                  backgroundColor: returnBasis === "USD" ? "#3b82f615" : "var(--bg-surface)",
-                  color: returnBasis === "USD" ? "#3b82f6" : "var(--text-secondary)",
-                  fontWeight: returnBasis === "USD" ? 700 : 400,
-                  fontSize: 12,
-                  cursor: "pointer",
+                  backgroundColor: dualSaved.has("ILS") ? "var(--text-muted)" : "#059669",
+                  color: "#fff", fontWeight: 700, padding: "8px 20px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12,
+                  opacity: approvedFields.size === 0 || dualSaved.has("ILS") ? 0.4 : 1,
                 }}>
-                $ דולרי (USD)
+                {dualSaved.has("ILS") ? "✓ שקלי נשמר" : "💾 שמור שקלי (₪)"}
+              </button>
+              <button onClick={() => { setView("input"); setParseResult(null); }}
+                style={{ backgroundColor: "var(--bg-surface-alt)", color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: 6, padding: "8px 20px", cursor: "pointer", fontSize: 12 }}>
+                ← חזרה
               </button>
             </div>
-          </div>
-
-          {/* Fields table */}
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginBottom: 16 }}>
-            <thead>
-              <tr style={{ backgroundColor: "var(--bg-surface-alt)" }}>
-                <th style={{ padding: "7px 10px", textAlign: "center", width: 40 }}>✓</th>
-                <th style={{ padding: "7px 10px", textAlign: "right" }}>שדה</th>
-                <th style={{ padding: "7px 10px", textAlign: "center" }}>ערך</th>
-                <th style={{ padding: "7px 10px", textAlign: "center" }}>ביטחון</th>
-              </tr>
-            </thead>
-            <tbody>
-              {parseResult.fields.map((field, idx) => (
-                <tr key={idx} style={{ borderBottom: "1px solid var(--border-table)", backgroundColor: idx % 2 === 0 ? "var(--bg-surface)" : "var(--bg-surface-alt)" }}>
-                  <td style={{ padding: "6px 10px", textAlign: "center" }}>
-                    <input
-                      type="checkbox"
-                      checked={approvedFields.has(field.key)}
-                      onChange={(e) => {
-                        const next = new Set(approvedFields);
-                        if (e.target.checked) next.add(field.key); else next.delete(field.key);
-                        setApprovedFields(next);
-                      }}
-                    />
-                  </td>
-                  <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: 500 }}>{fieldLabel(field.key)}</td>
-                  <td style={{ padding: "6px 10px", textAlign: "center", direction: "ltr" }}>{formatValue(field.key, field.value)}</td>
-                  <td style={{ padding: "6px 10px", textAlign: "center" }}>{confidenceBadge(field.confidence)}</td>
-                </tr>
-              ))}
-              {parseResult.fields.length === 0 && (
-                <tr><td colSpan={4} style={{ padding: 20, textAlign: "center", color: "var(--text-muted)" }}>לא נמצאו שדות</td></tr>
-              )}
-            </tbody>
-          </table>
-
-          {/* Actions */}
-          <div style={{ display: "flex", gap: 10, justifyContent: "flex-start" }}>
-            <button onClick={handleSaveDraft}
-              disabled={approvedFields.size === 0}
-              style={{
-                backgroundColor: approvedFields.size === 0 ? "var(--text-muted)" : "#059669",
-                color: "#fff", fontWeight: 700, padding: "8px 20px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12,
-                opacity: approvedFields.size === 0 ? 0.4 : 1,
-              }}>
-              💾 שמור טיוטה ({approvedFields.size} שדות)
-            </button>
-            <button onClick={() => { setView("input"); setParseResult(null); }}
-              style={{ backgroundColor: "var(--bg-surface-alt)", color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: 6, padding: "8px 20px", cursor: "pointer", fontSize: 12 }}>
-              ← חזרה
-            </button>
-          </div>
+          ) : (
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-start" }}>
+              <button onClick={() => handleSaveDraft()}
+                disabled={approvedFields.size === 0}
+                style={{
+                  backgroundColor: approvedFields.size === 0 ? "var(--text-muted)" : "#059669",
+                  color: "#fff", fontWeight: 700, padding: "8px 20px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12,
+                  opacity: approvedFields.size === 0 ? 0.4 : 1,
+                }}>
+                💾 שמור טיוטה ({approvedFields.size} שדות)
+              </button>
+              <button onClick={() => { setView("input"); setParseResult(null); }}
+                style={{ backgroundColor: "var(--bg-surface-alt)", color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: 6, padding: "8px 20px", cursor: "pointer", fontSize: 12 }}>
+                ← חזרה
+              </button>
+            </div>
+          )}
         </div>
       )}
 
       {/* DRAFTS VIEW */}
       {view === "drafts" && (
         <div>
-          {drafts.length === 0 ? (
+          {/* Filter: pending vs archive */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
+            <button onClick={() => setShowArchive(false)}
+              style={{ padding: "5px 14px", fontSize: 11, fontWeight: !showArchive ? 700 : 400, borderRadius: 6, border: `1px solid ${!showArchive ? "var(--accent)" : "var(--border)"}`, backgroundColor: !showArchive ? "var(--accent)" : "var(--bg-surface)", color: !showArchive ? "#fff" : "var(--text-secondary)", cursor: "pointer" }}>
+              ⏳ ממתינות ({drafts.filter((d) => d.status === "pending").length})
+            </button>
+            <button onClick={() => setShowArchive(true)}
+              style={{ padding: "5px 14px", fontSize: 11, fontWeight: showArchive ? 700 : 400, borderRadius: 6, border: `1px solid ${showArchive ? "var(--accent)" : "var(--border)"}`, backgroundColor: showArchive ? "var(--accent)" : "var(--bg-surface)", color: showArchive ? "#fff" : "var(--text-secondary)", cursor: "pointer" }}>
+              ארכיון ({drafts.filter((d) => d.status !== "pending").length})
+            </button>
+          </div>
+
+          {/* Archive sub-filters */}
+          {showArchive && (
+            <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
+              {(["all", "applied", "rejected"] as const).map((f) => {
+                const labels = { all: "הכל", applied: "✓ הוחל", rejected: "✗ נדחה" };
+                const count = f === "all"
+                  ? drafts.filter((d) => d.status !== "pending").length
+                  : drafts.filter((d) => d.status === f).length;
+                return (
+                  <button key={f} onClick={() => setArchiveFilter(f)}
+                    style={{
+                      padding: "4px 12px", fontSize: 10, borderRadius: 5, cursor: "pointer",
+                      border: `1px solid ${archiveFilter === f ? "var(--accent)" : "var(--border)"}`,
+                      backgroundColor: archiveFilter === f ? "var(--accent)" : "var(--bg-surface)",
+                      color: archiveFilter === f ? "#fff" : "var(--text-secondary)",
+                      fontWeight: archiveFilter === f ? 700 : 400,
+                    }}>
+                    {labels[f]} ({count})
+                  </button>
+                );
+              })}
+              <span style={{ width: 1, height: 20, backgroundColor: "var(--border)", margin: "0 4px" }} />
+              <input type="month" value={archiveMonthFilter} onChange={(e) => setArchiveMonthFilter(e.target.value)}
+                style={{ padding: "4px 8px", borderRadius: 5, border: "1px solid var(--border)", fontSize: 10, backgroundColor: "var(--bg-surface)", color: "var(--text-primary)", maxWidth: 140 }}
+                placeholder="סנן לפי חודש" />
+              {archiveMonthFilter && (
+                <button onClick={() => setArchiveMonthFilter("")}
+                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 10, color: "var(--text-secondary)", textDecoration: "underline" }}>
+                  נקה
+                </button>
+              )}
+            </div>
+          )}
+
+          {(() => {
+            let filtered = drafts.filter((d) => showArchive ? d.status !== "pending" : d.status === "pending");
+            if (showArchive && archiveFilter !== "all") {
+              filtered = filtered.filter((d) => d.status === archiveFilter);
+            }
+            if (showArchive && archiveMonthFilter) {
+              filtered = filtered.filter((d) => d.reportMonth === archiveMonthFilter);
+            }
+            return filtered.length === 0 ? (
             <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 10, padding: 40, textAlign: "center" }}>
-              <p style={{ color: "var(--text-muted)", fontSize: 13 }}>אין טיוטות עדיין</p>
+              <p style={{ color: "var(--text-muted)", fontSize: 13 }}>{showArchive ? "אין טיוטות בארכיון" : "אין טיוטות ממתינות"}</p>
             </div>
           ) : (
-            drafts.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((draft) => (
+            filtered.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((draft) => (
               <div key={draft.id} style={{
                 backgroundColor: "var(--bg-surface)",
                 border: `1px solid ${draft.status === "applied" ? "#05966930" : draft.status === "rejected" ? "#ef444430" : "var(--border)"}`,
@@ -2661,6 +3302,31 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
                       </select>
                     </div>
                     <div style={{ marginBottom: 10 }}>
+                      <label style={{ fontSize: 11, fontWeight: 600, display: "block", marginBottom: 4 }}>סיווג (אופציונלי):</label>
+                      <input
+                        type="text"
+                        list="classification-options"
+                        value={newFundClassification}
+                        onChange={(e) => setNewFundClassification(e.target.value)}
+                        placeholder="בחר או הקלד סיווג חדש..."
+                        style={{
+                          width: "100%",
+                          border: "1px solid var(--border)",
+                          borderRadius: 5,
+                          padding: "6px 10px",
+                          fontSize: 12,
+                          backgroundColor: "var(--bg-surface)",
+                          color: "var(--text-primary)",
+                          direction: "rtl",
+                        }}
+                      />
+                      <datalist id="classification-options">
+                        {Array.from(new Set(data.categories.flatMap((cat) => cat.funds.map((f) => f.classification)).filter(Boolean))).sort((a, b) => a.localeCompare(b, "he")).map((c) => (
+                          <option key={c} value={c} />
+                        ))}
+                      </datalist>
+                    </div>
+                    <div style={{ marginBottom: 10 }}>
                       <label style={{ fontSize: 11, fontWeight: 600, display: "block", marginBottom: 4 }}>מטבע קרן:</label>
                       <div style={{ display: "flex", gap: 6 }}>
                         <button
@@ -2699,7 +3365,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
                         ✓ צור קרן חדשה
                       </button>
                       <button
-                        onClick={() => { setNewFundDraftId(null); setNewFundName(""); setNewFundCategoryId(""); setNewFundReturnBasis("ILS"); }}
+                        onClick={() => { setNewFundDraftId(null); setNewFundName(""); setNewFundCategoryId(""); setNewFundReturnBasis("ILS"); setNewFundClassification(""); }}
                         style={{ backgroundColor: "var(--bg-surface-alt)", color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: 5, padding: "5px 16px", cursor: "pointer", fontSize: 11 }}>
                         ביטול
                       </button>
@@ -2740,7 +3406,8 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
                 })()}
               </div>
             ))
-          )}
+          );
+          })()}
         </div>
       )}
     </div>

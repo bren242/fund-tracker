@@ -6,33 +6,43 @@ interface CompareSummaryProps {
   funds: Fund[];
   accentColor: string;
   compact?: boolean;
+  selectedYears?: string[];
 }
 
 type MetricDef = {
   label: string;
   getValue: (f: Fund) => number | null;
   lowerIsBetter?: boolean;
+  yearKey?: string;
 };
 
 const METRICS: MetricDef[] = [
   { label: "תשואה חודשית", getValue: (f) => f.monthlyReturn },
-  { label: "מצטבר 2026", getValue: (f) => f.returns.ytd2026 },
-  { label: "2025", getValue: (f) => f.returns.y2025 },
-  { label: "2024", getValue: (f) => f.returns.y2024 },
-  { label: "2023", getValue: (f) => f.returns.y2023 },
+  { label: "מצטבר 2026", getValue: (f) => f.returns.ytd2026, yearKey: "ytd2026" },
+  { label: "2025", getValue: (f) => f.returns.y2025, yearKey: "y2025" },
+  { label: "2024", getValue: (f) => f.returns.y2024, yearKey: "y2024" },
+  { label: "2023", getValue: (f) => f.returns.y2023, yearKey: "y2023" },
+  { label: "2022", getValue: (f) => f.returns.y2022, yearKey: "y2022" },
+  { label: "2021", getValue: (f) => f.returns.y2021, yearKey: "y2021" },
+  { label: "2020", getValue: (f) => f.returns.y2020, yearKey: "y2020" },
+  { label: "2019", getValue: (f) => f.returns.y2019, yearKey: "y2019" },
   { label: "ממוצע שנתי", getValue: (f) => f.avgAnnualReturn },
   { label: "שארפ", getValue: (f) => f.sharpe },
   { label: "סטיית תקן", getValue: (f) => f.stdDev, lowerIsBetter: true },
 ];
 
-function computeWinner(funds: Fund[]): { fund: Fund; wins: number; total: number } | null {
+function computeWinner(funds: Fund[], selectedYears?: string[]): { fund: Fund; wins: number; total: number } | null {
   if (funds.length < 2) return null;
+
+  const visibleMetrics = selectedYears && selectedYears.length > 0
+    ? METRICS.filter((m) => !m.yearKey || selectedYears.includes(m.yearKey))
+    : METRICS;
 
   const scores = new Map<string, number>();
   funds.forEach((f) => scores.set(f.id, 0));
 
   let total = 0;
-  for (const metric of METRICS) {
+  for (const metric of visibleMetrics) {
     let bestIdx = -1;
     let bestVal = metric.lowerIsBetter ? Infinity : -Infinity;
     let hasAny = false;
@@ -66,8 +76,8 @@ function computeWinner(funds: Fund[]): { fund: Fund; wins: number; total: number
   return { fund: winner, wins: maxScore, total };
 }
 
-export default function CompareSummary({ funds, accentColor, compact }: CompareSummaryProps) {
-  const result = computeWinner(funds);
+export default function CompareSummary({ funds, accentColor, compact, selectedYears }: CompareSummaryProps) {
+  const result = computeWinner(funds, selectedYears);
   if (!result) return null;
 
   /* Compact version for print — slim premium strip */
@@ -83,7 +93,7 @@ export default function CompareSummary({ funds, accentColor, compact }: CompareS
           <span style={{ fontSize: "8pt", color: "#8893a4" }}>הקרן המובילה:</span>
           <span style={{ fontSize: "10pt", fontWeight: 700, color: accentColor }}>{result.fund.name}</span>
           <span style={{ fontSize: "7.5pt", color: "#5a6577" }}>
-            — מובילה ב-{result.wins} מתוך {result.total} מדדים
+            — מובילה ב-{result.wins} מתוך {result.total} מדדים · לפי התקופה הנבחרת
             {result.fund.classification && ` · ${result.fund.classification}`}
           </span>
         </div>
@@ -115,7 +125,7 @@ export default function CompareSummary({ funds, accentColor, compact }: CompareS
           {result.fund.name}
         </div>
         <div style={{ fontSize: 12, color: "#5a6577", marginTop: 2 }}>
-          מובילה ב-{result.wins} מתוך {result.total} מדדים
+          מובילה ב-{result.wins} מתוך {result.total} מדדים · לפי התקופה הנבחרת
           {result.fund.classification && <span> · {result.fund.classification}</span>}
         </div>
       </div>

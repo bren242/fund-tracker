@@ -6,7 +6,7 @@ export function pct(value: number | null): string {
 export function pctSigned(value: number | null): string {
   if (value === null || value === undefined) return "—";
   const v = (value * 100).toFixed(2);
-  return value >= 0 ? v + "%" : v + "%";
+  return value > 0 ? "+" + v + "%" : v + "%";
 }
 
 export function num(value: number | null): string {
