@@ -143,6 +143,9 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // Invalidate old format caches (missing returnBasisOptions)
   if (!cached.result.returnBasisOptions) return null;
 
+  // v2: invalidate caches created with max_tokens=1024 (truncated results)
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 2) return null;
+
   return cached.result;
 }
 
@@ -1469,6 +1472,7 @@ export async function POST(req: NextRequest) {
       if (result.dualCurrencyData) {
         resultObj.dualCurrencyData = result.dualCurrencyData;
       }
+      resultObj._cacheVersion = 2;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
