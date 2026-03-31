@@ -596,7 +596,7 @@ function parseCloudeResponse(
     const amr = parsed.allMonthlyReturns as Record<string, unknown>;
     for (const [month, val] of Object.entries(amr)) {
       if (/^\d{4}-(0[1-9]|1[0-2])$/.test(month) && typeof val === "number") {
-        rawFields.push({ key: `monthlyReturns.${month}`, value: val, confidence: 0.8 });
+        rawFields.push({ key: `monthlyReturns.${month}`, value: val, confidence: 0.95 });
       }
     }
   }
@@ -649,7 +649,7 @@ function parseCloudeResponse(
         const amr = entry.allMonthlyReturns as Record<string, unknown>;
         for (const [month, val] of Object.entries(amr)) {
           if (/^\d{4}-(0[1-9]|1[0-2])$/.test(month) && typeof val === "number") {
-            entryRawFields.push({ key: `monthlyReturns.${month}`, value: val, confidence: 0.8 });
+            entryRawFields.push({ key: `monthlyReturns.${month}`, value: val, confidence: 0.95 });
           }
         }
       }

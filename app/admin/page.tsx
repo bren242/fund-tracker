@@ -1647,10 +1647,31 @@ function FundModal({ title, categories, selectedCategory, existingFund, onCatego
             <label style={labelStyle}>שם קרן *</label>
             <input value={form.name} onChange={(e) => update("name", e.target.value)} style={fieldStyle} />
           </div>
-          {/* Layer 3: classification — select existing or type new */}
+          {/* Layer 3: classification — filtered by selected category/parentSection */}
           <div>
             <label style={labelStyle}>סיווג (שכבה שלישית)</label>
-            {!isNewClassification ? (
+            {(() => {
+              // Filter classifications by context: selected category → parentSection → all
+              const contextClassifications = (() => {
+                if (!isNewCategory && catId) {
+                  // Existing category selected → show its funds' classifications
+                  const cat = categories.find((c) => c.id === catId);
+                  if (cat && cat.funds.length > 0) {
+                    return cat.funds.map((f) => f.classification).filter(Boolean);
+                  }
+                }
+                if (activeParentSection) {
+                  // New category or empty category → show parentSection's classifications
+                  return categories
+                    .filter((c) => c.parentSection === activeParentSection)
+                    .flatMap((c) => c.funds.map((f) => f.classification))
+                    .filter(Boolean);
+                }
+                // Fallback: all classifications
+                return categories.flatMap((c) => c.funds.map((f) => f.classification)).filter(Boolean);
+              })();
+              const uniqueClassifications = Array.from(new Set(contextClassifications)).sort();
+              return !isNewClassification ? (
               <select value={form.classification} onChange={(e) => {
                 if (e.target.value === "__new__") {
                   setIsNewClassification(true);
@@ -1660,7 +1681,7 @@ function FundModal({ title, categories, selectedCategory, existingFund, onCatego
                 }
               }} style={{ ...fieldStyle, cursor: "pointer" }}>
                 <option value="">— בחר סיווג —</option>
-                {Array.from(new Set(categories.flatMap((c) => c.funds.map((f) => f.classification)).filter(Boolean))).sort().map((cls) => (
+                {uniqueClassifications.map((cls) => (
                   <option key={cls} value={cls}>{cls}</option>
                 ))}
                 <option value="__new__">➕ סיווג חדש...</option>
@@ -1672,7 +1693,8 @@ function FundModal({ title, categories, selectedCategory, existingFund, onCatego
                 <button type="button" onClick={() => { setIsNewClassification(false); update("classification", ""); }}
                   style={{ background: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "4px 10px", cursor: "pointer", color: "var(--text-muted)", fontSize: 11 }}>✕</button>
               </div>
-            )}
+            );
+            })()}
           </div>
           <div>
             <label style={labelStyle}>מנהל</label>

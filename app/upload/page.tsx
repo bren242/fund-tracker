@@ -21,6 +21,9 @@ interface DualCurrencyEntry {
   fields: ParsedField[];
 }
 
+/** Keys that are currency-independent — always shown regardless of toggle */
+const CURRENCY_INDEPENDENT_KEYS = new Set(["manager", "classification"]);
+
 interface FileResult {
   id: string;
   fileName: string;
@@ -29,6 +32,8 @@ interface FileResult {
   fundName?: string;
   fundNameConfidence?: number;
   fields?: ParsedField[];
+  /** Original top-level fields preserved for currency-independent extraction */
+  baseFields?: ParsedField[];
   match?: {
     fundId: string | null;
     fundName: string | null;
@@ -211,6 +216,7 @@ function UploadContent() {
                   fundName: data.fundName,
                   fundNameConfidence: data.fundNameConfidence,
                   fields: data.fields,
+                  baseFields: data.fields, // preserve original for currency merging
                   match: data.match,
                   sourceType: data.sourceType,
                   reportMonth: data.reportMonth || null,
@@ -290,14 +296,26 @@ function UploadContent() {
     setFiles([]);
   };
 
-  /** Switch currency for a dual-currency file result */
+  /** Switch currency for a dual-currency file result.
+   *  Merges currency-independent fields (manager, classification) from
+   *  the original top-level fields with currency-specific fields from
+   *  the selected dualCurrencyData entry. */
   const switchCurrency = (fileId: string, basis: "ILS" | "USD") => {
     setFiles((prev) =>
       prev.map((f) => {
         if (f.id !== fileId || !f.dualCurrencyData) return f;
         const entry = f.dualCurrencyData.find((d) => d.returnBasis === basis);
         if (!entry) return f;
-        return { ...f, fields: entry.fields, returnBasis: basis };
+        // Keep currency-independent fields from original top-level parse
+        const baseIndependent = (f.baseFields || f.fields || [])
+          .filter((field) => CURRENCY_INDEPENDENT_KEYS.has(field.key));
+        const entryKeySet = new Set(entry.fields.map((ef) => ef.key));
+        // Merge: independent fields not overridden + all entry fields
+        const merged = [
+          ...baseIndependent.filter((bf) => !entryKeySet.has(bf.key)),
+          ...entry.fields,
+        ];
+        return { ...f, fields: merged, returnBasis: basis };
       })
     );
   };
@@ -625,21 +643,27 @@ function FileCard({ file, onSave, onSwitchCurrency, primaryColor }: {
           {/* Fields */}
           {file.fields.length > 0 ? (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
-              {file.fields.map((field, idx) => (
-                <span
-                  key={idx}
-                  style={{
-                    fontSize: 10,
-                    padding: "3px 8px",
-                    borderRadius: 6,
-                    backgroundColor: field.confidence >= 0.7 ? "#05966915" : "#f59e0b15",
-                    color: field.confidence >= 0.7 ? "#059669" : "#f59e0b",
-                    fontWeight: 500,
-                  }}
-                >
-                  {fieldLabel(field.key)}: {formatValue(field.key, field.value)}
-                </span>
-              ))}
+              {file.fields.map((field, idx) => {
+                // Monthly returns use synthetic confidence — show neutral style
+                const isMonthly = field.key.startsWith("monthlyReturns.");
+                const isHigh = !isMonthly && field.confidence >= 0.7;
+                const isLow = !isMonthly && field.confidence < 0.7;
+                return (
+                  <span
+                    key={idx}
+                    style={{
+                      fontSize: 10,
+                      padding: "3px 8px",
+                      borderRadius: 6,
+                      backgroundColor: isMonthly ? "#3b82f612" : isHigh ? "#05966915" : "#f59e0b15",
+                      color: isMonthly ? "#3b82f6" : isHigh ? "#059669" : "#f59e0b",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {fieldLabel(field.key)}: {formatValue(field.key, field.value)}
+                  </span>
+                );
+              })}
             </div>
           ) : (
             <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "4px 0 8px" }}>
