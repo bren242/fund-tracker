@@ -274,7 +274,12 @@ function sanitizeFields(rawFields: unknown[]): ParsedField[] {
   for (const f of rawFields) {
     if (!f || typeof f !== "object") continue;
     const field = f as Record<string, unknown>;
-    const key = String(field.key || "");
+    let key = String(field.key || "");
+
+    // Normalize bare year keys: "y2025" → "returns.y2025", "ytd2026" → "returns.ytd2026"
+    if (/^(y\d{4}|ytd\d{4})$/.test(key)) {
+      key = `returns.${key}`;
+    }
 
     // Whitelist check
     if (!isAllowedKey(key)) continue;
