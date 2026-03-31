@@ -160,19 +160,13 @@ const ALLOWED_FIELD_KEYS = new Set([
   "classification",
   "sharpe",
   "stdDev",
-  "returns.ytd2026",
-  "returns.y2025",
-  "returns.y2024",
-  "returns.y2023",
-  "returns.y2022",
-  "returns.y2021",
-  "returns.y2020",
-  "returns.y2019",
 ]);
 
-/** Check if a field key is allowed (static set + monthlyReturns.YYYY-MM pattern) */
+/** Check if a field key is allowed (static set + dynamic patterns) */
 function isAllowedKey(key: string): boolean {
   if (ALLOWED_FIELD_KEYS.has(key)) return true;
+  // Allow returns.yYYYY (e.g. returns.y2025) and returns.ytdYYYY (e.g. returns.ytd2026)
+  if (/^returns\.(y\d{4}|ytd\d{4})$/.test(key)) return true;
   // Allow monthlyReturns.YYYY-MM pattern
   if (/^monthlyReturns\.\d{4}-(0[1-9]|1[0-2])$/.test(key)) return true;
   return false;
@@ -498,8 +492,9 @@ FIELDS TO EXTRACT (only these):
 - classification: string | null (fund type/classification)
 - sharpe: number | null (Sharpe ratio, if explicitly stated in the document)
 - stdDev: number | null (standard deviation, סטיית תקן, if explicitly stated in the document)
-- returns: object with year keys: "y2025", "y2024", "y2023", "y2022", "y2021", "y2020", "y2019" (annual returns as decimals)
-- ytd2026: number | null (year-to-date return for 2026)
+- returns: object with dynamic year keys like "yYYYY" (e.g. "y2025", "y2024", "y2023", "y2022", "y2021", "y2020", "y2019").
+  Extract ALL annual returns that appear in the document, for ANY year. Do not limit to a fixed set.
+- ytdYYYY: number | null (year-to-date return for the current year, e.g. "ytd2026" if the document references 2026 YTD)
 
 EXISTING FUNDS IN SYSTEM (for matching):
 ${existingFunds.map((f) => `- "${f.name}" (id: ${f.id})`).join("\n")}
@@ -524,6 +519,7 @@ Respond in valid JSON with this exact structure:
     { "key": "stdDev", "value": ..., "confidence": 0.0-1.0 },
     { "key": "returns.y2025", "value": ..., "confidence": 0.0-1.0 },
     { "key": "returns.y2024", "value": ..., "confidence": 0.0-1.0 },
+    { "key": "returns.ytd2026", "value": ..., "confidence": 0.0-1.0 },
     ...
   ],
   "suggestedMatch": {

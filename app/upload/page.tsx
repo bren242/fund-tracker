@@ -49,21 +49,20 @@ const MONTH_NAMES_HE: Record<string, string> = {
 };
 
 const fieldLabel = (key: string): string => {
-  const labels: Record<string, string> = {
+  const staticLabels: Record<string, string> = {
     monthlyReturn: "תשואה חודשית",
     manager: "מנהל",
     classification: "סיווג",
-    "returns.ytd2026": "מצטבר 2026",
-    "returns.y2025": "2025",
-    "returns.y2024": "2024",
-    "returns.y2023": "2023",
-    "returns.y2022": "2022",
-    "returns.y2021": "2021",
-    "returns.y2020": "2020",
-    "returns.y2019": "2019",
+    sharpe: "שארפ",
+    stdDev: "סט״ד",
   };
-  if (labels[key]) return labels[key];
-  // monthlyReturns.YYYY-MM → "ינואר 2025"
+  if (staticLabels[key]) return staticLabels[key];
+  // returns.yYYYY → "2025", returns.ytdYYYY → "מצטבר YYYY"
+  const yearMatch = key.match(/^returns\.y(\d{4})$/);
+  if (yearMatch) return yearMatch[1];
+  const ytdMatch = key.match(/^returns\.ytd(\d{4})$/);
+  if (ytdMatch) return `מצטבר ${ytdMatch[1]}`;
+  // monthlyReturns.YYYY-MM → "ינואר/2025"
   const mrMatch = key.match(/^monthlyReturns\.(\d{4})-(0[1-9]|1[0-2])$/);
   if (mrMatch) {
     return `${MONTH_NAMES_HE[mrMatch[2]] || mrMatch[2]}/${mrMatch[1]}`;
