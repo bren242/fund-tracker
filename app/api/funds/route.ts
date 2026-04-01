@@ -94,14 +94,20 @@ export async function PUT(req: NextRequest) {
   // Import/restore endpoint
   if (url.searchParams.get("action") === "import") {
     const body = await req.json();
+    if (!body.categories || !Array.isArray(body.categories)) {
+      return NextResponse.json({ error: "Invalid import: missing categories array" }, { status: 400 });
+    }
     // Preserve current passwords if not in import
     if (!body.adminPassword) body.adminPassword = data.adminPassword;
     await writeData(clientKey, body);
     return NextResponse.json({ success: true });
   }
 
-  // Regular save
+  // Regular save — only accepts full datastore shape
   const body = await req.json();
+  if (!body.categories || !Array.isArray(body.categories)) {
+    return NextResponse.json({ error: "Invalid save: payload must contain categories array. Partial updates are not supported on this route." }, { status: 400 });
+  }
   // Preserve passwords
   if (!body.adminPassword && data.adminPassword) {
     body.adminPassword = data.adminPassword;
