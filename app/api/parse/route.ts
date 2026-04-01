@@ -146,7 +146,8 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v2: invalidate caches created with max_tokens=1024 (truncated results)
   // v3: dual currency entries now include allMonthlyReturns + full field sets
   // v4: entries now include returns.y* fields + fixed currency label ordering
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 4) return null;
+  // v5: fixed currency inversion (propagation restricted to same-currency) + field dedup
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 5) return null;
 
   return cached.result;
 }
@@ -304,7 +305,15 @@ function sanitizeFields(rawFields: unknown[]): ParsedField[] {
       confidence: normalizeConfidence(field.confidence),
     });
   }
-  return result;
+  // Dedup: for duplicate keys, prefer non-null numeric values over null
+  const deduped = new Map<string, ParsedField>();
+  for (const f of result) {
+    const existing = deduped.get(f.key);
+    if (!existing || (existing.value === null && f.value !== null)) {
+      deduped.set(f.key, f);
+    }
+  }
+  return Array.from(deduped.values());
 }
 
 /** Validate a draft before saving */
@@ -697,15 +706,15 @@ function parseCloudeResponse(
         dualCurrencyData.push({ returnBasis: basis, fields: entryFields });
       }
     }
-    // Propagate top-level returns.y*/returns.ytd* fields to entries that lack them.
-    // The AI sometimes puts annual returns only in top-level fields, not per-currency.
-    // Top-level uses "first currency found" so values are correct for the first entry
-    // and serve as a reasonable fallback for the second.
+    // Propagate top-level returns.y*/returns.ytd* fields ONLY to the entry that
+    // matches the top-level returnBasis (ILS). Never propagate ILS values to the
+    // USD entry — that would cause currency inversion.
     if (dualCurrencyData.length >= 2) {
       const topLevelReturns = sanitizedFields.filter(
         (f) => /^returns\.(y\d{4}|ytd\d{4})$/.test(f.key)
       );
       for (const entry of dualCurrencyData) {
+        if (entry.returnBasis !== returnBasis) continue; // only same-currency propagation
         const entryKeys = new Set(entry.fields.map((f) => f.key));
         for (const topField of topLevelReturns) {
           if (!entryKeys.has(topField.key)) {
@@ -1551,7 +1560,7 @@ export async function POST(req: NextRequest) {
       if (result.dualCurrencyData) {
         resultObj.dualCurrencyData = result.dualCurrencyData;
       }
-      resultObj._cacheVersion = 4;
+      resultObj._cacheVersion = 5;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
