@@ -147,7 +147,8 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v3: dual currency entries now include allMonthlyReturns + full field sets
   // v4: entries now include returns.y* fields + fixed currency label ordering
   // v5: fixed currency inversion (propagation restricted to same-currency) + field dedup
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 5) return null;
+  // v6: fixed currency prompt (label-only, no position assumptions) + ytd→y auto-promotion for Dec reports
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 6) return null;
 
   return cached.result;
 }
@@ -523,7 +524,7 @@ If the document contains return data for BOTH ILS and USD (e.g., two separate pe
 you MUST return a "dualCurrencyData" array with separate field sets for each currency.
 Each entry has its own returnBasis, fields, AND allMonthlyReturns — each with the VALUES for THAT SPECIFIC CURRENCY.
 CRITICAL: Each entry must include ALL currency-dependent fields (monthlyReturn, returns.y*, sharpe, stdDev, allMonthlyReturns) with values specific to that currency. Do NOT copy the primary currency's values into the other entry.
-CRITICAL: Identify each currency by the LABELS in the document (שקלי/ILS vs דולרי/USD), NOT by position or order on the page. Israeli documents typically show ILS first — do NOT assume the first table is USD.
+CRITICAL: Identify each currency ONLY by the explicit LABELS in the document (שקלי/ILS vs דולרי/USD). NEVER use position, order, or assumptions about which table appears first. Read the label next to each performance table (e.g., "קלאס דולרי", "קלאס שקלי") and assign returnBasis accordingly. Some documents show USD first — always trust the labels, not the order.
 The top-level fields/returnBasis/allMonthlyReturns should use ILS if both currencies are present.
 
 Respond in valid JSON with this exact structure:
@@ -724,6 +725,32 @@ function parseCloudeResponse(
       }
     }
     if (dualCurrencyData.length < 2) dualCurrencyData = undefined;
+  }
+
+  // Auto-convert returns.ytdYYYY → returns.yYYYY for December reports.
+  // When reportMonth is December (YYYY-12), YTD for that year IS the annual return.
+  // The fund table renders y2025 but the AI often returns ytd2025 — this bridges the gap.
+  if (reportMonth && reportMonth.endsWith("-12")) {
+    const reportYear = reportMonth.slice(0, 4); // "2025"
+    const ytdKey = `returns.ytd${reportYear}`;
+    const yKey = `returns.y${reportYear}`;
+
+    const promoteYtdToAnnual = (fields: ParsedField[]) => {
+      const hasExplicitY = fields.some((f) => f.key === yKey && f.value !== null);
+      if (hasExplicitY) return; // Already has a real annual value — don't overwrite
+      for (const f of fields) {
+        if (f.key === ytdKey) {
+          f.key = yKey; // Promote ytd to annual
+        }
+      }
+    };
+
+    promoteYtdToAnnual(sanitizedFields);
+    if (dualCurrencyData) {
+      for (const entry of dualCurrencyData) {
+        promoteYtdToAnnual(entry.fields);
+      }
+    }
   }
 
   return {
@@ -1560,7 +1587,7 @@ export async function POST(req: NextRequest) {
       if (result.dualCurrencyData) {
         resultObj.dualCurrencyData = result.dualCurrencyData;
       }
-      resultObj._cacheVersion = 5;
+      resultObj._cacheVersion = 6;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
