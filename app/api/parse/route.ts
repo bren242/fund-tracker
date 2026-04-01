@@ -148,7 +148,8 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v4: entries now include returns.y* fields + fixed currency label ordering
   // v5: fixed currency inversion (propagation restricted to same-currency) + field dedup
   // v6: fixed currency prompt (label-only, no position assumptions) + ytd→y auto-promotion for Dec reports
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 6) return null;
+  // v7: matching now includes returnBasis to distinguish ILS/USD fund variants
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 7) return null;
 
   return cached.result;
 }
@@ -478,7 +479,7 @@ const ALLOWED_MIME_TYPES: Record<string, string> = {
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 /** Build the extraction system prompt (shared between text and file parsing) */
-function buildSystemPrompt(existingFunds: { id: string; name: string }[]): string {
+function buildSystemPrompt(existingFunds: { id: string; name: string; returnBasis?: string }[]): string {
   return `You are a financial data extraction assistant for an Israeli fund tracking system.
 Extract fund performance data from the provided Hebrew or English text or document.
 
@@ -517,7 +518,8 @@ FIELDS TO EXTRACT (only these):
 - ytdYYYY: number | null (year-to-date return for the current year, e.g. "ytd2026" if the document references 2026 YTD)
 
 EXISTING FUNDS IN SYSTEM (for matching):
-${existingFunds.map((f) => `- "${f.name}" (id: ${f.id})`).join("\n")}
+${existingFunds.map((f) => `- "${f.name}" (id: ${f.id}, currency: ${f.returnBasis || "unknown"})`).join("\n")}
+When suggesting a match, consider the currency basis: if the document is ILS-based, prefer matching an ILS fund. If USD-based, prefer a USD fund. Never match a שקלי document to a USD fund or vice versa.
 
 DUAL CURRENCY DOCUMENTS:
 If the document contains return data for BOTH ILS and USD (e.g., two separate performance tables),
@@ -596,7 +598,7 @@ interface DualCurrencyEntry {
 /** Parse Claude response JSON → structured result */
 function parseCloudeResponse(
   content: string,
-  existingFunds: { id: string; name: string; categoryId: string }[]
+  existingFunds: { id: string; name: string; categoryId: string; returnBasis?: string }[]
 ): {
   fundName: string;
   fundNameConfidence: number;
@@ -871,12 +873,12 @@ export async function POST(req: NextRequest) {
       }
 
       // Load existing fund names for matching context (active only)
-      const fundsData = await storageRead<{ categories: { id: string; funds: { id: string; name: string; active?: boolean }[] }[] }>(`funds:${clientKey}`, { categories: [] });
-      const existingFunds: { id: string; name: string; categoryId: string }[] = [];
+      const fundsData = await storageRead<{ categories: { id: string; funds: { id: string; name: string; active?: boolean; returnBasis?: string }[] }[] }>(`funds:${clientKey}`, { categories: [] });
+      const existingFunds: { id: string; name: string; categoryId: string; returnBasis?: string }[] = [];
       for (const cat of fundsData.categories || []) {
         for (const fund of cat.funds || []) {
           if (fund.active === false) continue;
-          existingFunds.push({ id: fund.id, name: fund.name, categoryId: cat.id });
+          existingFunds.push({ id: fund.id, name: fund.name, categoryId: cat.id, returnBasis: fund.returnBasis });
         }
       }
 
@@ -1507,12 +1509,12 @@ export async function POST(req: NextRequest) {
       }
 
       // Load existing funds for matching (active only)
-      const fundsData = await storageRead<{ categories: { id: string; funds: { id: string; name: string; active?: boolean }[] }[] }>(`funds:${clientKey}`, { categories: [] });
-      const existingFunds: { id: string; name: string; categoryId: string }[] = [];
+      const fundsData = await storageRead<{ categories: { id: string; funds: { id: string; name: string; active?: boolean; returnBasis?: string }[] }[] }>(`funds:${clientKey}`, { categories: [] });
+      const existingFunds: { id: string; name: string; categoryId: string; returnBasis?: string }[] = [];
       for (const cat of fundsData.categories || []) {
         for (const fund of cat.funds || []) {
           if (fund.active === false) continue;
-          existingFunds.push({ id: fund.id, name: fund.name, categoryId: cat.id });
+          existingFunds.push({ id: fund.id, name: fund.name, categoryId: cat.id, returnBasis: fund.returnBasis });
         }
       }
 
@@ -1587,7 +1589,7 @@ export async function POST(req: NextRequest) {
       if (result.dualCurrencyData) {
         resultObj.dualCurrencyData = result.dualCurrencyData;
       }
-      resultObj._cacheVersion = 6;
+      resultObj._cacheVersion = 7;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
