@@ -34,6 +34,10 @@ function AdminContent() {
   const categoryInitRef = useRef(false);
   const loadData = useCallback(() => {
     fetch(`/api/funds?admin=true&client=${encodeURIComponent(clientKey)}`).then((r) => r.json()).then((d: FundsData) => {
+      // Guard against corrupted data (missing categories array)
+      if (!d.categories || !Array.isArray(d.categories)) {
+        d.categories = [];
+      }
       setData(d);
       if (!categoryInitRef.current && d.categories.length > 0) {
         setAddFundCategory(d.categories[0].id);
