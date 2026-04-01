@@ -149,7 +149,8 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v5: fixed currency inversion (propagation restricted to same-currency) + field dedup
   // v6: fixed currency prompt (label-only, no position assumptions) + ytd→y auto-promotion for Dec reports
   // v7: matching now includes returnBasis to distinguish ILS/USD fund variants
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 7) return null;
+  // v8: fixed dual-currency prompt bias that caused ILS/USD inversion
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 8) return null;
 
   return cached.result;
 }
@@ -524,10 +525,16 @@ When suggesting a match, consider the currency basis: if the document is ILS-bas
 DUAL CURRENCY DOCUMENTS:
 If the document contains return data for BOTH ILS and USD (e.g., two separate performance tables),
 you MUST return a "dualCurrencyData" array with separate field sets for each currency.
-Each entry has its own returnBasis, fields, AND allMonthlyReturns — each with the VALUES for THAT SPECIFIC CURRENCY.
-CRITICAL: Each entry must include ALL currency-dependent fields (monthlyReturn, returns.y*, sharpe, stdDev, allMonthlyReturns) with values specific to that currency. Do NOT copy the primary currency's values into the other entry.
-CRITICAL: Identify each currency ONLY by the explicit LABELS in the document (שקלי/ILS vs דולרי/USD). NEVER use position, order, or assumptions about which table appears first. Read the label next to each performance table (e.g., "קלאס דולרי", "קלאס שקלי") and assign returnBasis accordingly. Some documents show USD first — always trust the labels, not the order.
-The top-level fields/returnBasis/allMonthlyReturns should use ILS if both currencies are present.
+
+MANDATORY 3-STEP PROCESS for dual currency:
+STEP 1 — IDENTIFY LABELS: Before extracting any numbers, first locate EACH performance table and read the currency label next to it (e.g., "קלאס דולרי", "קלאס שקלי", "מסלול שקלי", "מסלול דולרי"). Write down which table has which label.
+STEP 2 — EXTRACT NUMBERS: For each table, extract all performance numbers (monthly returns, YTD, annual).
+STEP 3 — ASSIGN CORRECTLY: Put each table's numbers into the dualCurrencyData entry matching its label from step 1. A table labeled "קלאס דולרי" → returnBasis: "USD". A table labeled "קלאס שקלי" → returnBasis: "ILS".
+
+COMMON ERROR TO AVOID: Many Israeli fund documents show the USD (דולרי) table FIRST (on top) and the ILS (שקלי) table SECOND (below). Do NOT assume the first table is ILS. If the first table says "קלאס דולרי" with YTD 19.91% and the second says "קלאס שקלי" with YTD 18.63%, then USD=19.91% and ILS=18.63%. Getting this backwards is the #1 parsing error.
+
+Each entry must include ALL currency-dependent fields (monthlyReturn, returns.y*, sharpe, stdDev, allMonthlyReturns) with values specific to THAT currency only. Do NOT copy values between entries.
+The top-level fields/returnBasis/allMonthlyReturns should use the FIRST currency that appears in the document (read from top). The dualCurrencyData array order does not matter — what matters is that each entry's returnBasis matches its actual label.
 
 Respond in valid JSON with this exact structure:
 {
@@ -554,28 +561,20 @@ Respond in valid JSON with this exact structure:
   },
   "dualCurrencyData": [
     {
-      "returnBasis": "ILS",
-      "allMonthlyReturns": { "2025-01": 0.040, "2025-02": -0.008, ... },
+      "returnBasis": "USD",
+      "allMonthlyReturns": { "2025-01": 0.001, "2025-02": 0.0047, ... },
       "fields": [
-        { "key": "monthlyReturn", "value": ..., "confidence": 0.0-1.0 },
-        { "key": "sharpe", "value": ..., "confidence": 0.0-1.0 },
-        { "key": "stdDev", "value": ..., "confidence": 0.0-1.0 },
-        { "key": "returns.y2025", "value": ..., "confidence": 0.0-1.0 },
-        { "key": "returns.y2024", "value": ..., "confidence": 0.0-1.0 },
-        { "key": "returns.ytd2026", "value": ..., "confidence": 0.0-1.0 },
+        { "key": "monthlyReturn", "value": 0.0074, "confidence": 0.95 },
+        { "key": "returns.y2025", "value": 0.1991, "confidence": 0.95 },
         ...
       ]
     },
     {
-      "returnBasis": "USD",
-      "allMonthlyReturns": { "2025-01": 0.032, "2025-02": -0.01, ... },
+      "returnBasis": "ILS",
+      "allMonthlyReturns": { "2025-01": -0.0001, "2025-02": 0.0042, ... },
       "fields": [
-        { "key": "monthlyReturn", "value": ..., "confidence": 0.0-1.0 },
-        { "key": "sharpe", "value": ..., "confidence": 0.0-1.0 },
-        { "key": "stdDev", "value": ..., "confidence": 0.0-1.0 },
-        { "key": "returns.y2025", "value": ..., "confidence": 0.0-1.0 },
-        { "key": "returns.y2024", "value": ..., "confidence": 0.0-1.0 },
-        { "key": "returns.ytd2026", "value": ..., "confidence": 0.0-1.0 },
+        { "key": "monthlyReturn", "value": 0.0062, "confidence": 0.95 },
+        { "key": "returns.y2025", "value": 0.1863, "confidence": 0.95 },
         ...
       ]
     }
@@ -1589,7 +1588,7 @@ export async function POST(req: NextRequest) {
       if (result.dualCurrencyData) {
         resultObj.dualCurrencyData = result.dualCurrencyData;
       }
-      resultObj._cacheVersion = 7;
+      resultObj._cacheVersion = 8;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
