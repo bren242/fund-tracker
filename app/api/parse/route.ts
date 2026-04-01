@@ -145,7 +145,8 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
 
   // v2: invalidate caches created with max_tokens=1024 (truncated results)
   // v3: dual currency entries now include allMonthlyReturns + full field sets
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 3) return null;
+  // v4: entries now include returns.y* fields + fixed currency label ordering
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 4) return null;
 
   return cached.result;
 }
@@ -513,7 +514,8 @@ If the document contains return data for BOTH ILS and USD (e.g., two separate pe
 you MUST return a "dualCurrencyData" array with separate field sets for each currency.
 Each entry has its own returnBasis, fields, AND allMonthlyReturns — each with the VALUES for THAT SPECIFIC CURRENCY.
 CRITICAL: Each entry must include ALL currency-dependent fields (monthlyReturn, returns.y*, sharpe, stdDev, allMonthlyReturns) with values specific to that currency. Do NOT copy the primary currency's values into the other entry.
-The top-level fields/returnBasis/allMonthlyReturns should use the FIRST currency found.
+CRITICAL: Identify each currency by the LABELS in the document (שקלי/ILS vs דולרי/USD), NOT by position or order on the page. Israeli documents typically show ILS first — do NOT assume the first table is USD.
+The top-level fields/returnBasis/allMonthlyReturns should use ILS if both currencies are present.
 
 Respond in valid JSON with this exact structure:
 {
@@ -540,8 +542,8 @@ Respond in valid JSON with this exact structure:
   },
   "dualCurrencyData": [
     {
-      "returnBasis": "USD",
-      "allMonthlyReturns": { "2025-01": 0.032, "2025-02": -0.01, ... },
+      "returnBasis": "ILS",
+      "allMonthlyReturns": { "2025-01": 0.040, "2025-02": -0.008, ... },
       "fields": [
         { "key": "monthlyReturn", "value": ..., "confidence": 0.0-1.0 },
         { "key": "sharpe", "value": ..., "confidence": 0.0-1.0 },
@@ -553,8 +555,8 @@ Respond in valid JSON with this exact structure:
       ]
     },
     {
-      "returnBasis": "ILS",
-      "allMonthlyReturns": { "2025-01": 0.040, "2025-02": -0.008, ... },
+      "returnBasis": "USD",
+      "allMonthlyReturns": { "2025-01": 0.032, "2025-02": -0.01, ... },
       "fields": [
         { "key": "monthlyReturn", "value": ..., "confidence": 0.0-1.0 },
         { "key": "sharpe", "value": ..., "confidence": 0.0-1.0 },
@@ -1549,7 +1551,7 @@ export async function POST(req: NextRequest) {
       if (result.dualCurrencyData) {
         resultObj.dualCurrencyData = result.dualCurrencyData;
       }
-      resultObj._cacheVersion = 3;
+      resultObj._cacheVersion = 4;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
