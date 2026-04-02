@@ -2096,6 +2096,8 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
     limit: number; callLimit: number; percent: number; warning: boolean; blocked: boolean;
   } | null>(null);
   const [lastApplyInfo, setLastApplyInfo] = useState<{ fundName: string; timestamp: number } | null>(null);
+  const [batchRunning, setBatchRunning] = useState(false);
+  const [batchResult, setBatchResult] = useState<{ applied: number; skipped: number; failed: number } | null>(null);
 
   const headers = { "x-admin-password": password };
 
@@ -2751,6 +2753,87 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
     );
   };
 
+  // Batch apply safe drafts
+  const handleBatchApply = async () => {
+    setBatchRunning(true);
+    setBatchResult(null);
+    const batchId = `batch-${new Date().toISOString()}`;
+    let applied = 0, skipped = 0, failed = 0;
+
+    // Pre-filter eligible drafts
+    const eligible = drafts.filter((d) => {
+      if (d.status !== "pending") return false;
+      if (!d.match?.fundId) return false;
+      if (d.extracted.fields.length === 0) return false;
+      const hasMonthly = d.extracted.fields.some((f) => f.key === "monthlyReturn");
+      const effectiveMonth = draftReportMonths[d.id] ?? (d.reportMonth || "");
+      if (hasMonthly && !effectiveMonth) return false;
+      return true;
+    });
+
+    if (eligible.length === 0) {
+      setBatchResult({ applied: 0, skipped: 0, failed: 0 });
+      setBatchRunning(false);
+      return;
+    }
+
+    for (const draft of eligible) {
+      const draftReportMonth = draftReportMonths[draft.id] ?? (draft.reportMonth || "");
+      try {
+        const checkRes = await fetch(`/api/parse?action=check-collision&client=${encodeURIComponent(clientKey)}`, {
+          method: "POST",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fundId: draft.match!.fundId,
+            categoryId: draft.match!.categoryId,
+            reportMonth: draftReportMonth || null,
+            approvedFields: draft.extracted.fields,
+          }),
+        });
+        if (!checkRes.ok) { failed++; continue; }
+        const result = await checkRes.json();
+
+        if (!result.autoApplyEligible) { skipped++; continue; }
+
+        const applyRes = await fetch(`/api/parse?action=apply&client=${encodeURIComponent(clientKey)}`, {
+          method: "POST",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            draftId: draft.id,
+            fundId: draft.match!.fundId,
+            categoryId: draft.match!.categoryId,
+            approvedFields: draft.extracted.fields,
+            reportMonth: draftReportMonth || null,
+            returnBasis: draft.returnBasis || null,
+            fieldDecisions: {},
+            diffComputedAt: result.diffComputedAt,
+            clearFields: [],
+            autoApply: true,
+            batchId,
+          }),
+        });
+
+        if (applyRes.ok) {
+          applied++;
+        } else if (applyRes.status === 409) {
+          skipped++;
+        } else {
+          failed++;
+        }
+      } catch {
+        failed++;
+      }
+    }
+
+    setBatchResult({ applied, skipped, failed });
+    setBatchRunning(false);
+    if (applied > 0) {
+      setLastApplyInfo({ fundName: `${applied} טיוטות (אצווה)`, timestamp: Date.now() });
+    }
+    loadDrafts();
+    onReload();
+  };
+
   const pendingDrafts = drafts.filter((d) => d.status === "pending");
 
   return (
@@ -2766,6 +2849,73 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
           טיוטות ({pendingDrafts.length})
         </button>
       </div>
+
+      {/* Batch apply button */}
+      {view === "drafts" && pendingDrafts.length > 0 && !diffResult && !newFundDraftId && (
+        <div style={{ marginBottom: 12 }}>
+          <button
+            onClick={() => { setBatchResult(null); handleBatchApply(); }}
+            disabled={batchRunning}
+            style={{
+              backgroundColor: batchRunning ? "var(--text-muted)" : "var(--bg-surface)",
+              color: batchRunning ? "#fff" : "#059669",
+              border: "1px solid #05966940",
+              borderRadius: 6,
+              padding: "6px 16px",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: batchRunning ? "not-allowed" : "pointer",
+              opacity: batchRunning ? 0.6 : 1,
+            }}>
+            {batchRunning ? "מעבד..." : "החל טיוטות בטוחות"}
+          </button>
+        </div>
+      )}
+
+      {/* Batch result banner */}
+      {batchResult && (
+        <div style={{
+          backgroundColor: batchResult.applied > 0 ? "#05966910" : "#f59e0b10",
+          border: `1px solid ${batchResult.applied > 0 ? "#05966930" : "#f59e0b30"}`,
+          borderRadius: 8,
+          padding: "8px 14px",
+          marginBottom: 12,
+          fontSize: 12,
+        }}>
+          {batchResult.applied > 0 ? (
+            <span style={{ color: "#059669", fontWeight: 600 }}>
+              {"✓ עודכנו " + batchResult.applied + " טיוטות אוטומטית"}
+            </span>
+          ) : batchResult.skipped > 0 ? (
+            <span style={{ color: "#f59e0b", fontWeight: 600 }}>
+              {"ℹ️ כל הטיוטות דורשות סקירה ידנית"}
+            </span>
+          ) : (
+            <span style={{ color: "var(--text-muted)" }}>
+              {"ℹ️ אין טיוטות בטוחות להחלה"}
+            </span>
+          )}
+          {batchResult.applied > 0 && batchResult.skipped > 0 && (
+            <span style={{ color: "#f59e0b", marginRight: 8 }}>
+              {" · " + batchResult.skipped + " דורשות סקירה ידנית"}
+            </span>
+          )}
+          {batchResult.failed > 0 && (
+            <span style={{ color: "#ef4444", marginRight: 8 }}>
+              {" · " + batchResult.failed + " נכשלו"}
+            </span>
+          )}
+          {batchResult.applied > 1 && (
+            <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 4 }}>
+              ביטול אפשרי רק לטיוטה האחרונה שעודכנה
+            </div>
+          )}
+          <button onClick={() => setBatchResult(null)}
+            style={{ float: "left", background: "none", border: "none", cursor: "pointer", fontSize: 10, color: "var(--text-muted)", textDecoration: "underline" }}>
+            סגור
+          </button>
+        </div>
+      )}
 
       {/* Undo banner */}
       {lastApplyInfo && (Date.now() - lastApplyInfo.timestamp) < 30 * 60 * 1000 && (

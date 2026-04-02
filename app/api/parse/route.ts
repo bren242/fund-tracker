@@ -1085,7 +1085,7 @@ export async function POST(req: NextRequest) {
     // ============================================================
     if (action === "apply") {
       const body = await req.json();
-      const { draftId, fundId, categoryId, approvedFields, reportMonth, fieldDecisions, diffComputedAt, clearFields, returnBasis: applyReturnBasis, autoApply } = body;
+      const { draftId, fundId, categoryId, approvedFields, reportMonth, fieldDecisions, diffComputedAt, clearFields, returnBasis: applyReturnBasis, autoApply, batchId } = body;
 
       if (!draftId || !fundId || !categoryId || !approvedFields) {
         return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -1338,6 +1338,7 @@ export async function POST(req: NextRequest) {
         collision: changedFieldsLog.length > 0,
         collisionDecision: replacedFields.length > 0 ? "replace" : keptFields.length > 0 ? "keep" : "new",
         ...(autoApply ? { autoApply: true } : {}),
+        ...(batchId ? { batchId: String(batchId) } : {}),
       });
 
       return NextResponse.json({

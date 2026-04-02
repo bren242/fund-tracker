@@ -70,6 +70,7 @@ export interface ParseLogEntry {
   oldValue?: number | null;
   newValue?: number | null;
   autoApply?: boolean;
+  batchId?: string;
 }
 
 /** Fields allowed to be written to funds.json */
