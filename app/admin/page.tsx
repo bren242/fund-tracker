@@ -2453,39 +2453,34 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
             approvedFields: draft.extracted.fields,
           }),
         });
-        if (checkRes.ok) {
-          const result = await checkRes.json();
-          const changedFields = (result.diff || []).filter((d: { status: string }) => d.status === "changed");
-          if (changedFields.length > 0) {
-            // Show diff UI — user must decide on changed fields
-            setDiffResult({ ...result, draftId: draft.id });
-            setFieldDecisions({});
-            onStatus(`⚠️ נמצאו ${changedFields.length} שדות שונים — נדרשת החלטה`);
-            return;
-          }
-          // No changed fields — check if all are same (nothing to do)
-          const newFields = (result.diff || []).filter((d: { status: string }) => d.status === "new");
-          if (newFields.length === 0) {
-            onStatus("ℹ️ כל הערכים זהים למה שכבר במערכת — אין צורך בעדכון");
-            return;
-          }
-          // Only new fields — proceed directly with diffComputedAt
-          if (!window.confirm(`לעדכן את הקרן "${draft.match.fundName}" עם ${newFields.length} שדות חדשים?`)) return;
-          // Apply with empty decisions (all fields are new)
-          overrideDecisions = {};
-          // Store diffComputedAt for apply
-          (overrideDecisions as Record<string, string>).__diffComputedAt = result.diffComputedAt;
+        if (!checkRes.ok) {
+          onStatus("❌ שגיאה בחישוב ההשוואה — נא לנסות שוב");
+          return;
         }
+        const result = await checkRes.json();
+        const changedFields = (result.diff || []).filter((d: { status: string }) => d.status === "changed");
+        if (changedFields.length > 0) {
+          // Show diff UI — user must decide on changed fields
+          setDiffResult({ ...result, draftId: draft.id });
+          setFieldDecisions({});
+          onStatus(`⚠️ נמצאו ${changedFields.length} שדות שונים — נדרשת החלטה`);
+          return;
+        }
+        // No changed fields — check if all are same (nothing to do)
+        const newFields = (result.diff || []).filter((d: { status: string }) => d.status === "new");
+        if (newFields.length === 0) {
+          onStatus("ℹ️ כל הערכים זהים למה שכבר במערכת — אין צורך בעדכון");
+          return;
+        }
+        // Only new fields — store diff in state and proceed
+        setDiffResult({ ...result, draftId: draft.id });
+        if (!window.confirm(`לעדכן את הקרן "${draft.match.fundName}" עם ${newFields.length} שדות חדשים?`)) return;
+        overrideDecisions = {};
       } catch {
-        // If diff check fails, continue with apply (server-side will catch)
+        onStatus("❌ שגיאה בחיבור לשרת — לא ניתן לחשב השוואה");
+        return;
       }
     }
-
-    if (!overrideDecisions && !window.confirm(`לעדכן את הקרן "${draft.match.fundName}" עם הנתונים מהטיוטה?`)) return;
-
-    // Extract diffComputedAt from overrideDecisions if stored there
-    const applyDiffComputedAt = overrideDecisions ? (overrideDecisions as Record<string, string>).__diffComputedAt || diffResult?.diffComputedAt : diffResult?.diffComputedAt;
-    const cleanDecisions = overrideDecisions ? Object.fromEntries(Object.entries(overrideDecisions).filter(([k]) => k !== "__diffComputedAt")) : {};
 
     try {
       const res = await fetch(`/api/parse?action=apply&client=${encodeURIComponent(clientKey)}`, {
@@ -2498,8 +2493,8 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
           approvedFields: draft.extracted.fields,
           reportMonth: draftReportMonth || null,
           returnBasis: draft.returnBasis || null,
-          fieldDecisions: cleanDecisions,
-          diffComputedAt: applyDiffComputedAt || null,
+          fieldDecisions: overrideDecisions || {},
+          diffComputedAt: diffResult?.diffComputedAt || null,
         }),
       });
       if (res.ok) {
@@ -3460,8 +3455,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
                         {allDecided && (
                           <button
                             onClick={() => {
-                              const decisions = { ...fieldDecisions, __diffComputedAt: diffResult.diffComputedAt } as Record<string, string>;
-                              handleApplyDraft(draft, decisions as unknown as Record<string, "replace" | "keep">);
+                              handleApplyDraft(draft, { ...fieldDecisions });
                             }}
                             style={{
                               backgroundColor: "#059669", color: "#fff", fontWeight: 600, padding: "6px 16px",
