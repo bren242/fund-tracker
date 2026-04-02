@@ -2088,8 +2088,8 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
   const [selectedMatchCatId, setSelectedMatchCatId] = useState<string>("");
   const [reportMonth, setReportMonth] = useState<string>("");
   const [returnBasis, setReturnBasis] = useState<"ILS" | "USD" | null>(null);
-  const [collisions, setCollisions] = useState<{ field: string; month: string; existingValue: number; newValue: number }[]>([]);
-  const [collisionDecisions, setCollisionDecisions] = useState<Record<string, "replace" | "keep">>({});
+  const [diffResult, setDiffResult] = useState<{ diff: { field: string; existingValue: string | number | null; newValue: string | number | null; status: "new" | "changed" | "same" }[]; diffComputedAt: string; fundLastUpdated: string | null; draftId: string } | null>(null);
+  const [fieldDecisions, setFieldDecisions] = useState<Record<string, "replace" | "keep">>({});
   const [draftReportMonths, setDraftReportMonths] = useState<Record<string, string>>({});
   const [tokenUsage, setTokenUsage] = useState<{
     inputTokens: number; outputTokens: number; callCount: number;
@@ -2180,8 +2180,8 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
       // Auto-set reportMonth from AI
       setReportMonth(result.reportMonth || "");
       setReturnBasis(result.returnBasis || null);
-      setCollisions([]);
-      setCollisionDecisions({});
+      setDiffResult(null);
+      setFieldDecisions({});
       // Auto-set match
       if (result.match?.fundId) {
         setSelectedMatchFundId(result.match.fundId);
@@ -2259,8 +2259,8 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
       setApprovedFields(approved);
       setReportMonth(result.reportMonth || "");
       setReturnBasis(result.returnBasis || null);
-      setCollisions([]);
-      setCollisionDecisions({});
+      setDiffResult(null);
+      setFieldDecisions({});
       if (result.match?.fundId) {
         setSelectedMatchFundId(result.match.fundId);
         setSelectedMatchCatId(result.match.categoryId || "");
@@ -2374,7 +2374,22 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
 
   const handleApplyDraft = async (draft: typeof drafts[0], overrideDecisions?: Record<string, "replace" | "keep">) => {
     if (!draft.match?.fundId || !draft.match?.categoryId) {
-      onStatus("❌ לא נבחרה קרן להתאמה");
+      // Match validation: if draft has returnBasis, try auto-match by returnBasis
+      if (draft.returnBasis) {
+        const matchesByBasis = allFunds.filter((f) => {
+          const fund = data.categories.flatMap((c) => c.funds).find((ff) => ff.id === f.id);
+          return fund && (fund as unknown as Record<string, unknown>).returnBasis === draft.returnBasis;
+        });
+        if (matchesByBasis.length === 1) {
+          // Exactly one match — auto-select it on the draft UI, but don't proceed yet
+          onStatus(`🔍 נמצאה קרן תואמת לפי מטבע (${draft.returnBasis}): "${matchesByBasis[0].name}" — יש לבחור אותה בדרופדאון ולנסות שוב`);
+          return;
+        }
+        onStatus("❌ לא נמצאה התאמה יחידה לפי מטבע — יש לבחור קרן ידנית מהרשימה");
+        return;
+      }
+      // No returnBasis — force explicit selection
+      onStatus("❌ לא נבחרה קרן להתאמה — יש לבחור קרן מהרשימה או ליצור חדשה");
       return;
     }
 
@@ -2388,7 +2403,6 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
 
     // Validation warnings before apply
     if (hasMonthlyReturn && draftReportMonth && draft.match.fundId) {
-      // Find the fund to check its data
       const matchedFund = data.categories
         .flatMap((cat) => cat.funds)
         .find((f) => f.id === draft.match!.fundId);
@@ -2397,19 +2411,14 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
         const monthlyReturns = matchedFund.monthlyReturns || {};
         const existingMonths = Object.keys(monthlyReturns).sort();
 
-        // Warning 1: Month already updated
-        if (draftReportMonth in monthlyReturns) {
-          if (!window.confirm(`⚠️ שים לב — חודש ${draftReportMonth} כבר מעודכן בקרן "${matchedFund.name}" (ערך: ${(monthlyReturns[draftReportMonth] * 100).toFixed(2)}%). להמשיך?`)) return;
-        }
-
-        // Warning 2: Updating older month when newer exists
+        // Warning: Updating older month when newer exists
         if (existingMonths.length > 0) {
           const latestMonth = existingMonths[existingMonths.length - 1];
           if (draftReportMonth < latestMonth) {
             if (!window.confirm(`⚠️ שים לב — אתה מעדכן חודש ${draftReportMonth}, אבל במערכת כבר קיים חודש ${latestMonth}. להמשיך?`)) return;
           }
 
-          // Warning 3: Gap in months
+          // Warning: Gap in months
           if (draftReportMonth > latestMonth) {
             const [ly, lm] = latestMonth.split("-").map(Number);
             const [dy, dm] = draftReportMonth.split("-").map(Number);
@@ -2420,7 +2429,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
           }
         }
 
-        // Warning 4: Abnormal monthly return
+        // Warning: Abnormal monthly return
         const monthlyReturnField = draft.extracted.fields.find((f) => f.key === "monthlyReturn");
         if (monthlyReturnField && typeof monthlyReturnField.value === "number") {
           const absReturn = Math.abs(monthlyReturnField.value);
@@ -2428,21 +2437,11 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
             if (!window.confirm(`⚠️ שים לב — תשואה חודשית של ${(monthlyReturnField.value * 100).toFixed(2)}% נראית חריגה. להמשיך?`)) return;
           }
         }
-
-        // Warning 5: Identical value already exists
-        if (draftReportMonth in monthlyReturns) {
-          const existingVal = monthlyReturns[draftReportMonth];
-          const newField = draft.extracted.fields.find((f) => f.key === "monthlyReturn");
-          if (newField && newField.value === existingVal) {
-            onStatus("ℹ️ הערך זהה למה שכבר במערכת — אין צורך בעדכון");
-            return;
-          }
-        }
       }
     }
 
-    // Step 1: Check for collisions (unless we already have decisions)
-    if (!overrideDecisions && hasMonthlyReturn && draftReportMonth) {
+    // Step 1: Compute diff (unless we already have decisions from the diff UI)
+    if (!overrideDecisions) {
       try {
         const checkRes = await fetch(`/api/parse?action=check-collision&client=${encodeURIComponent(clientKey)}`, {
           method: "POST",
@@ -2450,26 +2449,43 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
           body: JSON.stringify({
             fundId: draft.match.fundId,
             categoryId: draft.match.categoryId,
-            reportMonth: draftReportMonth,
+            reportMonth: draftReportMonth || null,
             approvedFields: draft.extracted.fields,
           }),
         });
         if (checkRes.ok) {
-          const { collisions: foundCollisions } = await checkRes.json();
-          if (foundCollisions && foundCollisions.length > 0) {
-            // Store collisions for UI — user must decide
-            setCollisions(foundCollisions);
-            setCollisionDecisions({});
-            onStatus(`⚠️ נמצאה התנגשות בנתונים לחודש ${draftReportMonth} — נדרשת החלטה`);
+          const result = await checkRes.json();
+          const changedFields = (result.diff || []).filter((d: { status: string }) => d.status === "changed");
+          if (changedFields.length > 0) {
+            // Show diff UI — user must decide on changed fields
+            setDiffResult({ ...result, draftId: draft.id });
+            setFieldDecisions({});
+            onStatus(`⚠️ נמצאו ${changedFields.length} שדות שונים — נדרשת החלטה`);
             return;
           }
+          // No changed fields — check if all are same (nothing to do)
+          const newFields = (result.diff || []).filter((d: { status: string }) => d.status === "new");
+          if (newFields.length === 0) {
+            onStatus("ℹ️ כל הערכים זהים למה שכבר במערכת — אין צורך בעדכון");
+            return;
+          }
+          // Only new fields — proceed directly with diffComputedAt
+          if (!window.confirm(`לעדכן את הקרן "${draft.match.fundName}" עם ${newFields.length} שדות חדשים?`)) return;
+          // Apply with empty decisions (all fields are new)
+          overrideDecisions = {};
+          // Store diffComputedAt for apply
+          (overrideDecisions as Record<string, string>).__diffComputedAt = result.diffComputedAt;
         }
       } catch {
-        // If collision check fails, continue with apply (server-side will catch)
+        // If diff check fails, continue with apply (server-side will catch)
       }
     }
 
-    if (!window.confirm(`לעדכן את הקרן "${draft.match.fundName}" עם הנתונים מהטיוטה?`)) return;
+    if (!overrideDecisions && !window.confirm(`לעדכן את הקרן "${draft.match.fundName}" עם הנתונים מהטיוטה?`)) return;
+
+    // Extract diffComputedAt from overrideDecisions if stored there
+    const applyDiffComputedAt = overrideDecisions ? (overrideDecisions as Record<string, string>).__diffComputedAt || diffResult?.diffComputedAt : diffResult?.diffComputedAt;
+    const cleanDecisions = overrideDecisions ? Object.fromEntries(Object.entries(overrideDecisions).filter(([k]) => k !== "__diffComputedAt")) : {};
 
     try {
       const res = await fetch(`/api/parse?action=apply&client=${encodeURIComponent(clientKey)}`, {
@@ -2482,15 +2498,16 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
           approvedFields: draft.extracted.fields,
           reportMonth: draftReportMonth || null,
           returnBasis: draft.returnBasis || null,
-          collisionDecisions: overrideDecisions || {},
+          fieldDecisions: cleanDecisions,
+          diffComputedAt: applyDiffComputedAt || null,
         }),
       });
       if (res.ok) {
         const result = await res.json();
         const skippedMsg = result.skippedFields > 0 ? ` (${result.skippedFields} שדות נשמרו ללא שינוי)` : "";
         onStatus(`✓ הנתונים עודכנו בקרן${skippedMsg}`);
-        setCollisions([]);
-        setCollisionDecisions({});
+        setDiffResult(null);
+        setFieldDecisions({});
         setLastApplyInfo({ fundName: draft.match!.fundName || draft.extracted.fundName, timestamp: Date.now() });
         loadDrafts();
         onReload();
@@ -3350,86 +3367,122 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
                   </div>
                 )}
 
-                {/* Collision warning UI */}
-                {draft.status === "pending" && collisions.length > 0 && (
-                  <div style={{
-                    backgroundColor: "#fef3c720",
-                    border: "1px solid #f59e0b40",
-                    borderRadius: 8,
-                    padding: 12,
-                    marginBottom: 10,
-                  }}>
-                    <p style={{ fontSize: 12, fontWeight: 600, color: "#f59e0b", margin: "0 0 8px" }}>
-                      ⚠️ התנגשות בנתונים
-                    </p>
-                    {collisions.map((c, ci) => (
-                      <div key={ci} style={{
-                        backgroundColor: "var(--bg-surface)",
-                        border: "1px solid var(--border)",
-                        borderRadius: 6,
-                        padding: 10,
-                        marginBottom: 8,
-                      }}>
-                        <div style={{ fontSize: 11, marginBottom: 6 }}>
-                          <strong>{fieldLabel(c.field)}</strong> — חודש {c.month}
-                        </div>
-                        <div style={{ display: "flex", gap: 16, fontSize: 11, marginBottom: 8 }}>
-                          <span style={{ color: "var(--text-muted)" }}>🕘 קיים: <strong style={{ color: c.existingValue < 0 ? "#ef4444" : "#059669" }}>{(c.existingValue * 100).toFixed(2)}%</strong></span>
-                          <span style={{ color: "#3b82f6" }}>✨ חדש: <strong style={{ color: c.newValue < 0 ? "#ef4444" : "#059669" }}>{(c.newValue * 100).toFixed(2)}%</strong></span>
-                        </div>
-                        <div style={{ display: "flex", gap: 8 }}>
-                          <button
-                            onClick={() => setCollisionDecisions((prev) => ({ ...prev, [c.field]: "replace" }))}
-                            style={{
-                              backgroundColor: collisionDecisions[c.field] === "replace" ? "#059669" : "var(--bg-surface-alt)",
-                              color: collisionDecisions[c.field] === "replace" ? "#fff" : "var(--text-secondary)",
-                              border: "1px solid var(--border)",
-                              borderRadius: 5,
-                              padding: "4px 12px",
-                              cursor: "pointer",
-                              fontSize: 10,
-                              fontWeight: 600,
-                            }}>
-                            החלף בחדש
-                          </button>
-                          <button
-                            onClick={() => setCollisionDecisions((prev) => ({ ...prev, [c.field]: "keep" }))}
-                            style={{
-                              backgroundColor: collisionDecisions[c.field] === "keep" ? "#f59e0b" : "var(--bg-surface-alt)",
-                              color: collisionDecisions[c.field] === "keep" ? "#fff" : "var(--text-secondary)",
-                              border: "1px solid var(--border)",
-                              borderRadius: 5,
-                              padding: "4px 12px",
-                              cursor: "pointer",
-                              fontSize: 10,
-                              fontWeight: 600,
-                            }}>
-                            שמור קיים
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                {/* Diff Review UI */}
+                {draft.status === "pending" && diffResult && diffResult.draftId === draft.id && (() => {
+                  const changedFields = diffResult.diff.filter((d) => d.status === "changed");
+                  const newFields = diffResult.diff.filter((d) => d.status === "new");
+                  const sameCount = diffResult.diff.filter((d) => d.status === "same").length;
+                  const allDecided = changedFields.every((d) => fieldDecisions[d.field]);
 
-                    {/* Apply with collision decisions */}
-                    {collisions.every((c) => collisionDecisions[c.field]) && (
-                      <button
-                        onClick={() => handleApplyDraft(draft, collisionDecisions)}
-                        style={{
-                          backgroundColor: "#059669",
-                          color: "#fff",
-                          fontWeight: 600,
-                          padding: "6px 16px",
-                          borderRadius: 5,
-                          border: "none",
-                          cursor: "pointer",
-                          fontSize: 11,
-                          marginTop: 4,
+                  return (
+                    <div style={{
+                      backgroundColor: "#fef3c720",
+                      border: "1px solid #f59e0b40",
+                      borderRadius: 8,
+                      padding: 12,
+                      marginBottom: 10,
+                    }}>
+                      <p style={{ fontSize: 12, fontWeight: 600, color: "#f59e0b", margin: "0 0 8px" }}>
+                        ⚠️ סקירת שינויים — {changedFields.length} שונים, {newFields.length} חדשים
+                      </p>
+
+                      {/* Changed fields — require decision */}
+                      {changedFields.map((d, di) => (
+                        <div key={`changed-${di}`} style={{
+                          backgroundColor: "var(--bg-surface)",
+                          border: "1px solid #f59e0b40",
+                          borderRadius: 6,
+                          padding: 10,
+                          marginBottom: 8,
                         }}>
-                        ✓ החל עם ההחלטות שנבחרו
-                      </button>
-                    )}
-                  </div>
-                )}
+                          <div style={{ fontSize: 11, marginBottom: 6 }}>
+                            <span style={{ display: "inline-block", padding: "1px 6px", borderRadius: 3, backgroundColor: "#f59e0b20", color: "#f59e0b", fontSize: 9, fontWeight: 700, marginLeft: 6 }}>שונה</span>
+                            <strong>{fieldLabel(d.field)}</strong>
+                          </div>
+                          <div style={{ display: "flex", gap: 16, fontSize: 11, marginBottom: 8 }}>
+                            <span style={{ color: "var(--text-muted)" }}>קיים: <strong>{formatValue(d.field, d.existingValue)}</strong></span>
+                            <span style={{ color: "#3b82f6" }}>חדש: <strong>{formatValue(d.field, d.newValue)}</strong></span>
+                          </div>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button
+                              onClick={() => setFieldDecisions((prev) => ({ ...prev, [d.field]: "replace" }))}
+                              style={{
+                                backgroundColor: fieldDecisions[d.field] === "replace" ? "#059669" : "var(--bg-surface-alt)",
+                                color: fieldDecisions[d.field] === "replace" ? "#fff" : "var(--text-secondary)",
+                                border: "1px solid var(--border)", borderRadius: 5, padding: "4px 12px", cursor: "pointer", fontSize: 10, fontWeight: 600,
+                              }}>
+                              החלף בחדש
+                            </button>
+                            <button
+                              onClick={() => setFieldDecisions((prev) => ({ ...prev, [d.field]: "keep" }))}
+                              style={{
+                                backgroundColor: fieldDecisions[d.field] === "keep" ? "#f59e0b" : "var(--bg-surface-alt)",
+                                color: fieldDecisions[d.field] === "keep" ? "#fff" : "var(--text-secondary)",
+                                border: "1px solid var(--border)", borderRadius: 5, padding: "4px 12px", cursor: "pointer", fontSize: 10, fontWeight: 600,
+                              }}>
+                              שמור קיים
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* New fields — auto-apply, display only */}
+                      {newFields.length > 0 && (
+                        <div style={{ marginBottom: 8 }}>
+                          {newFields.map((d, di) => (
+                            <div key={`new-${di}`} style={{
+                              backgroundColor: "var(--bg-surface)",
+                              border: "1px solid #05966930",
+                              borderRadius: 6,
+                              padding: "8px 10px",
+                              marginBottom: 4,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 8,
+                            }}>
+                              <span style={{ display: "inline-block", padding: "1px 6px", borderRadius: 3, backgroundColor: "#05966920", color: "#059669", fontSize: 9, fontWeight: 700 }}>חדש</span>
+                              <span style={{ fontSize: 11, fontWeight: 500 }}>{fieldLabel(d.field)}</span>
+                              <span style={{ fontSize: 11, color: "#059669", direction: "ltr" }}>{formatValue(d.field, d.newValue)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Same fields counter */}
+                      {sameCount > 0 && (
+                        <p style={{ fontSize: 10, color: "var(--text-muted)", margin: "4px 0 8px" }}>
+                          {sameCount} שדות ללא שינוי
+                        </p>
+                      )}
+
+                      {/* Apply with decisions */}
+                      <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                        {allDecided && (
+                          <button
+                            onClick={() => {
+                              const decisions = { ...fieldDecisions, __diffComputedAt: diffResult.diffComputedAt } as Record<string, string>;
+                              handleApplyDraft(draft, decisions as unknown as Record<string, "replace" | "keep">);
+                            }}
+                            style={{
+                              backgroundColor: "#059669", color: "#fff", fontWeight: 600, padding: "6px 16px",
+                              borderRadius: 5, border: "none", cursor: "pointer", fontSize: 11,
+                            }}>
+                            ✓ החל עם ההחלטות שנבחרו
+                          </button>
+                        )}
+                        <button
+                          onClick={() => { setDiffResult(null); setFieldDecisions({}); }}
+                          style={{
+                            backgroundColor: "var(--bg-surface-alt)", color: "var(--text-secondary)",
+                            border: "1px solid var(--border)", borderRadius: 5, padding: "6px 16px",
+                            cursor: "pointer", fontSize: 11,
+                          }}>
+                          ביטול
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* New Fund Onboarding UI */}
                 {draft.status === "pending" && newFundDraftId === draft.id && (
@@ -3616,7 +3669,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
                 )}
 
                 {/* Actions for pending */}
-                {draft.status === "pending" && collisions.length === 0 && newFundDraftId !== draft.id && (() => {
+                {draft.status === "pending" && !(diffResult && diffResult.draftId === draft.id) && newFundDraftId !== draft.id && (() => {
                   const effectiveMonth = draftReportMonths[draft.id] ?? (draft.reportMonth || "");
                   const needsMonth = draft.extracted.fields.some((f) => f.key === "monthlyReturn") && !effectiveMonth;
                   const canApply = !!draft.match?.fundId && draft.extracted.fields.length > 0 && !needsMonth;

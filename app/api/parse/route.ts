@@ -974,20 +974,23 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================================
-    // ACTION: check-collision — Pre-apply collision check
+    // ACTION: check-collision — Compute full diff for approved fields
     // ============================================================
     if (action === "check-collision") {
       const body = await req.json();
       const { fundId, categoryId, reportMonth, approvedFields } = body;
 
-      if (!fundId || !categoryId || !reportMonth) {
-        return NextResponse.json({ collisions: [] });
+      const diffComputedAt = new Date().toISOString();
+
+      if (!fundId || !categoryId) {
+        return NextResponse.json({ diff: [], diffComputedAt, fundLastUpdated: null });
       }
 
       const validFields = sanitizeFields(approvedFields || []);
       const fundsData = await storageRead<Record<string, unknown>>(`funds:${clientKey}`, { categories: [] });
 
-      const collisions: CollisionInfo[] = [];
+      const diff: { field: string; existingValue: string | number | null; newValue: string | number | null; status: "new" | "changed" | "same" }[] = [];
+      let fundLastUpdated: string | null = null;
 
       for (const cat of (fundsData.categories as Record<string, unknown>[]) || []) {
         if (cat.id !== categoryId) continue;
@@ -995,25 +998,54 @@ export async function POST(req: NextRequest) {
         for (const fund of funds) {
           if (fund.id !== fundId) continue;
 
-          // Check monthlyReturn collision
-          const monthlyReturnField = validFields.find((f) => f.key === "monthlyReturn");
-          if (monthlyReturnField && monthlyReturnField.value !== null) {
-            const monthlyReturns = (fund.monthlyReturns || {}) as Record<string, number>;
-            if (reportMonth in monthlyReturns) {
-              collisions.push({
-                field: "monthlyReturn",
-                month: reportMonth,
-                existingValue: monthlyReturns[reportMonth],
-                newValue: monthlyReturnField.value as number,
-              });
+          fundLastUpdated = (fund.lastUpdated as string) || null;
+          const monthlyReturns = (fund.monthlyReturns || {}) as Record<string, number>;
+          const fundReturns = (fund.returns || {}) as Record<string, unknown>;
+
+          for (const field of validFields) {
+            let existingValue: string | number | null = null;
+
+            if (field.key === "monthlyReturn") {
+              existingValue = reportMonth && reportMonth in monthlyReturns ? monthlyReturns[reportMonth] : null;
+            } else if (field.key.startsWith("monthlyReturns.")) {
+              const month = field.key.split(".")[1];
+              existingValue = month && month in monthlyReturns ? monthlyReturns[month] : null;
+            } else if (field.key.startsWith("returns.")) {
+              const yearKey = field.key.split(".")[1];
+              existingValue = yearKey && yearKey in fundReturns ? (fundReturns[yearKey] as number) : null;
+            } else if (field.key === "manager" || field.key === "classification") {
+              const val = fund[field.key];
+              existingValue = typeof val === "string" && val ? val : null;
+            } else if (field.key === "sharpe" || field.key === "stdDev") {
+              const val = fund[field.key];
+              existingValue = typeof val === "number" ? val : null;
             }
+
+            // Determine status
+            let status: "new" | "changed" | "same";
+            if (existingValue === null || existingValue === undefined) {
+              status = "new";
+            } else if (existingValue === field.value) {
+              status = "same";
+            } else if (typeof existingValue === "number" && typeof field.value === "number" && Math.abs(existingValue - field.value) < 1e-10) {
+              status = "same";
+            } else {
+              status = "changed";
+            }
+
+            diff.push({
+              field: field.key,
+              existingValue: existingValue ?? null,
+              newValue: field.value,
+              status,
+            });
           }
           break;
         }
         break;
       }
 
-      return NextResponse.json({ collisions });
+      return NextResponse.json({ diff, diffComputedAt, fundLastUpdated });
     }
 
     // ============================================================
@@ -1021,7 +1053,7 @@ export async function POST(req: NextRequest) {
     // ============================================================
     if (action === "apply") {
       const body = await req.json();
-      const { draftId, fundId, categoryId, approvedFields, reportMonth, collisionDecisions, returnBasis: applyReturnBasis } = body;
+      const { draftId, fundId, categoryId, approvedFields, reportMonth, fieldDecisions, diffComputedAt, returnBasis: applyReturnBasis } = body;
 
       if (!draftId || !fundId || !categoryId || !approvedFields) {
         return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -1044,8 +1076,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "No valid fields to apply" }, { status: 400 });
       }
 
-      // Parse collision decisions: { "monthlyReturn": "replace" | "keep" }
-      const decisions = (collisionDecisions || {}) as Record<string, "replace" | "keep">;
+      // Parse field decisions: { "monthlyReturn": "replace" | "keep", "returns.y2025": "replace", ... }
+      const decisions = (fieldDecisions || {}) as Record<string, "replace" | "keep">;
 
       // Load funds data
       const fundsData = await storageRead<Record<string, unknown>>(`funds:${clientKey}`, { categories: [] });
@@ -1054,7 +1086,7 @@ export async function POST(req: NextRequest) {
       let fundFound = false;
       const appliedFieldNames: string[] = [];
       const skippedFields: string[] = [];
-      let collisionOldValue: number | null = null;
+      const changedFieldsLog: { field: string; oldValue: unknown; newValue: unknown; decision: string }[] = [];
 
       for (const cat of (fundsData.categories as Record<string, unknown>[]) || []) {
         if (cat.id !== categoryId) continue;
@@ -1063,13 +1095,22 @@ export async function POST(req: NextRequest) {
           if (funds[i].id !== fundId) continue;
           fundFound = true;
 
-          // Snapshot fund BEFORE changes for undo
+          // Staleness check: if fund was updated after diff was computed, block apply
+          const fundLastUpdated = (funds[i].lastUpdated as string) || null;
+          if (fundLastUpdated && diffComputedAt && fundLastUpdated > diffComputedAt) {
+            return NextResponse.json({
+              error: "הנתונים בקרן השתנו מאז בדיקת ההשוואה — נא לרענן ולנסות שוב",
+            }, { status: 409 });
+          }
+
+          // Snapshot fund BEFORE changes for undo (extended with field decisions)
           await storageWrite(`undo-state:${clientKey}`, {
             draftId,
             fundId,
             categoryId,
             fundSnapshot: JSON.parse(JSON.stringify(funds[i])),
             timestamp: new Date().toISOString(),
+            fieldDecisions: decisions,
           });
 
           // Ensure monthlyReturns object exists
@@ -1077,62 +1118,61 @@ export async function POST(req: NextRequest) {
             funds[i].monthlyReturns = {};
           }
           const monthlyReturns = funds[i].monthlyReturns as Record<string, number>;
+          const fundReturns = (funds[i].returns || {}) as Record<string, unknown>;
 
-          // Apply whitelisted fields only
+          // Apply whitelisted fields, respecting per-field decisions
           for (const field of validFields) {
+            // Compute existing value for server-side validation
+            let existingValue: unknown = null;
             if (field.key === "monthlyReturn") {
-              // Collision check
-              if (reportMonth && reportMonth in monthlyReturns) {
-                const decision = decisions["monthlyReturn"];
-                if (!decision) {
-                  // No decision provided for a collision — block
-                  return NextResponse.json({
-                    error: "Collision detected — user decision required",
-                    collision: {
-                      field: "monthlyReturn",
-                      month: reportMonth,
-                      existingValue: monthlyReturns[reportMonth],
-                      newValue: field.value,
-                    },
-                  }, { status: 409 });
-                }
-                if (decision === "keep") {
-                  skippedFields.push("monthlyReturn");
-                  continue;
-                }
-                // decision === "replace" — proceed with overwrite
-                collisionOldValue = monthlyReturns[reportMonth];
-              }
+              existingValue = reportMonth && reportMonth in monthlyReturns ? monthlyReturns[reportMonth] : null;
+            } else if (field.key.startsWith("monthlyReturns.")) {
+              const month = field.key.split(".")[1];
+              existingValue = month && month in monthlyReturns ? monthlyReturns[month] : null;
+            } else if (field.key.startsWith("returns.")) {
+              const yearKey = field.key.split(".")[1];
+              existingValue = yearKey && yearKey in fundReturns ? fundReturns[yearKey] : null;
+            } else {
+              existingValue = funds[i][field.key] ?? null;
+            }
 
+            // Determine if this field is "changed" (exists with different value)
+            const isExisting = existingValue !== null && existingValue !== undefined;
+            const isSame = isExisting && (existingValue === field.value || (typeof existingValue === "number" && typeof field.value === "number" && Math.abs(existingValue - field.value) < 1e-10));
+            const isChanged = isExisting && !isSame;
+
+            // Block if changed field has no decision
+            if (isChanged) {
+              const decision = decisions[field.key];
+              if (!decision) {
+                return NextResponse.json({
+                  error: `שדה "${field.key}" השתנה ודורש החלטה (replace/keep)`,
+                }, { status: 409 });
+              }
+              if (decision === "keep") {
+                skippedFields.push(field.key);
+                changedFieldsLog.push({ field: field.key, oldValue: existingValue, newValue: field.value, decision: "keep" });
+                continue;
+              }
+              // decision === "replace"
+              changedFieldsLog.push({ field: field.key, oldValue: existingValue, newValue: field.value, decision: "replace" });
+            }
+
+            // Apply the field
+            if (field.key === "monthlyReturn") {
               funds[i].monthlyReturn = field.value as number;
-              // Write to monthlyReturns history
               if (reportMonth) {
                 monthlyReturns[reportMonth] = field.value as number;
               }
               appliedFieldNames.push("monthlyReturn");
             } else if (field.key.startsWith("monthlyReturns.")) {
-              // Individual monthly return: monthlyReturns.YYYY-MM
-              const month = field.key.split(".")[1]; // "2025-01"
+              const month = field.key.split(".")[1];
               if (month && isValidReportMonth(month)) {
-                // Collision check for existing monthly data
-                if (month in monthlyReturns) {
-                  const decision = decisions[field.key] || decisions["monthlyReturns"];
-                  if (!decision) {
-                    // Skip silently if no decision — don't block the entire apply for bulk months
-                    // Only block for single monthlyReturn (the primary field)
-                    skippedFields.push(field.key);
-                    continue;
-                  }
-                  if (decision === "keep") {
-                    skippedFields.push(field.key);
-                    continue;
-                  }
-                }
                 monthlyReturns[month] = field.value as number;
                 appliedFieldNames.push(field.key);
               }
             } else if (field.key.startsWith("returns.")) {
-              const yearKey = field.key.split(".")[1]; // "y2024"
+              const yearKey = field.key.split(".")[1];
               if (!funds[i].returns) funds[i].returns = {};
               const returns = funds[i].returns as Record<string, unknown>;
               if (yearKey) {
@@ -1164,6 +1204,9 @@ export async function POST(req: NextRequest) {
             funds[i].returnBasis = applyReturnBasis;
           }
 
+          // Update fund.lastUpdated for staleness tracking
+          funds[i].lastUpdated = new Date().toISOString();
+
           // Auto-calculate sharpe/stdDev if 12+ observations (document values take priority)
           const hasExtractedSharpe = appliedFieldNames.includes("sharpe");
           const hasExtractedStdDev = appliedFieldNames.includes("stdDev");
@@ -1192,11 +1235,10 @@ export async function POST(req: NextRequest) {
         await storageWrite(`parse-drafts:${clientKey}`, drafts);
       }
 
-      // Determine collision logging
-      const hadCollision = collisionOldValue !== null;
-      const collisionDecision = hadCollision ? "replace" : skippedFields.includes("monthlyReturn") ? "keep" : "new";
+      // Enhanced audit log with per-field decisions
+      const replacedFields = changedFieldsLog.filter((f) => f.decision === "replace");
+      const keptFields = changedFieldsLog.filter((f) => f.decision === "keep");
 
-      // Log with enhanced fields
       await storageAppend<ParseLogEntry>(`parse-log:${clientKey}`, {
         id: generateId(),
         timestamp: new Date().toISOString(),
@@ -1204,12 +1246,10 @@ export async function POST(req: NextRequest) {
         draftId,
         fundName: draftFundName,
         fundId,
-        details: `Applied ${appliedFieldNames.length} fields to fund: ${appliedFieldNames.join(", ")}${skippedFields.length > 0 ? `. Skipped: ${skippedFields.join(", ")}` : ""}. Values: ${validFields.map((f) => `${f.key}=${f.value}`).join(", ")}`,
+        details: `Applied ${appliedFieldNames.length} fields: ${appliedFieldNames.join(", ")}${skippedFields.length > 0 ? `. Kept existing: ${skippedFields.join(", ")}` : ""}${replacedFields.length > 0 ? `. Replaced: ${replacedFields.map((f) => `${f.field} (${f.oldValue}→${f.newValue})`).join(", ")}` : ""}`,
         reportMonth: reportMonth || null,
-        collision: hadCollision || skippedFields.length > 0,
-        collisionDecision: (hadCollision || skippedFields.length > 0) ? collisionDecision : undefined,
-        oldValue: collisionOldValue,
-        newValue: hadCollision ? (validFields.find((f) => f.key === "monthlyReturn")?.value as number) : undefined,
+        collision: changedFieldsLog.length > 0,
+        collisionDecision: replacedFields.length > 0 ? "replace" : keptFields.length > 0 ? "keep" : "new",
       });
 
       return NextResponse.json({
