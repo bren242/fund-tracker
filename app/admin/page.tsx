@@ -2088,8 +2088,8 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
   const [selectedMatchCatId, setSelectedMatchCatId] = useState<string>("");
   const [reportMonth, setReportMonth] = useState<string>("");
   const [returnBasis, setReturnBasis] = useState<"ILS" | "USD" | null>(null);
-  const [diffResult, setDiffResult] = useState<{ diff: { field: string; existingValue: string | number | null; newValue: string | number | null; status: "new" | "changed" | "same" }[]; diffComputedAt: string; fundLastUpdated: string | null; draftId: string } | null>(null);
-  const [fieldDecisions, setFieldDecisions] = useState<Record<string, "replace" | "keep">>({});
+  const [diffResult, setDiffResult] = useState<{ diff: { field: string; existingValue: string | number | null; newValue: string | number | null; status: "new" | "changed" | "same" | "missing_in_pdf" }[]; diffComputedAt: string; fundLastUpdated: string | null; draftId: string } | null>(null);
+  const [fieldDecisions, setFieldDecisions] = useState<Record<string, "replace" | "keep" | "clear">>({});
   const [draftReportMonths, setDraftReportMonths] = useState<Record<string, string>>({});
   const [tokenUsage, setTokenUsage] = useState<{
     inputTokens: number; outputTokens: number; callCount: number;
@@ -2372,7 +2372,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
     }
   };
 
-  const handleApplyDraft = async (draft: typeof drafts[0], overrideDecisions?: Record<string, "replace" | "keep">) => {
+  const handleApplyDraft = async (draft: typeof drafts[0], overrideDecisions?: Record<string, "replace" | "keep" | "clear">) => {
     if (!draft.match?.fundId || !draft.match?.categoryId) {
       // Match validation: if draft has returnBasis, try auto-match by returnBasis
       if (draft.returnBasis) {
@@ -2459,14 +2459,19 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
         }
         const result = await checkRes.json();
         const changedFields = (result.diff || []).filter((d: { status: string }) => d.status === "changed");
-        if (changedFields.length > 0) {
-          // Show diff UI — user must decide on changed fields
+        const missingFields = (result.diff || []).filter((d: { status: string }) => d.status === "missing_in_pdf");
+        const needsDecision = changedFields.length > 0 || missingFields.length > 0;
+        if (needsDecision) {
+          // Show diff UI — user must decide on changed/missing fields
           setDiffResult({ ...result, draftId: draft.id });
           setFieldDecisions({});
-          onStatus(`⚠️ נמצאו ${changedFields.length} שדות שונים — נדרשת החלטה`);
+          const parts = [];
+          if (changedFields.length > 0) parts.push(`${changedFields.length} שונים`);
+          if (missingFields.length > 0) parts.push(`${missingFields.length} חסרים בדוח`);
+          onStatus(`⚠️ נמצאו ${parts.join(", ")} — נדרשת החלטה`);
           return;
         }
-        // No changed fields — check if all are same (nothing to do)
+        // No decision-requiring fields — check if all are same (nothing to do)
         const newFields = (result.diff || []).filter((d: { status: string }) => d.status === "new");
         if (newFields.length === 0) {
           onStatus("ℹ️ כל הערכים זהים למה שכבר במערכת — אין צורך בעדכון");
@@ -2495,6 +2500,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
           returnBasis: draft.returnBasis || null,
           fieldDecisions: overrideDecisions || {},
           diffComputedAt: diffResult?.diffComputedAt || null,
+          clearFields: Object.entries(overrideDecisions || {}).filter(([, v]) => v === "clear").map(([k]) => k),
         }),
       });
       if (res.ok) {
@@ -3366,8 +3372,9 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
                 {draft.status === "pending" && diffResult && diffResult.draftId === draft.id && (() => {
                   const changedFields = diffResult.diff.filter((d) => d.status === "changed");
                   const newFields = diffResult.diff.filter((d) => d.status === "new");
+                  const missingFields = diffResult.diff.filter((d) => d.status === "missing_in_pdf");
                   const sameCount = diffResult.diff.filter((d) => d.status === "same").length;
-                  const allDecided = changedFields.every((d) => fieldDecisions[d.field]);
+                  const allDecided = changedFields.every((d) => fieldDecisions[d.field]) && missingFields.every((d) => fieldDecisions[d.field]);
 
                   return (
                     <div style={{
@@ -3378,7 +3385,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
                       marginBottom: 10,
                     }}>
                       <p style={{ fontSize: 12, fontWeight: 600, color: "#f59e0b", margin: "0 0 8px" }}>
-                        ⚠️ סקירת שינויים — {changedFields.length} שונים, {newFields.length} חדשים
+                        ⚠️ סקירת שינויים — {changedFields.length} שונים, {newFields.length} חדשים{missingFields.length > 0 ? `, ${missingFields.length} חסרים בדוח` : ""}
                       </p>
 
                       {/* Changed fields — require decision */}
@@ -3442,6 +3449,45 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
                           ))}
                         </div>
                       )}
+
+                      {/* Missing in PDF fields — require decision */}
+                      {missingFields.map((d, di) => (
+                        <div key={`missing-${di}`} style={{
+                          backgroundColor: "var(--bg-surface)",
+                          border: "1px solid #ef444440",
+                          borderRadius: 6,
+                          padding: 10,
+                          marginBottom: 8,
+                        }}>
+                          <div style={{ fontSize: 11, marginBottom: 6 }}>
+                            <span style={{ display: "inline-block", padding: "1px 6px", borderRadius: 3, backgroundColor: "#ef444420", color: "#ef4444", fontSize: 9, fontWeight: 700, marginLeft: 6 }}>חסר בדוח</span>
+                            <strong>{fieldLabel(d.field)}</strong>
+                          </div>
+                          <div style={{ fontSize: 11, marginBottom: 8, color: "var(--text-muted)" }}>
+                            ערך קיים: <strong>{formatValue(d.field, d.existingValue)}</strong> — לא נמצא בדוח המנותח
+                          </div>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button
+                              onClick={() => setFieldDecisions((prev) => ({ ...prev, [d.field]: "keep" }))}
+                              style={{
+                                backgroundColor: fieldDecisions[d.field] === "keep" ? "#f59e0b" : "var(--bg-surface-alt)",
+                                color: fieldDecisions[d.field] === "keep" ? "#fff" : "var(--text-secondary)",
+                                border: "1px solid var(--border)", borderRadius: 5, padding: "4px 12px", cursor: "pointer", fontSize: 10, fontWeight: 600,
+                              }}>
+                              שמור קיים
+                            </button>
+                            <button
+                              onClick={() => setFieldDecisions((prev) => ({ ...prev, [d.field]: "clear" }))}
+                              style={{
+                                backgroundColor: fieldDecisions[d.field] === "clear" ? "#ef4444" : "var(--bg-surface-alt)",
+                                color: fieldDecisions[d.field] === "clear" ? "#fff" : "var(--text-secondary)",
+                                border: "1px solid var(--border)", borderRadius: 5, padding: "4px 12px", cursor: "pointer", fontSize: 10, fontWeight: 600,
+                              }}>
+                              נקה ערך
+                            </button>
+                          </div>
+                        </div>
+                      ))}
 
                       {/* Same fields counter */}
                       {sameCount > 0 && (

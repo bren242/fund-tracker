@@ -989,7 +989,7 @@ export async function POST(req: NextRequest) {
       const validFields = sanitizeFields(approvedFields || []);
       const fundsData = await storageRead<Record<string, unknown>>(`funds:${clientKey}`, { categories: [] });
 
-      const diff: { field: string; existingValue: string | number | null; newValue: string | number | null; status: "new" | "changed" | "same" }[] = [];
+      const diff: { field: string; existingValue: string | number | null; newValue: string | number | null; status: "new" | "changed" | "same" | "missing_in_pdf" }[] = [];
       let fundLastUpdated: string | null = null;
 
       for (const cat of (fundsData.categories as Record<string, unknown>[]) || []) {
@@ -1040,6 +1040,32 @@ export async function POST(req: NextRequest) {
               status,
             });
           }
+
+          // Detect missing_in_pdf: financial fields that exist in fund but NOT in draft
+          const draftKeys = new Set(validFields.map((f) => f.key));
+          // Check sharpe, stdDev
+          for (const key of ["sharpe", "stdDev"] as const) {
+            if (!draftKeys.has(key)) {
+              const val = fund[key];
+              if (typeof val === "number") {
+                diff.push({ field: key, existingValue: val, newValue: null, status: "missing_in_pdf" });
+              }
+            }
+          }
+          // Check monthlyReturn for the specific reportMonth
+          if (!draftKeys.has("monthlyReturn") && reportMonth && reportMonth in monthlyReturns) {
+            diff.push({ field: "monthlyReturn", existingValue: monthlyReturns[reportMonth], newValue: null, status: "missing_in_pdf" });
+          }
+          // Check returns.y* and returns.ytd*
+          for (const [yearKey, val] of Object.entries(fundReturns)) {
+            if (/^(y\d{4}|ytd\d{4})$/.test(yearKey) && typeof val === "number") {
+              const fullKey = `returns.${yearKey}`;
+              if (!draftKeys.has(fullKey)) {
+                diff.push({ field: fullKey, existingValue: val as number, newValue: null, status: "missing_in_pdf" });
+              }
+            }
+          }
+
           break;
         }
         break;
@@ -1053,7 +1079,7 @@ export async function POST(req: NextRequest) {
     // ============================================================
     if (action === "apply") {
       const body = await req.json();
-      const { draftId, fundId, categoryId, approvedFields, reportMonth, fieldDecisions, diffComputedAt, returnBasis: applyReturnBasis } = body;
+      const { draftId, fundId, categoryId, approvedFields, reportMonth, fieldDecisions, diffComputedAt, clearFields, returnBasis: applyReturnBasis } = body;
 
       if (!draftId || !fundId || !categoryId || !approvedFields) {
         return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -1192,6 +1218,32 @@ export async function POST(req: NextRequest) {
               funds[i].stdDev = field.value as number;
               appliedFieldNames.push("stdDev");
             }
+          }
+
+          // Apply clearFields: set missing_in_pdf fields to null
+          const clearList = Array.isArray(clearFields) ? clearFields as string[] : [];
+          for (const clearKey of clearList) {
+            if (clearKey === "sharpe") {
+              funds[i].sharpe = null;
+              changedFieldsLog.push({ field: "sharpe", oldValue: funds[i].sharpe, newValue: null, decision: "clear" });
+            } else if (clearKey === "stdDev") {
+              funds[i].stdDev = null;
+              changedFieldsLog.push({ field: "stdDev", oldValue: funds[i].stdDev, newValue: null, decision: "clear" });
+            } else if (clearKey === "monthlyReturn" && reportMonth) {
+              // Clear the specific month entry, not the top-level monthlyReturn
+              if (reportMonth in monthlyReturns) {
+                changedFieldsLog.push({ field: "monthlyReturn", oldValue: monthlyReturns[reportMonth], newValue: null, decision: "clear" });
+                delete monthlyReturns[reportMonth];
+              }
+            } else if (clearKey.startsWith("returns.")) {
+              const yearKey = clearKey.split(".")[1];
+              if (yearKey && /^(y\d{4}|ytd\d{4})$/.test(yearKey)) {
+                const returns = (funds[i].returns || {}) as Record<string, unknown>;
+                changedFieldsLog.push({ field: clearKey, oldValue: returns[yearKey], newValue: null, decision: "clear" });
+                returns[yearKey] = null;
+              }
+            }
+            appliedFieldNames.push(`cleared:${clearKey}`);
           }
 
           // Update lastReportDate if reportMonth provided
