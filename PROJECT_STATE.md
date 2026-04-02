@@ -1,8 +1,8 @@
 # PROJECT STATE — Fund Tracker
 
 ## Current Version: v1.2
-**Last Updated:** 2026-03-30
-**Status:** Production-ready
+**Last Updated:** 2026-04-02
+**Status:** Production-ready — STABLE BASELINE (Parser Phase Complete)
 **Deployment:** Vercel (auto-deploy on push to main)
 **Repository:** github.com/bren242/fund-tracker
 
@@ -161,14 +161,58 @@ Designed for institutional-grade reporting and print output for top-tier clients
 
 ---
 
+## STABLE BASELINE — Parser Phase Complete (2026-04-02)
+
+All AI parser functionality is production-verified and stable.
+
+### What Is Working
+| Feature | Status | Verified |
+|---------|--------|----------|
+| AI text parse (Claude API) | WORKING | 2026-04-02 |
+| AI file parse (PDF/Image Vision) | WORKING | 2026-04-02 |
+| Dual currency detection (ILS+USD) | WORKING | 2026-04-02 |
+| Currency label-based assignment (no inversion) | WORKING | 2026-04-02 |
+| Monthly returns extraction (all 12 months) | WORKING | 2026-04-02 |
+| Annual returns (y2025 from December YTD) | WORKING | 2026-04-02 |
+| Report month detection | WORKING | 2026-04-02 |
+| Draft save/apply/reject flow | WORKING | 2026-04-02 |
+| Fund matching with currency awareness | WORKING | 2026-04-02 |
+| Classification (3-layer category system) | WORKING | 2026-04-02 |
+| KV overwrite protection (PUT validation) | WORKING | 2026-04-02 |
+| Token usage tracking + monthly limits | WORKING | 2026-04-02 |
+| File hash caching (avoid re-parse) | WORKING | 2026-04-02 |
+| Mobile upload page (/upload) | WORKING | 2026-04-02 |
+
+### Recent Critical Fixes (March–April 2026)
+1. **Currency inversion fix** — System prompt had ILS-first bias that caused Claude to swap USD/ILS values. Fixed with mandatory 3-step label identification process and removed all position-based assumptions. (commits: 944ba93, b5b85f3)
+2. **y2025 missing fix** — December reports store YTD as `ytd2025` but table renders `y2025`. Added auto-promotion: `ytd{year}` → `y{year}` when reportMonth is December. (commit: 944ba93)
+3. **Fund matching currency awareness** — Matching context now includes `returnBasis` per fund. Claude instructed to never match ILS document to USD fund. (commit: e3022a8)
+4. **KV overwrite protection** — PUT endpoint validates payload structure before writing to prevent partial/corrupt writes. (commit: 2aa4cf0)
+5. **Cache invalidation** — Cache version bumped to 8; stale parse results from pre-fix era are automatically invalidated.
+
+### Known Risks (Real)
+1. **Prompt sensitivity** — Currency assignment depends on Claude correctly reading Hebrew labels. Unusual document layouts may still confuse it.
+2. **PDF text extraction order** — Some PDFs have text layer order that doesn't match visual layout. Vision API (document type) handles this better than text paste.
+3. **Token limits** — Monthly token budget is per-client. Heavy usage (many large PDFs) could exhaust quota mid-month.
+4. **No override/diff system** — When applying a draft to an existing fund, values are merged without showing what changed. No undo beyond single-step.
+5. **Logo upload still filesystem-based** — Requires Vercel Blob for production upload (out of scope for v1.2).
+
+### Not Built Yet
+- **Override/diff system** — No visual diff when applying draft data to existing fund
+- **Batch undo** — Only single-step undo supported
+- **Manual field override in draft review** — Fields are checkbox-only (include/exclude), no inline edit
+- **Historical parse comparison** — No way to compare two parses of the same fund over time
+- **Multi-user roles** — Single admin password, no viewer/editor distinction
+
+---
+
 ## Known Issues / Limitations
 
-1. **Logo upload** — Still filesystem-based; requires Vercel Blob for production upload (out of scope for v1.2)
-2. **Browser print headers/footers** — Users must uncheck "Headers and footers" in browser print dialog
-3. **CSS variables in SVG** — Will NOT render in print; must always use hardcoded hex colors
-4. **ResponsiveContainer** — Cannot be used for print; must use fixed chart dimensions
-5. **Desktop-first** — Responsive design is functional but not fully optimized for mobile
-6. **AI Parser requires ANTHROPIC_API_KEY** — Must be added to Vercel env vars for production use
+1. **Browser print headers/footers** — Users must uncheck "Headers and footers" in browser print dialog
+2. **CSS variables in SVG** — Will NOT render in print; must always use hardcoded hex colors
+3. **ResponsiveContainer** — Cannot be used for print; must use fixed chart dimensions
+4. **Desktop-first** — Responsive design is functional but not fully optimized for mobile
+5. **AI Parser requires ANTHROPIC_API_KEY** — Must be added to Vercel env vars for production use
 
 ---
 

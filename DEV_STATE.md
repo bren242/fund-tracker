@@ -1,7 +1,7 @@
 # DEV STATE — System Functionality & Stability
 
-**Status:** STABLE
-**Date:** 2026-03-28
+**Status:** STABLE — BASELINE LOCKED
+**Date:** 2026-04-02
 
 ---
 
@@ -11,11 +11,16 @@
 |-----------|--------|-------|
 | Report page (`/`) | ✅ Stable | Print + screen working |
 | Charts page (`/charts`) | ✅ Stable | Print + screen working |
-| Admin page (`/admin`) | ✅ Stable | Brand config, logo upload, funds CRUD |
+| Admin page (`/admin`) | ✅ Stable | Brand config, logo upload, funds CRUD, AI parser |
+| Upload page (`/upload`) | ✅ Stable | Mobile-first PDF/image upload |
 | Multi-client isolation | ✅ Stable | NOX + GREEN clients verified |
 | Print — Report | ✅ Stable | Header repeats, footer fixed, years filterable |
 | Print — Charts | ✅ Stable | Chart renders, header repeats, footer fixed |
-| Data layer | ✅ Stable | JSON read/write with auto-backup |
+| Data layer (KV) | ✅ Stable | Vercel KV production, JSON local, overwrite protection |
+| AI Parser — Text | ✅ Stable | Claude API, dual currency, field extraction |
+| AI Parser — File | ✅ Stable | Vision API, PDF/PNG/JPG, 45s timeout + retry |
+| Draft system | ✅ Stable | Save/apply/reject/undo, append-only audit log |
+| Fund matching | ✅ Stable | Currency-aware, returnBasis in matching context |
 
 ---
 
@@ -105,9 +110,32 @@ Both files use **identical** footer:
 
 ## Recent Changes (Session Summary)
 
+### Print/Layout Fixes (March 2026)
 1. Replaced flexbox headers with 3-cell inner `<table>` — solved RTL alignment
 2. Removed `ResponsiveContainer` from charts — solved blank print
 3. Replaced CSS variables with hardcoded hex in chart SVG — solved invisible elements
 4. Moved from `tfoot` to `position: fixed` footer — solved footer overlap issues
 5. Added spacer row in charts `<thead>` (14px) — content breathing room from header
 6. Both headers/footers now fully synchronized between report and charts
+
+### AI Parser Critical Fixes (April 2026)
+7. **Currency inversion** — Removed ILS-first bias from system prompt. Added mandatory 3-step label identification (identify labels → extract numbers → assign by label). Prompt now warns that USD table often appears first in Israeli documents.
+8. **y2025 data loss** — Added auto-promotion of `ytd{year}` → `y{year}` for December reports. The fund table expects `y2025` but Claude returns `ytd2025` for December YTD.
+9. **Fund matching confusion** — Added `returnBasis` to fund matching context. Claude now sees currency per existing fund and won't match ILS doc to USD fund.
+10. **KV overwrite protection** — PUT endpoint validates payload integrity before writing.
+11. **Cache version → 8** — Forces re-parse of any cached results from pre-fix versions.
+
+### Key Files Changed (Parser Fixes)
+```
+app/api/parse/route.ts    — System prompt rewrite, ytd→y promotion, matching context, cache v8
+```
+
+---
+
+## STABLE BASELINE — Parser Phase Complete
+
+**Date:** 2026-04-02
+**Commits:** 944ba93, e3022a8, b5b85f3, 2aa4cf0
+
+All parser functionality verified end-to-end in production.
+No code changes needed — this is the locked baseline for future development.
