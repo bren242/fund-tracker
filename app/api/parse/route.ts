@@ -1224,21 +1224,22 @@ export async function POST(req: NextRequest) {
           const clearList = Array.isArray(clearFields) ? clearFields as string[] : [];
           for (const clearKey of clearList) {
             if (clearKey === "sharpe") {
-              funds[i].sharpe = null;
               changedFieldsLog.push({ field: "sharpe", oldValue: funds[i].sharpe, newValue: null, decision: "clear" });
+              funds[i].sharpe = null;
             } else if (clearKey === "stdDev") {
-              funds[i].stdDev = null;
               changedFieldsLog.push({ field: "stdDev", oldValue: funds[i].stdDev, newValue: null, decision: "clear" });
+              funds[i].stdDev = null;
             } else if (clearKey === "monthlyReturn" && reportMonth) {
-              // Clear the specific month entry, not the top-level monthlyReturn
+              // Set the specific month entry to null (key preserved, value nulled)
               if (reportMonth in monthlyReturns) {
                 changedFieldsLog.push({ field: "monthlyReturn", oldValue: monthlyReturns[reportMonth], newValue: null, decision: "clear" });
-                delete monthlyReturns[reportMonth];
+                (funds[i].monthlyReturns as Record<string, number | null>)[reportMonth] = null;
               }
             } else if (clearKey.startsWith("returns.")) {
               const yearKey = clearKey.split(".")[1];
               if (yearKey && /^(y\d{4}|ytd\d{4})$/.test(yearKey)) {
-                const returns = (funds[i].returns || {}) as Record<string, unknown>;
+                if (!funds[i].returns) funds[i].returns = {};
+                const returns = funds[i].returns as Record<string, unknown>;
                 changedFieldsLog.push({ field: clearKey, oldValue: returns[yearKey], newValue: null, decision: "clear" });
                 returns[yearKey] = null;
               }
