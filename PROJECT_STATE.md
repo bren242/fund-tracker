@@ -194,15 +194,86 @@ All AI parser functionality is production-verified and stable.
 1. **Prompt sensitivity** — Currency assignment depends on Claude correctly reading Hebrew labels. Unusual document layouts may still confuse it.
 2. **PDF text extraction order** — Some PDFs have text layer order that doesn't match visual layout. Vision API (document type) handles this better than text paste.
 3. **Token limits** — Monthly token budget is per-client. Heavy usage (many large PDFs) could exhaust quota mid-month.
-4. **No override/diff system** — When applying a draft to an existing fund, values are merged without showing what changed. No undo beyond single-step.
-5. **Logo upload still filesystem-based** — Requires Vercel Blob for production upload (out of scope for v1.2).
+4. **Logo upload still filesystem-based** — Requires Vercel Blob for production upload (out of scope for v1.2).
 
 ### Not Built Yet
-- **Override/diff system** — No visual diff when applying draft data to existing fund
 - **Batch undo** — Only single-step undo supported
 - **Manual field override in draft review** — Fields are checkbox-only (include/exclude), no inline edit
 - **Historical parse comparison** — No way to compare two parses of the same fund over time
 - **Multi-user roles** — Single admin password, no viewer/editor distinction
+
+---
+
+## Override / Diff MVP — QA APPROVED (2026-04-02)
+
+Full field-level diff review system before applying parsed data to existing funds.
+
+### Status: QA APPROVED
+
+### Implemented Scope
+
+**Diff statuses:**
+| Status | Meaning | Decision required | Action |
+|--------|---------|-------------------|--------|
+| `new` | Field exists in draft only | No | Auto-apply |
+| `changed` | Both have value, values differ | Yes | replace / keep |
+| `same` | Both have value, values match | No | Hidden, counter only |
+| `missing_in_pdf` | Field exists in fund with value, absent from draft | Yes | keep / clear |
+
+**missing_in_pdf applies to (financial fields only):**
+- `monthlyReturn` (for the specific reportMonth)
+- `sharpe`
+- `stdDev`
+- `returns.y*` (annual returns)
+- `returns.ytd*` (year-to-date)
+
+**missing_in_pdf does NOT apply to:**
+- `manager`
+- `classification`
+- `monthlyReturns.*` (historical month entries)
+
+**Server-side (route.ts):**
+- `check-collision` computes full diff for all approved fields + detects missing_in_pdf
+- Returns `diff[]`, `diffComputedAt`, `fundLastUpdated`
+- `apply` accepts `fieldDecisions: Record<string, "replace"|"keep"|"clear">` + `clearFields: string[]`
+- Blocks with 409 if any `changed` or `missing_in_pdf` field has no decision
+- `clear` writes `null` to the field (key preserved, value nulled)
+- `fund.lastUpdated` set after every successful apply
+
+**Client-side (admin/page.tsx):**
+- Diff review UI replaces old collision UI
+- `changed` rows: orange, with replace/keep buttons
+- `new` rows: green, no buttons (auto-apply)
+- `missing_in_pdf` rows: red, with keep/clear buttons
+- `same` rows: hidden, shown as counter ("X שדות ללא שינוי")
+- Apply button blocked until all `changed` + `missing_in_pdf` fields have decisions
+
+**Safety rules (active):**
+- Match safety: no `returnBasis` on draft = no auto-match, force explicit user selection
+- Staleness: `fund.lastUpdated` vs `diffComputedAt` — blocks apply if fund changed since diff
+- Staleness safe for old funds: `fund.lastUpdated = null` does not block
+- Undo valid after apply/clear (restores full fund snapshot)
+- `clearFields` sent separately from `approvedFields` — no mixing
+
+### QA Results (2026-04-02)
+| Case | Scenario | Result |
+|------|----------|--------|
+| 1 | changed → replace | PASS |
+| 2 | changed → keep | PASS |
+| 3 | missing_in_pdf → keep | PASS |
+| 4 | missing_in_pdf → clear | PASS |
+| 5 | Apply gating (no decision → 409) | PASS |
+| 6 | Regression check (no unintended changes) | PASS |
+
+### Out of Scope (intentionally not included)
+- No expansion of `missing_in_pdf` to manager/classification/monthly history
+- No auto-decision engine
+- No batch operations
+- No inline field value editing in diff review
+- No refactor of existing parser/extract logic
+
+### Recommended Next Step
+Auto-apply path for clearly safe drafts: when diff contains only `new` and `same` fields (zero `changed`, zero `missing_in_pdf`), skip the diff UI and apply directly with a single confirmation. Reduces friction for the common case of first-time data entry on a fund with empty fields.
 
 ---
 
