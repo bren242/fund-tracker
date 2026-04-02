@@ -1071,7 +1071,13 @@ export async function POST(req: NextRequest) {
         break;
       }
 
-      return NextResponse.json({ diff, diffComputedAt, fundLastUpdated });
+      // Auto-apply eligible: at least 1 new field, 0 changed, 0 missing_in_pdf
+      const hasNew = diff.some((d) => d.status === "new");
+      const hasChanged = diff.some((d) => d.status === "changed");
+      const hasMissing = diff.some((d) => d.status === "missing_in_pdf");
+      const autoApplyEligible = hasNew && !hasChanged && !hasMissing;
+
+      return NextResponse.json({ diff, diffComputedAt, fundLastUpdated, autoApplyEligible });
     }
 
     // ============================================================
@@ -1079,7 +1085,7 @@ export async function POST(req: NextRequest) {
     // ============================================================
     if (action === "apply") {
       const body = await req.json();
-      const { draftId, fundId, categoryId, approvedFields, reportMonth, fieldDecisions, diffComputedAt, clearFields, returnBasis: applyReturnBasis } = body;
+      const { draftId, fundId, categoryId, approvedFields, reportMonth, fieldDecisions, diffComputedAt, clearFields, returnBasis: applyReturnBasis, autoApply } = body;
 
       if (!draftId || !fundId || !categoryId || !approvedFields) {
         return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -1127,6 +1133,34 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({
               error: "הנתונים בקרן השתנו מאז בדיקת ההשוואה — נא לרענן ולנסות שוב",
             }, { status: 409 });
+          }
+
+          // Auto-apply safety: server-side re-validation
+          if (autoApply) {
+            const fundReturnsCheck = (funds[i].returns || {}) as Record<string, unknown>;
+            const monthlyReturnsCheck = (funds[i].monthlyReturns || {}) as Record<string, number>;
+            for (const field of validFields) {
+              let existingVal: unknown = null;
+              if (field.key === "monthlyReturn") {
+                existingVal = reportMonth && reportMonth in monthlyReturnsCheck ? monthlyReturnsCheck[reportMonth] : null;
+              } else if (field.key.startsWith("monthlyReturns.")) {
+                const m = field.key.split(".")[1];
+                existingVal = m && m in monthlyReturnsCheck ? monthlyReturnsCheck[m] : null;
+              } else if (field.key.startsWith("returns.")) {
+                const yk = field.key.split(".")[1];
+                existingVal = yk && yk in fundReturnsCheck ? fundReturnsCheck[yk] : null;
+              } else {
+                existingVal = funds[i][field.key] ?? null;
+              }
+              const isExist = existingVal !== null && existingVal !== undefined;
+              const isSameVal = isExist && (existingVal === field.value || (typeof existingVal === "number" && typeof field.value === "number" && Math.abs(existingVal - field.value) < 1e-10));
+              if (isExist && !isSameVal) {
+                return NextResponse.json({
+                  error: "נמצאו שדות שהשתנו — נדרשת סקירה ידנית",
+                  requiresDiff: true,
+                }, { status: 409 });
+              }
+            }
           }
 
           // Snapshot fund BEFORE changes for undo (extended with field decisions)
@@ -1303,6 +1337,7 @@ export async function POST(req: NextRequest) {
         reportMonth: reportMonth || null,
         collision: changedFieldsLog.length > 0,
         collisionDecision: replacedFields.length > 0 ? "replace" : keptFields.length > 0 ? "keep" : "new",
+        ...(autoApply ? { autoApply: true } : {}),
       });
 
       return NextResponse.json({
@@ -1310,6 +1345,7 @@ export async function POST(req: NextRequest) {
         appliedFields: appliedFieldNames.length,
         skippedFields: skippedFields.length,
         reportMonth,
+        ...(autoApply ? { autoApplied: true } : {}),
       });
     }
 

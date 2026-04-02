@@ -2477,7 +2477,71 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
           onStatus("ℹ️ כל הערכים זהים למה שכבר במערכת — אין צורך בעדכון");
           return;
         }
-        // Only new fields — store diff in state and proceed
+        // Auto-apply eligible: only new + same fields, no decisions needed
+        if (result.autoApplyEligible) {
+          setDiffResult({ ...result, draftId: draft.id });
+          try {
+            const applyRes = await fetch(`/api/parse?action=apply&client=${encodeURIComponent(clientKey)}`, {
+              method: "POST",
+              headers: { ...headers, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                draftId: draft.id,
+                fundId: draft.match.fundId,
+                categoryId: draft.match.categoryId,
+                approvedFields: draft.extracted.fields,
+                reportMonth: draftReportMonth || null,
+                returnBasis: draft.returnBasis || null,
+                fieldDecisions: {},
+                diffComputedAt: result.diffComputedAt,
+                clearFields: [],
+                autoApply: true,
+              }),
+            });
+            if (applyRes.ok) {
+              const applyResult = await applyRes.json();
+              onStatus(`✓ עודכנו ${applyResult.appliedFields} שדות חדשים בקרן (אוטומטי)`);
+              setDiffResult(null);
+              setFieldDecisions({});
+              setLastApplyInfo({ fundName: draft.match!.fundName || draft.extracted.fundName, timestamp: Date.now() });
+              loadDrafts();
+              onReload();
+              return;
+            }
+            // 409 = server found changed fields since check-collision — fallback to diff UI
+            if (applyRes.status === 409) {
+              const errData = await applyRes.json();
+              if (errData.requiresDiff) {
+                onStatus("⚠️ נמצאו שינויים — נדרשת סקירה ידנית");
+                // Re-run check-collision to get fresh diff for UI
+                const recheck = await fetch(`/api/parse?action=check-collision&client=${encodeURIComponent(clientKey)}`, {
+                  method: "POST",
+                  headers: { ...headers, "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    fundId: draft.match.fundId,
+                    categoryId: draft.match.categoryId,
+                    reportMonth: draftReportMonth || null,
+                    approvedFields: draft.extracted.fields,
+                  }),
+                });
+                if (recheck.ok) {
+                  const recheckResult = await recheck.json();
+                  setDiffResult({ ...recheckResult, draftId: draft.id });
+                  setFieldDecisions({});
+                }
+                return;
+              }
+              onStatus(`❌ ${errData.error || "שגיאה בעדכון"}`);
+              return;
+            }
+            const errData = await applyRes.json();
+            onStatus(`❌ ${errData.error || "שגיאה בעדכון"}`);
+            return;
+          } catch {
+            onStatus("❌ שגיאה בחיבור לשרת");
+            return;
+          }
+        }
+        // Fallback: not auto-apply eligible but only new fields — manual confirm
         setDiffResult({ ...result, draftId: draft.id });
         if (!window.confirm(`לעדכן את הקרן "${draft.match.fundName}" עם ${newFields.length} שדות חדשים?`)) return;
         overrideDecisions = {};

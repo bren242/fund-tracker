@@ -69,6 +69,7 @@ export interface ParseLogEntry {
   collisionDecision?: "replace" | "keep" | "new";
   oldValue?: number | null;
   newValue?: number | null;
+  autoApply?: boolean;
 }
 
 /** Fields allowed to be written to funds.json */
