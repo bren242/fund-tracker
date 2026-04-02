@@ -273,7 +273,67 @@ Full field-level diff review system before applying parsed data to existing fund
 - No refactor of existing parser/extract logic
 
 ### Recommended Next Step
-Auto-apply path for clearly safe drafts: when diff contains only `new` and `same` fields (zero `changed`, zero `missing_in_pdf`), skip the diff UI and apply directly with a single confirmation. Reduces friction for the common case of first-time data entry on a fund with empty fields.
+~~Auto-apply path for clearly safe drafts~~ → **Implemented. See Auto-Apply MVP below.**
+
+---
+
+## Auto-Apply MVP — QA APPROVED (2026-04-02)
+
+Skip diff UI and apply directly when parsed data contains only safe fields (new + same).
+
+### Status: QA APPROVED
+
+### Implemented Scope
+
+**Eligibility rules:**
+| Condition | Eligible? | Behavior |
+|-----------|-----------|----------|
+| ≥1 `new` + 0 `changed` + 0 `missing_in_pdf` | Yes | Auto-apply, no diff UI |
+| `new` + `same` mix, 0 `changed`, 0 `missing_in_pdf` | Yes | Auto-apply, no diff UI |
+| Only `same` fields (0 `new`) | No | "אין צורך בעדכון" message |
+| Any `changed` field | No | Diff UI with manual decisions |
+| Any `missing_in_pdf` field | No | Diff UI with manual decisions |
+| Empty diff | No | "אין צורך בעדכון" message |
+
+**Server-side (`route.ts`):**
+- `check-collision` returns `autoApplyEligible: boolean`
+- `apply` accepts `autoApply?: boolean` — re-validates safety server-side
+- If changed field found during re-validation → 409 with `requiresDiff: true`
+- Response includes `autoApplied: true` on success
+- Audit log records `autoApply: true`
+
+**Client-side (`admin/page.tsx`):**
+- After check-collision, if `autoApplyEligible === true` → calls apply directly
+- Success → green status "(אוטומטי)" + reload
+- 409 with `requiresDiff` → re-runs check-collision, falls back to diff UI
+- Other errors → error message
+
+**Safety rules (active):**
+- Server re-computes diff at apply time — never trusts client's eligibility claim
+- Staleness check still enforced (`fund.lastUpdated` vs `diffComputedAt`)
+- Undo remains valid after auto-apply (full fund snapshot preserved)
+- `fieldDecisions: {}` and `clearFields: []` sent for auto-apply (no decisions needed)
+
+### QA Results (2026-04-02)
+| Case | Scenario | Result |
+|------|----------|--------|
+| 1 | Only new fields → auto-apply | PASS |
+| 2 | New + same fields → auto-apply | PASS |
+| 3 | Changed field → not eligible | PASS |
+| 4 | missing_in_pdf → not eligible | PASS |
+| 5 | Staleness 409 on auto-apply | PASS |
+| 6 | Undo after auto-apply | PASS |
+| R1 | Manual diff flow unchanged | PASS |
+| R2 | autoApply=true with changed → server 409 | PASS |
+
+### Out of Scope (intentionally not included)
+- No auto-apply for new fund creation (existing fund updates only)
+- No batch auto-apply across multiple drafts
+- No auto-decision engine for changed/missing fields
+- No skip of match validation (returnBasis check still enforced)
+
+### Recommended Next Step
+Batch operations workflow: if multiple drafts target different funds and all are auto-apply eligible, process them sequentially with a single summary confirmation. Only pursue if it fits current single-draft-at-a-time architecture.
 
 ---
 
