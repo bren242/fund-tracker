@@ -328,22 +328,18 @@ Skip diff UI and apply directly when parsed data contains only safe fields (new 
 
 ### Out of Scope (intentionally not included)
 - No auto-apply for new fund creation (existing fund updates only)
-- No batch auto-apply across multiple drafts (see Batch Apply design spec below)
 - No auto-decision engine for changed/missing fields
 - No skip of match validation (returnBasis check still enforced)
 
-### Recommended Next Step
-Batch Apply: implement the approved design spec below. Extends the current pipeline (parse → diff → auto-apply) with sequential batch processing of safe drafts.
-
 ---
 
-## Batch Apply — Design Spec Approved (2026-04-03)
+## Batch Apply MVP — QA APPROVED (2026-04-03)
 
-Design for single-action batch processing of all safe pending drafts. Extends the pipeline: parse → diff → auto-apply → **batch** (not yet implemented).
+Single-action batch processing of all safe pending drafts. Completes the pipeline: parse → diff → auto-apply → batch.
 
-### Status: DESIGN APPROVED — Implementation pending
+### Status: QA APPROVED
 
-### Designed Scope
+### Implemented Scope
 
 **Batch definition:**
 - All pending drafts with a valid fund match
@@ -385,32 +381,28 @@ check-collision → autoApplyEligible?
 - Undo: last applied draft only (each apply overwrites `undo-state`)
 - No override of changed or missing_in_pdf fields — those stay in review queue
 
-**Logging (requires minimal server change):**
+**Logging:**
 - `batchId` (format: `batch-{ISO timestamp}`) passed in apply body
 - Stored in audit log per draft (`ParseLogEntry.batchId`)
 - Enables grouping batch operations in log review
 
-### QA Plan (6 cases)
-| Case | Scenario |
-|------|----------|
-| 1 | All eligible → all applied |
-| 2 | Mixed eligible + non-eligible |
-| 3 | None eligible → all skipped |
-| 4 | Partial failure → continues, no abort |
-| 5 | Duplicate fund target → staleness 409 skip |
-| 6 | Undo after batch → last draft restored |
+### QA Results (2026-04-03)
+| Case | Scenario | Result |
+|------|----------|--------|
+| 1 | All eligible → all applied | PASS |
+| 2 | Mixed eligible + non-eligible | PASS |
+| 3 | None eligible → all skipped | PASS |
+| 4 | Partial failure → continues, no abort | PASS |
+| 5 | Duplicate fund target → staleness 409 skip | PASS |
+| 6 | Undo after batch → last draft restored | PASS |
+| + | batchId in audit log | PASS |
 
-### Out of Scope
+### Out of Scope (intentionally not included)
 - No batch diff UI or bulk override decisions
 - No multi-select (processes all pending eligible)
 - No retry mechanism
 - No parallel execution
 - No batch undo (single-draft undo only)
-
-### Implementation Estimate
-- `app/admin/page.tsx` — button, state, loop, banner (~80 lines)
-- `app/api/parse/route.ts` — accept `batchId` in apply (~3 lines)
-- `lib/parseTypes.ts` — `batchId?: string` (1 line)
 
 ---
 
