@@ -45,6 +45,8 @@ export interface ParseDraft {
   status: "pending" | "applied" | "rejected";
   appliedAt?: string;
   rejectedAt?: string;
+  /** Diagnostic: corrections applied during parsing (swap/rotate) */
+  corrections?: string[];
 }
 
 export interface CollisionInfo {

@@ -152,7 +152,7 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v8: fixed dual-currency prompt bias that caused ILS/USD inversion
   // v9: header-driven table parsing (not position-driven) + annual/monthly validation
   // v10: strengthened RTL table parsing + server-side column swap auto-correction
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 10) return null;
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 11) return null;
 
   return cached.result;
 }
@@ -350,6 +350,7 @@ async function callClaude(apiKey: string, systemPrompt: string, userText: string
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
           max_tokens: 4096,
+          temperature: 0,
           system: systemPrompt,
           messages: [{ role: "user", content: userText }],
         }),
@@ -417,6 +418,7 @@ async function callClaudeVision(
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
           max_tokens: 4096,
+          temperature: 0,
           system: systemPrompt,
           messages: [{
             role: "user",
@@ -649,6 +651,7 @@ function parseCloudeResponse(
   fields: ParsedField[];
   match: { fundId: string; fundName: string; similarity: number; categoryId: string | null } | null;
   dualCurrencyData?: DualCurrencyEntry[];
+  corrections?: string[];
 } | { error: string } {
   const jsonMatch = content.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
@@ -805,14 +808,14 @@ function parseCloudeResponse(
   //
   // When swap is detected for a year, we also rotate months 2-12 since the column
   // offset affects the entire row: Feb holds Mar's value, Mar holds Apr's, etc.
-  const fixAnnualJanSwapPerYear = (fields: ParsedField[]) => {
+  const corrections: string[] = [];
+
+  const fixAnnualJanSwapPerYear = (fields: ParsedField[], label = "") => {
     const years: string[] = [];
     for (const f of fields) {
       const m = f.key.match(/^returns\.y(\d{4})$/);
       if (m && typeof f.value === "number") years.push(m[1]);
     }
-
-    let fixedCount = 0;
 
     for (const year of years) {
       const yField = fields.find((f) => f.key === `returns.y${year}` && typeof f.value === "number");
@@ -830,7 +833,8 @@ function parseCloudeResponse(
         && yVal > 0.08; // only if both are large (annual-sized), not if both are zero
       if (!isSwapped && !isDuplicate) continue;
 
-      fixedCount++;
+      const rule = isDuplicate && !isSwapped ? "duplicate" : "swap";
+      const prefix = label ? `${label}:` : "";
 
       // Collect all month fields for this year
       const monthFields: (ParsedField | undefined)[] = [];
@@ -843,38 +847,27 @@ function parseCloudeResponse(
       const origMonths = monthFields.map((mf) => mf ? mf.value as number : null);
 
       if (isDuplicate && !isSwapped) {
-        // Duplicate case: yearly is correct, Jan is a copy of yearly.
-        // Months 2-12 are shifted: AI Feb=real Mar, AI Mar=real Apr, ..., AI Dec=real Feb.
-        // Real Jan is lost (overwritten by yearly duplicate).
-        // Rotate months 2-12 and remove the bogus Jan value.
         const realMonth: (number | null)[] = new Array(12).fill(null);
-        realMonth[0] = null; // real Jan is unknown (was overwritten by yearly duplicate)
-        realMonth[1] = origMonths[11]; // real Feb = AI's Dec (wrap)
+        realMonth[0] = null;
+        realMonth[1] = origMonths[11];
         for (let m = 2; m < 12; m++) {
-          realMonth[m] = origMonths[m - 1]; // real Mar=AI Feb, real Apr=AI Mar, etc.
+          realMonth[m] = origMonths[m - 1];
         }
-        // Remove the bogus Jan field entirely (it equals yearly, which is wrong for a month)
         const janIdx = fields.findIndex((f) => f.key === `monthlyReturns.${year}-01`);
         if (janIdx >= 0) fields.splice(janIdx, 1);
-        // Also remove from monthFields reference
-        // Apply corrected values for months 2-12
         for (let m = 1; m < 12; m++) {
           if (monthFields[m] && realMonth[m] !== null) {
             monthFields[m]!.value = realMonth[m]!;
           }
         }
       } else {
-        // Swap case: AI's "Jan" holds real yearly, AI's "yearly" holds real Jan.
-        // Fix yearly: AI's "Jan" slot holds the real annual value
         yField.value = origMonths[0] !== null ? origMonths[0] : yField.value;
 
-        // Fix months: rotate the entire row
-        // real_Jan = AI_yearly, real_Feb = AI_Dec, real_Mar = AI_Feb, ..., real_Dec = AI_Nov
         const realMonth: (number | null)[] = new Array(12).fill(null);
-        realMonth[0] = origYearly; // real Jan = what AI called "yearly"
-        realMonth[1] = origMonths[11]; // real Feb = AI's Dec (wrap)
+        realMonth[0] = origYearly;
+        realMonth[1] = origMonths[11];
         for (let m = 2; m < 12; m++) {
-          realMonth[m] = origMonths[m - 1]; // real Mar=AI Feb, real Apr=AI Mar, etc.
+          realMonth[m] = origMonths[m - 1];
         }
 
         for (let m = 0; m < 12; m++) {
@@ -883,16 +876,16 @@ function parseCloudeResponse(
           }
         }
       }
-    }
 
-    if (fixedCount > 0) {
-      console.log(`[parse] Annual↔Jan swap fixed for ${fixedCount}/${years.length} years.`);
+      corrections.push(`${prefix}${year}:yearly_${rule}`);
+      corrections.push(`${prefix}${year}:monthly_uncertain`);
+      console.log(`[parse] ${prefix}${year}: ${rule} corrected (yearly fixed, monthly order uncertain)`);
     }
   };
   fixAnnualJanSwapPerYear(sanitizedFields);
   if (dualCurrencyData) {
     for (const entry of dualCurrencyData) {
-      fixAnnualJanSwapPerYear(entry.fields);
+      fixAnnualJanSwapPerYear(entry.fields, entry.returnBasis || "");
     }
   }
 
@@ -906,6 +899,7 @@ function parseCloudeResponse(
     fields: sanitizedFields,
     match,
     dualCurrencyData,
+    corrections: corrections.length > 0 ? corrections : undefined,
   };
 }
 
@@ -1090,6 +1084,7 @@ export async function POST(req: NextRequest) {
         returnBasis: body.returnBasis === "ILS" ? "ILS" : body.returnBasis === "USD" ? "USD" : null,
         match: body.match || null,
         status: "pending",
+        corrections: Array.isArray(body.corrections) ? body.corrections : undefined,
       };
 
       // Validate draft
@@ -1860,7 +1855,10 @@ export async function POST(req: NextRequest) {
       if (result.dualCurrencyData) {
         resultObj.dualCurrencyData = result.dualCurrencyData;
       }
-      resultObj._cacheVersion = 10;
+      if (result.corrections) {
+        resultObj.corrections = result.corrections;
+      }
+      resultObj._cacheVersion = 11;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
