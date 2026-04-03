@@ -328,12 +328,86 @@ Skip diff UI and apply directly when parsed data contains only safe fields (new 
 
 ### Out of Scope (intentionally not included)
 - No auto-apply for new fund creation (existing fund updates only)
-- No batch auto-apply across multiple drafts
+- ~~No batch auto-apply across multiple drafts~~ → **Implemented. See Batch Apply MVP below.**
 - No auto-decision engine for changed/missing fields
 - No skip of match validation (returnBasis check still enforced)
 
 ### Recommended Next Step
-Batch operations workflow: if multiple drafts target different funds and all are auto-apply eligible, process them sequentially with a single summary confirmation. Only pursue if it fits current single-draft-at-a-time architecture.
+~~Batch operations workflow~~ → **Implemented. See Batch Apply MVP below.**
+
+---
+
+## Batch Apply MVP — QA APPROVED (2026-04-02)
+
+Single-action batch processing of all safe pending drafts. Completes the pipeline: parse → diff → auto-apply → batch.
+
+### Status: QA APPROVED
+
+### Implemented Scope
+
+**Batch definition:**
+- All pending drafts with a valid fund match
+- Cross-fund — any eligible draft regardless of target fund
+- Sequential execution only (no parallel writes)
+
+**Pre-filter (client-side):**
+- `status === "pending"`
+- `match.fundId` exists
+- `extracted.fields.length > 0`
+- If `monthlyReturn` in fields → `reportMonth` must be set
+
+**Per-draft flow:**
+```
+check-collision → autoApplyEligible?
+  → true:  apply with autoApply=true → count as applied
+  → false: skip → count as skipped (needs manual review)
+  → error/409: count as skipped or failed → continue to next
+```
+
+**UI trigger:**
+- Button `"החל טיוטות בטוחות"` in drafts list header
+- Visible when: pending drafts > 0, no diff UI open, no new-fund flow open
+- Disabled during execution (`batchRunning`)
+
+**Result banner:**
+| Condition | Display |
+|-----------|---------|
+| applied > 0 | `✓ עודכנו X טיוטות אוטומטית` (green) |
+| skipped > 0 | `· Y דורשות סקירה ידנית` (orange) |
+| failed > 0 | `· Z נכשלו` (red) |
+| applied === 0, skipped > 0 | `ℹ️ כל הטיוטות דורשות סקירה ידנית` |
+| applied > 1 | Note: `ביטול אפשרי רק לטיוטה האחרונה שעודכנה` |
+
+**Safety rules (unchanged):**
+- Server re-validates eligibility on every apply (never trusts client)
+- Staleness enforced (`fund.lastUpdated` vs `diffComputedAt`)
+- Duplicate fund targets: second draft hits staleness 409 → skipped (correct)
+- Undo: last applied draft only (each apply overwrites `undo-state`)
+- No override of changed or missing_in_pdf fields — those stay in review queue
+
+**Logging:**
+- `batchId` (format: `batch-{ISO timestamp}`) passed in apply body
+- Stored in audit log per draft (`ParseLogEntry.batchId`)
+- Enables grouping batch operations in log review
+
+### QA Results (2026-04-02)
+| Case | Scenario | Result |
+|------|----------|--------|
+| 1 | All eligible → all applied | PASS |
+| 2 | Mixed eligible + non-eligible | PASS |
+| 3 | None eligible → all skipped | PASS |
+| 4 | Bad fund draft → continues, no abort | PASS |
+| 5 | Duplicate fund target → staleness 409 skip | PASS |
+| 6 | Undo after batch → last draft restored | PASS |
+| + | batchId in audit log | PASS |
+
+### Out of Scope (intentionally not included)
+- No batch diff UI or bulk override decisions
+- No multi-select (processes all pending eligible)
+- No retry mechanism
+- No parallel execution
+- No batch undo (single-draft undo only)
+- No progress bar (sequential API calls are fast enough)
 
 ---
 
