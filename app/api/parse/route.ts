@@ -151,7 +151,8 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v7: matching now includes returnBasis to distinguish ILS/USD fund variants
   // v8: fixed dual-currency prompt bias that caused ILS/USD inversion
   // v9: header-driven table parsing (not position-driven) + annual/monthly validation
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 9) return null;
+  // v10: strengthened RTL table parsing + server-side column swap auto-correction
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 10) return null;
 
   return cached.result;
 }
@@ -517,9 +518,19 @@ STEP 3 — READ ROWS BY MAPPING: For each data row:
   - Read the annual return ONLY from the column mapped to "שנתי"/"Annual"
   - Read monthly returns ONLY from columns mapped to month headers
   - Read YTD ONLY from the column mapped to "YTD"/"מצטבר"
-STEP 4 — VALIDATE: If a row has both monthly columns and an annual column, the annual value must come from the "שנתי" column only. NEVER use the first or last numeric cell as annual return. NEVER confuse a January value with an annual value or vice versa.
+STEP 4 — VALIDATE:
+  - The annual value must come from the column whose header says "שנתי" ONLY.
+  - NEVER use the first or last numeric cell as annual return.
+  - NEVER confuse a January value with an annual value or vice versa.
+  - SANITY CHECK: For a completed year, the annual return should roughly equal the compound of all 12 monthly returns. If annual=4.61% but the sum of monthly returns ≈ 23%, you have likely swapped annual↔January. Fix it.
+  - SANITY CHECK: Monthly returns are typically between -10% and +10%. Annual returns can be much larger (20%+). If a "monthly" value is 20%+ and the "annual" value is 2-5%, the columns are likely swapped.
 
-DO NOT rely on column position, left-to-right order, or right-to-left order. Tables may be RTL or LTR. Only the header text determines what each column means.
+HEBREW RTL TABLE WARNING:
+Many Israeli fund documents use RTL (right-to-left) tables where the RIGHTMOST column is the first data column.
+A typical Hebrew performance table has columns ordered RIGHT-TO-LEFT: שנה | ינואר | פברואר | ... | דצמבר | שנתי
+Or sometimes: שנתי | דצמבר | נובמבר | ... | ינואר | שנה
+DO NOT assume any fixed column order. READ THE ACTUAL HEADER TEXT of each column.
+The header text is the ONLY reliable way to determine what each column contains.
 
 FIELDS TO EXTRACT (only these):
 - fundName: string (the fund's name as written)
@@ -784,32 +795,77 @@ function parseCloudeResponse(
     }
   }
 
-  // Sanity check: detect annual/monthly value confusion
-  // If a yearly return (e.g., returns.y2025) has the same value as a monthly return
-  // for January of that year, it's likely a column-mapping error. Flag with lower confidence.
-  const validateAnnualMonthlyConsistency = (fields: ParsedField[]) => {
+  // Detect and fix systematic annual↔January column swap in performance tables.
+  // Common pattern: AI misreads RTL Hebrew table columns and swaps the annual return
+  // with January's value. Detection: across multiple years, if "January" consistently
+  // holds a larger value than "annual" (e.g., Jan=23% while annual=4%), it's swapped.
+  const detectAndFixAnnualJanSwap = (fields: ParsedField[]) => {
+    const years: string[] = [];
     for (const f of fields) {
-      const yMatch = f.key.match(/^returns\.y(\d{4})$/);
-      if (!yMatch || typeof f.value !== "number") continue;
-      const year = yMatch[1];
-      // Check if this annual value matches January value exactly
-      const janField = fields.find((mf) => mf.key === `monthlyReturns.${year}-01`);
-      if (janField && typeof janField.value === "number" && f.value === janField.value && Math.abs(f.value) < 0.15) {
-        // Annual return equals January return and is small — likely confused
-        f.confidence = Math.min(f.confidence, 0.3);
-      }
-      // Check if annual value is suspiciously small for a yearly figure (< 1%) when monthly values exist
-      const monthlyVals = fields.filter((mf) => mf.key.startsWith(`monthlyReturns.${year}-`) && typeof mf.value === "number");
-      if (monthlyVals.length >= 6 && Math.abs(f.value) < 0.01) {
-        // Has 6+ months of data but annual is < 1% — possibly a single month value
-        f.confidence = Math.min(f.confidence, 0.4);
+      const m = f.key.match(/^returns\.y(\d{4})$/);
+      if (m && typeof f.value === "number") years.push(m[1]);
+    }
+
+    let swapEvidence = 0;
+    let totalChecked = 0;
+
+    for (const year of years) {
+      const yField = fields.find((f) => f.key === `returns.y${year}` && typeof f.value === "number");
+      const janField = fields.find((f) => f.key === `monthlyReturns.${year}-01` && typeof f.value === "number");
+      if (!yField || !janField) continue;
+
+      const yVal = Math.abs(yField.value as number);
+      const janVal = Math.abs(janField.value as number);
+      totalChecked++;
+
+      // Evidence: "January" value is much larger than "annual" value
+      if (janVal > yVal * 2 && janVal > 0.08) swapEvidence++;
+      else if (yVal < 0.03 && janVal > 0.10) swapEvidence++;
+    }
+
+    if (totalChecked >= 2 && swapEvidence >= Math.ceil(totalChecked * 0.5)) {
+      console.log(`[parse] Annual↔Jan swap detected (${swapEvidence}/${totalChecked} years). Auto-correcting.`);
+      for (const year of years) {
+        const yField = fields.find((f) => f.key === `returns.y${year}` && typeof f.value === "number");
+        const monthFields: (ParsedField | undefined)[] = [];
+        for (let m = 1; m <= 12; m++) {
+          monthFields.push(fields.find((f) => f.key === `monthlyReturns.${year}-${String(m).padStart(2, "0")}` && typeof f.value === "number"));
+        }
+        if (!yField) continue;
+
+        // Capture original values before any mutation
+        const origYearly = yField.value as number;
+        const origMonths = monthFields.map((mf) => mf ? mf.value as number : null);
+
+        // Fix: what AI put in "Jan" is the real yearly value
+        if (origMonths[0] !== null) yField.value = origMonths[0];
+
+        // Fix: what AI put in "yearly" is the real Jan value
+        if (monthFields[0]) monthFields[0].value = origYearly;
+
+        // Fix months 2-12: the AI offset all month columns by 1 position.
+        // AI's "Feb" slot holds real "Mar", AI's "Mar" holds real "Apr", etc.
+        // AI's "Dec" slot holds real "Feb" (wraps around).
+        // Pattern: real_Jan=AI_yearly, real_Feb=AI_Dec, real_M=AI_(M-1) for M=Mar..Dec
+        const realMonth: (number | null)[] = new Array(12).fill(null);
+        realMonth[0] = origYearly; // real Jan = what AI called "yearly"
+        realMonth[1] = origMonths[11]; // real Feb = AI's Dec (wrap)
+        for (let m = 2; m < 12; m++) {
+          realMonth[m] = origMonths[m - 1]; // real Mar=AI Feb, real Apr=AI Mar, etc.
+        }
+
+        for (let m = 0; m < 12; m++) {
+          if (monthFields[m] && realMonth[m] !== null) {
+            monthFields[m]!.value = realMonth[m]!;
+          }
+        }
       }
     }
   };
-  validateAnnualMonthlyConsistency(sanitizedFields);
+  detectAndFixAnnualJanSwap(sanitizedFields);
   if (dualCurrencyData) {
     for (const entry of dualCurrencyData) {
-      validateAnnualMonthlyConsistency(entry.fields);
+      detectAndFixAnnualJanSwap(entry.fields);
     }
   }
 
@@ -1777,7 +1833,7 @@ export async function POST(req: NextRequest) {
       if (result.dualCurrencyData) {
         resultObj.dualCurrencyData = result.dualCurrencyData;
       }
-      resultObj._cacheVersion = 9;
+      resultObj._cacheVersion = 10;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
