@@ -1250,6 +1250,15 @@ export async function POST(req: NextRequest) {
         break;
       }
 
+      // Phase 2: Mark changed monthly fields as protected when draft has monthly_uncertain
+      if (hasMonthlyUncertain) {
+        for (const d of diff) {
+          if (d.status === "changed" && (d.field === "monthlyReturn" || d.field.startsWith("monthlyReturns."))) {
+            (d as Record<string, unknown>).monthlyProtected = true;
+          }
+        }
+      }
+
       // Compound validation: merge existing + draft monthly, compare vs yearly
       let monthlyValidation: { year: number; compounded: number; yearly: number; diff: number; status: "pass" | "fail" }[] = [];
       // Build merged monthly and yearly maps from diff + draft fields

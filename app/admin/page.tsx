@@ -2089,7 +2089,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
   const [selectedMatchCatId, setSelectedMatchCatId] = useState<string>("");
   const [reportMonth, setReportMonth] = useState<string>("");
   const [returnBasis, setReturnBasis] = useState<"ILS" | "USD" | null>(null);
-  const [diffResult, setDiffResult] = useState<{ diff: { field: string; existingValue: string | number | null; newValue: string | number | null; status: "new" | "changed" | "same" | "missing_in_pdf" }[]; diffComputedAt: string; fundLastUpdated: string | null; draftId: string; hasMonthlyUncertain?: boolean; draftCorrections?: string[]; monthlyValidation?: { year: number; compounded: number; yearly: number; diff: number; status: "pass" | "fail" }[] } | null>(null);
+  const [diffResult, setDiffResult] = useState<{ diff: { field: string; existingValue: string | number | null; newValue: string | number | null; status: "new" | "changed" | "same" | "missing_in_pdf"; monthlyProtected?: boolean }[]; diffComputedAt: string; fundLastUpdated: string | null; draftId: string; hasMonthlyUncertain?: boolean; draftCorrections?: string[]; monthlyValidation?: { year: number; compounded: number; yearly: number; diff: number; status: "pass" | "fail" }[] } | null>(null);
   const [fieldDecisions, setFieldDecisions] = useState<Record<string, "replace" | "keep" | "clear">>({});
   const [draftReportMonths, setDraftReportMonths] = useState<Record<string, string>>({});
   const [tokenUsage, setTokenUsage] = useState<{
@@ -2384,6 +2384,15 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
     }
   };
 
+  // Phase 2: build initial field decisions — auto-default protected monthly fields to "keep"
+  const buildInitialDecisions = (diff: { field: string; status: string; monthlyProtected?: boolean }[]): Record<string, "replace" | "keep" | "clear"> => {
+    const decisions: Record<string, "replace" | "keep" | "clear"> = {};
+    for (const d of diff) {
+      if (d.monthlyProtected) decisions[d.field] = "keep";
+    }
+    return decisions;
+  };
+
   const handleApplyDraft = async (draft: typeof drafts[0], overrideDecisions?: Record<string, "replace" | "keep" | "clear">) => {
     // Use match override if available
     const matchOverride = draftMatchOverrides[draft.id];
@@ -2496,7 +2505,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
         const needsDecision = changedFields.length > 0 || missingFields.length > 0;
         if (needsDecision) {
           setDiffResult({ ...result, draftId: draft.id });
-          setFieldDecisions({});
+          setFieldDecisions(buildInitialDecisions(result.diff || []));
           const parts = [];
           if (changedFields.length > 0) parts.push(`${changedFields.length} שונים`);
           if (missingFields.length > 0) parts.push(`${missingFields.length} חסרים בדוח`);
@@ -2555,7 +2564,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
                 if (recheck.ok) {
                   const recheckResult = await recheck.json();
                   setDiffResult({ ...recheckResult, draftId: draft.id });
-                  setFieldDecisions({});
+                  setFieldDecisions(buildInitialDecisions(recheckResult.diff || []));
                 }
                 return;
               }
@@ -3856,14 +3865,17 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
                       {/* Changed fields — require decision */}
                       {changedFields.map((d, di) => (
                         <div key={`changed-${di}`} style={{
-                          backgroundColor: "var(--bg-surface)",
-                          border: "1px solid #f59e0b40",
+                          backgroundColor: d.monthlyProtected ? "#ef444408" : "var(--bg-surface)",
+                          border: `1px solid ${d.monthlyProtected ? "#ef444440" : "#f59e0b40"}`,
                           borderRadius: 6,
                           padding: 10,
                           marginBottom: 8,
                         }}>
                           <div style={{ fontSize: 11, marginBottom: 6 }}>
                             <span style={{ display: "inline-block", padding: "1px 6px", borderRadius: 3, backgroundColor: "#f59e0b20", color: "#f59e0b", fontSize: 9, fontWeight: 700, marginLeft: 6 }}>שונה</span>
+                            {d.monthlyProtected && (
+                              <span style={{ display: "inline-block", padding: "1px 6px", borderRadius: 3, backgroundColor: "#ef444420", color: "#ef4444", fontSize: 9, fontWeight: 700, marginLeft: 6 }}>🛡 מוגן — נתון חודשי לא אמין</span>
+                            )}
                             <strong>{fieldLabel(d.field)}</strong>
                           </div>
                           <div style={{ display: "flex", gap: 16, fontSize: 11, marginBottom: 8 }}>
