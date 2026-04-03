@@ -795,19 +795,24 @@ function parseCloudeResponse(
     }
   }
 
-  // Detect and fix systematic annual↔January column swap in performance tables.
-  // Common pattern: AI misreads RTL Hebrew table columns and swaps the annual return
-  // with January's value. Detection: across multiple years, if "January" consistently
-  // holds a larger value than "annual" (e.g., Jan=23% while annual=4%), it's swapped.
-  const detectAndFixAnnualJanSwap = (fields: ParsedField[]) => {
+  // Detect and fix annual↔January column swap PER YEAR.
+  // Common pattern in RTL Hebrew PDFs: AI misreads column order, putting the annual
+  // value in January's slot and January's value in the annual slot.
+  // We check each year independently — the AI may get some years right and some wrong.
+  //
+  // Detection per year: if |January| > |annual| * 2 AND |January| > 8%, the values
+  // are likely swapped (annual returns are typically larger than single-month returns).
+  //
+  // When swap is detected for a year, we also rotate months 2-12 since the column
+  // offset affects the entire row: Feb holds Mar's value, Mar holds Apr's, etc.
+  const fixAnnualJanSwapPerYear = (fields: ParsedField[]) => {
     const years: string[] = [];
     for (const f of fields) {
       const m = f.key.match(/^returns\.y(\d{4})$/);
       if (m && typeof f.value === "number") years.push(m[1]);
     }
 
-    let swapEvidence = 0;
-    let totalChecked = 0;
+    let fixedCount = 0;
 
     for (const year of years) {
       const yField = fields.find((f) => f.key === `returns.y${year}` && typeof f.value === "number");
@@ -816,37 +821,55 @@ function parseCloudeResponse(
 
       const yVal = Math.abs(yField.value as number);
       const janVal = Math.abs(janField.value as number);
-      totalChecked++;
 
-      // Evidence: "January" value is much larger than "annual" value
-      if (janVal > yVal * 2 && janVal > 0.08) swapEvidence++;
-      else if (yVal < 0.03 && janVal > 0.10) swapEvidence++;
-    }
+      // Check if this year's values are swapped or duplicated
+      const isSwapped = (janVal > yVal * 2 && janVal > 0.08) || (yVal < 0.03 && janVal > 0.10);
+      // Also detect: Jan is a duplicate of yearly (AI put the same annual value in both)
+      // while months 2-12 appear shifted by 1 position
+      const isDuplicate = Math.abs((yField.value as number) - (janField.value as number)) < 0.0001
+        && yVal > 0.08; // only if both are large (annual-sized), not if both are zero
+      if (!isSwapped && !isDuplicate) continue;
 
-    if (totalChecked >= 2 && swapEvidence >= Math.ceil(totalChecked * 0.5)) {
-      console.log(`[parse] Annual↔Jan swap detected (${swapEvidence}/${totalChecked} years). Auto-correcting.`);
-      for (const year of years) {
-        const yField = fields.find((f) => f.key === `returns.y${year}` && typeof f.value === "number");
-        const monthFields: (ParsedField | undefined)[] = [];
-        for (let m = 1; m <= 12; m++) {
-          monthFields.push(fields.find((f) => f.key === `monthlyReturns.${year}-${String(m).padStart(2, "0")}` && typeof f.value === "number"));
+      fixedCount++;
+
+      // Collect all month fields for this year
+      const monthFields: (ParsedField | undefined)[] = [];
+      for (let m = 1; m <= 12; m++) {
+        monthFields.push(fields.find((f) => f.key === `monthlyReturns.${year}-${String(m).padStart(2, "0")}` && typeof f.value === "number"));
+      }
+
+      // Capture original values before mutation
+      const origYearly = yField.value as number;
+      const origMonths = monthFields.map((mf) => mf ? mf.value as number : null);
+
+      if (isDuplicate && !isSwapped) {
+        // Duplicate case: yearly is correct, Jan is a copy of yearly.
+        // Months 2-12 are shifted: AI Feb=real Mar, AI Mar=real Apr, ..., AI Dec=real Feb.
+        // Real Jan is lost (overwritten by yearly duplicate).
+        // Rotate months 2-12 and remove the bogus Jan value.
+        const realMonth: (number | null)[] = new Array(12).fill(null);
+        realMonth[0] = null; // real Jan is unknown (was overwritten by yearly duplicate)
+        realMonth[1] = origMonths[11]; // real Feb = AI's Dec (wrap)
+        for (let m = 2; m < 12; m++) {
+          realMonth[m] = origMonths[m - 1]; // real Mar=AI Feb, real Apr=AI Mar, etc.
         }
-        if (!yField) continue;
+        // Remove the bogus Jan field entirely (it equals yearly, which is wrong for a month)
+        const janIdx = fields.findIndex((f) => f.key === `monthlyReturns.${year}-01`);
+        if (janIdx >= 0) fields.splice(janIdx, 1);
+        // Also remove from monthFields reference
+        // Apply corrected values for months 2-12
+        for (let m = 1; m < 12; m++) {
+          if (monthFields[m] && realMonth[m] !== null) {
+            monthFields[m]!.value = realMonth[m]!;
+          }
+        }
+      } else {
+        // Swap case: AI's "Jan" holds real yearly, AI's "yearly" holds real Jan.
+        // Fix yearly: AI's "Jan" slot holds the real annual value
+        yField.value = origMonths[0] !== null ? origMonths[0] : yField.value;
 
-        // Capture original values before any mutation
-        const origYearly = yField.value as number;
-        const origMonths = monthFields.map((mf) => mf ? mf.value as number : null);
-
-        // Fix: what AI put in "Jan" is the real yearly value
-        if (origMonths[0] !== null) yField.value = origMonths[0];
-
-        // Fix: what AI put in "yearly" is the real Jan value
-        if (monthFields[0]) monthFields[0].value = origYearly;
-
-        // Fix months 2-12: the AI offset all month columns by 1 position.
-        // AI's "Feb" slot holds real "Mar", AI's "Mar" holds real "Apr", etc.
-        // AI's "Dec" slot holds real "Feb" (wraps around).
-        // Pattern: real_Jan=AI_yearly, real_Feb=AI_Dec, real_M=AI_(M-1) for M=Mar..Dec
+        // Fix months: rotate the entire row
+        // real_Jan = AI_yearly, real_Feb = AI_Dec, real_Mar = AI_Feb, ..., real_Dec = AI_Nov
         const realMonth: (number | null)[] = new Array(12).fill(null);
         realMonth[0] = origYearly; // real Jan = what AI called "yearly"
         realMonth[1] = origMonths[11]; // real Feb = AI's Dec (wrap)
@@ -861,11 +884,15 @@ function parseCloudeResponse(
         }
       }
     }
+
+    if (fixedCount > 0) {
+      console.log(`[parse] Annual↔Jan swap fixed for ${fixedCount}/${years.length} years.`);
+    }
   };
-  detectAndFixAnnualJanSwap(sanitizedFields);
+  fixAnnualJanSwapPerYear(sanitizedFields);
   if (dualCurrencyData) {
     for (const entry of dualCurrencyData) {
-      detectAndFixAnnualJanSwap(entry.fields);
+      fixAnnualJanSwapPerYear(entry.fields);
     }
   }
 
