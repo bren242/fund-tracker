@@ -1,7 +1,7 @@
 # DEV STATE — System Functionality & Stability
 
-**Status:** STABLE — BASELINE LOCKED
-**Date:** 2026-04-02
+**Status:** STABLE — v1.3 (Creative Value fix verified)
+**Date:** 2026-04-03
 
 ---
 
@@ -125,17 +125,26 @@ Both files use **identical** footer:
 10. **KV overwrite protection** — PUT endpoint validates payload integrity before writing.
 11. **Cache version → 8** — Forces re-parse of any cached results from pre-fix versions.
 
+### Creative Value Parser Fix (v1.3, April 2026)
+12. **temperature: 0** — All Claude API calls now use deterministic mode.
+13. **Yearly swap correction** — `fixAnnualJanSwapPerYear()` detects and fixes Jan ↔ yearly swaps per year.
+14. **corrections[] flag** — Diagnostic array tracking all auto-corrections (`yearly_swap`, `yearly_duplicate`, `monthly_uncertain`).
+15. **Cache version → 11** — Invalidates all pre-fix cached parse results.
+16. **Production verified** — Creative Value: all 6 yearly values correct, zero false positives.
+
 ### Key Files Changed (Parser Fixes)
 ```
-app/api/parse/route.ts    — System prompt rewrite, ytd→y promotion, matching context, cache v8
+app/api/parse/route.ts    — System prompt, ytd→y, matching, swap detection, corrections, cache v11
+lib/parseTypes.ts         — corrections field on ParseDraft
 ```
 
 ---
 
 ## STABLE BASELINE — Parser Phase Complete
 
-**Date:** 2026-04-02
-**Commits:** 944ba93, e3022a8, b5b85f3, 2aa4cf0
+**Date:** 2026-04-03
+**Commits:** 944ba93, e3022a8, b5b85f3, 2aa4cf0, c1db678
 
 All parser functionality verified end-to-end in production.
+v1.3: Creative Value yearly swap correction + corrections[] diagnostic flag.
 No code changes needed — this is the locked baseline for future development.

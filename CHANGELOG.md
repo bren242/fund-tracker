@@ -1,5 +1,27 @@
 # Changelog
 
+## v1.3 — Creative Value Parser Fix (2026-04-03)
+
+### Parser Hardening
+- **temperature: 0** on all Claude API calls — reduces LLM non-determinism
+- **Yearly swap correction** — `fixAnnualJanSwapPerYear()` detects and fixes Jan ↔ yearly value swaps per year
+- **corrections[] diagnostic flag** — tracks all auto-corrections: `yearly_swap`, `yearly_duplicate`, `monthly_uncertain`
+- **Cache version → 11** — invalidates all pre-fix cached results
+
+### Production Verified
+- Creative Value PDF: all yearly values correct (2019-2025 + YTD 2026), zero false positives
+- corrections[] returned with 12 entries (6 years corrected)
+
+### Files Changed
+- `app/api/parse/route.ts` — temperature, swap detection, corrections tracking, cache v11
+- `lib/parseTypes.ts` — corrections field on ParseDraft
+- `CLAUDE.md` — New project-level documentation (created)
+- `AI_PARSER.md` — New parser technical reference (created)
+- `PROJECT_STATE.md` — v1.3 section added
+- `CHANGELOG.md` — This entry
+
+---
+
 ## v1.2 — Stable Baseline (2026-04-02)
 
 ### Critical Bug Fixes

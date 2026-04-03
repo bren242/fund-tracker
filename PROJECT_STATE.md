@@ -1,8 +1,8 @@
 # PROJECT STATE — Fund Tracker
 
-## Current Version: v1.2
+## Current Version: v1.3
 **Last Updated:** 2026-04-03
-**Status:** Production-ready — STABLE BASELINE (Parser Phase Complete)
+**Status:** Production-ready — Parser v1.3 (Creative Value fix verified)
 **Deployment:** Vercel (auto-deploy on push to main)
 **Repository:** github.com/bren242/fund-tracker
 
@@ -468,6 +468,51 @@ Client-side enhancements to the draft review workflow: inline match reassignment
 - No validation layer for edited values (operator responsibility)
 - No audit differentiation between parsed vs edited values
 - No server-side storage of overrides
+
+---
+
+## Creative Value Parsing Fix (v1.3) — PRODUCTION VERIFIED (2026-04-03)
+
+Parser hardening for RTL Hebrew table extraction. Fixes yearly value swaps in Creative Value and similar fund documents.
+
+### Status: PRODUCTION VERIFIED
+
+### Root Cause
+LLM non-determinism in RTL Hebrew table parsing. Claude reads the table headers correctly but sometimes swaps cell values between columns (e.g., January value placed in yearly column and vice versa). This is not a positional fallback issue — it's inherent LLM interpretation variance.
+
+Three observed error patterns:
+| Pattern | Description | Fixable? |
+|---------|-------------|----------|
+| **Swap** | Jan ↔ yearly values exchanged | Yes — `fixAnnualJanSwapPerYear()` |
+| **Swap + shift** | Swap plus monthly column offset | Yes — yearly corrected, monthly flagged |
+| **Mirror** | Monthly values reversed (Dec↔Jan, Nov↔Feb...) | No — mathematically impossible to detect |
+
+### Implementation (commit c1db678)
+1. **`temperature: 0`** on all Claude API calls — reduces non-determinism
+2. **`fixAnnualJanSwapPerYear()`** — per-year detection: if |Jan| > |yearly|*2, swap them back
+3. **`corrections[]` diagnostic array** — tracks all corrections applied during parsing:
+   - `{year}:yearly_swap` — yearly value corrected (was swapped with Jan)
+   - `{year}:yearly_duplicate` — duplicate pattern corrected
+   - `{year}:monthly_uncertain` — monthly order unreliable for this year
+4. **Cache version → 11** — invalidates all pre-fix cached results
+
+### Guarantees
+| Data | Reliability | Notes |
+|------|-------------|-------|
+| Yearly returns | **Reliable** | Swap correction validated for all years (2020-2025) |
+| YTD | **Reliable** | Not affected by swap pattern |
+| Monthly returns | **Uncertain when flagged** | If `monthly_uncertain` exists, order may be mirrored |
+| Sharpe / StdDev | **Reliable** | Single values, not affected by column swap |
+
+### Limitation: Monthly Mirror
+When LLM mirrors monthly columns (Dec↔Jan), the compound return `∏(1+rₖ)` is identical in both orders (multiplication is commutative). No mathematical or heuristic method can distinguish mirrored from correct order. Monthly values are flagged as `monthly_uncertain` but cannot be auto-corrected.
+
+### Production Validation (2026-04-03)
+- Creative Value PDF uploaded to production (`fund-tracker-bren242s-projects.vercel.app`)
+- All yearly values verified correct: 2019 (3.42%), 2020 (11.57%), 2021 (28.88%), 2022 (-20.35%), 2023 (19.72%), 2024 (41.35%), 2025 (23.87%), YTD 2026 (4.38%)
+- `corrections[]` returned 12 entries (6 years × yearly_swap + monthly_uncertain)
+- Zero false positives in swap detection
+- `reportMonth: 2026-02`, `returnBasis: ILS` — both correct
 
 ---
 
