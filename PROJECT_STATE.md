@@ -190,16 +190,27 @@ All AI parser functionality is production-verified and stable.
 4. **KV overwrite protection** — PUT endpoint validates payload structure before writing to prevent partial/corrupt writes. (commit: 2aa4cf0)
 5. **Cache invalidation** — Cache version bumped to 8; stale parse results from pre-fix era are automatically invalidated.
 
+### Monthly Reliability (v1.4, 2026-04-04)
+| Feature | Status | Verified |
+|---------|--------|----------|
+| corrections[] + monthly_uncertain in draft UI | WORKING | 2026-04-03 |
+| Auto-apply blocked for uncertain drafts | WORKING | 2026-04-03 |
+| Server-side 409 guard for autoApply + uncertain | WORKING | 2026-04-03 |
+| Batch apply skips uncertain drafts | WORKING | 2026-04-03 |
+| Monthly overwrite protection (default "keep") | WORKING | 2026-04-03 |
+| Compound validation for all drafts | WORKING | 2026-04-04 |
+
 ### Known Risks (Real)
 1. **Prompt sensitivity** — Currency assignment depends on Claude correctly reading Hebrew labels. Unusual document layouts may still confuse it.
 2. **PDF text extraction order** — Some PDFs have text layer order that doesn't match visual layout. Vision API (document type) handles this better than text paste.
 3. **Token limits** — Monthly token budget is per-client. Heavy usage (many large PDFs) could exhaust quota mid-month.
 4. **Logo upload still filesystem-based** — Requires Vercel Blob for production upload (out of scope for v1.2).
+5. **Monthly mirror undetectable** — When LLM reverses monthly column order without triggering swap correction, compound validation cannot catch it (identical product).
 
 ### Not Built Yet
 - **Batch undo** — Only single-step undo supported
-- **Manual field override in draft review** — Fields are checkbox-only (include/exclude), no inline edit
 - **Historical parse comparison** — No way to compare two parses of the same fund over time
+- **Retroactive monthly validation** — Existing DB monthly values not yet validated against yearly
 - **Multi-user roles** — Single admin password, no viewer/editor distinction
 
 ---

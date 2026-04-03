@@ -1,7 +1,7 @@
 # DEV STATE — System Functionality & Stability
 
-**Status:** STABLE — v1.3 (Creative Value fix verified)
-**Date:** 2026-04-03
+**Status:** STABLE — v1.4 (Monthly reliability layers)
+**Date:** 2026-04-04
 
 ---
 
@@ -21,6 +21,7 @@
 | AI Parser — File | ✅ Stable | Vision API, PDF/PNG/JPG, 45s timeout + retry |
 | Draft system | ✅ Stable | Save/apply/reject/undo, append-only audit log |
 | Fund matching | ✅ Stable | Currency-aware, returnBasis in matching context |
+| Monthly reliability | ✅ Stable | corrections UI, auto-apply block, overwrite protection, compound validation |
 
 ---
 

@@ -58,16 +58,21 @@ If `corrections[]` contains `monthly_uncertain` for a year, monthly values for t
 5. **No blind iteration** — If stuck >2 attempts, stop, summarize, change approach
 6. **Print is sacred** — Never break print layouts (see AI_DEV_RULES.md for patterns)
 
-## Current Status (2026-04-03)
-- **v1.3 deployed and production-verified** — Creative Value parsing confirmed correct
+## Current Status (2026-04-04)
+- **v1.4 deployed** — Monthly reliability safety layers (Phase 1 + Phase 2 + compound validation)
 - **All yearly values correct** (2019-2025 + YTD 2026)
-- **corrections[] visible** in parse results (12 entries for Creative Value)
+- **Monthly safety layers active:**
+  - `corrections[]` + `monthly_uncertain` visible in draft review UI (red banner + tags)
+  - Auto-apply blocked (client + server) for uncertain drafts
+  - Existing monthly values protected from uncertain overwrite (default "keep")
+  - Compound validation (Π(1+rₖ) vs yearly, ±1%) runs for **all** drafts — merges fund history + draft values
+  - Validation is detection-only for clean drafts (warning, not blocking)
 - **No open bugs**
 
 ## Next Focus
-- Monitor other fund PDFs for similar swap patterns
-- Consider expanding corrections visibility to the draft review UI
-- Batch processing of multiple fund reports in production
+- Monitor compound validation results in production for false positives
+- Consider retroactive validation of existing monthly history
+- Batch processing of multiple fund reports
 
 ## Key Files
 | File | Purpose |

@@ -1170,6 +1170,8 @@ export async function POST(req: NextRequest) {
 
       const diff: { field: string; existingValue: string | number | null; newValue: string | number | null; status: "new" | "changed" | "same" | "missing_in_pdf" }[] = [];
       let fundLastUpdated: string | null = null;
+      let fundMonthlyReturns: Record<string, number> = {};
+      let fundYearlyReturns: Record<string, number> = {};
 
       for (const cat of (fundsData.categories as Record<string, unknown>[]) || []) {
         if (cat.id !== categoryId) continue;
@@ -1180,6 +1182,10 @@ export async function POST(req: NextRequest) {
           fundLastUpdated = (fund.lastUpdated as string) || null;
           const monthlyReturns = (fund.monthlyReturns || {}) as Record<string, number>;
           const fundReturns = (fund.returns || {}) as Record<string, unknown>;
+          fundMonthlyReturns = { ...monthlyReturns };
+          for (const [k, v] of Object.entries(fundReturns)) {
+            if (/^y\d{4}$/.test(k) && typeof v === "number") fundYearlyReturns[k] = v;
+          }
 
           for (const field of validFields) {
             let existingValue: string | number | null = null;
@@ -1259,24 +1265,22 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Compound validation: merge existing + draft monthly, compare vs yearly
+      // Compound validation: merge fund's full history + draft monthly, compare vs yearly
       let monthlyValidation: { year: number; compounded: number; yearly: number; diff: number; status: "pass" | "fail" }[] = [];
-      // Build merged monthly and yearly maps from diff + draft fields
       {
-        const mergedMonthly: Record<string, number> = {};
-        const mergedYearly: Record<string, number | null> = {};
-        // Collect from diff (newValue takes priority over existingValue for fields being applied)
+        // Start with fund's existing data as base
+        const mergedMonthly: Record<string, number> = { ...fundMonthlyReturns };
+        const mergedYearly: Record<string, number | null> = { ...fundYearlyReturns };
+        // Overlay draft values (new/changed from diff take priority)
         for (const d of diff) {
           if (d.field === "monthlyReturn" && reportMonth && typeof d.newValue === "number") {
             mergedMonthly[reportMonth] = d.newValue;
           } else if (d.field.startsWith("monthlyReturns.")) {
             const m = d.field.split(".")[1];
-            const val = d.newValue ?? d.existingValue;
-            if (m && typeof val === "number") mergedMonthly[m] = val;
+            if (m && typeof d.newValue === "number") mergedMonthly[m] = d.newValue;
           } else if (d.field.startsWith("returns.y") && !d.field.includes("ytd")) {
-            const val = d.newValue ?? d.existingValue;
             const yearKey = d.field.split(".")[1];
-            if (yearKey && typeof val === "number") mergedYearly[yearKey] = val;
+            if (yearKey && typeof d.newValue === "number") mergedYearly[yearKey] = d.newValue;
           }
         }
         monthlyValidation = validateMonthlyVsYearly(mergedMonthly, mergedYearly);

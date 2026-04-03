@@ -1,5 +1,31 @@
 # Changelog
 
+## v1.4 — Monthly Reliability Layers (2026-04-04)
+
+### Phase 1: Safety Net
+- `corrections[]` + `monthly_uncertain` warning banner in draft review UI
+- Auto-apply blocked (client + server) for uncertain drafts
+- Batch apply skips uncertain drafts
+- Single apply requires explicit confirm for uncertain drafts
+
+### Phase 2: Overwrite Protection
+- Changed monthly fields flagged as `monthlyProtected` when draft has `monthly_uncertain`
+- Protected fields auto-default to "keep" in diff review
+- Red "🛡 מוגן" badge on protected rows
+
+### Compound Validation (expanded)
+- `validateMonthlyVsYearly()` — Π(1+rₖ) vs yearly, ±1% tolerance
+- Now runs for **all** drafts (not only uncertain) — merges fund's full monthly history + draft values
+- Detection-only for clean drafts (warning, not blocking)
+- Results shown in diff review per year (✓ pass / ✕ fail)
+
+### Files Changed
+- `app/api/parse/route.ts` — validation function, check-collision enhancements, server-side guards
+- `app/admin/page.tsx` — corrections UI, protected rows, compound validation display, apply gating
+- Documentation: CLAUDE.md, AI_PARSER.md, PROJECT_STATE.md, DEV_STATE.md, CHANGELOG.md
+
+---
+
 ## v1.3 — Creative Value Parser Fix (2026-04-03)
 
 ### Parser Hardening

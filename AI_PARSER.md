@@ -76,6 +76,30 @@ Both orders produce identical compound. No mathematical test can distinguish the
 
 ---
 
+## Monthly Reliability Layers (v1.4)
+
+### Phase 1: Safety Net
+- `corrections[]` and `monthly_uncertain` shown in draft review UI (red banner + tags)
+- Auto-apply blocked (client + server) when `monthly_uncertain` exists
+- Batch apply skips uncertain drafts
+- Single apply requires explicit `window.confirm()` for uncertain drafts
+
+### Phase 2: Overwrite Protection
+- Changed monthly fields flagged as `monthlyProtected` when draft has `monthly_uncertain`
+- Protected fields auto-default to "keep" in diff review (user can override)
+- Red "🛡 מוגן" badge on protected rows
+
+### Compound Validation
+- `validateMonthlyVsYearly()` — computes Π(1+rₖ)-1 for complete years, compares to yearly return
+- Tolerance: ±1% absolute
+- Runs for **all** drafts at check-collision (not only uncertain)
+- Merges fund's full existing monthly history + draft's new values for comparison
+- Results shown in diff review: ✓ pass / ✕ fail per year
+- Detection only — does not block apply for clean drafts
+- Requires 12 months + yearly value for a year to validate; otherwise skips
+
+---
+
 ## corrections[] Array
 
 Returned on every parse result. Empty array (or undefined) means no corrections were needed.
