@@ -1,7 +1,7 @@
 # PROJECT STATE — Fund Tracker
 
 ## Current Version: v1.2
-**Last Updated:** 2026-04-02
+**Last Updated:** 2026-04-03
 **Status:** Production-ready — STABLE BASELINE (Parser Phase Complete)
 **Deployment:** Vercel (auto-deploy on push to main)
 **Repository:** github.com/bren242/fund-tracker
@@ -403,6 +403,71 @@ check-collision → autoApplyEligible?
 - No retry mechanism
 - No parallel execution
 - No batch undo (single-draft undo only)
+
+---
+
+## Draft Review Polish — QA APPROVED (2026-04-03)
+
+Client-side enhancements to the draft review workflow: inline match reassignment, field value editing, confidence badges, and match similarity display. Completes the operator workflow: parse → review/edit → diff → auto-apply → batch.
+
+### Status: QA APPROVED
+
+### Implemented Scope
+
+**Match reassignment:**
+- "שנה קרן" button on every pending draft card
+- Opens searchable fund selector dropdown (reuses `allFunds` list)
+- Selected override shown as "→ {new fund}" with "✎ שונתה" badge
+- "↩ חזור להתאמה המקורית" option to revert
+- Override stored in `draftMatchOverrides` state (client-side only)
+
+**Field value editing:**
+- Inline number inputs for `monthlyReturn`, `sharpe`, `stdDev`, `returns.*`
+- Values displayed as percentages where applicable (input in %, stored as decimal)
+- Edited fields highlighted in blue with "✕" cancel button
+- Original value shown on hover (title tooltip)
+- Edits stored in `editedFields` state (client-side only)
+
+**Confidence badges:**
+- Per-field badge using existing `confidenceBadge` helper
+- Colors: green (≥90%), orange (≥70%), red (<70%)
+- Format: `{label} ({percent}%)` — e.g., "גבוה (95%)"
+
+**Match similarity:**
+- Displayed next to matched fund name: `({percent}% התאמה)`
+- Only shown when `draft.match.similarity` exists and no override active
+
+### Behavior
+
+- All edits are local (React state) until apply
+- Edited values override parsed values in the `approvedFields` payload sent to:
+  - Manual apply (`handleApplyDraft`)
+  - Auto-apply (same function, `autoApply: true`)
+  - Batch apply (`handleBatchApply`)
+- Match overrides replace `fundId` and `categoryId` in all apply paths
+- No server-side changes required — server receives final values only
+
+### Safety
+
+- No change to diff/collision logic (server computes diff against effective values)
+- No change to apply logic (server applies whatever fields it receives)
+- No change to validation (staleness, 409 fallback, re-validation all intact)
+- Overrides only affect the client-side payload construction
+
+### QA Results (2026-04-03)
+| Case | Scenario | Result |
+|------|----------|--------|
+| 1 | Match reassign → apply routes to new fund | PASS |
+| 2 | Field edit → diff shows edited value, apply saves edited value | PASS |
+| 3 | Auto-apply uses edited value (not original parsed) | PASS |
+| 4 | Batch uses edited value + match override | PASS |
+| 5 | Visual: confidence badges, similarity %, no console errors | PASS |
+
+### Out of Scope (intentionally not included)
+- No persistent draft editing API (edits lost on page refresh)
+- No validation layer for edited values (operator responsibility)
+- No audit differentiation between parsed vs edited values
+- No server-side storage of overrides
 
 ---
 
