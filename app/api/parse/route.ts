@@ -1111,16 +1111,58 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================================
+    // Monthly vs Yearly compound validation
+    // ============================================================
+    function validateMonthlyVsYearly(
+      monthlyReturns: Record<string, number>,
+      yearlyReturns: Record<string, number | null>,
+    ): { year: number; compounded: number; yearly: number; diff: number; status: "pass" | "fail" }[] {
+      const results: { year: number; compounded: number; yearly: number; diff: number; status: "pass" | "fail" }[] = [];
+      // Group monthly by year
+      const byYear: Record<number, number[]> = {};
+      for (const [key, val] of Object.entries(monthlyReturns)) {
+        const y = parseInt(key.split("-")[0]);
+        if (!isNaN(y) && typeof val === "number") {
+          if (!byYear[y]) byYear[y] = [];
+          byYear[y].push(val);
+        }
+      }
+      for (const [yearStr, months] of Object.entries(byYear)) {
+        const year = parseInt(yearStr);
+        if (months.length !== 12) continue; // only validate complete years
+        const yearlyKey = `y${year}`;
+        const yearly = yearlyReturns[yearlyKey];
+        if (yearly === null || yearly === undefined) continue;
+        const compounded = months.reduce((acc, r) => acc * (1 + r), 1) - 1;
+        const diff = Math.abs(compounded - yearly);
+        results.push({ year, compounded, yearly, diff, status: diff <= 0.01 ? "pass" : "fail" });
+      }
+      return results;
+    }
+
+    // ============================================================
     // ACTION: check-collision — Compute full diff for approved fields
     // ============================================================
     if (action === "check-collision") {
       const body = await req.json();
-      const { fundId, categoryId, reportMonth, approvedFields } = body;
+      const { fundId, categoryId, reportMonth, approvedFields, draftId: checkDraftId } = body;
 
       const diffComputedAt = new Date().toISOString();
 
+      // Look up draft corrections if draftId provided
+      let hasMonthlyUncertain = false;
+      let draftCorrections: string[] = [];
+      if (checkDraftId) {
+        const allDrafts = await storageRead<ParseDraft[]>(`parse-drafts:${clientKey}`, []);
+        const found = allDrafts.find((d) => d.id === checkDraftId);
+        if (found?.corrections) {
+          draftCorrections = found.corrections;
+          hasMonthlyUncertain = draftCorrections.some((c) => c.includes("monthly_uncertain"));
+        }
+      }
+
       if (!fundId || !categoryId) {
-        return NextResponse.json({ diff: [], diffComputedAt, fundLastUpdated: null });
+        return NextResponse.json({ diff: [], diffComputedAt, fundLastUpdated: null, hasMonthlyUncertain, draftCorrections });
       }
 
       const validFields = sanitizeFields(approvedFields || []);
@@ -1208,13 +1250,36 @@ export async function POST(req: NextRequest) {
         break;
       }
 
-      // Auto-apply eligible: at least 1 new field, 0 changed, 0 missing_in_pdf
+      // Compound validation: merge existing + draft monthly, compare vs yearly
+      let monthlyValidation: { year: number; compounded: number; yearly: number; diff: number; status: "pass" | "fail" }[] = [];
+      // Build merged monthly and yearly maps from diff + draft fields
+      {
+        const mergedMonthly: Record<string, number> = {};
+        const mergedYearly: Record<string, number | null> = {};
+        // Collect from diff (newValue takes priority over existingValue for fields being applied)
+        for (const d of diff) {
+          if (d.field === "monthlyReturn" && reportMonth && typeof d.newValue === "number") {
+            mergedMonthly[reportMonth] = d.newValue;
+          } else if (d.field.startsWith("monthlyReturns.")) {
+            const m = d.field.split(".")[1];
+            const val = d.newValue ?? d.existingValue;
+            if (m && typeof val === "number") mergedMonthly[m] = val;
+          } else if (d.field.startsWith("returns.y") && !d.field.includes("ytd")) {
+            const val = d.newValue ?? d.existingValue;
+            const yearKey = d.field.split(".")[1];
+            if (yearKey && typeof val === "number") mergedYearly[yearKey] = val;
+          }
+        }
+        monthlyValidation = validateMonthlyVsYearly(mergedMonthly, mergedYearly);
+      }
+
+      // Auto-apply eligible: at least 1 new field, 0 changed, 0 missing_in_pdf, NO monthly_uncertain
       const hasNew = diff.some((d) => d.status === "new");
       const hasChanged = diff.some((d) => d.status === "changed");
       const hasMissing = diff.some((d) => d.status === "missing_in_pdf");
-      const autoApplyEligible = hasNew && !hasChanged && !hasMissing;
+      const autoApplyEligible = hasNew && !hasChanged && !hasMissing && !hasMonthlyUncertain;
 
-      return NextResponse.json({ diff, diffComputedAt, fundLastUpdated, autoApplyEligible });
+      return NextResponse.json({ diff, diffComputedAt, fundLastUpdated, autoApplyEligible, hasMonthlyUncertain, draftCorrections, monthlyValidation });
     }
 
     // ============================================================
@@ -1226,6 +1291,18 @@ export async function POST(req: NextRequest) {
 
       if (!draftId || !fundId || !categoryId || !approvedFields) {
         return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+      }
+
+      // Server-side guard: block autoApply when draft has monthly_uncertain
+      if (autoApply) {
+        const allDrafts = await storageRead<ParseDraft[]>(`parse-drafts:${clientKey}`, []);
+        const thisDraft = allDrafts.find((d) => d.id === draftId);
+        if (thisDraft?.corrections?.some((c) => c.includes("monthly_uncertain"))) {
+          return NextResponse.json({
+            error: "טיוטה עם נתונים חודשיים לא אמינים — נדרש אישור ידני",
+            monthlyUncertain: true,
+          }, { status: 409 });
+        }
       }
 
       // reportMonth is REQUIRED for monthlyReturn — block apply without it

@@ -2079,6 +2079,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
     reportMonth: string | null;
     reportMonthConfidence: "high" | "low";
     returnBasis: "ILS" | "USD" | null;
+    corrections?: string[];
   }[]>([]);
   const [view, setView] = useState<"input" | "review" | "drafts">("input");
   const [showArchive, setShowArchive] = useState(false);
@@ -2088,7 +2089,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
   const [selectedMatchCatId, setSelectedMatchCatId] = useState<string>("");
   const [reportMonth, setReportMonth] = useState<string>("");
   const [returnBasis, setReturnBasis] = useState<"ILS" | "USD" | null>(null);
-  const [diffResult, setDiffResult] = useState<{ diff: { field: string; existingValue: string | number | null; newValue: string | number | null; status: "new" | "changed" | "same" | "missing_in_pdf" }[]; diffComputedAt: string; fundLastUpdated: string | null; draftId: string } | null>(null);
+  const [diffResult, setDiffResult] = useState<{ diff: { field: string; existingValue: string | number | null; newValue: string | number | null; status: "new" | "changed" | "same" | "missing_in_pdf" }[]; diffComputedAt: string; fundLastUpdated: string | null; draftId: string; hasMonthlyUncertain?: boolean; draftCorrections?: string[]; monthlyValidation?: { year: number; compounded: number; yearly: number; diff: number; status: "pass" | "fail" }[] } | null>(null);
   const [fieldDecisions, setFieldDecisions] = useState<Record<string, "replace" | "keep" | "clear">>({});
   const [draftReportMonths, setDraftReportMonths] = useState<Record<string, string>>({});
   const [tokenUsage, setTokenUsage] = useState<{
@@ -2464,6 +2465,13 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
       }
     }
 
+    // Monthly uncertain confirmation gate
+    if (draft.corrections?.some((c: string) => c.includes("monthly_uncertain"))) {
+      if (!window.confirm("⚠️ הנתונים החודשיים בטיוטה זו סומנו כלא אמינים (monthly_uncertain).\nהאם לבצע עדכון בכל זאת?")) {
+        return;
+      }
+    }
+
     // Step 1: Compute diff (unless we already have decisions from the diff UI)
     if (!overrideDecisions) {
       try {
@@ -2475,6 +2483,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
             categoryId: effectiveCategoryId,
             reportMonth: draftReportMonth || null,
             approvedFields: effectiveFields,
+            draftId: draft.id,
           }),
         });
         if (!checkRes.ok) {
@@ -2540,6 +2549,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
                     categoryId: effectiveCategoryId,
                     reportMonth: draftReportMonth || null,
                     approvedFields: effectiveFields,
+                    draftId: draft.id,
                   }),
                 });
                 if (recheck.ok) {
@@ -2782,6 +2792,8 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
       const hasFundId = draftMatchOverrides[d.id]?.fundId || d.match?.fundId;
       if (!hasFundId) return false;
       if (d.extracted.fields.length === 0) return false;
+      // Skip drafts with monthly_uncertain — require manual review
+      if (d.corrections?.some((c: string) => c.includes("monthly_uncertain"))) return false;
       const hasMonthly = d.extracted.fields.some((f) => f.key === "monthlyReturn");
       const effectiveMonth = draftReportMonths[d.id] ?? (d.reportMonth || "");
       if (hasMonthly && !effectiveMonth) return false;
@@ -2810,6 +2822,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
             categoryId: bCatId,
             reportMonth: draftReportMonth || null,
             approvedFields: bFields,
+            draftId: draft.id,
           }),
         });
         if (!checkRes.ok) { failed++; continue; }
@@ -3693,6 +3706,33 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
                   {draft.source.preview}...
                 </div>
 
+                {/* Monthly uncertain warning */}
+                {draft.corrections && draft.corrections.some((c: string) => c.includes("monthly_uncertain")) && (
+                  <div style={{
+                    backgroundColor: "#ef444415",
+                    border: "1px solid #ef444440",
+                    borderRadius: 6,
+                    padding: "8px 12px",
+                    marginBottom: 10,
+                    fontSize: 11,
+                  }}>
+                    <div style={{ color: "#ef4444", fontWeight: 600, marginBottom: 4 }}>
+                      ⚠ נתונים חודשיים אינם אמינים ודורשים בדיקה
+                    </div>
+                    <div style={{ color: "var(--text-secondary)", fontSize: 10, display: "flex", flexWrap: "wrap", gap: 4 }}>
+                      {draft.corrections.map((c: string, ci: number) => (
+                        <span key={ci} style={{
+                          backgroundColor: c.includes("monthly_uncertain") ? "#ef444420" : "var(--bg-surface-alt)",
+                          color: c.includes("monthly_uncertain") ? "#ef4444" : "var(--text-muted)",
+                          padding: "1px 6px",
+                          borderRadius: 4,
+                          fontSize: 9,
+                        }}>{c}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Report month — editable for pending drafts */}
                 {draft.status === "pending" && (() => {
                   const currentMonth = draftReportMonths[draft.id] ?? (draft.reportMonth || "");
@@ -3780,6 +3820,38 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
                       <p style={{ fontSize: 12, fontWeight: 600, color: "#f59e0b", margin: "0 0 8px" }}>
                         ⚠️ סקירת שינויים — {changedFields.length} שונים, {newFields.length} חדשים{missingFields.length > 0 ? `, ${missingFields.length} חסרים בדוח` : ""}
                       </p>
+
+                      {/* Monthly vs Yearly compound validation */}
+                      {diffResult.monthlyValidation && diffResult.monthlyValidation.length > 0 && (
+                        <div style={{ marginBottom: 8 }}>
+                          {diffResult.monthlyValidation.map((v: { year: number; compounded: number; yearly: number; diff: number; status: string }, vi: number) => (
+                            <div key={`mv-${vi}`} style={{
+                              display: "flex", alignItems: "center", gap: 8, fontSize: 10, padding: "3px 8px",
+                              backgroundColor: v.status === "fail" ? "#ef444410" : "#05966910",
+                              borderRadius: 4, marginBottom: 2,
+                            }}>
+                              <span style={{
+                                color: v.status === "fail" ? "#ef4444" : "#059669",
+                                fontWeight: 700, fontSize: 9,
+                              }}>{v.status === "fail" ? "✕" : "✓"}</span>
+                              <span style={{ color: "var(--text-secondary)" }}>
+                                {v.year}: חודשי מצרפי {(v.compounded * 100).toFixed(2)}% מול שנתי {(v.yearly * 100).toFixed(2)}%
+                                {v.status === "fail" && <span style={{ color: "#ef4444", fontWeight: 600 }}> (פער {(v.diff * 100).toFixed(2)}%)</span>}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Monthly uncertain warning in diff */}
+                      {diffResult.hasMonthlyUncertain && (
+                        <div style={{
+                          backgroundColor: "#ef444415", border: "1px solid #ef444440", borderRadius: 6,
+                          padding: "6px 10px", marginBottom: 8, fontSize: 10, color: "#ef4444", fontWeight: 600,
+                        }}>
+                          ⚠ נתונים חודשיים סומנו כלא אמינים — בדקו לפני אישור
+                        </div>
+                      )}
 
                       {/* Changed fields — require decision */}
                       {changedFields.map((d, di) => (
