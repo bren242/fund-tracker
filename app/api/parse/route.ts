@@ -150,7 +150,8 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v6: fixed currency prompt (label-only, no position assumptions) + ytd→y auto-promotion for Dec reports
   // v7: matching now includes returnBasis to distinguish ILS/USD fund variants
   // v8: fixed dual-currency prompt bias that caused ILS/USD inversion
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 8) return null;
+  // v9: header-driven table parsing (not position-driven) + annual/monthly validation
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 9) return null;
 
   return cached.result;
 }
@@ -491,6 +492,35 @@ RULES:
 - Fund name must be extracted in its original language
 - If a field is not clearly present, omit it
 
+CRITICAL — PERFORMANCE TABLE PARSING (header-driven, NOT position-driven):
+When the document contains a performance/returns table, you MUST follow this process:
+
+STEP 1 — DETECT HEADERS: Find the header row of the table. Read every column header label.
+STEP 2 — MAP COLUMNS BY HEADER TEXT: Build a column→meaning mapping using these rules:
+  - "שנתי" or "שנתית" or "Annual" → annual/yearly return for that row's year
+  - "YTD" or "מצטבר" or "מתחילת השנה" or "תשואה מתחילת" → year-to-date return
+  - "ינו" or "ינואר" or "Jan" → month 01
+  - "פבר" or "פברואר" or "Feb" → month 02
+  - "מרץ" or "Mar" → month 03
+  - "אפר" or "אפריל" or "Apr" → month 04
+  - "מאי" or "May" → month 05
+  - "יוני" or "Jun" → month 06
+  - "יולי" or "Jul" → month 07
+  - "אוג" or "אוגוסט" or "Aug" → month 08
+  - "ספט" or "ספטמבר" or "Sep" → month 09
+  - "אוק" or "אוקטובר" or "Oct" → month 10
+  - "נוב" or "נובמבר" or "Nov" → month 11
+  - "דצמ" or "דצמבר" or "Dec" → month 12
+  - A 4-digit year like "2020", "2025" → row year identifier column
+STEP 3 — READ ROWS BY MAPPING: For each data row:
+  - Identify the row's year from the year-identifier column
+  - Read the annual return ONLY from the column mapped to "שנתי"/"Annual"
+  - Read monthly returns ONLY from columns mapped to month headers
+  - Read YTD ONLY from the column mapped to "YTD"/"מצטבר"
+STEP 4 — VALIDATE: If a row has both monthly columns and an annual column, the annual value must come from the "שנתי" column only. NEVER use the first or last numeric cell as annual return. NEVER confuse a January value with an annual value or vice versa.
+
+DO NOT rely on column position, left-to-right order, or right-to-left order. Tables may be RTL or LTR. Only the header text determines what each column means.
+
 FIELDS TO EXTRACT (only these):
 - fundName: string (the fund's name as written)
 - monthlyReturn: number | null (latest monthly return as decimal)
@@ -751,6 +781,35 @@ function parseCloudeResponse(
       for (const entry of dualCurrencyData) {
         promoteYtdToAnnual(entry.fields);
       }
+    }
+  }
+
+  // Sanity check: detect annual/monthly value confusion
+  // If a yearly return (e.g., returns.y2025) has the same value as a monthly return
+  // for January of that year, it's likely a column-mapping error. Flag with lower confidence.
+  const validateAnnualMonthlyConsistency = (fields: ParsedField[]) => {
+    for (const f of fields) {
+      const yMatch = f.key.match(/^returns\.y(\d{4})$/);
+      if (!yMatch || typeof f.value !== "number") continue;
+      const year = yMatch[1];
+      // Check if this annual value matches January value exactly
+      const janField = fields.find((mf) => mf.key === `monthlyReturns.${year}-01`);
+      if (janField && typeof janField.value === "number" && f.value === janField.value && Math.abs(f.value) < 0.15) {
+        // Annual return equals January return and is small — likely confused
+        f.confidence = Math.min(f.confidence, 0.3);
+      }
+      // Check if annual value is suspiciously small for a yearly figure (< 1%) when monthly values exist
+      const monthlyVals = fields.filter((mf) => mf.key.startsWith(`monthlyReturns.${year}-`) && typeof mf.value === "number");
+      if (monthlyVals.length >= 6 && Math.abs(f.value) < 0.01) {
+        // Has 6+ months of data but annual is < 1% — possibly a single month value
+        f.confidence = Math.min(f.confidence, 0.4);
+      }
+    }
+  };
+  validateAnnualMonthlyConsistency(sanitizedFields);
+  if (dualCurrencyData) {
+    for (const entry of dualCurrencyData) {
+      validateAnnualMonthlyConsistency(entry.fields);
     }
   }
 
@@ -1718,7 +1777,7 @@ export async function POST(req: NextRequest) {
       if (result.dualCurrencyData) {
         resultObj.dualCurrencyData = result.dualCurrencyData;
       }
-      resultObj._cacheVersion = 8;
+      resultObj._cacheVersion = 9;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
