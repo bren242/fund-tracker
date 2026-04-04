@@ -2089,7 +2089,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
   const [selectedMatchCatId, setSelectedMatchCatId] = useState<string>("");
   const [reportMonth, setReportMonth] = useState<string>("");
   const [returnBasis, setReturnBasis] = useState<"ILS" | "USD" | null>(null);
-  const [diffResult, setDiffResult] = useState<{ diff: { field: string; existingValue: string | number | null; newValue: string | number | null; status: "new" | "changed" | "same" | "missing_in_pdf"; monthlyProtected?: boolean }[]; diffComputedAt: string; fundLastUpdated: string | null; draftId: string; hasMonthlyUncertain?: boolean; draftCorrections?: string[]; monthlyValidation?: { year: number; compounded: number; yearly: number; diff: number; status: "pass" | "fail" }[] } | null>(null);
+  const [diffResult, setDiffResult] = useState<{ diff: { field: string; existingValue: string | number | null; newValue: string | number | null; status: "new" | "changed" | "same" | "missing_in_pdf"; monthlyProtected?: boolean; historyMismatch?: boolean; historyDiff?: number }[]; diffComputedAt: string; fundLastUpdated: string | null; draftId: string; hasMonthlyUncertain?: boolean; draftCorrections?: string[]; monthlyValidation?: { year: number; compounded: number; yearly: number; diff: number; status: "pass" | "fail" }[] } | null>(null);
   const [fieldDecisions, setFieldDecisions] = useState<Record<string, "replace" | "keep" | "clear">>({});
   const [draftReportMonths, setDraftReportMonths] = useState<Record<string, string>>({});
   const [tokenUsage, setTokenUsage] = useState<{
@@ -3875,6 +3875,9 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
                             <span style={{ display: "inline-block", padding: "1px 6px", borderRadius: 3, backgroundColor: "#f59e0b20", color: "#f59e0b", fontSize: 9, fontWeight: 700, marginLeft: 6 }}>שונה</span>
                             {d.monthlyProtected && (
                               <span style={{ display: "inline-block", padding: "1px 6px", borderRadius: 3, backgroundColor: "#ef444420", color: "#ef4444", fontSize: 9, fontWeight: 700, marginLeft: 6 }}>🛡 מוגן — נתון חודשי לא אמין</span>
+                            )}
+                            {d.historyMismatch && !d.monthlyProtected && (
+                              <span style={{ display: "inline-block", padding: "1px 6px", borderRadius: 3, backgroundColor: "#f59e0b20", color: "#f59e0b", fontSize: 9, fontWeight: 700, marginLeft: 6 }}>⚠ ערך שונה מהיסטוריה קיימת{d.historyDiff != null ? ` (${(d.historyDiff * 100).toFixed(1)}%)` : ""}</span>
                             )}
                             <strong>{fieldLabel(d.field)}</strong>
                           </div>

@@ -1265,6 +1265,19 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // History cross-check: flag monthly fields where incoming ≠ existing by >0.5%
+      for (const d of diff) {
+        if (d.status !== "changed") continue;
+        if (d.field !== "monthlyReturn" && !d.field.startsWith("monthlyReturns.")) continue;
+        if (typeof d.existingValue === "number" && typeof d.newValue === "number") {
+          const absDiff = Math.abs(d.existingValue - d.newValue);
+          if (absDiff > 0.005) {
+            (d as Record<string, unknown>).historyMismatch = true;
+            (d as Record<string, unknown>).historyDiff = absDiff;
+          }
+        }
+      }
+
       // Compound validation: merge fund's full history + draft monthly, compare vs yearly
       let monthlyValidation: { year: number; compounded: number; yearly: number; diff: number; status: "pass" | "fail" }[] = [];
       {

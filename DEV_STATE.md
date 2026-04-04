@@ -21,7 +21,7 @@
 | AI Parser — File | ✅ Stable | Vision API, PDF/PNG/JPG, 45s timeout + retry |
 | Draft system | ✅ Stable | Save/apply/reject/undo, append-only audit log |
 | Fund matching | ✅ Stable | Currency-aware, returnBasis in matching context |
-| Monthly reliability | ✅ Stable | corrections UI, auto-apply block, overwrite protection, compound validation |
+| Monthly reliability | ✅ Stable | corrections UI, auto-apply block, overwrite protection, compound validation, history cross-check |
 
 ---
 

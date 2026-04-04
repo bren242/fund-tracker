@@ -67,10 +67,11 @@ If `corrections[]` contains `monthly_uncertain` for a year, monthly values for t
   - Existing monthly values protected from uncertain overwrite (default "keep")
   - Compound validation (Π(1+rₖ) vs yearly, ±1%) runs for **all** drafts — merges fund history + draft values
   - Validation is detection-only for clean drafts (warning, not blocking)
+  - History cross-check: flags monthly values that differ from existing same-month history by >0.5% (detection-only)
 - **No open bugs**
 
 ## Next Focus
-- Monitor compound validation results in production for false positives
+- Monitor cross-check and compound validation results in production
 - Consider retroactive validation of existing monthly history
 - Batch processing of multiple fund reports
 

@@ -19,9 +19,15 @@
 - Detection-only for clean drafts (warning, not blocking)
 - Results shown in diff review per year (✓ pass / ✕ fail)
 
+### History Cross-Check
+- Monthly values compared against existing `fund.monthlyReturns[month]` at check-collision
+- Flags mismatch when difference >0.5% absolute (`historyMismatch` + `historyDiff`)
+- Orange "⚠ ערך שונה מהיסטוריה קיימת" badge in diff review
+- Detection only — does not block apply
+
 ### Files Changed
-- `app/api/parse/route.ts` — validation function, check-collision enhancements, server-side guards
-- `app/admin/page.tsx` — corrections UI, protected rows, compound validation display, apply gating
+- `app/api/parse/route.ts` — validation function, check-collision enhancements, server-side guards, history cross-check
+- `app/admin/page.tsx` — corrections UI, protected rows, compound validation display, apply gating, history mismatch badge
 - Documentation: CLAUDE.md, AI_PARSER.md, PROJECT_STATE.md, DEV_STATE.md, CHANGELOG.md
 
 ---

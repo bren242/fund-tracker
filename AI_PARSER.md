@@ -98,6 +98,13 @@ Both orders produce identical compound. No mathematical test can distinguish the
 - Detection only — does not block apply for clean drafts
 - Requires 12 months + yearly value for a year to validate; otherwise skips
 
+### History Cross-Check
+- At check-collision, each monthly field compared against `fund.monthlyReturns[month]`
+- If both values exist and differ by >0.5% absolute → `historyMismatch: true` + `historyDiff` on diff entry
+- Shown in diff review as orange "⚠ ערך שונה מהיסטוריה קיימת (X%)" badge
+- Detection only — does not block apply
+- Complements compound validation: catches per-month discrepancies even when yearly compound passes
+
 ---
 
 ## corrections[] Array

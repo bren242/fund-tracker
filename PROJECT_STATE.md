@@ -199,6 +199,7 @@ All AI parser functionality is production-verified and stable.
 | Batch apply skips uncertain drafts | WORKING | 2026-04-03 |
 | Monthly overwrite protection (default "keep") | WORKING | 2026-04-03 |
 | Compound validation for all drafts | WORKING | 2026-04-04 |
+| History cross-check (monthly vs existing) | WORKING | 2026-04-04 |
 
 ### Known Risks (Real)
 1. **Prompt sensitivity** — Currency assignment depends on Claude correctly reading Hebrew labels. Unusual document layouts may still confuse it.
