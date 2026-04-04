@@ -59,7 +59,7 @@ If `corrections[]` contains `monthly_uncertain` for a year, monthly values for t
 6. **Print is sacred** — Never break print layouts (see AI_DEV_RULES.md for patterns)
 
 ## Current Status (2026-04-04)
-- **v1.4 deployed** — Monthly reliability safety layers (Phase 1 + Phase 2 + compound validation)
+- **v1.5 deployed** — Monthly Direction Control
 - **All yearly values correct** (2019-2025 + YTD 2026)
 - **Monthly safety layers active:**
   - `corrections[]` + `monthly_uncertain` visible in draft review UI (red banner + tags)
@@ -68,10 +68,16 @@ If `corrections[]` contains `monthly_uncertain` for a year, monthly values for t
   - Compound validation (Π(1+rₖ) vs yearly, ±1%) runs for **all** drafts — merges fund history + draft values
   - Validation is detection-only for clean drafts (warning, not blocking)
   - History cross-check: flags monthly values that differ from existing same-month history by >0.5% (detection-only)
+- **Monthly Direction Control:**
+  - Per-fund `monthlyDirection: "LTR" | "RTL" | null` setting
+  - When RTL: monthly values reversed before validation/diff/apply (normalization layer)
+  - Direction selector in diff review when direction is null and draft has monthly fields
+  - Badge shown when direction already set
+  - Does NOT auto-clear `monthly_uncertain` — direction improves interpretation, not parser certainty
 - **No open bugs**
 
 ## Next Focus
-- Monitor cross-check and compound validation results in production
+- Monitor direction normalization in production
 - Consider retroactive validation of existing monthly history
 - Batch processing of multiple fund reports
 

@@ -1,5 +1,32 @@
 # Changelog
 
+## v1.5 — Monthly Direction Control (2026-04-04)
+
+### Per-Fund Direction Setting
+- `monthlyDirection: "LTR" | "RTL" | null` field on Fund type
+- `normalizeMonthlyDirection()` — reverses monthly value assignments per year when direction is RTL
+- Normalization runs before compound validation, diff comparison, history cross-check, and apply
+- Does NOT mutate raw draft data — interpretation layer only
+- `monthly_uncertain` preserved as-is — direction does not auto-clear parser uncertainty
+
+### API
+- `set-direction` action on parse API — saves direction to fund object
+- `fundMonthlyDirection` returned in check-collision response
+
+### UI
+- Direction selector in diff review when `monthlyDirection` is null and draft has monthly fields
+- Two buttons: "ינואר → דצמבר" (LTR) / "ינואר ← דצמבר" (RTL)
+- On selection: saves direction, re-runs check-collision with normalization applied
+- Direction badge when already set (green for LTR, blue for RTL)
+
+### Files Changed
+- `lib/types.ts` — `monthlyDirection` field on Fund
+- `app/api/parse/route.ts` — `normalizeMonthlyDirection()`, `set-direction` action, normalization in check-collision + apply
+- `app/admin/page.tsx` — direction selector UI, badge, re-check on direction change
+- Documentation: CLAUDE.md, AI_PARSER.md, PROJECT_STATE.md, DEV_STATE.md, CHANGELOG.md
+
+---
+
 ## v1.4 — Monthly Reliability Layers (2026-04-04)
 
 ### Phase 1: Safety Net

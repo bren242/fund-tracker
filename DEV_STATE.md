@@ -1,6 +1,6 @@
 # DEV STATE — System Functionality & Stability
 
-**Status:** STABLE — v1.4 (Monthly reliability layers)
+**Status:** STABLE — v1.5 (Monthly Direction Control)
 **Date:** 2026-04-04
 
 ---
@@ -22,6 +22,7 @@
 | Draft system | ✅ Stable | Save/apply/reject/undo, append-only audit log |
 | Fund matching | ✅ Stable | Currency-aware, returnBasis in matching context |
 | Monthly reliability | ✅ Stable | corrections UI, auto-apply block, overwrite protection, compound validation, history cross-check |
+| Monthly direction | ✅ Stable | per-fund LTR/RTL normalization, direction selector in diff review |
 
 ---
 

@@ -1111,6 +1111,58 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================================
+    // Monthly direction normalization
+    // ============================================================
+    function normalizeMonthlyDirection(
+      fields: { key: string; value: string | number | null }[],
+      direction: "LTR" | "RTL" | null | undefined,
+    ): { key: string; value: string | number | null }[] {
+      if (direction !== "RTL") return fields;
+      // Collect monthly fields per year, reverse their values
+      const monthlyByYear: Record<string, { key: string; value: string | number | null; month: number }[]> = {};
+      const nonMonthly: { key: string; value: string | number | null }[] = [];
+      for (const f of fields) {
+        let ym: string | null = null;
+        let month = 0;
+        if (f.key === "monthlyReturn") {
+          // monthlyReturn is current month — not part of yearly reversal, pass through
+          nonMonthly.push(f);
+          continue;
+        }
+        if (f.key.startsWith("monthlyReturns.")) {
+          const parts = f.key.split(".")[1]; // "2025-03"
+          if (parts) {
+            const [y, m] = parts.split("-");
+            ym = y;
+            month = parseInt(m);
+          }
+        }
+        if (ym && !isNaN(month)) {
+          if (!monthlyByYear[ym]) monthlyByYear[ym] = [];
+          monthlyByYear[ym].push({ key: f.key, value: f.value, month });
+        } else {
+          nonMonthly.push(f);
+        }
+      }
+      // For each year group, reverse the value assignments
+      const normalized = [...nonMonthly];
+      for (const entries of Object.values(monthlyByYear)) {
+        if (entries.length < 2) {
+          normalized.push(...entries.map((e) => ({ key: e.key, value: e.value })));
+          continue;
+        }
+        // Sort by month ascending, collect values, reverse values, re-assign
+        entries.sort((a, b) => a.month - b.month);
+        const values = entries.map((e) => e.value);
+        values.reverse();
+        for (let i = 0; i < entries.length; i++) {
+          normalized.push({ key: entries[i].key, value: values[i] });
+        }
+      }
+      return normalized;
+    }
+
+    // ============================================================
     // Monthly vs Yearly compound validation
     // ============================================================
     function validateMonthlyVsYearly(
@@ -1165,13 +1217,14 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ diff: [], diffComputedAt, fundLastUpdated: null, hasMonthlyUncertain, draftCorrections });
       }
 
-      const validFields = sanitizeFields(approvedFields || []);
+      const rawFields = sanitizeFields(approvedFields || []);
       const fundsData = await storageRead<Record<string, unknown>>(`funds:${clientKey}`, { categories: [] });
 
       const diff: { field: string; existingValue: string | number | null; newValue: string | number | null; status: "new" | "changed" | "same" | "missing_in_pdf" }[] = [];
       let fundLastUpdated: string | null = null;
       let fundMonthlyReturns: Record<string, number> = {};
       let fundYearlyReturns: Record<string, number> = {};
+      let fundMonthlyDirection: "LTR" | "RTL" | null = null;
 
       for (const cat of (fundsData.categories as Record<string, unknown>[]) || []) {
         if (cat.id !== categoryId) continue;
@@ -1180,12 +1233,16 @@ export async function POST(req: NextRequest) {
           if (fund.id !== fundId) continue;
 
           fundLastUpdated = (fund.lastUpdated as string) || null;
+          fundMonthlyDirection = (fund.monthlyDirection as "LTR" | "RTL" | null) || null;
           const monthlyReturns = (fund.monthlyReturns || {}) as Record<string, number>;
           const fundReturns = (fund.returns || {}) as Record<string, unknown>;
           fundMonthlyReturns = { ...monthlyReturns };
           for (const [k, v] of Object.entries(fundReturns)) {
             if (/^y\d{4}$/.test(k) && typeof v === "number") fundYearlyReturns[k] = v;
           }
+
+          // Apply direction normalization before diff
+          const validFields = normalizeMonthlyDirection(rawFields, fundMonthlyDirection);
 
           for (const field of validFields) {
             let existingValue: string | number | null = null;
@@ -1305,7 +1362,36 @@ export async function POST(req: NextRequest) {
       const hasMissing = diff.some((d) => d.status === "missing_in_pdf");
       const autoApplyEligible = hasNew && !hasChanged && !hasMissing && !hasMonthlyUncertain;
 
-      return NextResponse.json({ diff, diffComputedAt, fundLastUpdated, autoApplyEligible, hasMonthlyUncertain, draftCorrections, monthlyValidation });
+      return NextResponse.json({ diff, diffComputedAt, fundLastUpdated, autoApplyEligible, hasMonthlyUncertain, draftCorrections, monthlyValidation, fundMonthlyDirection });
+    }
+
+    // ============================================================
+    // ACTION: set-direction — Save monthlyDirection on a fund
+    // ============================================================
+    if (action === "set-direction") {
+      const body = await req.json();
+      const { fundId, categoryId, direction } = body;
+      if (!fundId || !categoryId || !["LTR", "RTL", null].includes(direction)) {
+        return NextResponse.json({ error: "Missing fundId/categoryId or invalid direction" }, { status: 400 });
+      }
+      const fundsData = await storageRead<Record<string, unknown>>(`funds:${clientKey}`, { categories: [] });
+      let saved = false;
+      for (const cat of (fundsData.categories as Record<string, unknown>[]) || []) {
+        if (cat.id !== categoryId) continue;
+        const funds = cat.funds as Record<string, unknown>[];
+        for (const fund of funds) {
+          if (fund.id !== fundId) continue;
+          fund.monthlyDirection = direction;
+          saved = true;
+          break;
+        }
+        break;
+      }
+      if (!saved) {
+        return NextResponse.json({ error: "Fund not found" }, { status: 404 });
+      }
+      await storageWrite(`funds:${clientKey}`, fundsData);
+      return NextResponse.json({ success: true, direction });
     }
 
     // ============================================================
@@ -1342,9 +1428,9 @@ export async function POST(req: NextRequest) {
       }
 
       // Re-sanitize approved fields against whitelist
-      const validFields = sanitizeFields(approvedFields);
+      const rawApplyFields = sanitizeFields(approvedFields);
 
-      if (validFields.length === 0) {
+      if (rawApplyFields.length === 0) {
         return NextResponse.json({ error: "No valid fields to apply" }, { status: 400 });
       }
 
@@ -1353,6 +1439,19 @@ export async function POST(req: NextRequest) {
 
       // Load funds data
       const fundsData = await storageRead<Record<string, unknown>>(`funds:${clientKey}`, { categories: [] });
+
+      // Read fund's monthlyDirection for normalization
+      let applyDirection: "LTR" | "RTL" | null = null;
+      for (const cat of (fundsData.categories as Record<string, unknown>[]) || []) {
+        if (cat.id !== categoryId) continue;
+        for (const fund of (cat.funds as Record<string, unknown>[]) || []) {
+          if (fund.id !== fundId) { continue; }
+          applyDirection = (fund.monthlyDirection as "LTR" | "RTL" | null) || null;
+          break;
+        }
+        break;
+      }
+      const validFields = normalizeMonthlyDirection(rawApplyFields, applyDirection);
 
       // Find the fund
       let fundFound = false;

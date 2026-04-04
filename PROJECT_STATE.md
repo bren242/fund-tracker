@@ -1,8 +1,8 @@
 # PROJECT STATE — Fund Tracker
 
-## Current Version: v1.3
-**Last Updated:** 2026-04-03
-**Status:** Production-ready — Parser v1.3 (Creative Value fix verified)
+## Current Version: v1.5
+**Last Updated:** 2026-04-04
+**Status:** Production-ready — v1.5 (Monthly Direction Control)
 **Deployment:** Vercel (auto-deploy on push to main)
 **Repository:** github.com/bren242/fund-tracker
 
@@ -200,6 +200,17 @@ All AI parser functionality is production-verified and stable.
 | Monthly overwrite protection (default "keep") | WORKING | 2026-04-03 |
 | Compound validation for all drafts | WORKING | 2026-04-04 |
 | History cross-check (monthly vs existing) | WORKING | 2026-04-04 |
+
+### Monthly Direction Control (v1.5, 2026-04-04)
+| Feature | Status | Verified |
+|---------|--------|----------|
+| `monthlyDirection` field on Fund type | WORKING | 2026-04-04 |
+| `normalizeMonthlyDirection()` reversal logic | WORKING | 2026-04-04 |
+| Normalization before validation/diff/apply | WORKING | 2026-04-04 |
+| `set-direction` API action | WORKING | 2026-04-04 |
+| Direction selector UI in diff review | WORKING | 2026-04-04 |
+| Direction badge when already set | WORKING | 2026-04-04 |
+| `monthly_uncertain` preserved (not auto-cleared) | WORKING | 2026-04-04 |
 
 ### Known Risks (Real)
 1. **Prompt sensitivity** — Currency assignment depends on Claude correctly reading Hebrew labels. Unusual document layouts may still confuse it.

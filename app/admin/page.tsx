@@ -2089,7 +2089,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
   const [selectedMatchCatId, setSelectedMatchCatId] = useState<string>("");
   const [reportMonth, setReportMonth] = useState<string>("");
   const [returnBasis, setReturnBasis] = useState<"ILS" | "USD" | null>(null);
-  const [diffResult, setDiffResult] = useState<{ diff: { field: string; existingValue: string | number | null; newValue: string | number | null; status: "new" | "changed" | "same" | "missing_in_pdf"; monthlyProtected?: boolean; historyMismatch?: boolean; historyDiff?: number }[]; diffComputedAt: string; fundLastUpdated: string | null; draftId: string; hasMonthlyUncertain?: boolean; draftCorrections?: string[]; monthlyValidation?: { year: number; compounded: number; yearly: number; diff: number; status: "pass" | "fail" }[] } | null>(null);
+  const [diffResult, setDiffResult] = useState<{ diff: { field: string; existingValue: string | number | null; newValue: string | number | null; status: "new" | "changed" | "same" | "missing_in_pdf"; monthlyProtected?: boolean; historyMismatch?: boolean; historyDiff?: number }[]; diffComputedAt: string; fundLastUpdated: string | null; draftId: string; hasMonthlyUncertain?: boolean; draftCorrections?: string[]; monthlyValidation?: { year: number; compounded: number; yearly: number; diff: number; status: "pass" | "fail" }[]; fundMonthlyDirection?: "LTR" | "RTL" | null } | null>(null);
   const [fieldDecisions, setFieldDecisions] = useState<Record<string, "replace" | "keep" | "clear">>({});
   const [draftReportMonths, setDraftReportMonths] = useState<Record<string, string>>({});
   const [tokenUsage, setTokenUsage] = useState<{
@@ -3861,6 +3861,94 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
                           ⚠ נתונים חודשיים סומנו כלא אמינים — בדקו לפני אישור
                         </div>
                       )}
+
+                      {/* Monthly direction selector / badge */}
+                      {(() => {
+                        const dir = diffResult.fundMonthlyDirection;
+                        const dirEffectiveFundId = draftMatchOverrides[draft.id]?.fundId || draft.match?.fundId;
+                        const dirEffectiveCatId = draftMatchOverrides[draft.id]?.categoryId || draft.match?.categoryId;
+                        const hasMonthlyFields = diffResult.diff.some((d) => d.field.startsWith("monthlyReturns."));
+                        if (!hasMonthlyFields) return null;
+
+                        if (dir === "LTR" || dir === "RTL") {
+                          return (
+                            <div style={{
+                              display: "inline-block", padding: "2px 8px", borderRadius: 4, marginBottom: 8,
+                              backgroundColor: dir === "LTR" ? "#05966915" : "#3b82f615",
+                              color: dir === "LTR" ? "#059669" : "#3b82f6",
+                              fontSize: 10, fontWeight: 600,
+                            }}>
+                              {dir === "LTR" ? "→ ינואר→דצמבר (LTR)" : "← דצמבר→ינואר (RTL — מנורמל)"}
+                            </div>
+                          );
+                        }
+
+                        // Direction is null — show selector
+                        const saveDirection = async (newDir: "LTR" | "RTL") => {
+                          if (!dirEffectiveFundId || !dirEffectiveCatId) return;
+                          try {
+                            const res = await fetch(`/api/parse?action=set-direction&client=${encodeURIComponent(clientKey)}`, {
+                              method: "POST",
+                              headers: { ...headers, "Content-Type": "application/json" },
+                              body: JSON.stringify({ fundId: dirEffectiveFundId, categoryId: dirEffectiveCatId, direction: newDir }),
+                            });
+                            if (!res.ok) return;
+                            // Re-run check-collision with new direction
+                            const draftReportMonth = draftReportMonths[draft.id] || draft.reportMonth;
+                            const effectiveFields = draft.extracted.fields.map((f: { key: string; value: unknown }) => {
+                              const edits = editedFields[draft.id] || {};
+                              return edits[f.key] !== undefined ? { ...f, value: edits[f.key] } : f;
+                            });
+                            const checkRes = await fetch(`/api/parse?action=check-collision&client=${encodeURIComponent(clientKey)}`, {
+                              method: "POST",
+                              headers: { ...headers, "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                fundId: dirEffectiveFundId,
+                                categoryId: dirEffectiveCatId,
+                                reportMonth: draftReportMonth || null,
+                                approvedFields: effectiveFields,
+                                draftId: draft.id,
+                              }),
+                            });
+                            if (checkRes.ok) {
+                              const result = await checkRes.json();
+                              setDiffResult({ ...result, draftId: draft.id });
+                              setFieldDecisions(buildInitialDecisions(result.diff || []));
+                            }
+                            // Reload fund data so direction persists in UI
+                            onReload();
+                          } catch { /* ignore */ }
+                        };
+
+                        return (
+                          <div style={{
+                            backgroundColor: "#3b82f610", border: "1px solid #3b82f630", borderRadius: 6,
+                            padding: "8px 10px", marginBottom: 8,
+                          }}>
+                            <p style={{ fontSize: 10, fontWeight: 600, color: "#3b82f6", margin: "0 0 6px" }}>
+                              בחר כיוון חודשים לקרן זו:
+                            </p>
+                            <div style={{ display: "flex", gap: 8 }}>
+                              <button
+                                onClick={() => saveDirection("LTR")}
+                                style={{
+                                  backgroundColor: "#05966915", color: "#059669", border: "1px solid #05966930",
+                                  borderRadius: 5, padding: "4px 12px", cursor: "pointer", fontSize: 10, fontWeight: 600,
+                                }}>
+                                ינואר → דצמבר
+                              </button>
+                              <button
+                                onClick={() => saveDirection("RTL")}
+                                style={{
+                                  backgroundColor: "#3b82f615", color: "#3b82f6", border: "1px solid #3b82f630",
+                                  borderRadius: 5, padding: "4px 12px", cursor: "pointer", fontSize: 10, fontWeight: 600,
+                                }}>
+                                ינואר ← דצמבר
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       {/* Changed fields — require decision */}
                       {changedFields.map((d, di) => (

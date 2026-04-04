@@ -105,6 +105,17 @@ Both orders produce identical compound. No mathematical test can distinguish the
 - Detection only — does not block apply
 - Complements compound validation: catches per-month discrepancies even when yearly compound passes
 
+### Monthly Direction Control (v1.5)
+- Per-fund setting: `monthlyDirection: "LTR" | "RTL" | null`
+- `null` = unknown (default), `"LTR"` = Jan→Dec as parsed, `"RTL"` = parsed order should be reversed
+- `normalizeMonthlyDirection()` reverses monthly value assignments per year when direction is RTL
+- Normalization runs BEFORE: compound validation, diff comparison, history cross-check, apply
+- Does NOT mutate raw parsed draft data — only affects interpretation layer
+- Does NOT auto-clear `monthly_uncertain` — direction setting and parser certainty are independent
+- `set-direction` action on parse API persists direction to fund object
+- UI: selector in diff review (when null + monthly fields present), badge (when set)
+- Reversal logic: groups `monthlyReturns.{YYYY-MM}` by year, reverses values within each year group
+
 ---
 
 ## corrections[] Array

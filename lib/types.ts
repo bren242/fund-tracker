@@ -22,6 +22,7 @@ export interface Fund {
   aumMillions: number | null;
   active?: boolean;
   monthlyReturns?: Record<string, number>;
+  monthlyDirection?: "LTR" | "RTL" | null;
 }
 
 export interface Category {
