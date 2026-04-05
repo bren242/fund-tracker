@@ -65,9 +65,15 @@ function AdminContent() {
     }
   };
 
+  const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showStatus = (msg: string) => {
+    if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
     setStatusMessage(msg);
-    setTimeout(() => setStatusMessage(""), 3000);
+    const isError = msg.startsWith("❌");
+    if (!isError) {
+      statusTimerRef.current = setTimeout(() => setStatusMessage(""), 3000);
+    }
+    // Errors stay until dismissed
   };
 
   const updateFund = (categoryId: string, fundId: string, field: string, value: string) => {
@@ -332,8 +338,11 @@ function AdminContent() {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {statusMessage && (
-              <span style={{ fontSize: 12, fontWeight: 500, color: statusMessage.startsWith("✓") ? "#34d399" : "#f87171", transition: "opacity 0.3s" }}>
+              <span style={{ fontSize: 12, fontWeight: 500, color: statusMessage.startsWith("✓") ? "#34d399" : "#f87171", transition: "opacity 0.3s", display: "flex", alignItems: "center", gap: 6 }}>
                 {statusMessage}
+                {statusMessage.startsWith("❌") && (
+                  <button onClick={() => setStatusMessage("")} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }}>✕</button>
+                )}
               </span>
             )}
             {dirty && !saved && !statusMessage && (

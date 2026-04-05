@@ -349,7 +349,7 @@ async function callClaude(apiKey: string, systemPrompt: string, userText: string
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
-          max_tokens: 4096,
+          max_tokens: 8192,
           temperature: 0,
           system: systemPrompt,
           messages: [{ role: "user", content: userText }],
@@ -417,7 +417,7 @@ async function callClaudeVision(
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
-          max_tokens: 4096,
+          max_tokens: 8192,
           temperature: 0,
           system: systemPrompt,
           messages: [{
@@ -655,6 +655,7 @@ function parseCloudeResponse(
 } | { error: string } {
   const jsonMatch = content.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
+    console.error("[parseCloudeResponse] No JSON found in response. Content preview:", content.slice(0, 500));
     return { error: "Could not parse AI response — invalid JSON" };
   }
 
@@ -662,7 +663,25 @@ function parseCloudeResponse(
   try {
     parsed = JSON.parse(jsonMatch[0]);
   } catch {
-    return { error: "Could not parse AI response — malformed JSON" };
+    // Attempt truncated JSON recovery: close open braces/brackets
+    let recovered = jsonMatch[0];
+    // Remove trailing partial key/value (everything after last complete value)
+    recovered = recovered.replace(/,\s*"[^"]*"?\s*:?\s*[^,}\]]*$/, "");
+    // Count unclosed braces and brackets
+    let openBraces = 0, openBrackets = 0;
+    for (const ch of recovered) {
+      if (ch === "{") openBraces++;
+      else if (ch === "}") openBraces--;
+      else if (ch === "[") openBrackets++;
+      else if (ch === "]") openBrackets--;
+    }
+    recovered += "]".repeat(Math.max(0, openBrackets)) + "}".repeat(Math.max(0, openBraces));
+    try {
+      parsed = JSON.parse(recovered);
+    } catch {
+      console.error("[parseCloudeResponse] JSON recovery failed. Content preview:", jsonMatch[0].slice(0, 500));
+      return { error: "Could not parse AI response — malformed JSON" };
+    }
   }
 
   // Convert allMonthlyReturns object into individual field entries before sanitization
