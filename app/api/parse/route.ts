@@ -152,7 +152,7 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v8: fixed dual-currency prompt bias that caused ILS/USD inversion
   // v9: header-driven table parsing (not position-driven) + annual/monthly validation
   // v10: strengthened RTL table parsing + server-side column swap auto-correction
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 11) return null;
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 12) return null;
 
   return cached.result;
 }
@@ -536,8 +536,10 @@ STEP 3 — READ ROWS BY MAPPING: For each data row:
   - Read the annual return ONLY from the column mapped to "שנתי"/"Annual"
   - Read monthly returns ONLY from columns mapped to month headers
   - Read YTD ONLY from the column mapped to "YTD"/"מצטבר"
+  - IGNORE columns labeled "ITD", "Inception", "מהקמה", "מאז הקמה" — these are inception-to-date (cumulative since fund creation) and are NOT annual returns and NOT YTD. Do NOT extract ITD values.
 STEP 4 — VALIDATE:
   - The annual value must come from the column whose header says "שנתי" ONLY.
+  - If the table has NO "שנתי"/"Annual" column, do NOT extract annual returns at all. Do NOT use ITD or any other column as a substitute.
   - NEVER use the first or last numeric cell as annual return.
   - NEVER confuse a January value with an annual value or vice versa.
   - SANITY CHECK: For a completed year, the annual return should roughly equal the compound of all 12 monthly returns. If annual=4.61% but the sum of monthly returns ≈ 23%, you have likely swapped annual↔January. Fix it.
@@ -552,12 +554,15 @@ The header text is the ONLY reliable way to determine what each column contains.
 
 FIELDS TO EXTRACT (only these):
 - fundName: string (the fund's name as written)
-- monthlyReturn: number | null (latest monthly return as decimal)
+- monthlyReturn: number | null (the MOST RECENT monthly return in the table — this is the last non-empty month value chronologically, matching the reportMonth)
 - allMonthlyReturns: object | null — extract ALL individual monthly returns found in the document.
   Keys must be "YYYY-MM" format (e.g., "2025-01", "2025-06", "2025-12").
   Values are decimal numbers (e.g., 3.5% → 0.035).
-  Extract every month that appears in the document, not just the latest.
-  If the document shows a performance table with Jan-Dec returns, extract all of them.
+  CRITICAL: Extract EVERY month from EVERY year that appears in the performance table.
+  If the table shows data for 2022, 2023, 2024, 2025, 2026 — extract all months from all years.
+  Do NOT limit to the last 12 months. Do NOT skip older years. Extract the COMPLETE monthly history.
+  A table with 5 years of monthly data should produce ~60 monthly entries.
+  Empty cells (—, -, blank) should be skipped, not set to 0.
 - reportMonth: string | null (the month this report covers, in "YYYY-MM" format)
   IMPORTANT: Extract reportMonth from document header, title, date, or context.
   Examples: "ינואר 2026" → "2026-01", "Feb 2026" → "2026-02", "דוח חודשי 03/2026" → "2026-03"
@@ -2095,7 +2100,7 @@ export async function POST(req: NextRequest) {
       if (result.corrections) {
         resultObj.corrections = result.corrections;
       }
-      resultObj._cacheVersion = 11;
+      resultObj._cacheVersion = 12;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
