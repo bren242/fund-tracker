@@ -1,5 +1,27 @@
 # Changelog
 
+## v1.5.1 — Value Layer Infrastructure (2026-04-05)
+
+### Analysis Window
+- `getAnalysisWindow(monthlyReturns, periodMonths)` — returns last N months of monthly data, sorted chronologically
+- Assumes data is already post-normalization (direction, validation layers)
+
+### Period Selector
+- 12 / 24 / 36 / 60 month toggle buttons in Monthly History tab
+- Default: 24 months
+- Shows eligibility count (funds with full data for selected period)
+- View-level state only (not global)
+
+### Insight Placeholder
+- Empty placeholder area for future Value Layer insights
+- No calculations or fake content
+
+### Files Changed
+- `app/admin/page.tsx` — `getAnalysisWindow()`, period selector UI, insight placeholder
+- Documentation: CHANGELOG.md, PROJECT_STATE.md, DEV_STATE.md
+
+---
+
 ## v1.5 — Monthly Direction Control (2026-04-04)
 
 ### Per-Fund Direction Setting

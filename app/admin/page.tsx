@@ -637,6 +637,20 @@ function MonthlyRow({ fund, categoryId, odd, onUpdate }: {
 /* ================================================================== */
 /*  Monthly History Tab (Super Admin only)                             */
 /* ================================================================== */
+/** Returns the last N months of monthly data for a fund, sorted chronologically. */
+function getAnalysisWindow(
+  monthlyReturns: Record<string, number> | undefined,
+  periodMonths: number,
+): { month: string; value: number }[] {
+  if (!monthlyReturns) return [];
+  const entries = Object.entries(monthlyReturns)
+    .filter(([, v]) => typeof v === "number")
+    .sort((a, b) => b[0].localeCompare(a[0])); // newest first
+  return entries.slice(0, periodMonths)
+    .reverse() // chronological
+    .map(([month, value]) => ({ month, value }));
+}
+
 function MonthlyHistoryTab({ data, onUpdateMonthlyReturn }: {
   data: FundsData;
   onUpdateMonthlyReturn: (catId: string, fundId: string, month: string, value: string) => void;
@@ -644,6 +658,7 @@ function MonthlyHistoryTab({ data, onUpdateMonthlyReturn }: {
   const now = new Date();
   const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const [selectedMonth, setSelectedMonth] = useState(defaultMonth);
+  const [analysisPeriod, setAnalysisPeriod] = useState<12 | 24 | 36 | 60>(24);
 
   // Generate month options (last 24 months)
   const monthOptions: { value: string; label: string }[] = [];
@@ -784,6 +799,62 @@ function MonthlyHistoryTab({ data, onUpdateMonthlyReturn }: {
           </div>
         );
       })}
+
+      {/* ── Value Layer: Period Selector + Insight Placeholder ── */}
+      <div style={{
+        marginTop: 24,
+        backgroundColor: "var(--bg-surface)",
+        border: "1px solid var(--border)",
+        borderRadius: 10,
+        padding: "14px 20px",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 12 }}>
+          <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap" }}>
+            חלון ניתוח:
+          </label>
+          <div style={{ display: "flex", gap: 6 }}>
+            {([12, 24, 36, 60] as const).map((p) => (
+              <button
+                key={p}
+                onClick={() => setAnalysisPeriod(p)}
+                style={{
+                  padding: "4px 12px",
+                  borderRadius: 5,
+                  border: "1px solid var(--border)",
+                  backgroundColor: analysisPeriod === p ? "var(--bg-section)" : "var(--bg-surface-alt)",
+                  color: analysisPeriod === p ? "#fff" : "var(--text-secondary)",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}>
+                {p} חודשים
+              </button>
+            ))}
+          </div>
+          {(() => {
+            const allFunds = data.categories.flatMap((c) => c.funds).filter((f) => f.active !== false);
+            const eligible = allFunds.filter((f) => getAnalysisWindow(f.monthlyReturns, analysisPeriod).length >= analysisPeriod);
+            return (
+              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                {eligible.length}/{allFunds.length} קרנות עם נתונים מלאים
+              </span>
+            );
+          })()}
+        </div>
+
+        {/* Insight placeholder — future Value Layer content */}
+        <div style={{
+          backgroundColor: "var(--bg-surface-alt)",
+          border: "1px dashed var(--border)",
+          borderRadius: 8,
+          padding: "20px 16px",
+          textAlign: "center",
+        }}>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>
+            📊 תובנות ביצועים — בקרוב
+          </p>
+        </div>
+      </div>
     </>
   );
 }

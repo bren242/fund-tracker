@@ -1,8 +1,8 @@
 # PROJECT STATE — Fund Tracker
 
-## Current Version: v1.5
-**Last Updated:** 2026-04-04
-**Status:** Production-ready — v1.5 (Monthly Direction Control)
+## Current Version: v1.5.1
+**Last Updated:** 2026-04-05
+**Status:** Production-ready — v1.5.1 (Value Layer Infrastructure)
 **Deployment:** Vercel (auto-deploy on push to main)
 **Repository:** github.com/bren242/fund-tracker
 
@@ -211,6 +211,14 @@ All AI parser functionality is production-verified and stable.
 | Direction selector UI in diff review | WORKING | 2026-04-04 |
 | Direction badge when already set | WORKING | 2026-04-04 |
 | `monthly_uncertain` preserved (not auto-cleared) | WORKING | 2026-04-04 |
+
+### Value Layer Infrastructure (v1.5.1, 2026-04-05)
+| Feature | Status | Verified |
+|---------|--------|----------|
+| `getAnalysisWindow()` helper | WORKING | 2026-04-05 |
+| Period selector (12/24/36/60 months) | WORKING | 2026-04-05 |
+| Eligibility count (funds with full data) | WORKING | 2026-04-05 |
+| Insight placeholder UI | WORKING | 2026-04-05 |
 
 ### Known Risks (Real)
 1. **Prompt sensitivity** — Currency assignment depends on Claude correctly reading Hebrew labels. Unusual document layouts may still confuse it.
