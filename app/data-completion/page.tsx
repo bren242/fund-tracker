@@ -14,38 +14,20 @@ interface AnalysisEntry {
   catId: string;
   catName: string;
   fund: Fund;
-  missingAvg: boolean;
-  missingStd: boolean;
-  missingSharpe: boolean;
-  monthCount: number;
   yearCount: number;
-  canComputeAvg: boolean;
-  canComputeStd: boolean;
-  canComputeSharpe: boolean;
-  computedAvg: number | null;
-  computedStd: number | null;
-  computedSharpe: number | null;
+  yearlyVals: number[];
+  computedAvg: number;
 }
 
 function analyzeData(data: FundsData) {
   const computable: AnalysisEntry[] = [];
-  const allMissing: { fund: Fund; catName: string; fields: string[] }[] = [];
+  const notComputable: { fund: Fund; catName: string; yearCount: number }[] = [];
 
   for (const cat of data.categories) {
     for (const fund of cat.funds) {
       if (fund.active === false) continue;
-      const missingAvg = fund.avgAnnualReturn === null || fund.avgAnnualReturn === undefined;
-      const missingStd = fund.stdDev === null || fund.stdDev === undefined;
-      const missingSharpe = fund.sharpe === null || fund.sharpe === undefined;
-
-      // Track all missing
-      const missingFields: string[] = [];
-      if (missingAvg) missingFields.push("ממוצע שנתי");
-      if (missingStd) missingFields.push("סטיית תקן");
-      if (missingSharpe) missingFields.push("שארפ");
-      if (missingFields.length > 0) allMissing.push({ fund, catName: cat.name, fields: missingFields });
-
-      if (!missingAvg && !missingStd && !missingSharpe) continue;
+      const hasAvg = fund.avgAnnualReturn !== null && fund.avgAnnualReturn !== undefined;
+      if (hasAvg) continue;
 
       // Collect yearly returns
       const yearlyVals: number[] = [];
@@ -53,48 +35,19 @@ function analyzeData(data: FundsData) {
         if (/^y\d{4}$/.test(k) && v !== null && v !== undefined) yearlyVals.push(v);
       }
 
-      // Collect monthly returns
-      const monthlyVals = Object.values(fund.monthlyReturns || {}).filter((v): v is number => typeof v === "number");
-
-      const canComputeAvg = missingAvg && yearlyVals.length >= 2;
-      const canComputeStd = missingStd && monthlyVals.length >= 12;
-      const canComputeSharpe = missingSharpe && ((!missingAvg || canComputeAvg) && (!missingStd || canComputeStd));
-
-      let computedAvg: number | null = null;
-      if (canComputeAvg) {
-        computedAvg = yearlyVals.reduce((s, v) => s + v, 0) / yearlyVals.length;
+      if (yearlyVals.length >= 2) {
+        const computedAvg = yearlyVals.reduce((s, v) => s + v, 0) / yearlyVals.length;
+        computable.push({
+          catId: cat.id, catName: cat.name, fund,
+          yearCount: yearlyVals.length, yearlyVals, computedAvg,
+        });
+      } else {
+        notComputable.push({ fund, catName: cat.name, yearCount: yearlyVals.length });
       }
-
-      let computedStd: number | null = null;
-      if (canComputeStd) {
-        const mean = monthlyVals.reduce((s, v) => s + v, 0) / monthlyVals.length;
-        const variance = monthlyVals.reduce((s, v) => s + (v - mean) ** 2, 0) / (monthlyVals.length - 1);
-        computedStd = Math.sqrt(variance) * Math.sqrt(12);
-      }
-
-      let computedSharpe: number | null = null;
-      if (canComputeSharpe) {
-        const avg = computedAvg ?? fund.avgAnnualReturn;
-        const std = computedStd ?? fund.stdDev;
-        if (avg !== null && avg !== undefined && std !== null && std !== undefined && std > 0) {
-          computedSharpe = avg / std;
-        }
-      }
-
-      if (!canComputeAvg && !canComputeStd && !canComputeSharpe) continue;
-
-      computable.push({
-        catId: cat.id, catName: cat.name, fund,
-        missingAvg, missingStd, missingSharpe,
-        monthCount: monthlyVals.length, yearCount: yearlyVals.length,
-        canComputeAvg, canComputeStd, canComputeSharpe,
-        computedAvg, computedStd, computedSharpe,
-      });
     }
   }
 
-  const notComputable = allMissing.filter(m => !computable.some(a => a.fund.id === m.fund.id));
-  return { computable, allMissing, notComputable };
+  return { computable, notComputable };
 }
 
 function DataCompletionContent() {
@@ -112,8 +65,8 @@ function DataCompletionContent() {
       .then(setData);
   }, [clientKey]);
 
-  const { computable, allMissing, notComputable } = useMemo(() => {
-    if (!data) return { computable: [], allMissing: [], notComputable: [] };
+  const { computable, notComputable } = useMemo(() => {
+    if (!data) return { computable: [], notComputable: [] };
     return analyzeData(data);
   }, [data]);
 
@@ -157,7 +110,7 @@ function DataCompletionContent() {
   const handleCompute = async () => {
     if (!data || selectedCount === 0) return;
     const selectedEntries = computable.filter(a => selected.has(`${a.catId}-${a.fund.id}`));
-    if (!window.confirm(`להשלים נתונים מחושבים ל-${selectedEntries.length} קרנות?\n\nממוצע שנתי — מממוצע התשואות השנתיות\nסטיית תקן — מנתונים חודשיים (שנתי)\nשארפ — ממוצע שנתי / סטיית תקן`)) return;
+    if (!window.confirm(`להשלים ממוצע שנתי ל-${selectedEntries.length} קרנות?\n\nהחישוב: ממוצע התשואות השנתיות`)) return;
 
     let updated = 0;
     const newData: FundsData = {
@@ -167,21 +120,8 @@ function DataCompletionContent() {
         funds: cat.funds.map((fund) => {
           const entry = selectedEntries.find(a => a.fund.id === fund.id && a.catId === cat.id);
           if (!entry) return fund;
-          const changes: Partial<Fund> = {};
-          if (entry.canComputeAvg && entry.computedAvg !== null) {
-            changes.avgAnnualReturn = Math.round(entry.computedAvg * 10000) / 10000;
-          }
-          if (entry.canComputeStd && entry.computedStd !== null) {
-            changes.stdDev = Math.round(entry.computedStd * 10000) / 10000;
-          }
-          if (entry.canComputeSharpe && entry.computedSharpe !== null) {
-            changes.sharpe = Math.round(entry.computedSharpe * 100) / 100;
-          }
-          if (Object.keys(changes).length > 0) {
-            updated++;
-            return { ...fund, ...changes };
-          }
-          return fund;
+          updated++;
+          return { ...fund, avgAnnualReturn: Math.round(entry.computedAvg * 10000) / 10000 };
         }),
       })),
     };
@@ -197,7 +137,7 @@ function DataCompletionContent() {
 
     if (res.ok) {
       setData(newData);
-      setStatusMessage(`הושלמו נתונים ל-${updated} קרנות`);
+      setStatusMessage(`הושלם ממוצע שנתי ל-${updated} קרנות`);
     } else {
       setStatusMessage("שגיאה בשמירה");
     }
@@ -205,6 +145,7 @@ function DataCompletionContent() {
 
   if (!data) return <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>טוען נתונים...</div>;
 
+  const totalMissing = computable.length + notComputable.length;
   const subtitle = brand.subtitleMode === "custom" && brand.customSubtitle
     ? brand.customSubtitle
     : `עדכון: ${formatDate(data.lastUpdated)}`;
@@ -260,15 +201,15 @@ function DataCompletionContent() {
             marginBottom: 20, backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
             borderRadius: 10, padding: "16px 20px",
           }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: computable.length > 0 ? 12 : 0 }}>
               <div style={{ flex: 1 }}>
                 <p style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 4px" }}>
-                  השלמת נתונים מחושבים
+                  השלמת ממוצע שנתי
                 </p>
                 <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>
-                  {allMissing.length === 0
-                    ? "כל הקרנות מלאות — אין נתונים חסרים"
-                    : `${allMissing.length} קרנות עם נתונים חסרים, ${computable.length} ניתנות להשלמה אוטומטית`
+                  {totalMissing === 0
+                    ? "כל הקרנות מלאות — ממוצע שנתי קיים בכל הקרנות הפעילות"
+                    : `${totalMissing} קרנות ללא ממוצע שנתי, ${computable.length} ניתנות להשלמה (${notComputable.length} ללא מספיק שנים)`
                   }
                 </p>
               </div>
@@ -324,10 +265,8 @@ function DataCompletionContent() {
                     </th>
                     <th style={{ padding: "8px 12px", textAlign: "right", fontWeight: 600, color: "var(--text-secondary)", fontSize: 11 }}>קרן</th>
                     <th style={{ padding: "8px 12px", textAlign: "right", fontWeight: 600, color: "var(--text-secondary)", fontSize: 11 }}>קטגוריה</th>
-                    <th style={{ padding: "8px 8px", textAlign: "center", fontWeight: 600, color: "var(--text-secondary)", fontSize: 11 }}>ממוצע שנתי</th>
-                    <th style={{ padding: "8px 8px", textAlign: "center", fontWeight: 600, color: "var(--text-secondary)", fontSize: 11 }}>סטיית תקן</th>
-                    <th style={{ padding: "8px 8px", textAlign: "center", fontWeight: 600, color: "var(--text-secondary)", fontSize: 11 }}>שארפ</th>
-                    <th style={{ padding: "8px 8px", textAlign: "center", fontWeight: 600, color: "var(--text-secondary)", fontSize: 11 }}>בסיס</th>
+                    <th style={{ padding: "8px 8px", textAlign: "center", fontWeight: 600, color: "var(--text-secondary)", fontSize: 11 }}>ממוצע שנתי מחושב</th>
+                    <th style={{ padding: "8px 8px", textAlign: "center", fontWeight: 600, color: "var(--text-secondary)", fontSize: 11 }}>שנים</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -357,31 +296,10 @@ function DataCompletionContent() {
                         <td style={{ padding: "6px 12px", fontWeight: 500 }}>{a.fund.name}</td>
                         <td style={{ padding: "6px 12px", color: "var(--text-muted)", fontSize: 11 }}>{a.catName}</td>
                         <td style={{ padding: "6px 8px", textAlign: "center" }}>
-                          {!a.missingAvg
-                            ? <span style={{ color: "#059669", fontSize: 10 }}>&#10003; קיים</span>
-                            : a.canComputeAvg && a.computedAvg !== null
-                              ? <span style={{ color: "#3b82f6", fontWeight: 600 }}>{(a.computedAvg * 100).toFixed(2)}%</span>
-                              : <span style={{ color: "#f59e0b", fontSize: 10 }}>חסר מידע</span>
-                          }
+                          <span style={{ color: "#3b82f6", fontWeight: 600 }}>{(a.computedAvg * 100).toFixed(2)}%</span>
                         </td>
-                        <td style={{ padding: "6px 8px", textAlign: "center" }}>
-                          {!a.missingStd
-                            ? <span style={{ color: "#059669", fontSize: 10 }}>&#10003; קיים</span>
-                            : a.canComputeStd && a.computedStd !== null
-                              ? <span style={{ color: "#3b82f6", fontWeight: 600 }}>{(a.computedStd * 100).toFixed(2)}%</span>
-                              : <span style={{ color: "#f59e0b", fontSize: 10 }}>חסר ({a.monthCount}/12)</span>
-                          }
-                        </td>
-                        <td style={{ padding: "6px 8px", textAlign: "center" }}>
-                          {!a.missingSharpe
-                            ? <span style={{ color: "#059669", fontSize: 10 }}>&#10003; קיים</span>
-                            : a.canComputeSharpe && a.computedSharpe !== null
-                              ? <span style={{ color: "#3b82f6", fontWeight: 600 }}>{a.computedSharpe.toFixed(2)}</span>
-                              : <span style={{ color: "#f59e0b", fontSize: 10 }}>חסר</span>
-                          }
-                        </td>
-                        <td style={{ padding: "6px 8px", textAlign: "center", fontSize: 10, color: "var(--text-muted)" }}>
-                          {a.yearCount} שנים, {a.monthCount} חודשים
+                        <td style={{ padding: "6px 8px", textAlign: "center", fontSize: 11, color: "var(--text-muted)" }}>
+                          {a.yearCount}
                         </td>
                       </tr>
                     );
@@ -398,14 +316,14 @@ function DataCompletionContent() {
               borderRadius: 10, overflow: "hidden", marginBottom: 20,
             }}>
               <div style={{ backgroundColor: "#f59e0b30", padding: "10px 16px", fontWeight: 600, fontSize: 12, color: "#f59e0b" }}>
-                קרנות עם נתונים חסרים — אין מספיק מידע לחישוב ({notComputable.length})
+                קרנות ללא ממוצע שנתי — פחות מ-2 שנים ({notComputable.length})
               </div>
               <div style={{ padding: "8px 16px" }}>
                 {notComputable.map((m) => (
                   <div key={m.fund.id} style={{ padding: "4px 0", fontSize: 11, display: "flex", gap: 8 }}>
                     <span style={{ fontWeight: 500 }}>{m.fund.name}</span>
                     <span style={{ color: "var(--text-muted)" }}>({m.catName})</span>
-                    <span style={{ color: "#f59e0b" }}>חסר: {m.fields.join(", ")}</span>
+                    <span style={{ color: "#f59e0b" }}>{m.yearCount === 0 ? "אין תשואות שנתיות" : `שנה אחת בלבד`}</span>
                   </div>
                 ))}
               </div>
@@ -413,13 +331,13 @@ function DataCompletionContent() {
           )}
 
           {/* All complete */}
-          {allMissing.length === 0 && (
+          {totalMissing === 0 && (
             <div style={{
               backgroundColor: "#05966910", border: "1px solid #05966930",
               borderRadius: 10, padding: "40px 20px", textAlign: "center",
             }}>
               <p style={{ fontSize: 14, color: "#059669", fontWeight: 600, margin: 0 }}>&#10003; כל הקרנות מלאות</p>
-              <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "8px 0 0" }}>ממוצע שנתי, סטיית תקן ושארפ קיימים בכל הקרנות הפעילות</p>
+              <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "8px 0 0" }}>ממוצע שנתי קיים בכל הקרנות הפעילות</p>
             </div>
           )}
         </div>
