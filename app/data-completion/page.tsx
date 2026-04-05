@@ -178,9 +178,10 @@ function DataCompletionContent() {
     };
 
     setSaving(true);
+    const password = sessionStorage.getItem(`client-auth-password-${clientKey}`) || "";
     const res = await fetch(`/api/funds?client=${encodeURIComponent(clientKey)}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-admin-password": password },
       body: JSON.stringify(newData),
     });
     setSaving(false);
