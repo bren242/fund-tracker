@@ -2,16 +2,32 @@
 
 ## v1.6 — Data Completion (2026-04-05)
 
-### Data Completion Tab
-- New "השלמת נתונים" tab for super admin
-- Scans all active funds for missing `avgAnnualReturn`, `stdDev`, `sharpe`
-- Auto-computes: avg from yearly returns (≥2 years), stdDev from monthly (≥12 months, annualized), sharpe = avg/std
-- Preview table shows computed values before applying
-- Confirm dialog required, updates in-memory (must publish via "שמירה ופרסום")
-- Separate section for funds with insufficient data for computation
+### Standalone Data Completion Page
+- New route: `/{client}/data-completion` — standalone client-facing page
+- Feature flag: `features.dataCompletion` — controlled from admin > branding
+- Password gate (regular client password, not super admin)
+- Nav link in report and charts pages (visible when feature enabled)
+
+### Per-Fund Selection
+- Checkbox per fund row + select all/none in header
+- Search bar to filter by fund name or category
+- Button updates to show count of selected funds
+- Saves directly via API (no separate "publish" step)
+
+### Calculations
+- `avgAnnualReturn` — mean of yearly returns (≥2 years required)
+- `stdDev` — annualized from monthly returns (≥12 months required)
+- `sharpe` — avgAnnualReturn / stdDev
+- Separate section for funds with insufficient data
 
 ### Files Changed
-- `app/admin/page.tsx` — `DataCompletionTab` component, tab wiring
+- `app/data-completion/page.tsx` — New standalone page
+- `app/admin/page.tsx` — Removed DataCompletionTab, added feature toggle
+- `app/page.tsx` — Nav link for data completion
+- `app/charts/page.tsx` — Nav link for data completion
+- `config/brand.ts` — `dataCompletion` in AppFeatures
+- `data/green/brand.json` — Feature enabled
+- `middleware.ts` — Route support
 - Documentation: CHANGELOG.md, DEV_STATE.md
 
 ---

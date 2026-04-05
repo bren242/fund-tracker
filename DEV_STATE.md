@@ -24,7 +24,7 @@
 | Monthly reliability | ✅ Stable | corrections UI, auto-apply block, overwrite protection, compound validation, history cross-check |
 | Monthly direction | ✅ Stable | per-fund LTR/RTL normalization, direction selector in diff review |
 | Value Layer infra | ✅ Stable | period selector (12/24/36/60), analysis window helper, insight placeholder |
-| Data completion | ✅ Stable | auto-compute avgAnnualReturn, stdDev, sharpe from existing data |
+| Data completion | ✅ Stable | standalone page, per-fund selection, search, feature flag controlled |
 
 ---
 
@@ -32,9 +32,10 @@
 
 ### Pages
 ```
-app/page.tsx           — Main report (fund table + filters + print trigger)
-app/charts/page.tsx    — Scatter plot (risk vs return) + print layout
-app/admin/page.tsx     — Admin panel (brand config + fund management)
+app/page.tsx                  — Main report (fund table + filters + print trigger)
+app/charts/page.tsx           — Scatter plot (risk vs return) + print layout
+app/admin/page.tsx            — Admin panel (brand config + fund management)
+app/data-completion/page.tsx  — Data completion (auto-compute missing fields)
 ```
 
 ### Components
