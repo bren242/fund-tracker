@@ -152,7 +152,9 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v8: fixed dual-currency prompt bias that caused ILS/USD inversion
   // v9: header-driven table parsing (not position-driven) + annual/monthly validation
   // v10: strengthened RTL table parsing + server-side column swap auto-correction
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 14) return null;
+    // v14: dual-currency split into 2 API calls
+  // v15: strengthened single-currency prompt (ITD/YTD/Annual distinction, full monthly extraction, custom user message)
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 15) return null;
 
   return cached.result;
 }
@@ -409,7 +411,8 @@ async function callClaudeVision(
   apiKey: string,
   systemPrompt: string,
   base64Data: string,
-  mediaType: string
+  mediaType: string,
+  userMessage?: string
 ): Promise<{ success: true; content: string; usage: ApiUsage } | { success: false; error: string }> {
   const maxAttempts = 2;
 
@@ -449,7 +452,7 @@ async function callClaudeVision(
               },
               {
                 type: "text",
-                text: "Extract fund performance data from this document. Return valid JSON only.",
+                text: userMessage || "Extract fund performance data from this document. Return valid JSON only.",
               },
             ],
           }],
@@ -658,59 +661,99 @@ function buildSingleCurrencyPrompt(
   existingFunds: { id: string; name: string; returnBasis?: string }[]
 ): string {
   const currencyLabel = currency === "USD"
-    ? '$ / דולרי / דולרית / USD'
-    : '₪ / שקלי / שקלית / ILS';
-  const otherCurrency = currency === "USD" ? "ILS/שקלי/₪" : "USD/דולרי/$";
+    ? '$ / ($) / דולרי / דולרית / USD'
+    : '₪ / (₪) / שקלי / שקלית / ILS';
+  const otherCurrency = currency === "USD" ? "ILS / ₪ / שקלי" : "USD / $ / דולרי";
 
   return `You are a financial data extraction assistant for an Israeli fund tracking system.
 This document contains TWO performance tables — one in USD ($) and one in ILS (₪).
 
+═══════════════════════════════════════════════════════
 YOUR TASK: Extract data ONLY from the ${currency} (${currencyLabel}) table.
-COMPLETELY IGNORE the ${otherCurrency} table. Pretend it does not exist.
+COMPLETELY IGNORE the other table (${otherCurrency}). Pretend it does not exist.
+Do NOT mix values between the two tables.
+═══════════════════════════════════════════════════════
 
 HOW TO IDENTIFY THE CORRECT TABLE:
 - Look for currency symbols or labels: ${currencyLabel}
-- These appear in section headers, table titles, or labels next to the performance table
-- The ${currency} table may be on top or bottom — position does not matter, only the label matters
+- These appear in section headers, table titles, or row labels next to each performance table
+- The ${currency} table may be on top or bottom — position does not matter, ONLY the label matters
+- Common patterns: "תשואות בדולר ($)", "ביצועים שקליים (₪)", "קלאס דולרי", "מסלול שקלי"
 
 RULES:
 - Extract ONLY factual data explicitly stated in the ${currency} table
 - Do NOT infer, calculate, or estimate any values
-- All return values should be decimal numbers (e.g., 5.2% → 0.052)
+- All return values should be decimal numbers (e.g., 5.2% → 0.052, -1.3% → -0.013)
 - Fund name must be extracted in its original language
 - If a field is not clearly present, omit it
-- returnBasis MUST be "${currency}" — this is a single-currency extraction
+- returnBasis MUST be "${currency}"
 
-CRITICAL — PERFORMANCE TABLE PARSING (header-driven, NOT position-driven):
-STEP 1 — DETECT HEADERS: Find the header row of the ${currency} table. Read every column header label.
+═══════════════════════════════════════════════════════
+CRITICAL — ITD vs YTD vs ANNUAL — READ CAREFULLY:
+═══════════════════════════════════════════════════════
+
+The table may have columns with SIMILAR but DIFFERENT meanings:
+- "YTD" / "מצטבר" / "מתחילת השנה" / "מה״ש" → YEAR-TO-DATE return (from Jan 1 of that year). EXTRACT THIS as ytdYYYY.
+- "שנתי" / "שנתית" / "Annual" → full ANNUAL return for completed years. EXTRACT THIS as returns.yYYYY.
+- "ITD" / "מהקמה" / "מאז הקמה" / "Inception" / "Since Inception" → cumulative return since the fund was CREATED. DO NOT EXTRACT THIS. It is NOT annual and NOT YTD.
+
+THESE ARE THREE DIFFERENT THINGS. Do NOT confuse them:
+- ITD is ALWAYS larger than annual returns (it spans multiple years)
+- Annual is the return for one full calendar year
+- YTD is the return from January 1 to the report month
+
+If you see a column with a very large number (e.g., 40%, 80%, 150%) — that is almost certainly ITD. Do NOT put it in returns.yYYYY or ytdYYYY.
+
+═══════════════════════════════════════════════════════
+PERFORMANCE TABLE PARSING (header-driven):
+═══════════════════════════════════════════════════════
+
+STEP 1 — DETECT HEADERS: Find the header row of the ${currency} table. Read every column header.
 STEP 2 — MAP COLUMNS BY HEADER TEXT:
-  - "שנתי" or "שנתית" or "Annual" → annual/yearly return
-  - "YTD" or "מצטבר" or "מתחילת השנה" → year-to-date return
-  - Month names (ינואר/Jan=01, פברואר/Feb=02, מרץ/Mar=03, אפריל/Apr=04, מאי/May=05, יוני/Jun=06, יולי/Jul=07, אוגוסט/Aug=08, ספטמבר/Sep=09, אוקטובר/Oct=10, נובמבר/Nov=11, דצמבר/Dec=12)
-  - IGNORE columns labeled "ITD", "Inception", "מהקמה", "מאז הקמה" — these are NOT annual returns
-STEP 3 — READ ROWS: For each data row, identify the year and read values by column mapping.
+  - "שנתי" / "שנתית" / "Annual" → annual return → returns.yYYYY
+  - "YTD" / "מצטבר" / "מתחילת השנה" → year-to-date → ytdYYYY
+  - "ITD" / "מהקמה" / "מאז הקמה" → SKIP ENTIRELY
+  - ינו/Jan=01, פבר/Feb=02, מרץ/Mar=03, אפר/Apr=04, מאי/May=05, יונ/Jun=06
+  - יול/Jul=07, אוג/Aug=08, ספט/Sep=09, אוק/Oct=10, נוב/Nov=11, דצמ/Dec=12
+STEP 3 — READ EVERY ROW: For each year row, extract ALL values by column mapping.
 STEP 4 — VALIDATE:
-  - Annual value must come from "שנתי"/"Annual" column ONLY
-  - If no such column exists, do NOT extract annual returns
-  - Monthly returns are typically -10% to +10%. Annual can be 20%+. If swapped, fix it.
+  - Annual value ONLY from "שנתי"/"Annual" column
+  - If NO "שנתי"/"Annual" column exists → do NOT extract annual returns. Do NOT use ITD as substitute.
+  - Monthly returns are typically -10% to +10%. Annual can be larger.
+  - SANITY: If annual seems too large (>50%), it's probably ITD — do NOT extract it.
 
 HEBREW RTL TABLE WARNING:
 Hebrew tables may be RTL. DO NOT assume column order. READ THE ACTUAL HEADER TEXT.
 
+═══════════════════════════════════════════════════════
+MONTHLY RETURNS — EXTRACT ALL OF THEM:
+═══════════════════════════════════════════════════════
+
+You MUST extract EVERY monthly return from EVERY year in the table.
+- If the table shows years 2022, 2023, 2024, 2025, 2026 → extract months from ALL of them
+- A table with 4 years of data should produce ~48 monthly entries
+- A table with 5 years should produce ~60 monthly entries
+- Do NOT stop at 12 months. Do NOT skip any year.
+- Empty cells (—, -, blank, no value) → skip that month, do NOT set to 0
+- Each monthly entry key: "YYYY-MM" (e.g., "2023-06", "2024-12", "2026-02")
+
+IMPORTANT: The most recent month matters. If the report is for February 2026, there MUST be a "2026-02" entry. Do NOT skip the report month.
+
 FIELDS TO EXTRACT:
-- fundName: string
-- monthlyReturn: number | null (most recent monthly return)
-- allMonthlyReturns: { "YYYY-MM": number } — extract EVERY month from EVERY year. Do NOT limit to 12 months.
-- reportMonth: "YYYY-MM" or null
+- fundName: string (fund's name as written in document)
+- monthlyReturn: number | null (the MOST RECENT monthly return — the last non-empty month chronologically, matching reportMonth)
+- allMonthlyReturns: { "YYYY-MM": number } — ALL months from ALL years. This is the most important field.
+- reportMonth: "YYYY-MM" or null (extract from document header/title/date)
+  Examples: "פברואר 2026" → "2026-02", "ינואר 2026" → "2026-01", "02/2026" → "2026-02"
 - reportMonthConfidence: "high" | "low"
 - returnBasis: "${currency}"
 - returnBasisOptions: ["${currency}"]
 - manager: string | null
 - classification: string | null
-- sharpe: number | null (only if explicitly stated)
+- sharpe: number | null (only if explicitly stated in document)
 - stdDev: number | null (only if explicitly stated)
-- returns: { "yYYYY": number } — all annual returns
-- ytdYYYY: number | null
+- returns: { "yYYYY": number } — annual returns from "שנתי"/"Annual" column ONLY
+- ytdYYYY: number | null — year-to-date from "YTD"/"מצטבר" column ONLY (NOT from ITD!)
 
 EXISTING FUNDS (for matching — prefer ${currency} funds):
 ${existingFunds.map((f) => `- "${f.name}" (id: ${f.id}, currency: ${f.returnBasis || "unknown"})`).join("\n")}
@@ -723,11 +766,12 @@ Respond in valid JSON:
   "reportMonthConfidence": "high" or "low",
   "returnBasis": "${currency}",
   "returnBasisOptions": ["${currency}"],
-  "allMonthlyReturns": { "2025-01": 0.032, ... } or null,
+  "allMonthlyReturns": { "2023-01": 0.005, "2023-02": -0.002, "2023-03": 0.011, "2023-04": 0.003, "2023-05": -0.001, "2023-06": 0.008, "2023-07": 0.004, "2023-08": -0.003, "2023-09": 0.006, "2023-10": 0.002, "2023-11": 0.009, "2023-12": 0.007, "2024-01": 0.005, "2024-02": 0.003, "...": "..." },
   "fields": [
-    { "key": "monthlyReturn", "value": ..., "confidence": 0.0-1.0 },
-    { "key": "returns.y2025", "value": ..., "confidence": 0.0-1.0 },
-    ...
+    { "key": "monthlyReturn", "value": 0.003, "confidence": 0.95 },
+    { "key": "returns.y2024", "value": 0.052, "confidence": 0.95 },
+    { "key": "returns.y2023", "value": 0.041, "confidence": 0.95 },
+    { "key": "returns.ytd2026", "value": 0.008, "confidence": 0.95 }
   ],
   "suggestedMatch": { "fundId": "..." or null, "fundName": "..." or null, "similarity": 0.0-1.0 }
 }`;
@@ -2184,7 +2228,9 @@ export async function POST(req: NextRequest) {
 
         for (const currency of ["USD", "ILS"] as const) {
           const singlePrompt = buildSingleCurrencyPrompt(currency, existingFunds);
-          const singleResult = await callClaudeVision(apiKey, singlePrompt, base64Data, mimeType);
+          const currencyWord = currency === "USD" ? "dollar/$" : "shekel/₪";
+          const singleUserMsg = `This document has TWO performance tables (USD and ILS). Extract data ONLY from the ${currency} (${currencyWord}) table. Include ALL monthly returns from ALL years — do NOT limit to 12 months. Return valid JSON only.`;
+          const singleResult = await callClaudeVision(apiKey, singlePrompt, base64Data, mimeType, singleUserMsg);
           if (!singleResult.success) {
             console.error(`[parse-file] ${currency} split call failed:`, singleResult.error);
             continue;
@@ -2257,7 +2303,7 @@ export async function POST(req: NextRequest) {
       if (result.corrections) {
         resultObj.corrections = result.corrections;
       }
-      resultObj._cacheVersion = 14;
+      resultObj._cacheVersion = 15;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
