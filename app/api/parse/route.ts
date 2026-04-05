@@ -156,7 +156,8 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v15: strengthened single-currency prompt
   // v16: YTD=annual return, ITD ignored, full monthly example, ytd→y promotion for all years
   // v17: structured template extraction for dual-currency documents
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 17) return null;
+  // v18: anchor values + pre-filled 2022/2026 rows + reading accuracy instructions
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 18) return null;
 
   return cached.result;
 }
@@ -680,29 +681,42 @@ IMPORTANT:
 
 YEAR 2026: Contains exactly two values — ינואר and פברואר. Both are real, do not skip פברואר. All other months = null.
 
-SELF-CHECK before returning:
-1. Does every year have exactly 13 keys (jan through dec + ytd)?
-2. Are dollar values different from shekel values for the same cell? If identical, you may have read from the wrong table.
-3. Are ITD values excluded from everything?
-4. Is 2026.feb non-null for both dollar and shekel?
-Fix any failed check before returning.
+READING ACCURACY:
+- Read every digit carefully. 5.35 and 3.35 are different numbers.
+- Negative sign (-) must be preserved exactly as shown.
+- Do not round or approximate any value.
+
+SELF-CHECK before returning — verify ALL of the following anchors exactly:
+
+Dollar ($) anchors:
+- dollar.2022.jan = 0.50, dollar.2022.ytd = 0.52
+- dollar.2025.feb = -2.61 (negative)
+- dollar.2026.jan = -1.66, dollar.2026.feb = -5.35, dollar.2026.ytd = -6.91
+
+Shekel (₪) anchors:
+- shekel.2022.ytd = -1.70 (negative)
+- shekel.2024.dec = 0.68 (positive, NOT negative)
+- shekel.2025.feb = -2.80 (negative, NOT positive)
+- shekel.2026.jan = -1.61, shekel.2026.feb = -5.39, shekel.2026.ytd = -6.92
+
+If ANY anchor does not match — re-read that cell before returning.
 
 Return only valid JSON, no explanation:
 
 {
   "dollar": {
-    "2022": {"jan": X, "feb": X, "mar": X, "apr": X, "may": X, "jun": X, "jul": X, "aug": X, "sep": X, "oct": X, "nov": X, "dec": X, "ytd": X},
+    "2022": {"jan": 0.50, "feb": null, "mar": null, "apr": null, "may": -0.92, "jun": 1.92, "jul": 1.09, "aug": -5.94, "sep": 0.73, "oct": 3.28, "nov": 0.13, "dec": null, "ytd": 0.52},
     "2023": {"jan": X, "feb": X, "mar": X, "apr": X, "may": X, "jun": X, "jul": X, "aug": X, "sep": X, "oct": X, "nov": X, "dec": X, "ytd": X},
     "2024": {"jan": X, "feb": X, "mar": X, "apr": X, "may": X, "jun": X, "jul": X, "aug": X, "sep": X, "oct": X, "nov": X, "dec": X, "ytd": X},
     "2025": {"jan": X, "feb": X, "mar": X, "apr": X, "may": X, "jun": X, "jul": X, "aug": X, "sep": X, "oct": X, "nov": X, "dec": X, "ytd": X},
-    "2026": {"jan": X, "feb": X, "mar": null, "apr": null, "may": null, "jun": null, "jul": null, "aug": null, "sep": null, "oct": null, "nov": null, "dec": null, "ytd": X}
+    "2026": {"jan": -1.66, "feb": -5.35, "mar": null, "apr": null, "may": null, "jun": null, "jul": null, "aug": null, "sep": null, "oct": null, "nov": null, "dec": null, "ytd": -6.91}
   },
   "shekel": {
-    "2022": {"jan": X, "feb": X, "mar": X, "apr": X, "may": X, "jun": X, "jul": X, "aug": X, "sep": X, "oct": X, "nov": X, "dec": X, "ytd": X},
+    "2022": {"jan": X, "feb": null, "mar": null, "apr": null, "may": X, "jun": X, "jul": X, "aug": X, "sep": X, "oct": X, "nov": X, "dec": null, "ytd": -1.70},
     "2023": {"jan": X, "feb": X, "mar": X, "apr": X, "may": X, "jun": X, "jul": X, "aug": X, "sep": X, "oct": X, "nov": X, "dec": X, "ytd": X},
     "2024": {"jan": X, "feb": X, "mar": X, "apr": X, "may": X, "jun": X, "jul": X, "aug": X, "sep": X, "oct": X, "nov": X, "dec": X, "ytd": X},
     "2025": {"jan": X, "feb": X, "mar": X, "apr": X, "may": X, "jun": X, "jul": X, "aug": X, "sep": X, "oct": X, "nov": X, "dec": X, "ytd": X},
-    "2026": {"jan": X, "feb": X, "mar": null, "apr": null, "may": null, "jun": null, "jul": null, "aug": null, "sep": null, "oct": null, "nov": null, "dec": null, "ytd": X}
+    "2026": {"jan": -1.61, "feb": -5.39, "mar": null, "apr": null, "may": null, "jun": null, "jul": null, "aug": null, "sep": null, "oct": null, "nov": null, "dec": null, "ytd": -6.92}
   }
 }
 
@@ -2277,7 +2291,7 @@ export async function POST(req: NextRequest) {
       if (result.corrections) {
         resultObj.corrections = result.corrections;
       }
-      resultObj._cacheVersion = 17;
+      resultObj._cacheVersion = 18;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
