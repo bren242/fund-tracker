@@ -152,7 +152,7 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v8: fixed dual-currency prompt bias that caused ILS/USD inversion
   // v9: header-driven table parsing (not position-driven) + annual/monthly validation
   // v10: strengthened RTL table parsing + server-side column swap auto-correction
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 12) return null;
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 13) return null;
 
   return cached.result;
 }
@@ -365,7 +365,7 @@ async function callClaude(apiKey: string, systemPrompt: string, userText: string
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
-          max_tokens: 8192,
+          max_tokens: 16384,
           temperature: 0,
           system: systemPrompt,
           messages: [{ role: "user", content: userText }],
@@ -433,7 +433,7 @@ async function callClaudeVision(
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
-          max_tokens: 8192,
+          max_tokens: 16384,
           temperature: 0,
           system: systemPrompt,
           messages: [{
@@ -595,7 +595,13 @@ STEP 1 — IDENTIFY LABELS: Before extracting any numbers, first locate EACH per
 STEP 2 — EXTRACT NUMBERS: For each table, extract all performance numbers (monthly returns, YTD, annual).
 STEP 3 — ASSIGN CORRECTLY: Put each table's numbers into the dualCurrencyData entry matching its label from step 1. A table labeled "קלאס דולרי" → returnBasis: "USD". A table labeled "קלאס שקלי" → returnBasis: "ILS".
 
-COMMON ERROR TO AVOID: Many Israeli fund documents show the USD (דולרי) table FIRST (on top) and the ILS (שקלי) table SECOND (below). Do NOT assume the first table is ILS. If the first table says "קלאס דולרי" with YTD 19.91% and the second says "קלאס שקלי" with YTD 18.63%, then USD=19.91% and ILS=18.63%. Getting this backwards is the #1 parsing error.
+CURRENCY SYMBOL DETECTION:
+Tables may use SYMBOLS instead of words to indicate currency:
+  - ($) or $ or "דולר" or "דולרי" or "דולרית" or "USD" → returnBasis: "USD"
+  - (₪) or ₪ or "שקל" or "שקלי" or "שקלית" or "ILS" → returnBasis: "ILS"
+Look for these symbols in table headers, section titles, or labels next to each performance table.
+
+COMMON ERROR TO AVOID: Many Israeli fund documents show the USD ($) table FIRST (on top) and the ILS (₪) table SECOND (below). Do NOT assume the first table is ILS. Read the currency symbol/label next to EACH table. If the top table has ($) and the bottom has (₪), then top=USD and bottom=ILS. Getting this backwards is the #1 parsing error.
 
 Each entry must include ALL currency-dependent fields (monthlyReturn, returns.y*, sharpe, stdDev, allMonthlyReturns) with values specific to THAT currency only. Do NOT copy values between entries.
 The top-level fields/returnBasis/allMonthlyReturns should use the FIRST currency that appears in the document (read from top). The dualCurrencyData array order does not matter — what matters is that each entry's returnBasis matches its actual label.
@@ -2100,7 +2106,7 @@ export async function POST(req: NextRequest) {
       if (result.corrections) {
         resultObj.corrections = result.corrections;
       }
-      resultObj._cacheVersion = 12;
+      resultObj._cacheVersion = 13;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
