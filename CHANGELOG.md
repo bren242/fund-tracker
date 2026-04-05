@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.6 — Data Completion (2026-04-05)
+
+### Data Completion Tab
+- New "השלמת נתונים" tab for super admin
+- Scans all active funds for missing `avgAnnualReturn`, `stdDev`, `sharpe`
+- Auto-computes: avg from yearly returns (≥2 years), stdDev from monthly (≥12 months, annualized), sharpe = avg/std
+- Preview table shows computed values before applying
+- Confirm dialog required, updates in-memory (must publish via "שמירה ופרסום")
+- Separate section for funds with insufficient data for computation
+
+### Files Changed
+- `app/admin/page.tsx` — `DataCompletionTab` component, tab wiring
+- Documentation: CHANGELOG.md, DEV_STATE.md
+
+---
+
 ## v1.5.1 — Value Layer Infrastructure (2026-04-05)
 
 ### Analysis Window

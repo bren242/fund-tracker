@@ -1,6 +1,6 @@
 # DEV STATE — System Functionality & Stability
 
-**Status:** STABLE — v1.5.1 (Value Layer Infrastructure)
+**Status:** STABLE — v1.6 (Data Completion)
 **Date:** 2026-04-05
 
 ---
@@ -24,6 +24,7 @@
 | Monthly reliability | ✅ Stable | corrections UI, auto-apply block, overwrite protection, compound validation, history cross-check |
 | Monthly direction | ✅ Stable | per-fund LTR/RTL normalization, direction selector in diff review |
 | Value Layer infra | ✅ Stable | period selector (12/24/36/60), analysis window helper, insight placeholder |
+| Data completion | ✅ Stable | auto-compute avgAnnualReturn, stdDev, sharpe from existing data |
 
 ---
 
