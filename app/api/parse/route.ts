@@ -155,7 +155,8 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
     // v14: dual-currency split into 2 API calls
   // v15: strengthened single-currency prompt
   // v16: YTD=annual return, ITD ignored, full monthly example, ytd→y promotion for all years
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 16) return null;
+  // v17: structured template extraction for dual-currency documents
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 17) return null;
 
   return cached.result;
 }
@@ -661,135 +662,128 @@ Respond in valid JSON with this exact structure:
 }`;
 }
 
-/** Build a focused prompt for extracting ONLY one currency table from a dual-currency document */
-function buildSingleCurrencyPrompt(
-  currency: "ILS" | "USD",
-  existingFunds: { id: string; name: string; returnBasis?: string }[]
-): string {
-  const currencyLabel = currency === "USD"
-    ? '$ / ($) / דולרי / דולרית / USD'
-    : '₪ / (₪) / שקלי / שקלית / ILS';
-  const otherCurrency = currency === "USD" ? "ILS / ₪ / שקלי" : "USD / $ / דולרי";
+/** Build a structured prompt for dual-currency documents.
+ *  Instead of asking the AI to figure out the table structure, we TELL it
+ *  the exact layout and give it a template to fill. Single call, both currencies. */
+function buildDualCurrencyStructuredPrompt(): string {
+  return `You are a precise data extraction engine. Extract performance data from this Hebrew investment fund table.
 
-  return `You are a financial data extraction assistant for an Israeli fund tracking system.
-This document contains TWO performance tables — one in USD ($) and one in ILS (₪).
+LAYOUT: The table reads right to left.
+Column order (right to left): ינואר, פברואר, מרץ, אפר׳, מאי, יוני, יולי, אוג׳, ספט׳, אוק׳, נוב׳, דצמ׳, YTD, ITD
 
-═══════════════════════════════════════════════════════
-YOUR TASK: Extract data ONLY from the ${currency} (${currencyLabel}) table.
-COMPLETELY IGNORE the other table (${otherCurrency}). Pretend it does not exist.
-Do NOT mix values between the two tables.
-═══════════════════════════════════════════════════════
+IMPORTANT:
+- ITD is the leftmost column — ignore it completely, never use its values
+- YTD is second from left — this is the annual return, always use this
+- Top table = Dollar ($), Bottom table = Shekel (₪) — never mix values between them
+- A dash (-) or empty cell = null
+- אוג׳=august, ספט׳=september, אוק׳=october, דצמ׳=december, אפר׳=april
 
-HOW TO IDENTIFY THE CORRECT TABLE:
-- Look for currency symbols or labels: ${currencyLabel}
-- These appear in section headers, table titles, or row labels next to each performance table
-- The ${currency} table may be on top or bottom — position does not matter, ONLY the label matters
-- Common patterns: "תשואות בדולר ($)", "ביצועים שקליים (₪)", "קלאס דולרי", "מסלול שקלי"
+YEAR 2026: Contains exactly two values — ינואר and פברואר. Both are real, do not skip פברואר. All other months = null.
 
-RULES:
-- Extract ONLY factual data explicitly stated in the ${currency} table
-- Do NOT infer, calculate, or estimate any values
-- All return values should be decimal numbers (e.g., 5.2% → 0.052, -1.3% → -0.013)
-- Fund name must be extracted in its original language
-- If a field is not clearly present, omit it
-- returnBasis MUST be "${currency}"
+SELF-CHECK before returning:
+1. Does every year have exactly 13 keys (jan through dec + ytd)?
+2. Are dollar values different from shekel values for the same cell? If identical, you may have read from the wrong table.
+3. Are ITD values excluded from everything?
+4. Is 2026.feb non-null for both dollar and shekel?
+Fix any failed check before returning.
 
-═══════════════════════════════════════════════════════
-CRITICAL — ANNUAL RETURN vs ITD:
-═══════════════════════════════════════════════════════
+Return only valid JSON, no explanation:
 
-The table has columns for annual returns and possibly ITD. They are DIFFERENT:
-
-ANNUAL RETURN (EXTRACT as returns.yYYYY):
-  - "שנתי" / "שנתית" / "Annual"
-  - "YTD" / "מצטבר" / "מתחילת השנה" / "מה״ש"
-  These ALL mean the same thing — the annual return. Extract as returns.yYYYY.
-
-IGNORE COMPLETELY (NEVER extract):
-  - "ITD" / "מהקמה" / "מאז הקמה" / "Inception" / "Since Inception"
-  This is the cumulative return since fund creation. It is NOT the annual return.
-
-═══════════════════════════════════════════════════════
-PERFORMANCE TABLE PARSING (header-driven):
-═══════════════════════════════════════════════════════
-
-STEP 1 — DETECT HEADERS: Find the header row of the ${currency} table. Read every column header.
-STEP 2 — MAP COLUMNS BY HEADER TEXT:
-  ANNUAL RETURN (extract as returns.yYYYY):
-  - "שנתי" / "שנתית" / "Annual" → returns.yYYYY
-  - "YTD" / "מצטבר" / "מתחילת השנה" / "מה״ש" → returns.yYYYY (same thing)
-  IGNORE:
-  - "ITD" / "מהקמה" / "מאז הקמה" / "Inception" → SKIP ENTIRELY
-  MONTHS:
-  - ינו/Jan=01, פבר/Feb=02, מרץ/Mar=03, אפר/Apr=04, מאי/May=05, יונ/Jun=06
-  - יול/Jul=07, אוג/Aug=08, ספט/Sep=09, אוק/Oct=10, נוב/Nov=11, דצמ/Dec=12
-STEP 3 — READ EVERY ROW: For each year row, extract ALL values by column mapping.
-STEP 4 — VALIDATE:
-  - Annual value from "שנתי", "YTD", or "מצטבר" columns — these are all annual returns.
-  - NEVER use ITD as annual return.
-  - Monthly returns are typically -10% to +10%. Annual can be larger.
-
-HEBREW RTL TABLE WARNING:
-Hebrew tables may be RTL. DO NOT assume column order. READ THE ACTUAL HEADER TEXT.
-
-═══════════════════════════════════════════════════════
-MONTHLY RETURNS — EXTRACT ALL OF THEM:
-═══════════════════════════════════════════════════════
-
-You MUST extract EVERY monthly return from EVERY year in the table.
-- If the table shows years 2022, 2023, 2024, 2025, 2026 → extract months from ALL of them
-- A table with 4 years of data should produce ~48 monthly entries
-- A table with 5 years should produce ~60 monthly entries
-- Do NOT stop at 12 months. Do NOT skip any year.
-- Empty cells (—, -, blank, no value) → skip that month, do NOT set to 0
-- Each monthly entry key: "YYYY-MM" (e.g., "2023-06", "2024-12", "2026-02")
-
-IMPORTANT: The most recent month matters. If the report is for February 2026, there MUST be a "2026-02" entry. Do NOT skip the report month.
-
-FIELDS TO EXTRACT:
-- fundName: string (fund's name as written in document)
-- monthlyReturn: number | null (the MOST RECENT monthly return — the last non-empty month chronologically, matching reportMonth)
-- allMonthlyReturns: { "YYYY-MM": number } — ALL months from ALL years. This is the most important field.
-- reportMonth: "YYYY-MM" or null (extract from document header/title/date)
-  Examples: "פברואר 2026" → "2026-02", "ינואר 2026" → "2026-01", "02/2026" → "2026-02"
-- reportMonthConfidence: "high" | "low"
-- returnBasis: "${currency}"
-- returnBasisOptions: ["${currency}"]
-- manager: string | null
-- classification: string | null
-- sharpe: number | null (only if explicitly stated in document)
-- stdDev: number | null (only if explicitly stated)
-- returns: { "yYYYY": number } — annual returns. Extract from "שנתי", "YTD", or "מצטבר" columns — they all mean annual return.
-  NEVER extract ITD values here.
-
-EXISTING FUNDS (for matching — prefer ${currency} funds):
-${existingFunds.map((f) => `- "${f.name}" (id: ${f.id}, currency: ${f.returnBasis || "unknown"})`).join("\n")}
-
-Respond in valid JSON. IMPORTANT: List EVERY monthly return individually. Do NOT abbreviate or skip months.
 {
-  "fundName": "...",
-  "fundNameConfidence": 0.0-1.0,
-  "reportMonth": "YYYY-MM" or null,
-  "reportMonthConfidence": "high" or "low",
-  "returnBasis": "${currency}",
-  "returnBasisOptions": ["${currency}"],
-  "allMonthlyReturns": {
-    "2022-05": 0.005, "2022-06": -0.009, "2022-07": 0.019, "2022-08": 0.011, "2022-09": -0.059, "2022-10": 0.007, "2022-11": 0.033, "2022-12": 0.001,
-    "2023-01": 0.040, "2023-02": 0.004, "2023-03": -0.013, "2023-04": 0.010, "2023-05": -0.001, "2023-06": 0.021, "2023-07": 0.021, "2023-08": 0.019, "2023-09": 0.007, "2023-10": -0.003, "2023-11": 0.028, "2023-12": 0.025,
-    "2024-01": 0.024, "2024-02": 0.011, "2024-03": 0.015, "2024-04": 0.009, "2024-05": 0.022, "2024-06": 0.002, "2024-07": 0.004, "2024-08": 0.000, "2024-09": 0.015, "2024-10": 0.019, "2024-11": 0.007, "2024-12": 0.007,
-    "2025-01": 0.012, "2025-02": 0.007, "2025-03": -0.026, "2025-04": -0.012, "2025-05": 0.023, "2025-06": 0.012, "2025-07": 0.019, "2025-08": 0.004, "2025-09": 0.004, "2025-10": -0.006, "2025-11": -0.022, "2025-12": 0.007,
-    "2026-01": -0.017, "2026-02": -0.054
+  "dollar": {
+    "2022": {"jan": X, "feb": X, "mar": X, "apr": X, "may": X, "jun": X, "jul": X, "aug": X, "sep": X, "oct": X, "nov": X, "dec": X, "ytd": X},
+    "2023": {"jan": X, "feb": X, "mar": X, "apr": X, "may": X, "jun": X, "jul": X, "aug": X, "sep": X, "oct": X, "nov": X, "dec": X, "ytd": X},
+    "2024": {"jan": X, "feb": X, "mar": X, "apr": X, "may": X, "jun": X, "jul": X, "aug": X, "sep": X, "oct": X, "nov": X, "dec": X, "ytd": X},
+    "2025": {"jan": X, "feb": X, "mar": X, "apr": X, "may": X, "jun": X, "jul": X, "aug": X, "sep": X, "oct": X, "nov": X, "dec": X, "ytd": X},
+    "2026": {"jan": X, "feb": X, "mar": null, "apr": null, "may": null, "jun": null, "jul": null, "aug": null, "sep": null, "oct": null, "nov": null, "dec": null, "ytd": X}
   },
-  "fields": [
-    { "key": "monthlyReturn", "value": -0.054, "confidence": 0.95 },
-    { "key": "returns.y2025", "value": 0.013, "confidence": 0.95 },
-    { "key": "returns.y2024", "value": 0.147, "confidence": 0.95 },
-    { "key": "returns.y2023", "value": 0.167, "confidence": 0.95 },
-    { "key": "returns.y2022", "value": 0.005, "confidence": 0.95 },
-    { "key": "returns.y2026", "value": -0.069, "confidence": 0.95 }
-  ],
-  "suggestedMatch": { "fundId": "..." or null, "fundName": "..." or null, "similarity": 0.0-1.0 }
-}`;
+  "shekel": {
+    "2022": {"jan": X, "feb": X, "mar": X, "apr": X, "may": X, "jun": X, "jul": X, "aug": X, "sep": X, "oct": X, "nov": X, "dec": X, "ytd": X},
+    "2023": {"jan": X, "feb": X, "mar": X, "apr": X, "may": X, "jun": X, "jul": X, "aug": X, "sep": X, "oct": X, "nov": X, "dec": X, "ytd": X},
+    "2024": {"jan": X, "feb": X, "mar": X, "apr": X, "may": X, "jun": X, "jul": X, "aug": X, "sep": X, "oct": X, "nov": X, "dec": X, "ytd": X},
+    "2025": {"jan": X, "feb": X, "mar": X, "apr": X, "may": X, "jun": X, "jul": X, "aug": X, "sep": X, "oct": X, "nov": X, "dec": X, "ytd": X},
+    "2026": {"jan": X, "feb": X, "mar": null, "apr": null, "may": null, "jun": null, "jul": null, "aug": null, "sep": null, "oct": null, "nov": null, "dec": null, "ytd": X}
+  }
+}
+
+Numbers as floats without % sign. Example: 1.92% → 1.92`;
+}
+
+/** Month name → "MM" mapping for structured dual-currency response */
+const MONTH_NAME_TO_NUM: Record<string, string> = {
+  jan: "01", feb: "02", mar: "03", apr: "04", may: "05", jun: "06",
+  jul: "07", aug: "08", sep: "09", oct: "10", nov: "11", dec: "12",
+};
+
+/** Parse the structured dual-currency JSON response into DualCurrencyEntry[] */
+function parseStructuredDualResponse(content: string): {
+  dualCurrencyData: DualCurrencyEntry[];
+  fundName: string;
+  reportMonth: string | null;
+} | { error: string } {
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) return { error: "No JSON found in structured response" };
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(jsonMatch[0]);
+  } catch {
+    return { error: "Invalid JSON in structured response" };
+  }
+
+  const dollarData = parsed.dollar as Record<string, Record<string, number | null>> | undefined;
+  const shekelData = parsed.shekel as Record<string, Record<string, number | null>> | undefined;
+  if (!dollarData || !shekelData) {
+    return { error: "Missing dollar or shekel in structured response" };
+  }
+
+  const entries: DualCurrencyEntry[] = [];
+  let latestMonth: string | null = null;
+
+  for (const [currencyKey, basis] of [["dollar", "USD"], ["shekel", "ILS"]] as const) {
+    const currencyData = (currencyKey === "dollar" ? dollarData : shekelData) as Record<string, Record<string, number | null>>;
+    const fields: ParsedField[] = [];
+
+    for (const [year, months] of Object.entries(currencyData)) {
+      if (!/^\d{4}$/.test(year)) continue;
+
+      for (const [monthName, value] of Object.entries(months)) {
+        if (value === null || value === undefined) continue;
+        const decimalValue = value / 100; // 1.92 → 0.0192
+
+        if (monthName === "ytd") {
+          // YTD = annual return
+          fields.push({ key: `returns.y${year}`, value: decimalValue, confidence: 0.95 });
+        } else {
+          const monthNum = MONTH_NAME_TO_NUM[monthName];
+          if (!monthNum) continue;
+          const monthKey = `${year}-${monthNum}`;
+          fields.push({ key: `monthlyReturns.${monthKey}`, value: decimalValue, confidence: 0.95 });
+
+          // Track latest month for monthlyReturn + reportMonth
+          if (!latestMonth || monthKey > latestMonth) {
+            latestMonth = monthKey;
+          }
+        }
+      }
+    }
+
+    // Add monthlyReturn (most recent month)
+    if (latestMonth) {
+      const latestField = fields.find((f) => f.key === `monthlyReturns.${latestMonth}`);
+      if (latestField) {
+        fields.push({ key: "monthlyReturn", value: latestField.value, confidence: 0.95 });
+      }
+    }
+
+    entries.push({ returnBasis: basis, fields });
+  }
+
+  return {
+    dualCurrencyData: entries,
+    fundName: "", // Will be taken from initial parse
+    reportMonth: latestMonth, // e.g. "2026-02"
+  };
 }
 
 /** Validate reportMonth format YYYY-MM */
@@ -2229,68 +2223,35 @@ export async function POST(req: NextRequest) {
 
       let totalInputTokens = claudeResult.usage.input_tokens;
 
-      // ── DUAL-CURRENCY SPLIT: 2 separate API calls per currency ──
-      // When the initial parse detects both ILS and USD, make 2 focused calls
-      // that each extract ONLY one currency table. This eliminates cross-currency
-      // confusion which is the #1 parsing error for dual-currency documents.
+      // ── DUAL-CURRENCY STRUCTURED EXTRACTION ──
+      // When the initial parse detects both ILS and USD, make a second call
+      // with a structured template prompt that tells the AI the exact table
+      // layout and gives it a JSON template to fill. This is far more reliable
+      // than asking the AI to figure out the structure itself.
       const hasBothCurrencies = result.returnBasisOptions.includes("ILS") && result.returnBasisOptions.includes("USD");
       if (hasBothCurrencies) {
-        console.log("[parse-file] Dual currency detected — splitting into 2 focused API calls");
-        const splitEntries: DualCurrencyEntry[] = [];
-        let splitCorrections: string[] = [...(result.corrections || [])];
+        console.log("[parse-file] Dual currency detected — using structured template extraction");
+        const structuredPrompt = buildDualCurrencyStructuredPrompt();
+        const structuredUserMsg = "Extract performance data from both tables in this document. Return only valid JSON matching the template.";
+        const structuredResult = await callClaudeVision(apiKey, structuredPrompt, base64Data, mimeType, structuredUserMsg);
 
-        for (const currency of ["USD", "ILS"] as const) {
-          const singlePrompt = buildSingleCurrencyPrompt(currency, existingFunds);
-          const currencyWord = currency === "USD" ? "dollar/$" : "shekel/₪";
-          const singleUserMsg = `This document has TWO performance tables (USD and ILS). Extract data ONLY from the ${currency} (${currencyWord}) table. Include ALL monthly returns from ALL years — do NOT limit to 12 months. Return valid JSON only.`;
-          const singleResult = await callClaudeVision(apiKey, singlePrompt, base64Data, mimeType, singleUserMsg);
-          if (!singleResult.success) {
-            console.error(`[parse-file] ${currency} split call failed:`, singleResult.error);
-            continue;
-          }
+        if (structuredResult.success) {
+          totalInputTokens += structuredResult.usage.input_tokens;
+          await recordTokenUsage(clientKey, "parse-file-structured", structuredResult.usage, file.name);
+          console.log(`[parse-file] Structured call: ${structuredResult.usage.input_tokens} input tokens`);
 
-          // Record token usage for the split call
-          const splitUsage = await recordTokenUsage(clientKey, `parse-file-${currency}`, singleResult.usage, file.name);
-          totalInputTokens += singleResult.usage.input_tokens;
-          console.log(`[parse-file] ${currency} split: ${singleResult.usage.input_tokens} input tokens`);
-
-          const singleParsed = parseCloudeResponse(singleResult.content, existingFunds);
-          if ("error" in singleParsed) {
-            console.error(`[parse-file] ${currency} split parse failed:`, singleParsed.error);
-            continue;
-          }
-
-          // Collect corrections from split parse
-          if (singleParsed.corrections) {
-            splitCorrections.push(...singleParsed.corrections.map((c) => `${currency}:${c}`));
-          }
-
-          splitEntries.push({
-            returnBasis: currency,
-            fields: singleParsed.fields,
-          });
-        }
-
-        // Replace dualCurrencyData with the clean split results
-        if (splitEntries.length === 2) {
-          result.dualCurrencyData = splitEntries;
-          console.log("[parse-file] Dual currency split successful — both currencies extracted independently");
-        } else if (splitEntries.length === 1) {
-          // Partial success: use the one that worked + original data for the other
-          console.log(`[parse-file] Partial split: got ${splitEntries[0].returnBasis}, using original for other`);
-          const gotCurrency = splitEntries[0].returnBasis;
-          const missingCurrency = gotCurrency === "USD" ? "ILS" : "USD";
-          const originalEntry = result.dualCurrencyData?.find((e) => e.returnBasis === missingCurrency);
-          if (originalEntry) {
-            result.dualCurrencyData = [splitEntries[0], originalEntry];
+          const structuredParsed = parseStructuredDualResponse(structuredResult.content);
+          if (!("error" in structuredParsed)) {
+            result.dualCurrencyData = structuredParsed.dualCurrencyData;
+            if (structuredParsed.reportMonth && !result.reportMonth) {
+              result.reportMonth = structuredParsed.reportMonth;
+            }
+            console.log("[parse-file] Structured extraction successful — both currencies extracted via template");
           } else {
-            result.dualCurrencyData = splitEntries.length > 0 ? [...splitEntries] : result.dualCurrencyData;
+            console.error("[parse-file] Structured parse failed:", structuredParsed.error);
           }
-        }
-        // If both failed, keep original dualCurrencyData as-is
-
-        if (splitCorrections.length > 0) {
-          result.corrections = splitCorrections;
+        } else {
+          console.error("[parse-file] Structured call failed:", structuredResult.error);
         }
       }
 
@@ -2316,7 +2277,7 @@ export async function POST(req: NextRequest) {
       if (result.corrections) {
         resultObj.corrections = result.corrections;
       }
-      resultObj._cacheVersion = 16;
+      resultObj._cacheVersion = 17;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
