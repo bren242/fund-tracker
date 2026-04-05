@@ -162,6 +162,9 @@ function ReportContent() {
               {chartPageEnabled && (
                 <a href={withClient("/charts", clientKey)} style={{ fontSize: 12, color: "var(--text-secondary)", textDecoration: "none", padding: "5px 10px", borderRadius: 6, border: "1px solid var(--border)", transition: "border-color 0.15s" }}>גרפים</a>
               )}
+              {brand.features?.dataCompletion && (
+                <a href={withClient("/data-completion", clientKey)} style={{ fontSize: 12, color: "var(--text-secondary)", textDecoration: "none", padding: "5px 10px", borderRadius: 6, border: "1px solid var(--border)", transition: "border-color 0.15s" }}>השלמת נתונים</a>
+              )}
               <a href={withClient("/admin", clientKey)} style={{ fontSize: 12, color: "var(--text-secondary)", textDecoration: "none", padding: "5px 10px", borderRadius: 6, border: "1px solid var(--border)", transition: "border-color 0.15s" }}>ניהול</a>
               <ThemeToggle />
             </div>

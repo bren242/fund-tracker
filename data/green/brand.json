@@ -22,6 +22,7 @@
     "aiParser": true,
     "mobileUpload": true,
     "desktopUpload": true,
-    "benchmarks": true
+    "benchmarks": true,
+    "dataCompletion": true
   }
 }

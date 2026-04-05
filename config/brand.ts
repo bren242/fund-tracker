@@ -9,6 +9,7 @@ export interface AppFeatures {
   manualUpload?: boolean;
   emailUpload?: boolean;
   benchmarks?: boolean;
+  dataCompletion?: boolean;
 }
 
 export interface BrandConfig {

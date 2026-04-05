@@ -133,6 +133,9 @@ function ChartsContent() {
               הדפסה / PDF
             </button>
             <a href={withClient("/", clientKey)} style={{ fontSize: 12, color: "var(--text-secondary)", textDecoration: "none", padding: "5px 10px", borderRadius: 6, border: "1px solid var(--border)" }}>דוח</a>
+            {brand.features?.dataCompletion && (
+              <a href={withClient("/data-completion", clientKey)} style={{ fontSize: 12, color: "var(--text-secondary)", textDecoration: "none", padding: "5px 10px", borderRadius: 6, border: "1px solid var(--border)" }}>השלמת נתונים</a>
+            )}
             <a href={withClient("/admin", clientKey)} style={{ fontSize: 12, color: "var(--text-secondary)", textDecoration: "none", padding: "5px 10px", borderRadius: 6, border: "1px solid var(--border)" }}>ניהול</a>
             <ThemeToggle />
           </div>
