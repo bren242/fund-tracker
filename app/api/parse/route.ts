@@ -153,8 +153,9 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v9: header-driven table parsing (not position-driven) + annual/monthly validation
   // v10: strengthened RTL table parsing + server-side column swap auto-correction
     // v14: dual-currency split into 2 API calls
-  // v15: strengthened single-currency prompt (ITD/YTD/Annual distinction, full monthly extraction, custom user message)
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 15) return null;
+  // v15: strengthened single-currency prompt
+  // v16: YTD=annual return, ITD ignored, full monthly example, ytd→y promotion for all years
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 16) return null;
 
   return cached.result;
 }
@@ -519,8 +520,12 @@ When the document contains a performance/returns table, you MUST follow this pro
 
 STEP 1 — DETECT HEADERS: Find the header row of the table. Read every column header label.
 STEP 2 — MAP COLUMNS BY HEADER TEXT: Build a column→meaning mapping using these rules:
-  - "שנתי" or "שנתית" or "Annual" → annual/yearly return for that row's year
-  - "YTD" or "מצטבר" or "מתחילת השנה" or "תשואה מתחילת" → year-to-date return
+  ANNUAL RETURN COLUMNS (extract as returns.yYYYY):
+  - "שנתי" or "שנתית" or "Annual" → annual return
+  - "YTD" or "מצטבר" or "מתחילת השנה" or "מה״ש" or "תשואה מתחילת" → THIS IS ALSO the annual return. Extract as returns.yYYYY.
+  IGNORE COMPLETELY:
+  - "ITD" or "מהקמה" or "מאז הקמה" or "Inception" or "Since Inception" → cumulative since fund creation. NEVER extract. NEVER use as annual return.
+  MONTH COLUMNS:
   - "ינו" or "ינואר" or "Jan" → month 01
   - "פבר" or "פברואר" or "Feb" → month 02
   - "מרץ" or "Mar" → month 03
@@ -533,16 +538,16 @@ STEP 2 — MAP COLUMNS BY HEADER TEXT: Build a column→meaning mapping using th
   - "אוק" or "אוקטובר" or "Oct" → month 10
   - "נוב" or "נובמבר" or "Nov" → month 11
   - "דצמ" or "דצמבר" or "Dec" → month 12
+  OTHER:
   - A 4-digit year like "2020", "2025" → row year identifier column
 STEP 3 — READ ROWS BY MAPPING: For each data row:
   - Identify the row's year from the year-identifier column
-  - Read the annual return ONLY from the column mapped to "שנתי"/"Annual"
-  - Read monthly returns ONLY from columns mapped to month headers
-  - Read YTD ONLY from the column mapped to "YTD"/"מצטבר"
-  - IGNORE columns labeled "ITD", "Inception", "מהקמה", "מאז הקמה" — these are inception-to-date (cumulative since fund creation) and are NOT annual returns and NOT YTD. Do NOT extract ITD values.
+  - Read the annual return from the column mapped to "שנתי"/"Annual" OR "YTD"/"מצטבר"/"מתחילת השנה" — these are the same thing. Extract as returns.yYYYY.
+  - Read monthly returns from columns mapped to month headers
+  - IGNORE columns labeled "ITD", "מהקמה", "מאז הקמה", "Inception" — NEVER extract these values
 STEP 4 — VALIDATE:
-  - The annual value must come from the column whose header says "שנתי" ONLY.
-  - If the table has NO "שנתי"/"Annual" column, do NOT extract annual returns at all. Do NOT use ITD or any other column as a substitute.
+  - The annual value must come from "שנתי", "YTD", or "מצטבר" columns.
+  - NEVER use ITD as annual return. ITD is cumulative since inception and is always wrong for annual.
   - NEVER use the first or last numeric cell as annual return.
   - NEVER confuse a January value with an annual value or vice versa.
   - SANITY CHECK: For a completed year, the annual return should roughly equal the compound of all 12 monthly returns. If annual=4.61% but the sum of monthly returns ≈ 23%, you have likely swapped annual↔January. Fix it.
@@ -583,7 +588,8 @@ FIELDS TO EXTRACT (only these):
 - stdDev: number | null (standard deviation, סטיית תקן, if explicitly stated in the document)
 - returns: object with dynamic year keys like "yYYYY" (e.g. "y2025", "y2024", "y2023", "y2022", "y2021", "y2020", "y2019").
   Extract ALL annual returns that appear in the document, for ANY year. Do not limit to a fixed set.
-- ytdYYYY: number | null (year-to-date return for the current year, e.g. "ytd2026" if the document references 2026 YTD)
+  IMPORTANT: YTD / מצטבר / מתחילת השנה IS the annual return — extract it as returns.yYYYY (not as ytd).
+- ytdYYYY: number | null — ONLY use this if you need to distinguish a partial-year return from a full-year return. In most cases, use returns.yYYYY instead.
 
 EXISTING FUNDS IN SYSTEM (for matching):
 ${existingFunds.map((f) => `- "${f.name}" (id: ${f.id}, currency: ${f.returnBasis || "unknown"})`).join("\n")}
@@ -624,7 +630,7 @@ Respond in valid JSON with this exact structure:
     { "key": "stdDev", "value": ..., "confidence": 0.0-1.0 },
     { "key": "returns.y2025", "value": ..., "confidence": 0.0-1.0 },
     { "key": "returns.y2024", "value": ..., "confidence": 0.0-1.0 },
-    { "key": "returns.ytd2026", "value": ..., "confidence": 0.0-1.0 },
+    { "key": "returns.y2026", "value": ..., "confidence": 0.0-1.0 },
     ...
   ],
   "suggestedMatch": {
@@ -689,20 +695,19 @@ RULES:
 - returnBasis MUST be "${currency}"
 
 ═══════════════════════════════════════════════════════
-CRITICAL — ITD vs YTD vs ANNUAL — READ CAREFULLY:
+CRITICAL — ANNUAL RETURN vs ITD:
 ═══════════════════════════════════════════════════════
 
-The table may have columns with SIMILAR but DIFFERENT meanings:
-- "YTD" / "מצטבר" / "מתחילת השנה" / "מה״ש" → YEAR-TO-DATE return (from Jan 1 of that year). EXTRACT THIS as ytdYYYY.
-- "שנתי" / "שנתית" / "Annual" → full ANNUAL return for completed years. EXTRACT THIS as returns.yYYYY.
-- "ITD" / "מהקמה" / "מאז הקמה" / "Inception" / "Since Inception" → cumulative return since the fund was CREATED. DO NOT EXTRACT THIS. It is NOT annual and NOT YTD.
+The table has columns for annual returns and possibly ITD. They are DIFFERENT:
 
-THESE ARE THREE DIFFERENT THINGS. Do NOT confuse them:
-- ITD is ALWAYS larger than annual returns (it spans multiple years)
-- Annual is the return for one full calendar year
-- YTD is the return from January 1 to the report month
+ANNUAL RETURN (EXTRACT as returns.yYYYY):
+  - "שנתי" / "שנתית" / "Annual"
+  - "YTD" / "מצטבר" / "מתחילת השנה" / "מה״ש"
+  These ALL mean the same thing — the annual return. Extract as returns.yYYYY.
 
-If you see a column with a very large number (e.g., 40%, 80%, 150%) — that is almost certainly ITD. Do NOT put it in returns.yYYYY or ytdYYYY.
+IGNORE COMPLETELY (NEVER extract):
+  - "ITD" / "מהקמה" / "מאז הקמה" / "Inception" / "Since Inception"
+  This is the cumulative return since fund creation. It is NOT the annual return.
 
 ═══════════════════════════════════════════════════════
 PERFORMANCE TABLE PARSING (header-driven):
@@ -710,17 +715,19 @@ PERFORMANCE TABLE PARSING (header-driven):
 
 STEP 1 — DETECT HEADERS: Find the header row of the ${currency} table. Read every column header.
 STEP 2 — MAP COLUMNS BY HEADER TEXT:
-  - "שנתי" / "שנתית" / "Annual" → annual return → returns.yYYYY
-  - "YTD" / "מצטבר" / "מתחילת השנה" → year-to-date → ytdYYYY
-  - "ITD" / "מהקמה" / "מאז הקמה" → SKIP ENTIRELY
+  ANNUAL RETURN (extract as returns.yYYYY):
+  - "שנתי" / "שנתית" / "Annual" → returns.yYYYY
+  - "YTD" / "מצטבר" / "מתחילת השנה" / "מה״ש" → returns.yYYYY (same thing)
+  IGNORE:
+  - "ITD" / "מהקמה" / "מאז הקמה" / "Inception" → SKIP ENTIRELY
+  MONTHS:
   - ינו/Jan=01, פבר/Feb=02, מרץ/Mar=03, אפר/Apr=04, מאי/May=05, יונ/Jun=06
   - יול/Jul=07, אוג/Aug=08, ספט/Sep=09, אוק/Oct=10, נוב/Nov=11, דצמ/Dec=12
 STEP 3 — READ EVERY ROW: For each year row, extract ALL values by column mapping.
 STEP 4 — VALIDATE:
-  - Annual value ONLY from "שנתי"/"Annual" column
-  - If NO "שנתי"/"Annual" column exists → do NOT extract annual returns. Do NOT use ITD as substitute.
+  - Annual value from "שנתי", "YTD", or "מצטבר" columns — these are all annual returns.
+  - NEVER use ITD as annual return.
   - Monthly returns are typically -10% to +10%. Annual can be larger.
-  - SANITY: If annual seems too large (>50%), it's probably ITD — do NOT extract it.
 
 HEBREW RTL TABLE WARNING:
 Hebrew tables may be RTL. DO NOT assume column order. READ THE ACTUAL HEADER TEXT.
@@ -752,13 +759,13 @@ FIELDS TO EXTRACT:
 - classification: string | null
 - sharpe: number | null (only if explicitly stated in document)
 - stdDev: number | null (only if explicitly stated)
-- returns: { "yYYYY": number } — annual returns from "שנתי"/"Annual" column ONLY
-- ytdYYYY: number | null — year-to-date from "YTD"/"מצטבר" column ONLY (NOT from ITD!)
+- returns: { "yYYYY": number } — annual returns. Extract from "שנתי", "YTD", or "מצטבר" columns — they all mean annual return.
+  NEVER extract ITD values here.
 
 EXISTING FUNDS (for matching — prefer ${currency} funds):
 ${existingFunds.map((f) => `- "${f.name}" (id: ${f.id}, currency: ${f.returnBasis || "unknown"})`).join("\n")}
 
-Respond in valid JSON:
+Respond in valid JSON. IMPORTANT: List EVERY monthly return individually. Do NOT abbreviate or skip months.
 {
   "fundName": "...",
   "fundNameConfidence": 0.0-1.0,
@@ -766,12 +773,20 @@ Respond in valid JSON:
   "reportMonthConfidence": "high" or "low",
   "returnBasis": "${currency}",
   "returnBasisOptions": ["${currency}"],
-  "allMonthlyReturns": { "2023-01": 0.005, "2023-02": -0.002, "2023-03": 0.011, "2023-04": 0.003, "2023-05": -0.001, "2023-06": 0.008, "2023-07": 0.004, "2023-08": -0.003, "2023-09": 0.006, "2023-10": 0.002, "2023-11": 0.009, "2023-12": 0.007, "2024-01": 0.005, "2024-02": 0.003, "...": "..." },
+  "allMonthlyReturns": {
+    "2022-05": 0.005, "2022-06": -0.009, "2022-07": 0.019, "2022-08": 0.011, "2022-09": -0.059, "2022-10": 0.007, "2022-11": 0.033, "2022-12": 0.001,
+    "2023-01": 0.040, "2023-02": 0.004, "2023-03": -0.013, "2023-04": 0.010, "2023-05": -0.001, "2023-06": 0.021, "2023-07": 0.021, "2023-08": 0.019, "2023-09": 0.007, "2023-10": -0.003, "2023-11": 0.028, "2023-12": 0.025,
+    "2024-01": 0.024, "2024-02": 0.011, "2024-03": 0.015, "2024-04": 0.009, "2024-05": 0.022, "2024-06": 0.002, "2024-07": 0.004, "2024-08": 0.000, "2024-09": 0.015, "2024-10": 0.019, "2024-11": 0.007, "2024-12": 0.007,
+    "2025-01": 0.012, "2025-02": 0.007, "2025-03": -0.026, "2025-04": -0.012, "2025-05": 0.023, "2025-06": 0.012, "2025-07": 0.019, "2025-08": 0.004, "2025-09": 0.004, "2025-10": -0.006, "2025-11": -0.022, "2025-12": 0.007,
+    "2026-01": -0.017, "2026-02": -0.054
+  },
   "fields": [
-    { "key": "monthlyReturn", "value": 0.003, "confidence": 0.95 },
-    { "key": "returns.y2024", "value": 0.052, "confidence": 0.95 },
-    { "key": "returns.y2023", "value": 0.041, "confidence": 0.95 },
-    { "key": "returns.ytd2026", "value": 0.008, "confidence": 0.95 }
+    { "key": "monthlyReturn", "value": -0.054, "confidence": 0.95 },
+    { "key": "returns.y2025", "value": 0.013, "confidence": 0.95 },
+    { "key": "returns.y2024", "value": 0.147, "confidence": 0.95 },
+    { "key": "returns.y2023", "value": 0.167, "confidence": 0.95 },
+    { "key": "returns.y2022", "value": 0.005, "confidence": 0.95 },
+    { "key": "returns.y2026", "value": -0.069, "confidence": 0.95 }
   ],
   "suggestedMatch": { "fundId": "..." or null, "fundName": "..." or null, "similarity": 0.0-1.0 }
 }`;
@@ -943,29 +958,27 @@ function parseCloudeResponse(
     if (dualCurrencyData.length < 2) dualCurrencyData = undefined;
   }
 
-  // Auto-convert returns.ytdYYYY → returns.yYYYY for December reports.
-  // When reportMonth is December (YYYY-12), YTD for that year IS the annual return.
-  // The fund table renders y2025 but the AI often returns ytd2025 — this bridges the gap.
-  if (reportMonth && reportMonth.endsWith("-12")) {
-    const reportYear = reportMonth.slice(0, 4); // "2025"
-    const ytdKey = `returns.ytd${reportYear}`;
-    const yKey = `returns.y${reportYear}`;
-
-    const promoteYtdToAnnual = (fields: ParsedField[]) => {
-      const hasExplicitY = fields.some((f) => f.key === yKey && f.value !== null);
-      if (hasExplicitY) return; // Already has a real annual value — don't overwrite
-      for (const f of fields) {
-        if (f.key === ytdKey) {
-          f.key = yKey; // Promote ytd to annual
-        }
+  // Auto-convert ALL returns.ytdYYYY → returns.yYYYY.
+  // YTD/מצטברת מתחילת השנה IS the annual return — the prompt now instructs the AI
+  // to extract it as returns.yYYYY directly, but as a safety net we also promote
+  // any remaining ytd keys here.
+  const promoteAllYtdToAnnual = (fields: ParsedField[]) => {
+    for (const f of fields) {
+      const ytdMatch = f.key.match(/^returns\.ytd(\d{4})$/);
+      if (!ytdMatch) continue;
+      const year = ytdMatch[1];
+      const yKey = `returns.y${year}`;
+      const hasExplicitY = fields.some((ff) => ff.key === yKey && ff.value !== null);
+      if (!hasExplicitY) {
+        f.key = yKey; // Promote ytd to annual
       }
-    };
+    }
+  };
 
-    promoteYtdToAnnual(sanitizedFields);
-    if (dualCurrencyData) {
-      for (const entry of dualCurrencyData) {
-        promoteYtdToAnnual(entry.fields);
-      }
+  promoteAllYtdToAnnual(sanitizedFields);
+  if (dualCurrencyData) {
+    for (const entry of dualCurrencyData) {
+      promoteAllYtdToAnnual(entry.fields);
     }
   }
 
@@ -2303,7 +2316,7 @@ export async function POST(req: NextRequest) {
       if (result.corrections) {
         resultObj.corrections = result.corrections;
       }
-      resultObj._cacheVersion = 15;
+      resultObj._cacheVersion = 16;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
