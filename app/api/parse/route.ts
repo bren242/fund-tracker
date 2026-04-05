@@ -152,7 +152,7 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v8: fixed dual-currency prompt bias that caused ILS/USD inversion
   // v9: header-driven table parsing (not position-driven) + annual/monthly validation
   // v10: strengthened RTL table parsing + server-side column swap auto-correction
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 13) return null;
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 14) return null;
 
   return cached.result;
 }
@@ -649,6 +649,87 @@ Respond in valid JSON with this exact structure:
       ]
     }
   ]
+}`;
+}
+
+/** Build a focused prompt for extracting ONLY one currency table from a dual-currency document */
+function buildSingleCurrencyPrompt(
+  currency: "ILS" | "USD",
+  existingFunds: { id: string; name: string; returnBasis?: string }[]
+): string {
+  const currencyLabel = currency === "USD"
+    ? '$ / דולרי / דולרית / USD'
+    : '₪ / שקלי / שקלית / ILS';
+  const otherCurrency = currency === "USD" ? "ILS/שקלי/₪" : "USD/דולרי/$";
+
+  return `You are a financial data extraction assistant for an Israeli fund tracking system.
+This document contains TWO performance tables — one in USD ($) and one in ILS (₪).
+
+YOUR TASK: Extract data ONLY from the ${currency} (${currencyLabel}) table.
+COMPLETELY IGNORE the ${otherCurrency} table. Pretend it does not exist.
+
+HOW TO IDENTIFY THE CORRECT TABLE:
+- Look for currency symbols or labels: ${currencyLabel}
+- These appear in section headers, table titles, or labels next to the performance table
+- The ${currency} table may be on top or bottom — position does not matter, only the label matters
+
+RULES:
+- Extract ONLY factual data explicitly stated in the ${currency} table
+- Do NOT infer, calculate, or estimate any values
+- All return values should be decimal numbers (e.g., 5.2% → 0.052)
+- Fund name must be extracted in its original language
+- If a field is not clearly present, omit it
+- returnBasis MUST be "${currency}" — this is a single-currency extraction
+
+CRITICAL — PERFORMANCE TABLE PARSING (header-driven, NOT position-driven):
+STEP 1 — DETECT HEADERS: Find the header row of the ${currency} table. Read every column header label.
+STEP 2 — MAP COLUMNS BY HEADER TEXT:
+  - "שנתי" or "שנתית" or "Annual" → annual/yearly return
+  - "YTD" or "מצטבר" or "מתחילת השנה" → year-to-date return
+  - Month names (ינואר/Jan=01, פברואר/Feb=02, מרץ/Mar=03, אפריל/Apr=04, מאי/May=05, יוני/Jun=06, יולי/Jul=07, אוגוסט/Aug=08, ספטמבר/Sep=09, אוקטובר/Oct=10, נובמבר/Nov=11, דצמבר/Dec=12)
+  - IGNORE columns labeled "ITD", "Inception", "מהקמה", "מאז הקמה" — these are NOT annual returns
+STEP 3 — READ ROWS: For each data row, identify the year and read values by column mapping.
+STEP 4 — VALIDATE:
+  - Annual value must come from "שנתי"/"Annual" column ONLY
+  - If no such column exists, do NOT extract annual returns
+  - Monthly returns are typically -10% to +10%. Annual can be 20%+. If swapped, fix it.
+
+HEBREW RTL TABLE WARNING:
+Hebrew tables may be RTL. DO NOT assume column order. READ THE ACTUAL HEADER TEXT.
+
+FIELDS TO EXTRACT:
+- fundName: string
+- monthlyReturn: number | null (most recent monthly return)
+- allMonthlyReturns: { "YYYY-MM": number } — extract EVERY month from EVERY year. Do NOT limit to 12 months.
+- reportMonth: "YYYY-MM" or null
+- reportMonthConfidence: "high" | "low"
+- returnBasis: "${currency}"
+- returnBasisOptions: ["${currency}"]
+- manager: string | null
+- classification: string | null
+- sharpe: number | null (only if explicitly stated)
+- stdDev: number | null (only if explicitly stated)
+- returns: { "yYYYY": number } — all annual returns
+- ytdYYYY: number | null
+
+EXISTING FUNDS (for matching — prefer ${currency} funds):
+${existingFunds.map((f) => `- "${f.name}" (id: ${f.id}, currency: ${f.returnBasis || "unknown"})`).join("\n")}
+
+Respond in valid JSON:
+{
+  "fundName": "...",
+  "fundNameConfidence": 0.0-1.0,
+  "reportMonth": "YYYY-MM" or null,
+  "reportMonthConfidence": "high" or "low",
+  "returnBasis": "${currency}",
+  "returnBasisOptions": ["${currency}"],
+  "allMonthlyReturns": { "2025-01": 0.032, ... } or null,
+  "fields": [
+    { "key": "monthlyReturn", "value": ..., "confidence": 0.0-1.0 },
+    { "key": "returns.y2025", "value": ..., "confidence": 0.0-1.0 },
+    ...
+  ],
+  "suggestedMatch": { "fundId": "..." or null, "fundName": "..." or null, "similarity": 0.0-1.0 }
 }`;
 }
 
@@ -2089,6 +2170,76 @@ export async function POST(req: NextRequest) {
         }, { status: 500 });
       }
 
+      let totalInputTokens = claudeResult.usage.input_tokens;
+
+      // ── DUAL-CURRENCY SPLIT: 2 separate API calls per currency ──
+      // When the initial parse detects both ILS and USD, make 2 focused calls
+      // that each extract ONLY one currency table. This eliminates cross-currency
+      // confusion which is the #1 parsing error for dual-currency documents.
+      const hasBothCurrencies = result.returnBasisOptions.includes("ILS") && result.returnBasisOptions.includes("USD");
+      if (hasBothCurrencies) {
+        console.log("[parse-file] Dual currency detected — splitting into 2 focused API calls");
+        const splitEntries: DualCurrencyEntry[] = [];
+        let splitCorrections: string[] = [...(result.corrections || [])];
+
+        for (const currency of ["USD", "ILS"] as const) {
+          const singlePrompt = buildSingleCurrencyPrompt(currency, existingFunds);
+          const singleResult = await callClaudeVision(apiKey, singlePrompt, base64Data, mimeType);
+          if (!singleResult.success) {
+            console.error(`[parse-file] ${currency} split call failed:`, singleResult.error);
+            continue;
+          }
+
+          // Record token usage for the split call
+          const splitUsage = await recordTokenUsage(clientKey, `parse-file-${currency}`, singleResult.usage, file.name);
+          totalInputTokens += singleResult.usage.input_tokens;
+          console.log(`[parse-file] ${currency} split: ${singleResult.usage.input_tokens} input tokens`);
+
+          const singleParsed = parseCloudeResponse(singleResult.content, existingFunds);
+          if ("error" in singleParsed) {
+            console.error(`[parse-file] ${currency} split parse failed:`, singleParsed.error);
+            continue;
+          }
+
+          // Collect corrections from split parse
+          if (singleParsed.corrections) {
+            splitCorrections.push(...singleParsed.corrections.map((c) => `${currency}:${c}`));
+          }
+
+          splitEntries.push({
+            returnBasis: currency,
+            fields: singleParsed.fields,
+          });
+        }
+
+        // Replace dualCurrencyData with the clean split results
+        if (splitEntries.length === 2) {
+          result.dualCurrencyData = splitEntries;
+          console.log("[parse-file] Dual currency split successful — both currencies extracted independently");
+        } else if (splitEntries.length === 1) {
+          // Partial success: use the one that worked + original data for the other
+          console.log(`[parse-file] Partial split: got ${splitEntries[0].returnBasis}, using original for other`);
+          const gotCurrency = splitEntries[0].returnBasis;
+          const missingCurrency = gotCurrency === "USD" ? "ILS" : "USD";
+          const originalEntry = result.dualCurrencyData?.find((e) => e.returnBasis === missingCurrency);
+          if (originalEntry) {
+            result.dualCurrencyData = [splitEntries[0], originalEntry];
+          } else {
+            result.dualCurrencyData = splitEntries.length > 0 ? [...splitEntries] : result.dualCurrencyData;
+          }
+        }
+        // If both failed, keep original dualCurrencyData as-is
+
+        if (splitCorrections.length > 0) {
+          result.corrections = splitCorrections;
+        }
+      }
+
+      // Refresh usage totals after potential split calls
+      const finalUsage = await getTokenUsage(clientKey);
+      const finalLimits = await getClientTokenLimit(clientKey);
+      const finalPercent = Math.round((finalUsage.inputTokens / finalLimits.monthlyInputTokens) * 100);
+
       // Cache the result for future duplicate uploads (full format including dual currency)
       const resultObj: Record<string, unknown> = {
         fundName: result.fundName,
@@ -2106,7 +2257,7 @@ export async function POST(req: NextRequest) {
       if (result.corrections) {
         resultObj.corrections = result.corrections;
       }
-      resultObj._cacheVersion = 13;
+      resultObj._cacheVersion = 14;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
@@ -2116,11 +2267,11 @@ export async function POST(req: NextRequest) {
         reportMonth: result.reportMonth,
         reportMonthConfidence: result.reportMonthConfidence,
         tokenUsage: {
-          thisCall: claudeResult.usage.input_tokens,
-          monthlyUsed: updatedUsage.inputTokens,
-          monthlyLimit: limits.monthlyInputTokens,
-          percent: usagePercent,
-          warning: usagePercent >= WARN_THRESHOLD_PERCENT,
+          thisCall: totalInputTokens,
+          monthlyUsed: finalUsage.inputTokens,
+          monthlyLimit: finalLimits.monthlyInputTokens,
+          percent: finalPercent,
+          warning: finalPercent >= WARN_THRESHOLD_PERCENT,
         },
       });
     }

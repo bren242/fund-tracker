@@ -3415,10 +3415,31 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
             <div style={{ padding: "12px 16px", backgroundColor: "#fef3c715", borderRadius: 8, marginBottom: 14, border: "1px solid #f59e0b40" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: "#f59e0b" }}>⚠️ דיווח כפול — שקלי + דולרי</span>
-                {dualSaved.size === 2 && <span style={{ fontSize: 11, color: "#059669", fontWeight: 600 }}>✓ שתי הטיוטות נשמרו</span>}
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  {dualSaved.size === 2 && <span style={{ fontSize: 11, color: "#059669", fontWeight: 600 }}>✓ שתי הטיוטות נשמרו</span>}
+                  <button
+                    onClick={() => {
+                      if (!parseResult.dualCurrencyData || parseResult.dualCurrencyData.length < 2) return;
+                      // Swap the returnBasis labels between the two entries
+                      const swapped = parseResult.dualCurrencyData.map((entry) => ({
+                        ...entry,
+                        returnBasis: entry.returnBasis === "USD" ? "ILS" as const : "USD" as const,
+                      }));
+                      setParseResult({ ...parseResult, dualCurrencyData: swapped });
+                    }}
+                    style={{
+                      padding: "3px 10px", fontSize: 10, borderRadius: 5, cursor: "pointer",
+                      border: "1px solid #f59e0b60", backgroundColor: "#f59e0b15",
+                      color: "#f59e0b", fontWeight: 600,
+                    }}
+                  >
+                    🔄 החלף מטבעות
+                  </button>
+                </div>
               </div>
               <p style={{ fontSize: 11, color: "var(--text-secondary)", margin: 0 }}>
                 יש לשמור טיוטה נפרדת לכל מטבע. בחר שדות ושמור — המערכת תעבור אוטומטית למטבע השני.
+                {" "}אם העמודות הפוכות, לחץ ״החלף מטבעות״.
               </p>
             </div>
           )}
