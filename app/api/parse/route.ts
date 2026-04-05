@@ -254,17 +254,33 @@ function applyRiskMetrics(
   hasExtractedStdDev: boolean
 ): void {
   const monthlyReturns = fund.monthlyReturns as Record<string, number> | undefined;
-  if (!monthlyReturns) return;
-
-  const metrics = calculateRiskMetrics(monthlyReturns);
-  if (!metrics) return;
-
-  // Document-extracted values take priority
-  if (!hasExtractedSharpe) {
-    fund.sharpe = metrics.sharpe;
+  if (monthlyReturns) {
+    const metrics = calculateRiskMetrics(monthlyReturns);
+    if (metrics) {
+      // Document-extracted values take priority
+      if (!hasExtractedSharpe) {
+        fund.sharpe = metrics.sharpe;
+      }
+      if (!hasExtractedStdDev) {
+        fund.stdDev = metrics.stdDev;
+      }
+    }
   }
-  if (!hasExtractedStdDev) {
-    fund.stdDev = metrics.stdDev;
+
+  // Auto-calculate avgAnnualReturn if missing (from yearly returns, ≥2 years)
+  const currentAvg = fund.avgAnnualReturn;
+  if (currentAvg === null || currentAvg === undefined) {
+    const returns = (fund.returns || {}) as Record<string, unknown>;
+    const yearlyVals: number[] = [];
+    for (const [k, v] of Object.entries(returns)) {
+      if (/^y\d{4}$/.test(k) && typeof v === "number" && !isNaN(v)) {
+        yearlyVals.push(v);
+      }
+    }
+    if (yearlyVals.length >= 2) {
+      const avg = yearlyVals.reduce((s, v) => s + v, 0) / yearlyVals.length;
+      fund.avgAnnualReturn = Math.round(avg * 10000) / 10000;
+    }
   }
 }
 
