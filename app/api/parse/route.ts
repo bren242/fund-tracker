@@ -159,7 +159,8 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v18: anchor values + pre-filled 2022/2026 rows + reading accuracy instructions
   // v19: all historical data pre-filled, AI only extracts X cells (mar+ytd 2026)
   // v20: fix ytd vs y — incomplete years use returns.ytd, complete years use returns.y
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 20) return null;
+  // v21: dynamic structured prompt for all documents (single + dual currency)
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 21) return null;
 
   return cached.result;
 }
@@ -665,10 +666,87 @@ Respond in valid JSON with this exact structure:
 }`;
 }
 
-/** Build a structured prompt for dual-currency documents.
- *  Instead of asking the AI to figure out the table structure, we TELL it
- *  the exact layout and give it a template to fill. Single call, both currencies. */
-function buildDualCurrencyStructuredPrompt(): string {
+/** Build a dynamic structured prompt for any fund document.
+ *  Detects years from initial parse, pre-fills known data from existing fund,
+ *  and generates a JSON template for the AI to fill. Works for single and dual currency. */
+function buildDynamicStructuredPrompt(options: {
+  currencies: ("dollar" | "shekel")[];
+  years: number[];
+  reportMonth: string | null;
+  existingMonthly?: Record<string, number>; // "YYYY-MM" → value (as percentage, e.g. 1.92)
+  existingYearly?: Record<string, number>;  // "yYYYY" or "ytdYYYY" → value (as percentage)
+}): string {
+  const { currencies, years, reportMonth, existingMonthly, existingYearly } = options;
+  const monthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+
+  // Determine report year and month for partial-year detection
+  const reportYear = reportMonth ? parseInt(reportMonth.slice(0, 4)) : null;
+  const reportMonthNum = reportMonth ? parseInt(reportMonth.slice(5, 7)) : null;
+
+  const isDual = currencies.length > 1;
+
+  // Build template for one currency
+  const buildCurrencyTemplate = (currencyLabel: string): string => {
+    const yearLines: string[] = [];
+    for (const year of years) {
+      const isCurrentYear = year === reportYear;
+      const entries: string[] = [];
+
+      for (let m = 0; m < 12; m++) {
+        const monthKey = `${year}-${String(m + 1).padStart(2, "0")}`;
+        const existingVal = existingMonthly?.[monthKey];
+
+        if (isCurrentYear && reportMonthNum && m + 1 > reportMonthNum) {
+          // Future month in current year — null
+          entries.push(`"${monthNames[m]}": null`);
+        } else if (existingVal !== undefined) {
+          // Known value — pre-fill
+          entries.push(`"${monthNames[m]}": ${existingVal}`);
+        } else {
+          // Unknown — AI needs to extract
+          entries.push(`"${monthNames[m]}": X`);
+        }
+      }
+
+      // YTD
+      const ytdKey = isCurrentYear ? `ytd${year}` : `y${year}`;
+      const existingYtd = existingYearly?.[ytdKey];
+      if (existingYtd !== undefined) {
+        entries.push(`"ytd": ${existingYtd}`);
+      } else {
+        entries.push(`"ytd": X`);
+      }
+
+      yearLines.push(`    "${year}": {${entries.join(", ")}}`);
+    }
+    return yearLines.join(",\n");
+  };
+
+  // Count X cells per currency
+  let templateJson: string;
+  if (isDual) {
+    templateJson = `{
+  "dollar": {
+${buildCurrencyTemplate("dollar")}
+  },
+  "shekel": {
+${buildCurrencyTemplate("shekel")}
+  }
+}`;
+  } else {
+    const label = currencies[0] === "dollar" ? "dollar" : "shekel";
+    templateJson = `{
+  "${label}": {
+${buildCurrencyTemplate(label)}
+  }
+}`;
+  }
+
+  // Build instructions
+  const dualInstructions = isDual
+    ? `- Top table = Dollar ($), Bottom table = Shekel (₪) — never mix values between them`
+    : "";
+
   return `You are a precise data extraction engine. Extract performance data from this Hebrew investment fund table.
 
 LAYOUT: The table reads right to left.
@@ -677,7 +755,7 @@ Column order (right to left): ינואר, פברואר, מרץ, אפר׳, מאי
 IMPORTANT:
 - ITD is the leftmost column — ignore it completely, never use its values
 - YTD is second from left — this is the annual return, always use this
-- Top table = Dollar ($), Bottom table = Shekel (₪) — never mix values between them
+${dualInstructions}
 - A dash (-) or empty cell = null
 - אוג׳=august, ספט׳=september, אוק׳=october, דצמ׳=december, אפר׳=april
 
@@ -686,38 +764,16 @@ READING ACCURACY:
 - Negative sign (-) must be preserved exactly as shown.
 - Do not round or approximate any value.
 
-HISTORICAL DATA — ALREADY KNOWN AND FIXED:
-The values below are verified correct. Copy them exactly into your output — do not re-read them from the table.
-Only fill in cells marked as X — those are the new months to extract.
+HISTORICAL DATA:
+Some values below are already filled in — these are verified correct. Copy them exactly.
+Only fill in cells marked as X — read those from the table.
+Cells marked null stay null — do not change them.
 
 Return only valid JSON, no explanation:
 
-{
-  "dollar": {
-    "2022": {"jan": null, "feb": null, "mar": null, "apr": null, "may": 0.50, "jun": -0.92, "jul": 1.92, "aug": 1.09, "sep": -5.94, "oct": 0.73, "nov": 3.28, "dec": 0.13, "ytd": 0.52},
-    "2023": {"jan": 3.96, "feb": 0.43, "mar": -1.27, "apr": 1.01, "may": -0.07, "jun": 2.05, "jul": 2.09, "aug": 1.85, "sep": 0.68, "oct": -0.32, "nov": 2.78, "dec": 2.45, "ytd": 16.66},
-    "2024": {"jan": 2.40, "feb": 1.06, "mar": 1.52, "apr": 0.89, "may": 2.24, "jun": 0.23, "jul": 0.42, "aug": 0, "sep": 1.47, "oct": 1.90, "nov": 1.02, "dec": 0.68, "ytd": 14.71},
-    "2025": {"jan": 1.21, "feb": -2.61, "mar": -1.22, "apr": 2.34, "may": 1.19, "jun": 1.94, "jul": 0.38, "aug": -0.41, "sep": -0.59, "oct": -2.21, "nov": 0.70, "dec": 1.21, "ytd": 1.28},
-    "2026": {"jan": -1.66, "feb": -5.35, "mar": X, "apr": null, "may": null, "jun": null, "jul": null, "aug": null, "sep": null, "oct": null, "nov": null, "dec": null, "ytd": X}
-  },
-  "shekel": {
-    "2022": {"jan": null, "feb": null, "mar": null, "apr": null, "may": 0.39, "jun": -1.28, "jul": 1.80, "aug": 0.94, "sep": -6.72, "oct": 0.45, "nov": 3.02, "dec": -0.01, "ytd": -1.70},
-    "2023": {"jan": 3.82, "feb": 0.25, "mar": -1.35, "apr": 0.98, "may": -0.17, "jun": 1.96, "jul": 2.54, "aug": 1.78, "sep": 0.59, "oct": -0.47, "nov": 2.41, "dec": 2.31, "ytd": 15.53},
-    "2024": {"jan": 2.34, "feb": 0.96, "mar": 1.48, "apr": 1.25, "may": 2.11, "jun": 0.14, "jul": 0.31, "aug": -0.16, "sep": 1.39, "oct": 1.87, "nov": 0.92, "dec": 0.61, "ytd": 14.02},
-    "2025": {"jan": 1.17, "feb": -2.80, "mar": -1.36, "apr": 2.29, "may": 1.15, "jun": 1.84, "jul": 0.40, "aug": -0.27, "sep": -0.40, "oct": -2.44, "nov": 0.67, "dec": 1.17, "ytd": 0.81},
-    "2026": {"jan": -1.61, "feb": -5.39, "mar": X, "apr": null, "may": null, "jun": null, "jul": null, "aug": null, "sep": null, "oct": null, "nov": null, "dec": null, "ytd": X}
-  }
-}
+${templateJson}
 
-Numbers as floats without % sign. Example: 1.92% → 1.92
-
-NOTE: The report is for February 2026.
-The only cells to extract are marked X:
-- dollar.2026.mar — if exists in table, otherwise null
-- dollar.2026.ytd
-- shekel.2026.mar — if exists in table, otherwise null
-- shekel.2026.ytd
-Do not change any other value.`;
+Numbers as floats without % sign. Example: 1.92% → 1.92`;
 }
 
 /** Month name → "MM" mapping for structured dual-currency response */
@@ -726,10 +782,9 @@ const MONTH_NAME_TO_NUM: Record<string, string> = {
   jul: "07", aug: "08", sep: "09", oct: "10", nov: "11", dec: "12",
 };
 
-/** Parse the structured dual-currency JSON response into DualCurrencyEntry[] */
-function parseStructuredDualResponse(content: string): {
-  dualCurrencyData: DualCurrencyEntry[];
-  fundName: string;
+/** Parse a structured JSON response (single or dual currency) into fields */
+function parseStructuredResponse(content: string): {
+  entries: DualCurrencyEntry[];
   reportMonth: string | null;
 } | { error: string } {
   const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -742,17 +797,20 @@ function parseStructuredDualResponse(content: string): {
     return { error: "Invalid JSON in structured response" };
   }
 
-  const dollarData = parsed.dollar as Record<string, Record<string, number | null>> | undefined;
-  const shekelData = parsed.shekel as Record<string, Record<string, number | null>> | undefined;
-  if (!dollarData || !shekelData) {
-    return { error: "Missing dollar or shekel in structured response" };
+  // Detect which currencies are present
+  const currencyMap: [string, "USD" | "ILS"][] = [];
+  if (parsed.dollar) currencyMap.push(["dollar", "USD"]);
+  if (parsed.shekel) currencyMap.push(["shekel", "ILS"]);
+  if (currencyMap.length === 0) {
+    return { error: "No dollar or shekel data in structured response" };
   }
 
   const entries: DualCurrencyEntry[] = [];
   let latestMonth: string | null = null;
 
-  for (const [currencyKey, basis] of [["dollar", "USD"], ["shekel", "ILS"]] as const) {
-    const currencyData = (currencyKey === "dollar" ? dollarData : shekelData) as Record<string, Record<string, number | null>>;
+  for (const [currencyKey, basis] of currencyMap) {
+    const currencyData = parsed[currencyKey] as Record<string, Record<string, number | null>>;
+    if (!currencyData) continue;
     const fields: ParsedField[] = [];
 
     for (const [year, months] of Object.entries(currencyData)) {
@@ -763,7 +821,6 @@ function parseStructuredDualResponse(content: string): {
         const decimalValue = value / 100; // 1.92 → 0.0192
 
         if (monthName === "ytd") {
-          // Check if this year is complete (has December data) or partial
           const hasDec = months.dec !== null && months.dec !== undefined;
           const key = hasDec ? `returns.y${year}` : `returns.ytd${year}`;
           fields.push({ key, value: decimalValue, confidence: 0.95 });
@@ -773,7 +830,6 @@ function parseStructuredDualResponse(content: string): {
           const monthKey = `${year}-${monthNum}`;
           fields.push({ key: `monthlyReturns.${monthKey}`, value: decimalValue, confidence: 0.95 });
 
-          // Track latest month for monthlyReturn + reportMonth
           if (!latestMonth || monthKey > latestMonth) {
             latestMonth = monthKey;
           }
@@ -792,11 +848,7 @@ function parseStructuredDualResponse(content: string): {
     entries.push({ returnBasis: basis, fields });
   }
 
-  return {
-    dualCurrencyData: entries,
-    fundName: "", // Will be taken from initial parse
-    reportMonth: latestMonth, // e.g. "2026-02"
-  };
+  return { entries, reportMonth: latestMonth };
 }
 
 /** Validate reportMonth format YYYY-MM */
@@ -2236,35 +2288,106 @@ export async function POST(req: NextRequest) {
 
       let totalInputTokens = claudeResult.usage.input_tokens;
 
-      // ── DUAL-CURRENCY STRUCTURED EXTRACTION ──
-      // When the initial parse detects both ILS and USD, make a second call
-      // with a structured template prompt that tells the AI the exact table
-      // layout and gives it a JSON template to fill. This is far more reliable
-      // than asking the AI to figure out the structure itself.
-      const hasBothCurrencies = result.returnBasisOptions.includes("ILS") && result.returnBasisOptions.includes("USD");
-      if (hasBothCurrencies) {
-        console.log("[parse-file] Dual currency detected — using structured template extraction");
-        const structuredPrompt = buildDualCurrencyStructuredPrompt();
-        const structuredUserMsg = "Extract performance data from both tables in this document. Return only valid JSON matching the template.";
-        const structuredResult = await callClaudeVision(apiKey, structuredPrompt, base64Data, mimeType, structuredUserMsg);
+      // ── STRUCTURED TEMPLATE EXTRACTION (all documents) ──
+      // After initial parse, make a second call with a structured template
+      // that tells the AI the exact table layout and gives it a JSON template
+      // to fill. Pre-fills known data from existing fund records.
+      {
+        const hasBothCurrencies = result.returnBasisOptions.includes("ILS") && result.returnBasisOptions.includes("USD");
+        const currencies: ("dollar" | "shekel")[] = hasBothCurrencies
+          ? ["dollar", "shekel"]
+          : result.returnBasis === "ILS" ? ["shekel"] : ["dollar"];
 
-        if (structuredResult.success) {
-          totalInputTokens += structuredResult.usage.input_tokens;
-          await recordTokenUsage(clientKey, "parse-file-structured", structuredResult.usage, file.name);
-          console.log(`[parse-file] Structured call: ${structuredResult.usage.input_tokens} input tokens`);
-
-          const structuredParsed = parseStructuredDualResponse(structuredResult.content);
-          if (!("error" in structuredParsed)) {
-            result.dualCurrencyData = structuredParsed.dualCurrencyData;
-            if (structuredParsed.reportMonth && !result.reportMonth) {
-              result.reportMonth = structuredParsed.reportMonth;
+        // Detect years from initial parse (from returns.y* and monthlyReturns.* keys)
+        const detectedYears = new Set<number>();
+        for (const f of result.fields) {
+          const yMatch = f.key.match(/^returns\.(?:y|ytd)(\d{4})$/);
+          if (yMatch) detectedYears.add(parseInt(yMatch[1]));
+          const mMatch = f.key.match(/^monthlyReturns\.(\d{4})-/);
+          if (mMatch) detectedYears.add(parseInt(mMatch[1]));
+        }
+        // Also check dualCurrencyData from initial parse
+        if (result.dualCurrencyData) {
+          for (const entry of result.dualCurrencyData) {
+            for (const f of entry.fields) {
+              const yMatch = f.key.match(/^returns\.(?:y|ytd)(\d{4})$/);
+              if (yMatch) detectedYears.add(parseInt(yMatch[1]));
+              const mMatch = f.key.match(/^monthlyReturns\.(\d{4})-/);
+              if (mMatch) detectedYears.add(parseInt(mMatch[1]));
             }
-            console.log("[parse-file] Structured extraction successful — both currencies extracted via template");
-          } else {
-            console.error("[parse-file] Structured parse failed:", structuredParsed.error);
           }
-        } else {
-          console.error("[parse-file] Structured call failed:", structuredResult.error);
+        }
+        const years = Array.from(detectedYears).sort();
+
+        if (years.length >= 1) {
+          // Load existing fund data for pre-filling (if matched)
+          let existingMonthly: Record<string, number> | undefined;
+          let existingYearly: Record<string, number> | undefined;
+          if (result.match?.fundId) {
+            const matchedFund = existingFunds.find((f) => f.id === result.match!.fundId);
+            if (matchedFund) {
+              // Look up full fund data
+              for (const cat of fundsData.categories || []) {
+                const fund = cat.funds.find((f) => f.id === result.match!.fundId) as Record<string, unknown> | undefined;
+                if (fund) {
+                  // Convert monthly returns to percentage format (0.0192 → 1.92)
+                  const fundMonthly = fund.monthlyReturns as Record<string, number> | undefined;
+                  if (fundMonthly) {
+                    existingMonthly = {};
+                    for (const [k, v] of Object.entries(fundMonthly)) {
+                      existingMonthly[k] = Math.round(v * 10000) / 100; // 0.0192 → 1.92
+                    }
+                  }
+                  // Convert yearly returns
+                  const returns = ((fund.returns as Record<string, unknown>) || {}) as Record<string, number | null>;
+                  existingYearly = {};
+                  for (const [k, v] of Object.entries(returns)) {
+                    if (v !== null && v !== undefined) {
+                      existingYearly[k] = Math.round(v * 10000) / 100;
+                    }
+                  }
+                  break;
+                }
+              }
+            }
+          }
+
+          console.log(`[parse-file] Structured extraction: ${currencies.join("+")} currencies, years ${years.join(",")}, ${existingMonthly ? Object.keys(existingMonthly).length : 0} known monthly values`);
+
+          const structuredPrompt = buildDynamicStructuredPrompt({
+            currencies,
+            years,
+            reportMonth: result.reportMonth,
+            existingMonthly,
+            existingYearly,
+          });
+          const structuredUserMsg = "Extract performance data from the table in this document. Fill in only the X cells. Return only valid JSON.";
+          const structuredResult = await callClaudeVision(apiKey, structuredPrompt, base64Data, mimeType, structuredUserMsg);
+
+          if (structuredResult.success) {
+            totalInputTokens += structuredResult.usage.input_tokens;
+            await recordTokenUsage(clientKey, "parse-file-structured", structuredResult.usage, file.name);
+            console.log(`[parse-file] Structured call: ${structuredResult.usage.input_tokens} input tokens`);
+
+            const structuredParsed = parseStructuredResponse(structuredResult.content);
+            if (!("error" in structuredParsed)) {
+              if (structuredParsed.entries.length >= 2) {
+                // Dual currency — use as dualCurrencyData
+                result.dualCurrencyData = structuredParsed.entries;
+              } else if (structuredParsed.entries.length === 1) {
+                // Single currency — replace main fields
+                result.fields = structuredParsed.entries[0].fields;
+              }
+              if (structuredParsed.reportMonth && !result.reportMonth) {
+                result.reportMonth = structuredParsed.reportMonth;
+              }
+              console.log("[parse-file] Structured extraction successful");
+            } else {
+              console.error("[parse-file] Structured parse failed:", structuredParsed.error);
+            }
+          } else {
+            console.error("[parse-file] Structured call failed:", structuredResult.error);
+          }
         }
       }
 
@@ -2290,7 +2413,7 @@ export async function POST(req: NextRequest) {
       if (result.corrections) {
         resultObj.corrections = result.corrections;
       }
-      resultObj._cacheVersion = 20;
+      resultObj._cacheVersion = 21;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
