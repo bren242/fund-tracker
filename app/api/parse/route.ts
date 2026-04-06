@@ -158,7 +158,8 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v17: structured template extraction for dual-currency documents
   // v18: anchor values + pre-filled 2022/2026 rows + reading accuracy instructions
   // v19: all historical data pre-filled, AI only extracts X cells (mar+ytd 2026)
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 19) return null;
+  // v20: fix ytd vs y — incomplete years use returns.ytd, complete years use returns.y
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 20) return null;
 
   return cached.result;
 }
@@ -2289,7 +2290,7 @@ export async function POST(req: NextRequest) {
       if (result.corrections) {
         resultObj.corrections = result.corrections;
       }
-      resultObj._cacheVersion = 19;
+      resultObj._cacheVersion = 20;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
