@@ -164,7 +164,7 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v23: reverse month order in template to match visual LTR reading of RTL table
   // v24: remove pre-fill, fixed year range 2019-2026, all X cells
   // v27: single-pass only (removed buildDynamicStructuredPrompt second API call)
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 27) return null;
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 28) return null;
 
   return cached.result;
 }
@@ -514,6 +514,10 @@ function buildSystemPrompt(existingFunds: { id: string; name: string; returnBasi
   return `You are a financial data extraction assistant for an Israeli fund tracking system.
 Extract fund performance data from the provided Hebrew or English text or document.
 
+ALWAYS extract fundName from the document title, header, or logo text.
+ALWAYS extract reportMonth from the document date (title, header, footer).
+These fields are mandatory — search the entire document if needed.
+
 RULES:
 - Extract ONLY factual data explicitly stated in the text/document
 - Do NOT infer, calculate, or estimate any values
@@ -568,7 +572,7 @@ DO NOT assume any fixed column order. READ THE ACTUAL HEADER TEXT of each column
 The header text is the ONLY reliable way to determine what each column contains.
 
 FIELDS TO EXTRACT (only these):
-- fundName: string (the fund's name as written)
+- fundName: string | null — the fund's name as written in the document. If not explicitly written in the document, return null — do not guess or invent.
 - monthlyReturn: number | null (the MOST RECENT monthly return in the table — this is the last non-empty month value chronologically, matching the reportMonth)
 - allMonthlyReturns: object | null — extract ALL individual monthly returns found in the document.
   Keys must be "YYYY-MM" format (e.g., "2025-01", "2025-06", "2025-12").
@@ -578,8 +582,14 @@ FIELDS TO EXTRACT (only these):
   Do NOT limit to the last 12 months. Do NOT skip older years. Extract the COMPLETE monthly history.
   A table with 5 years of monthly data should produce ~60 monthly entries.
   Empty cells (—, -, blank) should be skipped, not set to 0.
-- reportMonth: string | null (the month this report covers, in "YYYY-MM" format)
-  IMPORTANT: Extract reportMonth from document header, title, date, or context.
+CRITICAL — NO HALLUCINATION:
+Extract ONLY months that explicitly appear in the document with actual values.
+The current date is ${new Date().toISOString().split('T')[0]}.
+Never extract or infer values for future months.
+If a cell is empty, blank, or the month has not yet occurred — set to null, never invent a value.
+- reportMonth: string | null — detect from the LAST non-empty month column that has data across most rows.
+  If January and February both have data in 2026, reportMonth = "2026-02".
+  Also check document header, title, date, or context for explicit date.
   Examples: "ינואר 2026" → "2026-01", "Feb 2026" → "2026-02", "דוח חודשי 03/2026" → "2026-03"
   If the month cannot be clearly determined, set reportMonth to null.
   NEVER guess or default to the current month.
@@ -606,16 +616,34 @@ DUAL CURRENCY DOCUMENTS:
 If the document contains return data for BOTH ILS and USD (e.g., two separate performance tables),
 you MUST return a "dualCurrencyData" array with separate field sets for each currency.
 
+CRITICAL — NEVER merge two currency tables into one allMonthlyReturns object.
+If you find TWO performance tables (one $ and one ₪):
+- You MUST use dualCurrencyData array with two separate entries
+- Each entry has its own allMonthlyReturns
+- The top-level allMonthlyReturns should be null
+- Merging two tables into one object causes data corruption
+
 MANDATORY 3-STEP PROCESS for dual currency:
 STEP 1 — IDENTIFY LABELS: Before extracting any numbers, first locate EACH performance table and read the currency label next to it (e.g., "קלאס דולרי", "קלאס שקלי", "מסלול שקלי", "מסלול דולרי"). Write down which table has which label.
 STEP 2 — EXTRACT NUMBERS: For each table, extract all performance numbers (monthly returns, YTD, annual).
 STEP 3 — ASSIGN CORRECTLY: Put each table's numbers into the dualCurrencyData entry matching its label from step 1. A table labeled "קלאס דולרי" → returnBasis: "USD". A table labeled "קלאס שקלי" → returnBasis: "ILS".
 
-CURRENCY SYMBOL DETECTION:
-Tables may use SYMBOLS instead of words to indicate currency:
-  - ($) or $ or "דולר" or "דולרי" or "דולרית" or "USD" → returnBasis: "USD"
-  - (₪) or ₪ or "שקל" or "שקלי" or "שקלית" or "ILS" → returnBasis: "ILS"
-Look for these symbols in table headers, section titles, or labels next to each performance table.
+CURRENCY SYMBOL DETECTION — MANDATORY PROCESS:
+Before extracting ANY numbers, you must complete these steps:
+
+STEP 1: Scan the ENTIRE document for performance tables.
+STEP 2: For each table, find its currency label. Look for:
+  - ($) or $ or "דולר" or "דולרי" or "USD" → this table is USD
+  - (₪) or ₪ or "שקל" or "שקלי" or "ILS" → this table is ILS
+  The label may appear: in the table header, above the table, to the right of the table, or as a superscript symbol.
+STEP 3: Write down internally: "Table 1 = [USD/ILS], Table 2 = [USD/ILS]"
+STEP 4: Extract each table's numbers SEPARATELY into its own dualCurrencyData entry.
+STEP 5: Verify — the two entries must have DIFFERENT returnBasis values. If both say USD or both say ILS, you made an error — go back to STEP 2.
+
+CRITICAL: A document with ($) on the top table and (₪) on the bottom table means:
+- dualCurrencyData[0].returnBasis = "USD" — values from TOP table only
+- dualCurrencyData[1].returnBasis = "ILS" — values from BOTTOM table only
+NEVER copy values between entries. NEVER mix rows from different tables.
 
 COMMON ERROR TO AVOID: Many Israeli fund documents show the USD ($) table FIRST (on top) and the ILS (₪) table SECOND (below). Do NOT assume the first table is ILS. Read the currency symbol/label next to EACH table. If the top table has ($) and the bottom has (₪), then top=USD and bottom=ILS. Getting this backwards is the #1 parsing error.
 
@@ -789,6 +817,157 @@ Return only valid JSON, no explanation:
 ${templateJson}
 
 Numbers as floats without % sign. Example: 1.92% → 1.92`;
+}
+
+/* ================================================================== */
+/*  Two-Pass Raw Extraction — helpers                                  */
+/* ================================================================== */
+
+const MONTH_ALIASES: Record<string, number> = {
+  'ינואר': 1, 'ינו': 1, "ינו'": 1, 'ינו׳': 1,
+  'פברואר': 2, 'פבר': 2, "פבר'": 2, 'פבר׳': 2,
+  'מרץ': 3, 'מרס': 3,
+  'אפריל': 4, 'אפר': 4, "אפר'": 4, 'אפר׳': 4,
+  'מאי': 5,
+  'יוני': 6, 'יונ': 6,
+  'יולי': 7, 'יול': 7,
+  'אוגוסט': 8, 'אוג': 8, "אוג'": 8, 'אוג׳': 8,
+  'ספטמבר': 9, 'ספט': 9, "ספט'": 9, 'ספט׳': 9,
+  'אוקטובר': 10, 'אוק': 10, "אוק'": 10, 'אוק׳': 10,
+  'נובמבר': 11, 'נוב': 11, "נוב'": 11, 'נוב׳': 11,
+  'דצמבר': 12, 'דצמ': 12, "דצמ'": 12, 'דצמ׳': 12,
+  'january': 1, 'jan': 1,
+  'february': 2, 'feb': 2,
+  'march': 3, 'mar': 3,
+  'april': 4, 'apr': 4,
+  'may': 5,
+  'june': 6, 'jun': 6,
+  'july': 7, 'jul': 7,
+  'august': 8, 'aug': 8,
+  'september': 9, 'sep': 9,
+  'october': 10, 'oct': 10,
+  'november': 11, 'nov': 11,
+  'december': 12, 'dec': 12,
+  '01': 1, '02': 2, '03': 3, '04': 4,
+  '05': 5, '06': 6, '07': 7, '08': 8,
+  '09': 9, '10': 10, '11': 11, '12': 12,
+};
+
+const YTD_ALIASES = ['ytd','שנתי','שנתית','מצטבר','מתחילת השנה','מה״ש','annual','סה"כ שנתי'];
+const ITD_ALIASES = ['itd','מהקמה','מאז הקמה','since inception','inception','מהקמה:'];
+const USD_ALIASES = ['$','($)','דולר','דולרי','דולרית','usd','dollar'];
+const ILS_ALIASES = ['₪','(₪)','שקל','שקלי','שקלית','ils'];
+
+interface RawTable {
+  currency_label: string | null;
+  headers: string[];
+  rows: { year: string; cells: (string | null)[] }[];
+}
+
+interface MappedEntry {
+  returnBasis: 'ILS' | 'USD' | null;
+  fields: ParsedField[];
+  allMonthlyReturns: Record<string, number>;
+}
+
+function normalizeHeader(h: string): string {
+  return h.trim().toLowerCase().replace(/[״׳'"]/g, '').replace(/\s+/g, ' ');
+}
+
+function detectCurrency(label: string | null): 'ILS' | 'USD' | null {
+  if (!label) return null;
+  const l = label.toLowerCase();
+  if (USD_ALIASES.some(a => l.includes(a.toLowerCase()))) return 'USD';
+  if (ILS_ALIASES.some(a => l.includes(a.toLowerCase()))) return 'ILS';
+  return null;
+}
+
+function mapRawTablesToFields(tables: RawTable[]): MappedEntry[] {
+  return tables.map(table => {
+    const currency = detectCurrency(table.currency_label);
+    const allMonthlyReturns: Record<string, number> = {};
+    const fields: ParsedField[] = [];
+
+    const headerMap: ('ytd' | 'itd' | number | 'year' | null)[] = table.headers.map(h => {
+      const norm = normalizeHeader(h);
+      if (YTD_ALIASES.some(a => norm === a.toLowerCase())) return 'ytd';
+      if (ITD_ALIASES.some(a => norm === a.toLowerCase())) return 'itd';
+      if (/^\d{4}$/.test(norm)) return 'year';
+      const monthNum = MONTH_ALIASES[norm] ?? MONTH_ALIASES[h.trim()] ?? MONTH_ALIASES[h.trim().toLowerCase()];
+      if (monthNum) return monthNum;
+      return null;
+    });
+
+    for (const row of table.rows) {
+      const year = row.year?.trim();
+      if (!year || !/^\d{4}$/.test(year)) continue;
+
+      let ytdValue: number | null = null;
+      let hasDecember = false;
+
+      row.cells.forEach((cell, idx) => {
+        if (cell === null || cell === undefined) return;
+        const meaning = headerMap[idx];
+        if (meaning === null || meaning === undefined || meaning === 'itd' || meaning === 'year') return;
+
+        const raw = String(cell).replace('%', '').trim();
+        const num = parseFloat(raw);
+        if (isNaN(num)) return;
+        const decimal = Math.round((num / 100) * 1e8) / 1e8;
+
+        if (meaning === 'ytd') {
+          ytdValue = decimal;
+        } else if (typeof meaning === 'number') {
+          const monthStr = String(meaning).padStart(2, '0');
+          const key = `${year}-${monthStr}`;
+          allMonthlyReturns[key] = decimal;
+          fields.push({ key: `monthlyReturns.${key}`, value: decimal, confidence: 0.95 });
+          if (meaning === 12) hasDecember = true;
+        }
+      });
+
+      if (ytdValue !== null) {
+        const returnKey = hasDecember ? `returns.y${year}` : `returns.ytd${year}`;
+        fields.push({ key: returnKey, value: ytdValue, confidence: 0.95 });
+      }
+    }
+
+    const latestMonth = Object.keys(allMonthlyReturns).sort().pop() ?? null;
+    if (latestMonth) {
+      fields.push({ key: 'monthlyReturn', value: allMonthlyReturns[latestMonth], confidence: 0.95 });
+    }
+
+    return { returnBasis: currency, fields, allMonthlyReturns };
+  });
+}
+
+function buildRawExtractionPrompt(): string {
+  return `You are a table reader. Your only job is to describe what you see in the document.
+
+Find ALL performance tables in this document.
+
+For each table return:
+{
+  "currency_label": "the exact currency text you see near this table — e.g. ($), (₪), דולרי, שקלי, $ or null if not found",
+  "headers": ["every column header exactly as written, from RIGHT to LEFT"],
+  "rows": [
+    {
+      "year": "the year value in this row",
+      "cells": ["cell values from RIGHT to LEFT, matching headers order — empty cell = null, dash = null"]
+    }
+  ]
+}
+
+Return JSON:
+{ "tables": [...] }
+
+RULES:
+- Copy headers and values EXACTLY as written. No translation. No interpretation.
+- Right to left always — start from the rightmost column.
+- Numbers without % sign: 3.28% → "3.28"
+- Negative numbers keep minus: -5.94% → "-5.94"
+- Empty cell or dash → null
+- Return ONLY valid JSON. No explanation.`;
 }
 
 /** Month name → "MM" mapping for structured dual-currency response */
@@ -2312,6 +2491,36 @@ export async function POST(req: NextRequest) {
       // DEPRECATED — replaced by single-pass (buildDynamicStructuredPrompt + parseStructuredResponse removed)
       // Single pass with buildSystemPrompt is now the only extraction step.
 
+      // Two-Pass: Raw extraction → deterministic mapping
+      try {
+        const rawPrompt = buildRawExtractionPrompt();
+        const rawResult = await callClaudeVision(apiKey, rawPrompt, base64Data, mimeType);
+        if (rawResult.success) {
+          totalInputTokens += rawResult.usage.input_tokens;
+          const rawContent = rawResult.content;
+          const rawMatch = rawContent.match(/\{[\s\S]*\}/);
+          if (rawMatch) {
+            const rawData = JSON.parse(rawMatch[0]);
+            if (rawData.tables && Array.isArray(rawData.tables) && rawData.tables.length > 0) {
+              const mappedEntries = mapRawTablesToFields(rawData.tables as RawTable[]);
+              if (mappedEntries.length > 0) {
+                result.dualCurrencyData = mappedEntries.map(e => ({
+                  returnBasis: e.returnBasis ?? 'ILS',
+                  fields: e.fields,
+                  allMonthlyReturns: e.allMonthlyReturns,
+                })) as unknown as DualCurrencyEntry[];
+                // אם יש טבלה אחת בלבד — עדכן גם את fields הראשי
+                if (mappedEntries.length === 1) {
+                  result.fields = mappedEntries[0].fields;
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Raw extraction failed, falling back to pass-1 result:', e);
+      }
+
       // Refresh usage totals
       const finalUsage = await getTokenUsage(clientKey);
       const finalLimits = await getClientTokenLimit(clientKey);
@@ -2334,7 +2543,7 @@ export async function POST(req: NextRequest) {
       if (result.corrections) {
         resultObj.corrections = result.corrections;
       }
-      resultObj._cacheVersion = 27;
+      resultObj._cacheVersion = 28;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
