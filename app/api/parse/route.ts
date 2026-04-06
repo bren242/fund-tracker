@@ -163,7 +163,7 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v22: fix floating point precision in structured response parsing
   // v23: reverse month order in template to match visual LTR reading of RTL table
   // v24: remove pre-fill, fixed year range 2019-2026, all X cells
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 25) return null;
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 26) return null;
 
   return cached.result;
 }
@@ -679,10 +679,9 @@ function buildDynamicStructuredPrompt(options: {
   const { currencies, reportMonth } = options;
   // Fixed year range — covers all possible years in fund reports
   const years = [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026];
-  // Month names in REVERSE order (dec→jan) to match visual left-to-right reading
-  // of RTL Hebrew tables where דצמבר is on the left and ינואר on the right
-  const monthNamesReversed = ["dec", "nov", "oct", "sep", "aug", "jul", "jun", "may", "apr", "mar", "feb", "jan"];
-  const monthNumReversed =   [12,    11,    10,    9,     8,     7,     6,     5,     4,     3,     2,     1];
+  // Month names in canonical order (jan→dec) — AI maps by column name, not position
+  const monthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+  const monthNums =  [1,     2,     3,     4,     5,     6,     7,     8,     9,     10,    11,    12];
 
   // Use actual current date for future-month detection (not reportMonth, which may be wrong).
   // This is more conservative: marks a month as null only if it's truly in the future.
@@ -699,13 +698,12 @@ function buildDynamicStructuredPrompt(options: {
       const isCurrentYear = year === currentYear;
       const entries: string[] = [];
 
-      // YTD first (visually it's left of December in the table, right after ITD)
+      // YTD first, then months in canonical jan→dec order — AI maps by column name
       entries.push(`"ytd": X`);
 
-      // Months in reverse order: dec, nov, ..., feb, jan (matches visual left→right)
       for (let i = 0; i < 12; i++) {
-        const mNum = monthNumReversed[i];
-        const mName = monthNamesReversed[i];
+        const mNum = monthNums[i];
+        const mName = monthNames[i];
 
         if (isCurrentYear && mNum > currentMonthNum) {
           entries.push(`"${mName}": null`);
@@ -745,11 +743,29 @@ ${buildCurrencyTemplate()}
 
   return `You are a precise data extraction engine. Extract performance data from this Hebrew investment fund table.
 
-LAYOUT: The table is Hebrew RTL. Reading LEFT to RIGHT across the page, the columns are:
-ITD (skip!), YTD, דצמ׳, נוב׳, אוק׳, ספט׳, אוג׳, יולי, יוני, מאי, אפר׳, מרץ, פבר׳, ינו׳
+LAYOUT DETECTION — do this first before extracting any values:
+1. Look at the column headers in the table.
+2. If ינואר appears on the RIGHT side → table is RTL, read right to left.
+3. If ינואר appears on the LEFT side → table is LTR, read left to right.
+4. Always match values to column names by the Hebrew header above them — never by position.
 
-The JSON template below matches this VISUAL left-to-right order: ytd first, then dec, nov, ..., feb, jan last.
-Fill in each cell from left to right as you read across the table row.
+COLUMN NAMES (Hebrew → English):
+ינו׳ / ינואר = jan
+פבר׳ / פברואר = feb
+מרץ = mar
+אפר׳ / אפריל = apr
+מאי = may
+יוני = jun
+יולי = jul
+אוג׳ / אוגוסט = aug
+ספט׳ / ספטמבר = sep
+אוק׳ / אוקטובר = oct
+נוב׳ / נובמבר = nov
+דצמ׳ / דצמבר = dec
+YTD = ytd
+ITD → ignore completely
+
+CRITICAL RULE: Always fill by column name, never by position in the row.
 
 IMPORTANT:
 - ITD is the leftmost column — ignore it completely, never use its values
@@ -2360,7 +2376,7 @@ export async function POST(req: NextRequest) {
       if (result.corrections) {
         resultObj.corrections = result.corrections;
       }
-      resultObj._cacheVersion = 25;
+      resultObj._cacheVersion = 26;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
