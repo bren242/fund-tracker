@@ -1505,8 +1505,8 @@ export async function POST(req: NextRequest) {
             if (/^y\d{4}$/.test(k) && typeof v === "number") fundYearlyReturns[k] = v;
           }
 
-          // Apply direction normalization before diff
-          const validFields = normalizeMonthlyDirection(rawFields, fundMonthlyDirection);
+          // Direction normalization disabled — new prompt (v26+) maps by column name, not position
+          const validFields = rawFields;
 
           for (const field of validFields) {
             let existingValue: string | number | null = null;
@@ -1715,7 +1715,8 @@ export async function POST(req: NextRequest) {
         }
         break;
       }
-      const validFields = normalizeMonthlyDirection(rawApplyFields, applyDirection);
+      // Direction normalization disabled — new prompt (v26+) maps by column name, not position
+      const validFields = rawApplyFields;
 
       // Find the fund
       let fundFound = false;
