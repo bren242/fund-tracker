@@ -161,7 +161,8 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v20: fix ytd vs y — incomplete years use returns.ytd, complete years use returns.y
   // v21: dynamic structured prompt for all documents (single + dual currency)
   // v22: fix floating point precision in structured response parsing
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 22) return null;
+  // v23: reverse month order in template to match visual LTR reading of RTL table
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 23) return null;
 
   return cached.result;
 }
@@ -678,7 +679,10 @@ function buildDynamicStructuredPrompt(options: {
   existingYearly?: Record<string, number>;  // "yYYYY" or "ytdYYYY" → value (as percentage)
 }): string {
   const { currencies, years, reportMonth, existingMonthly, existingYearly } = options;
-  const monthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+  // Month names in REVERSE order (dec→jan) to match visual left-to-right reading
+  // of RTL Hebrew tables where דצמבר is on the left and ינואר on the right
+  const monthNamesReversed = ["dec", "nov", "oct", "sep", "aug", "jul", "jun", "may", "apr", "mar", "feb", "jan"];
+  const monthNumReversed =   [12,    11,    10,    9,     8,     7,     6,     5,     4,     3,     2,     1];
 
   // Determine report year and month for partial-year detection
   const reportYear = reportMonth ? parseInt(reportMonth.slice(0, 4)) : null;
@@ -686,36 +690,36 @@ function buildDynamicStructuredPrompt(options: {
 
   const isDual = currencies.length > 1;
 
-  // Build template for one currency
+  // Build template for one currency — month order matches visual table layout (left to right)
   const buildCurrencyTemplate = (currencyLabel: string): string => {
     const yearLines: string[] = [];
     for (const year of years) {
       const isCurrentYear = year === reportYear;
       const entries: string[] = [];
 
-      for (let m = 0; m < 12; m++) {
-        const monthKey = `${year}-${String(m + 1).padStart(2, "0")}`;
-        const existingVal = existingMonthly?.[monthKey];
-
-        if (isCurrentYear && reportMonthNum && m + 1 > reportMonthNum) {
-          // Future month in current year — null
-          entries.push(`"${monthNames[m]}": null`);
-        } else if (existingVal !== undefined) {
-          // Known value — pre-fill
-          entries.push(`"${monthNames[m]}": ${existingVal}`);
-        } else {
-          // Unknown — AI needs to extract
-          entries.push(`"${monthNames[m]}": X`);
-        }
-      }
-
-      // YTD
+      // YTD first (visually it's left of December in the table, right after ITD)
       const ytdKey = isCurrentYear ? `ytd${year}` : `y${year}`;
       const existingYtd = existingYearly?.[ytdKey];
       if (existingYtd !== undefined) {
         entries.push(`"ytd": ${existingYtd}`);
       } else {
         entries.push(`"ytd": X`);
+      }
+
+      // Months in reverse order: dec, nov, ..., feb, jan (matches visual left→right)
+      for (let i = 0; i < 12; i++) {
+        const mNum = monthNumReversed[i];
+        const mName = monthNamesReversed[i];
+        const monthKey = `${year}-${String(mNum).padStart(2, "0")}`;
+        const existingVal = existingMonthly?.[monthKey];
+
+        if (isCurrentYear && reportMonthNum && mNum > reportMonthNum) {
+          entries.push(`"${mName}": null`);
+        } else if (existingVal !== undefined) {
+          entries.push(`"${mName}": ${existingVal}`);
+        } else {
+          entries.push(`"${mName}": X`);
+        }
       }
 
       yearLines.push(`    "${year}": {${entries.join(", ")}}`);
@@ -750,12 +754,15 @@ ${buildCurrencyTemplate(label)}
 
   return `You are a precise data extraction engine. Extract performance data from this Hebrew investment fund table.
 
-LAYOUT: The table reads right to left.
-Column order (right to left): ינואר, פברואר, מרץ, אפר׳, מאי, יוני, יולי, אוג׳, ספט׳, אוק׳, נוב׳, דצמ׳, YTD, ITD
+LAYOUT: The table is Hebrew RTL. Reading LEFT to RIGHT across the page, the columns are:
+ITD (skip!), YTD, דצמ׳, נוב׳, אוק׳, ספט׳, אוג׳, יולי, יוני, מאי, אפר׳, מרץ, פבר׳, ינו׳
+
+The JSON template below matches this VISUAL left-to-right order: ytd first, then dec, nov, ..., feb, jan last.
+Fill in each cell from left to right as you read across the table row.
 
 IMPORTANT:
 - ITD is the leftmost column — ignore it completely, never use its values
-- YTD is second from left — this is the annual return, always use this
+- YTD is second from left — this is the annual return, always extract it
 ${dualInstructions}
 - A dash (-) or empty cell = null
 - אוג׳=august, ספט׳=september, אוק׳=october, דצמ׳=december, אפר׳=april
@@ -2414,7 +2421,7 @@ export async function POST(req: NextRequest) {
       if (result.corrections) {
         resultObj.corrections = result.corrections;
       }
-      resultObj._cacheVersion = 22;
+      resultObj._cacheVersion = 23;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
