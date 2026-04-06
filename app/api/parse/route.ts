@@ -163,7 +163,8 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v22: fix floating point precision in structured response parsing
   // v23: reverse month order in template to match visual LTR reading of RTL table
   // v24: remove pre-fill, fixed year range 2019-2026, all X cells
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 26) return null;
+  // v27: single-pass only (removed buildDynamicStructuredPrompt second API call)
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 27) return null;
 
   return cached.result;
 }
@@ -241,7 +242,7 @@ function calculateRiskMetrics(monthlyReturns: Record<string, number>): {
   const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
 
   // Standard deviation (population)
-  const variance = values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / values.length;
+  const variance = values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / (values.length - 1);
   const stdDev = Math.sqrt(variance);
 
   // Sharpe ratio (annualized): (mean - riskFree) / stdDev * sqrt(12)
@@ -278,20 +279,17 @@ function applyRiskMetrics(
     }
   }
 
-  // Auto-calculate avgAnnualReturn if missing (from yearly returns, ≥2 years)
-  const currentAvg = fund.avgAnnualReturn;
-  if (currentAvg === null || currentAvg === undefined) {
-    const returns = (fund.returns || {}) as Record<string, unknown>;
-    const yearlyVals: number[] = [];
-    for (const [k, v] of Object.entries(returns)) {
-      if (/^y\d{4}$/.test(k) && typeof v === "number" && !isNaN(v)) {
-        yearlyVals.push(v);
-      }
+  // Always recalculate avgAnnualReturn after every apply (not only when missing)
+  const returns = (fund.returns || {}) as Record<string, unknown>;
+  const yearlyVals: number[] = [];
+  for (const [k, v] of Object.entries(returns)) {
+    if (/^y\d{4}$/.test(k) && typeof v === "number" && !isNaN(v)) {
+      yearlyVals.push(v);
     }
-    if (yearlyVals.length >= 2) {
-      const avg = yearlyVals.reduce((s, v) => s + v, 0) / yearlyVals.length;
-      fund.avgAnnualReturn = Math.round(avg * 10000) / 10000;
-    }
+  }
+  if (yearlyVals.length >= 2) {
+    const avg = yearlyVals.reduce((s, v) => s + v, 0) / yearlyVals.length;
+    fund.avgAnnualReturn = Math.round(avg * 10000) / 10000;
   }
 }
 
@@ -556,15 +554,16 @@ STEP 3 — READ ROWS BY MAPPING: For each data row:
 STEP 4 — VALIDATE:
   - The annual value must come from "שנתי", "YTD", or "מצטבר" columns.
   - NEVER use ITD as annual return. ITD is cumulative since inception and is always wrong for annual.
-  - NEVER use the first or last numeric cell as annual return.
+  - Any column labeled "ITD" / "מהקמה" / "מאז הקמה" / "Since Inception" / "Inception" → ignore completely, never extract
+  - Any column labeled "YTD" / "מצטבר" / "מתחילת השנה" / "מה״ש" / "שנתי" / "Annual" → this is the annual return, extract as returns.yYYYY
+  - NEVER identify columns by their position. ONLY by their header text.
   - NEVER confuse a January value with an annual value or vice versa.
   - SANITY CHECK: For a completed year, the annual return should roughly equal the compound of all 12 monthly returns. If annual=4.61% but the sum of monthly returns ≈ 23%, you have likely swapped annual↔January. Fix it.
   - SANITY CHECK: Monthly returns are typically between -10% and +10%. Annual returns can be much larger (20%+). If a "monthly" value is 20%+ and the "annual" value is 2-5%, the columns are likely swapped.
 
 HEBREW RTL TABLE WARNING:
-Many Israeli fund documents use RTL (right-to-left) tables where the RIGHTMOST column is the first data column.
-A typical Hebrew performance table has columns ordered RIGHT-TO-LEFT: שנה | ינואר | פברואר | ... | דצמבר | שנתי
-Or sometimes: שנתי | דצמבר | נובמבר | ... | ינואר | שנה
+Many Israeli fund documents use RTL (right-to-left) layout. Column order varies — do NOT assume any fixed position.
+A typical Hebrew performance table may have columns in any order. The header label above each column is the ONLY reliable way to determine what it contains.
 DO NOT assume any fixed column order. READ THE ACTUAL HEADER TEXT of each column.
 The header text is the ONLY reliable way to determine what each column contains.
 
@@ -2310,52 +2309,10 @@ export async function POST(req: NextRequest) {
 
       let totalInputTokens = claudeResult.usage.input_tokens;
 
-      // ── STRUCTURED TEMPLATE EXTRACTION (all documents) ──
-      // After initial parse, make a second call with a structured template.
-      // Fixed year range 2019-2026, all cells X (no pre-filling from existing data).
-      {
-        const hasBothCurrencies = result.returnBasisOptions.includes("ILS") && result.returnBasisOptions.includes("USD");
-        const currencies: ("dollar" | "shekel")[] = hasBothCurrencies
-          ? ["dollar", "shekel"]
-          : result.returnBasis === "ILS" ? ["shekel"] : ["dollar"];
+      // DEPRECATED — replaced by single-pass (buildDynamicStructuredPrompt + parseStructuredResponse removed)
+      // Single pass with buildSystemPrompt is now the only extraction step.
 
-        console.log(`[parse-file] Structured extraction: ${currencies.join("+")} currencies, years 2019-2026, clean (no pre-fill)`);
-
-        const structuredPrompt = buildDynamicStructuredPrompt({
-          currencies,
-          reportMonth: result.reportMonth,
-        });
-        const structuredUserMsg = "Extract performance data from the table in this document. Fill in every X cell. If a year is not in the table, set all its values to null. Return only valid JSON.";
-        const structuredResult = await callClaudeVision(apiKey, structuredPrompt, base64Data, mimeType, structuredUserMsg);
-
-        if (structuredResult.success) {
-          totalInputTokens += structuredResult.usage.input_tokens;
-          await recordTokenUsage(clientKey, "parse-file-structured", structuredResult.usage, file.name);
-          console.log(`[parse-file] Structured call: ${structuredResult.usage.input_tokens} input tokens`);
-
-          const structuredParsed = parseStructuredResponse(structuredResult.content);
-          if (!("error" in structuredParsed)) {
-            if (structuredParsed.entries.length >= 2) {
-              result.dualCurrencyData = structuredParsed.entries;
-            } else if (structuredParsed.entries.length === 1) {
-              result.fields = structuredParsed.entries[0].fields;
-            }
-            // Structured parse's reportMonth (= latest month with data) is more reliable
-            // than initial parse's reportMonth (from document header parsing).
-            // Always prefer it when available.
-            if (structuredParsed.reportMonth) {
-              result.reportMonth = structuredParsed.reportMonth;
-            }
-            console.log("[parse-file] Structured extraction successful");
-          } else {
-            console.error("[parse-file] Structured parse failed:", structuredParsed.error);
-          }
-        } else {
-          console.error("[parse-file] Structured call failed:", structuredResult.error);
-        }
-      }
-
-      // Refresh usage totals after potential split calls
+      // Refresh usage totals
       const finalUsage = await getTokenUsage(clientKey);
       const finalLimits = await getClientTokenLimit(clientKey);
       const finalPercent = Math.round((finalUsage.inputTokens / finalLimits.monthlyInputTokens) * 100);
@@ -2377,7 +2334,7 @@ export async function POST(req: NextRequest) {
       if (result.corrections) {
         resultObj.corrections = result.corrections;
       }
-      resultObj._cacheVersion = 26;
+      resultObj._cacheVersion = 27;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
