@@ -163,7 +163,7 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v22: fix floating point precision in structured response parsing
   // v23: reverse month order in template to match visual LTR reading of RTL table
   // v24: remove pre-fill, fixed year range 2019-2026, all X cells
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 24) return null;
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 25) return null;
 
   return cached.result;
 }
@@ -684,9 +684,11 @@ function buildDynamicStructuredPrompt(options: {
   const monthNamesReversed = ["dec", "nov", "oct", "sep", "aug", "jul", "jun", "may", "apr", "mar", "feb", "jan"];
   const monthNumReversed =   [12,    11,    10,    9,     8,     7,     6,     5,     4,     3,     2,     1];
 
-  // Determine report year and month for partial-year detection
-  const reportYear = reportMonth ? parseInt(reportMonth.slice(0, 4)) : 2026;
-  const reportMonthNum = reportMonth ? parseInt(reportMonth.slice(5, 7)) : 12;
+  // Use actual current date for future-month detection (not reportMonth, which may be wrong).
+  // This is more conservative: marks a month as null only if it's truly in the future.
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonthNum = now.getMonth() + 1; // 1-based
 
   const isDual = currencies.length > 1;
 
@@ -694,7 +696,7 @@ function buildDynamicStructuredPrompt(options: {
   const buildCurrencyTemplate = (): string => {
     const yearLines: string[] = [];
     for (const year of years) {
-      const isCurrentYear = year === reportYear;
+      const isCurrentYear = year === currentYear;
       const entries: string[] = [];
 
       // YTD first (visually it's left of December in the table, right after ITD)
@@ -705,7 +707,7 @@ function buildDynamicStructuredPrompt(options: {
         const mNum = monthNumReversed[i];
         const mName = monthNamesReversed[i];
 
-        if (isCurrentYear && mNum > reportMonthNum) {
+        if (isCurrentYear && mNum > currentMonthNum) {
           entries.push(`"${mName}": null`);
         } else {
           entries.push(`"${mName}": X`);
@@ -804,12 +806,13 @@ function parseStructuredResponse(content: string): {
   }
 
   const entries: DualCurrencyEntry[] = [];
-  let latestMonth: string | null = null;
+  let overallLatestMonth: string | null = null;
 
   for (const [currencyKey, basis] of currencyMap) {
     const currencyData = parsed[currencyKey] as Record<string, Record<string, number | null>>;
     if (!currencyData) continue;
     const fields: ParsedField[] = [];
+    let currencyLatestMonth: string | null = null; // per-currency tracking
 
     for (const [year, months] of Object.entries(currencyData)) {
       if (!/^\d{4}$/.test(year)) continue;
@@ -828,25 +831,29 @@ function parseStructuredResponse(content: string): {
           const monthKey = `${year}-${monthNum}`;
           fields.push({ key: `monthlyReturns.${monthKey}`, value: decimalValue, confidence: 0.95 });
 
-          if (!latestMonth || monthKey > latestMonth) {
-            latestMonth = monthKey;
+          if (!currencyLatestMonth || monthKey > currencyLatestMonth) {
+            currencyLatestMonth = monthKey;
           }
         }
       }
     }
 
-    // Add monthlyReturn (most recent month)
-    if (latestMonth) {
-      const latestField = fields.find((f) => f.key === `monthlyReturns.${latestMonth}`);
+    // Add monthlyReturn (most recent month FOR THIS CURRENCY)
+    if (currencyLatestMonth) {
+      const latestField = fields.find((f) => f.key === `monthlyReturns.${currencyLatestMonth}`);
       if (latestField) {
         fields.push({ key: "monthlyReturn", value: latestField.value, confidence: 0.95 });
+      }
+      // Track overall latest across all currencies for reportMonth
+      if (!overallLatestMonth || currencyLatestMonth > overallLatestMonth) {
+        overallLatestMonth = currencyLatestMonth;
       }
     }
 
     entries.push({ returnBasis: basis, fields });
   }
 
-  return { entries, reportMonth: latestMonth };
+  return { entries, reportMonth: overallLatestMonth };
 }
 
 /** Validate reportMonth format YYYY-MM */
@@ -2316,7 +2323,10 @@ export async function POST(req: NextRequest) {
             } else if (structuredParsed.entries.length === 1) {
               result.fields = structuredParsed.entries[0].fields;
             }
-            if (structuredParsed.reportMonth && !result.reportMonth) {
+            // Structured parse's reportMonth (= latest month with data) is more reliable
+            // than initial parse's reportMonth (from document header parsing).
+            // Always prefer it when available.
+            if (structuredParsed.reportMonth) {
               result.reportMonth = structuredParsed.reportMonth;
             }
             console.log("[parse-file] Structured extraction successful");
@@ -2350,7 +2360,7 @@ export async function POST(req: NextRequest) {
       if (result.corrections) {
         resultObj.corrections = result.corrections;
       }
-      resultObj._cacheVersion = 24;
+      resultObj._cacheVersion = 25;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
