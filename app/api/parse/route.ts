@@ -162,7 +162,8 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v21: dynamic structured prompt for all documents (single + dual currency)
   // v22: fix floating point precision in structured response parsing
   // v23: reverse month order in template to match visual LTR reading of RTL table
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 23) return null;
+  // v24: remove pre-fill, fixed year range 2019-2026, all X cells
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 24) return null;
 
   return cached.result;
 }
@@ -669,54 +670,43 @@ Respond in valid JSON with this exact structure:
 }
 
 /** Build a dynamic structured prompt for any fund document.
- *  Detects years from initial parse, pre-fills known data from existing fund,
- *  and generates a JSON template for the AI to fill. Works for single and dual currency. */
+ *  Uses a fixed year range (2019-2026) and all X cells — no pre-filling
+ *  from existing data. The AI reads everything fresh from the table. */
 function buildDynamicStructuredPrompt(options: {
   currencies: ("dollar" | "shekel")[];
-  years: number[];
   reportMonth: string | null;
-  existingMonthly?: Record<string, number>; // "YYYY-MM" → value (as percentage, e.g. 1.92)
-  existingYearly?: Record<string, number>;  // "yYYYY" or "ytdYYYY" → value (as percentage)
 }): string {
-  const { currencies, years, reportMonth, existingMonthly, existingYearly } = options;
+  const { currencies, reportMonth } = options;
+  // Fixed year range — covers all possible years in fund reports
+  const years = [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026];
   // Month names in REVERSE order (dec→jan) to match visual left-to-right reading
   // of RTL Hebrew tables where דצמבר is on the left and ינואר on the right
   const monthNamesReversed = ["dec", "nov", "oct", "sep", "aug", "jul", "jun", "may", "apr", "mar", "feb", "jan"];
   const monthNumReversed =   [12,    11,    10,    9,     8,     7,     6,     5,     4,     3,     2,     1];
 
   // Determine report year and month for partial-year detection
-  const reportYear = reportMonth ? parseInt(reportMonth.slice(0, 4)) : null;
-  const reportMonthNum = reportMonth ? parseInt(reportMonth.slice(5, 7)) : null;
+  const reportYear = reportMonth ? parseInt(reportMonth.slice(0, 4)) : 2026;
+  const reportMonthNum = reportMonth ? parseInt(reportMonth.slice(5, 7)) : 12;
 
   const isDual = currencies.length > 1;
 
-  // Build template for one currency — month order matches visual table layout (left to right)
-  const buildCurrencyTemplate = (currencyLabel: string): string => {
+  // Build template for one currency — all cells are X (AI fills everything)
+  const buildCurrencyTemplate = (): string => {
     const yearLines: string[] = [];
     for (const year of years) {
       const isCurrentYear = year === reportYear;
       const entries: string[] = [];
 
       // YTD first (visually it's left of December in the table, right after ITD)
-      const ytdKey = isCurrentYear ? `ytd${year}` : `y${year}`;
-      const existingYtd = existingYearly?.[ytdKey];
-      if (existingYtd !== undefined) {
-        entries.push(`"ytd": ${existingYtd}`);
-      } else {
-        entries.push(`"ytd": X`);
-      }
+      entries.push(`"ytd": X`);
 
       // Months in reverse order: dec, nov, ..., feb, jan (matches visual left→right)
       for (let i = 0; i < 12; i++) {
         const mNum = monthNumReversed[i];
         const mName = monthNamesReversed[i];
-        const monthKey = `${year}-${String(mNum).padStart(2, "0")}`;
-        const existingVal = existingMonthly?.[monthKey];
 
-        if (isCurrentYear && reportMonthNum && mNum > reportMonthNum) {
+        if (isCurrentYear && mNum > reportMonthNum) {
           entries.push(`"${mName}": null`);
-        } else if (existingVal !== undefined) {
-          entries.push(`"${mName}": ${existingVal}`);
         } else {
           entries.push(`"${mName}": X`);
         }
@@ -727,22 +717,21 @@ function buildDynamicStructuredPrompt(options: {
     return yearLines.join(",\n");
   };
 
-  // Count X cells per currency
   let templateJson: string;
   if (isDual) {
     templateJson = `{
   "dollar": {
-${buildCurrencyTemplate("dollar")}
+${buildCurrencyTemplate()}
   },
   "shekel": {
-${buildCurrencyTemplate("shekel")}
+${buildCurrencyTemplate()}
   }
 }`;
   } else {
     const label = currencies[0] === "dollar" ? "dollar" : "shekel";
     templateJson = `{
   "${label}": {
-${buildCurrencyTemplate(label)}
+${buildCurrencyTemplate()}
   }
 }`;
   }
@@ -772,10 +761,11 @@ READING ACCURACY:
 - Negative sign (-) must be preserved exactly as shown.
 - Do not round or approximate any value.
 
-HISTORICAL DATA:
-Some values below are already filled in — these are verified correct. Copy them exactly.
-Only fill in cells marked as X — read those from the table.
-Cells marked null stay null — do not change them.
+INSTRUCTIONS:
+- Fill in every cell marked X by reading the value from the table.
+- If a year row does not exist in the table, set ALL its cells to null (including ytd).
+- Cells already set to null stay null — do not change them.
+- If a cell in the table shows a dash (-) or is empty, set it to null.
 
 Return only valid JSON, no explanation:
 
@@ -2297,105 +2287,44 @@ export async function POST(req: NextRequest) {
       let totalInputTokens = claudeResult.usage.input_tokens;
 
       // ── STRUCTURED TEMPLATE EXTRACTION (all documents) ──
-      // After initial parse, make a second call with a structured template
-      // that tells the AI the exact table layout and gives it a JSON template
-      // to fill. Pre-fills known data from existing fund records.
+      // After initial parse, make a second call with a structured template.
+      // Fixed year range 2019-2026, all cells X (no pre-filling from existing data).
       {
         const hasBothCurrencies = result.returnBasisOptions.includes("ILS") && result.returnBasisOptions.includes("USD");
         const currencies: ("dollar" | "shekel")[] = hasBothCurrencies
           ? ["dollar", "shekel"]
           : result.returnBasis === "ILS" ? ["shekel"] : ["dollar"];
 
-        // Detect years from initial parse (from returns.y* and monthlyReturns.* keys)
-        const detectedYears = new Set<number>();
-        for (const f of result.fields) {
-          const yMatch = f.key.match(/^returns\.(?:y|ytd)(\d{4})$/);
-          if (yMatch) detectedYears.add(parseInt(yMatch[1]));
-          const mMatch = f.key.match(/^monthlyReturns\.(\d{4})-/);
-          if (mMatch) detectedYears.add(parseInt(mMatch[1]));
-        }
-        // Also check dualCurrencyData from initial parse
-        if (result.dualCurrencyData) {
-          for (const entry of result.dualCurrencyData) {
-            for (const f of entry.fields) {
-              const yMatch = f.key.match(/^returns\.(?:y|ytd)(\d{4})$/);
-              if (yMatch) detectedYears.add(parseInt(yMatch[1]));
-              const mMatch = f.key.match(/^monthlyReturns\.(\d{4})-/);
-              if (mMatch) detectedYears.add(parseInt(mMatch[1]));
+        console.log(`[parse-file] Structured extraction: ${currencies.join("+")} currencies, years 2019-2026, clean (no pre-fill)`);
+
+        const structuredPrompt = buildDynamicStructuredPrompt({
+          currencies,
+          reportMonth: result.reportMonth,
+        });
+        const structuredUserMsg = "Extract performance data from the table in this document. Fill in every X cell. If a year is not in the table, set all its values to null. Return only valid JSON.";
+        const structuredResult = await callClaudeVision(apiKey, structuredPrompt, base64Data, mimeType, structuredUserMsg);
+
+        if (structuredResult.success) {
+          totalInputTokens += structuredResult.usage.input_tokens;
+          await recordTokenUsage(clientKey, "parse-file-structured", structuredResult.usage, file.name);
+          console.log(`[parse-file] Structured call: ${structuredResult.usage.input_tokens} input tokens`);
+
+          const structuredParsed = parseStructuredResponse(structuredResult.content);
+          if (!("error" in structuredParsed)) {
+            if (structuredParsed.entries.length >= 2) {
+              result.dualCurrencyData = structuredParsed.entries;
+            } else if (structuredParsed.entries.length === 1) {
+              result.fields = structuredParsed.entries[0].fields;
             }
-          }
-        }
-        const years = Array.from(detectedYears).sort();
-
-        if (years.length >= 1) {
-          // Load existing fund data for pre-filling (if matched)
-          let existingMonthly: Record<string, number> | undefined;
-          let existingYearly: Record<string, number> | undefined;
-          if (result.match?.fundId) {
-            const matchedFund = existingFunds.find((f) => f.id === result.match!.fundId);
-            if (matchedFund) {
-              // Look up full fund data
-              for (const cat of fundsData.categories || []) {
-                const fund = cat.funds.find((f) => f.id === result.match!.fundId) as Record<string, unknown> | undefined;
-                if (fund) {
-                  // Convert monthly returns to percentage format (0.0192 → 1.92)
-                  const fundMonthly = fund.monthlyReturns as Record<string, number> | undefined;
-                  if (fundMonthly) {
-                    existingMonthly = {};
-                    for (const [k, v] of Object.entries(fundMonthly)) {
-                      existingMonthly[k] = Math.round(v * 10000) / 100; // 0.0192 → 1.92
-                    }
-                  }
-                  // Convert yearly returns
-                  const returns = ((fund.returns as Record<string, unknown>) || {}) as Record<string, number | null>;
-                  existingYearly = {};
-                  for (const [k, v] of Object.entries(returns)) {
-                    if (v !== null && v !== undefined) {
-                      existingYearly[k] = Math.round(v * 10000) / 100;
-                    }
-                  }
-                  break;
-                }
-              }
+            if (structuredParsed.reportMonth && !result.reportMonth) {
+              result.reportMonth = structuredParsed.reportMonth;
             }
-          }
-
-          console.log(`[parse-file] Structured extraction: ${currencies.join("+")} currencies, years ${years.join(",")}, ${existingMonthly ? Object.keys(existingMonthly).length : 0} known monthly values`);
-
-          const structuredPrompt = buildDynamicStructuredPrompt({
-            currencies,
-            years,
-            reportMonth: result.reportMonth,
-            existingMonthly,
-            existingYearly,
-          });
-          const structuredUserMsg = "Extract performance data from the table in this document. Fill in only the X cells. Return only valid JSON.";
-          const structuredResult = await callClaudeVision(apiKey, structuredPrompt, base64Data, mimeType, structuredUserMsg);
-
-          if (structuredResult.success) {
-            totalInputTokens += structuredResult.usage.input_tokens;
-            await recordTokenUsage(clientKey, "parse-file-structured", structuredResult.usage, file.name);
-            console.log(`[parse-file] Structured call: ${structuredResult.usage.input_tokens} input tokens`);
-
-            const structuredParsed = parseStructuredResponse(structuredResult.content);
-            if (!("error" in structuredParsed)) {
-              if (structuredParsed.entries.length >= 2) {
-                // Dual currency — use as dualCurrencyData
-                result.dualCurrencyData = structuredParsed.entries;
-              } else if (structuredParsed.entries.length === 1) {
-                // Single currency — replace main fields
-                result.fields = structuredParsed.entries[0].fields;
-              }
-              if (structuredParsed.reportMonth && !result.reportMonth) {
-                result.reportMonth = structuredParsed.reportMonth;
-              }
-              console.log("[parse-file] Structured extraction successful");
-            } else {
-              console.error("[parse-file] Structured parse failed:", structuredParsed.error);
-            }
+            console.log("[parse-file] Structured extraction successful");
           } else {
-            console.error("[parse-file] Structured call failed:", structuredResult.error);
+            console.error("[parse-file] Structured parse failed:", structuredParsed.error);
           }
+        } else {
+          console.error("[parse-file] Structured call failed:", structuredResult.error);
         }
       }
 
@@ -2421,7 +2350,7 @@ export async function POST(req: NextRequest) {
       if (result.corrections) {
         resultObj.corrections = result.corrections;
       }
-      resultObj._cacheVersion = 23;
+      resultObj._cacheVersion = 24;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
