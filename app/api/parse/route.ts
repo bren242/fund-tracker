@@ -762,8 +762,10 @@ function parseStructuredDualResponse(content: string): {
         const decimalValue = value / 100; // 1.92 → 0.0192
 
         if (monthName === "ytd") {
-          // YTD = annual return
-          fields.push({ key: `returns.y${year}`, value: decimalValue, confidence: 0.95 });
+          // Check if this year is complete (has December data) or partial
+          const hasDec = months.dec !== null && months.dec !== undefined;
+          const key = hasDec ? `returns.y${year}` : `returns.ytd${year}`;
+          fields.push({ key, value: decimalValue, confidence: 0.95 });
         } else {
           const monthNum = MONTH_NAME_TO_NUM[monthName];
           if (!monthNum) continue;
