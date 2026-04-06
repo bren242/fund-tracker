@@ -160,7 +160,8 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v19: all historical data pre-filled, AI only extracts X cells (mar+ytd 2026)
   // v20: fix ytd vs y — incomplete years use returns.ytd, complete years use returns.y
   // v21: dynamic structured prompt for all documents (single + dual currency)
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 21) return null;
+  // v22: fix floating point precision in structured response parsing
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 22) return null;
 
   return cached.result;
 }
@@ -818,7 +819,7 @@ function parseStructuredResponse(content: string): {
 
       for (const [monthName, value] of Object.entries(months)) {
         if (value === null || value === undefined) continue;
-        const decimalValue = value / 100; // 1.92 → 0.0192
+        const decimalValue = Math.round((value / 100) * 1e8) / 1e8; // 1.92 → 0.0192, avoids floating point artifacts
 
         if (monthName === "ytd") {
           const hasDec = months.dec !== null && months.dec !== undefined;
@@ -2413,7 +2414,7 @@ export async function POST(req: NextRequest) {
       if (result.corrections) {
         resultObj.corrections = result.corrections;
       }
-      resultObj._cacheVersion = 21;
+      resultObj._cacheVersion = 22;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
