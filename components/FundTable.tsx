@@ -87,10 +87,12 @@ function SortableHeader({ label, col, sortCol, sortDir, onSort, onReset, style }
       <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
         {label}
         <span style={{
-          fontSize: 8,
-          opacity: isActive ? 1 : 0.35,
-          transition: "opacity 0.15s",
+          fontSize: isActive ? 18 : 16,
+          color: "#FFFFFF",
+          opacity: isActive ? 1 : 0.4,
+          transition: "opacity 0.15s, font-size 0.1s",
           lineHeight: 1,
+          fontWeight: isActive ? 700 : 400,
         }}>
           {isActive ? (sortDir === "desc" ? "▼" : "▲") : "▾"}
         </span>
