@@ -2,6 +2,7 @@
 
 import { Fund } from "@/lib/types";
 import { pct, num, formatReportDate, returnColorInline } from "@/lib/format";
+import { useState, useEffect } from "react";
 
 /* ── Year keys to display ── */
 type ReturnYear = keyof Fund["returns"];
@@ -21,21 +22,25 @@ const MAX_BAR_HEIGHT = 56;
 /* ── Drawdown calc ── */
 interface DrawdownResult {
   worstMonth: number | null;
+  worstMonthKey: string | null;
   recoveryMonths: number | null;
+  noRecovery: boolean;
 }
 
 export function calculateDrawdown(
   monthlyReturns: Record<string, number> | undefined,
 ): DrawdownResult {
-  if (!monthlyReturns) return { worstMonth: null, recoveryMonths: null };
+  if (!monthlyReturns) return { worstMonth: null, worstMonthKey: null, recoveryMonths: null, noRecovery: false };
   const entries = Object.entries(monthlyReturns)
     .filter(([, v]) => typeof v === "number")
     .sort((a, b) => a[0].localeCompare(b[0]));
-  if (entries.length === 0) return { worstMonth: null, recoveryMonths: null };
+  if (entries.length === 0) return { worstMonth: null, worstMonthKey: null, recoveryMonths: null, noRecovery: false };
 
+  const keys = entries.map(([k]) => k);
   const values = entries.map(([, v]) => v);
   const worstMonth = Math.min(...values);
   const worstIdx = values.indexOf(worstMonth);
+  const worstMonthKey = keys[worstIdx];
 
   // Peak cumulative before worst month
   let peak = 1;
@@ -57,21 +62,174 @@ export function calculateDrawdown(
     if (cum >= peak) { recoveryMonths = i - worstIdx; break; }
   }
 
-  return { worstMonth, recoveryMonths };
+  // No recovery: worst is last month or not enough months after to confirm recovery
+  const noRecovery = recoveryMonths === null && worstIdx >= 0;
+
+  return { worstMonth, worstMonthKey, recoveryMonths, noRecovery };
+}
+
+/** Convert monthlyReturns key (e.g. "2024-03") to MM/YYYY display */
+function monthKeyToDisplay(key: string | null, fund: Fund): string {
+  if (!key) return "";
+  // Keys are like "2024-03" or similar date-sortable format
+  const match = key.match(/^(\d{4})-(\d{2})$/);
+  if (match) return `${match[2]}/${match[1]}`;
+  // Fallback: try using lastReportDate + index calculation
+  return key;
 }
 
 /* ── MetricCell ── */
-function MetricCell({ label, value, color }: { label: string; value: string; color: string }) {
+function MetricCell({ label, value, subValue, color }: { label: string; value: string; subValue?: string; color: string }) {
   return (
     <div style={{ textAlign: "center", padding: "0 2px" }}>
       <div style={{ fontSize: 9.5, color: "var(--text-muted)", marginBottom: 4, whiteSpace: "nowrap" }}>{label}</div>
       <div style={{ fontSize: 15, fontWeight: 700, color, fontVariantNumeric: "tabular-nums", lineHeight: 1.1 }}>{value}</div>
+      {subValue && (
+        <div style={{ fontSize: 8.5, color: "var(--text-muted)", marginTop: 2, fontVariantNumeric: "tabular-nums" }}>{subValue}</div>
+      )}
+    </div>
+  );
+}
+
+/* ── Tooltip for info icon ── */
+function InfoTooltip({ text }: { text: string }) {
+  const [show, setShow] = useState(false);
+  return (
+    <span
+      style={{ position: "relative", display: "inline-flex", alignItems: "center", cursor: "help" }}
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      <span className="no-print" style={{
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        width: 14, height: 14, borderRadius: "50%",
+        backgroundColor: "var(--bg-surface-alt)", border: "1px solid var(--border)",
+        fontSize: 8.5, fontWeight: 700, color: "var(--text-muted)", lineHeight: 1,
+        marginRight: 3,
+      }}>i</span>
+      {show && (
+        <div className="no-print" style={{
+          position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)",
+          backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
+          borderRadius: 6, padding: "6px 10px", fontSize: 10, color: "var(--text-secondary)",
+          whiteSpace: "nowrap", zIndex: 50, boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+          pointerEvents: "none",
+        }}>
+          {text}
+        </div>
+      )}
+    </span>
+  );
+}
+
+/* ── Bar Tooltip ── */
+function BarTooltip({ value, year, visible }: { value: string; year: string; visible: boolean }) {
+  if (!visible) return null;
+  return (
+    <div className="no-print" style={{
+      position: "absolute", bottom: "calc(100% + 4px)", left: "50%", transform: "translateX(-50%)",
+      backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
+      borderRadius: 5, padding: "3px 7px", fontSize: 9, fontWeight: 600,
+      color: "var(--text-primary)", whiteSpace: "nowrap", zIndex: 40,
+      boxShadow: "0 2px 6px rgba(0,0,0,0.1)", pointerEvents: "none",
+    }}>
+      {year}: {value}
+    </div>
+  );
+}
+
+/* ── Monthly Line Chart (SVG) ── */
+function MonthlyLineChart({ monthlyReturns }: { monthlyReturns: Record<string, number> }) {
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const entries = Object.entries(monthlyReturns)
+    .filter(([, v]) => typeof v === "number")
+    .sort((a, b) => a[0].localeCompare(b[0]));
+
+  if (entries.length < 12) return null;
+
+  const values = entries.map(([, v]) => v * 100);
+  const maxAbs = Math.max(...values.map(Math.abs), 0.01);
+  const chartH = 60;
+  const padTop = 8;
+  const padBot = 8;
+  const drawH = chartH - padTop - padBot;
+  const zeroY = padTop + (maxAbs / (2 * maxAbs)) * drawH;
+
+  const points = values.map((v, i) => {
+    const x = entries.length === 1 ? 50 : (i / (entries.length - 1)) * 100;
+    const y = padTop + ((maxAbs - v) / (2 * maxAbs)) * drawH;
+    return { x, y, v, key: entries[i][0] };
+  });
+
+  const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+  const areaPath = `${linePath} L ${points[points.length - 1].x} ${zeroY} L ${points[0].x} ${zeroY} Z`;
+
+  return (
+    <div style={{ marginTop: 10, position: "relative" }}>
+      <svg
+        viewBox={`0 0 100 ${chartH}`}
+        preserveAspectRatio="none"
+        style={{ width: "100%", height: chartH, display: "block" }}
+      >
+        <defs>
+          <linearGradient id="monthlyGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#059669" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="#059669" stopOpacity="0.02" />
+          </linearGradient>
+        </defs>
+        {/* Zero line */}
+        <line x1="0" y1={zeroY} x2="100" y2={zeroY} stroke="var(--text-muted)" strokeWidth="0.3" strokeDasharray="1 1" />
+        {/* Area fill */}
+        <path d={areaPath} fill="url(#monthlyGrad)" />
+        {/* Line */}
+        <path d={linePath} fill="none" stroke="#059669" strokeWidth="0.6" />
+        {/* Hover targets */}
+        {points.map((p, i) => (
+          <circle
+            key={i}
+            cx={p.x} cy={p.y} r="2"
+            fill={hoveredIdx === i ? "#059669" : "transparent"}
+            stroke={hoveredIdx === i ? "#059669" : "transparent"}
+            strokeWidth="0.5"
+            style={{ cursor: "pointer" }}
+            onMouseEnter={() => setHoveredIdx(i)}
+            onMouseLeave={() => setHoveredIdx(null)}
+          />
+        ))}
+      </svg>
+      {/* Tooltip */}
+      {hoveredIdx !== null && (
+        <div className="no-print" style={{
+          position: "absolute",
+          left: `${points[hoveredIdx].x}%`,
+          top: 0, transform: "translateX(-50%)",
+          backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
+          borderRadius: 5, padding: "3px 7px", fontSize: 9, fontWeight: 600,
+          color: "var(--text-primary)", whiteSpace: "nowrap", zIndex: 40,
+          boxShadow: "0 2px 6px rgba(0,0,0,0.1)", pointerEvents: "none",
+        }}>
+          {(() => {
+            const key = points[hoveredIdx].key;
+            const m = key.match(/^(\d{4})-(\d{2})$/);
+            const label = m ? `${m[2]}/${m[1]}` : key;
+            return `${label}: ${points[hoveredIdx].v.toFixed(2)}%`;
+          })()}
+        </div>
+      )}
     </div>
   );
 }
 
 /* ── FundCard ── */
 export default function FundCard({ fund }: { fund: Fund }) {
+  const [animated, setAnimated] = useState(false);
+  const [hoveredBar, setHoveredBar] = useState<number | null>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => setAnimated(true), 50);
+    return () => clearTimeout(t);
+  }, []);
+
   const drawdown = calculateDrawdown(fund.monthlyReturns);
   const yearValues = YEAR_KEYS.map((y) => fund.returns[y.key]);
   const hasAnyYear = yearValues.some((v) => v !== null);
@@ -79,9 +237,25 @@ export default function FundCard({ fund }: { fund: Fund }) {
     .filter((v): v is number => v !== null)
     .reduce((m, v) => Math.max(m, Math.abs(v)), 0.001);
 
-  const recoveryDisplay = drawdown.recoveryMonths !== null
-    ? `${drawdown.recoveryMonths} ח׳`
-    : "—";
+  // Recovery display logic
+  let recoveryDisplay: string;
+  let recoveryColor: string;
+  if (drawdown.recoveryMonths !== null) {
+    recoveryDisplay = `${drawdown.recoveryMonths} ח׳`;
+    recoveryColor = "var(--text-primary)";
+  } else if (drawdown.noRecovery) {
+    recoveryDisplay = "טרם הושגה";
+    recoveryColor = "#F59E0B";
+  } else {
+    recoveryDisplay = "—";
+    recoveryColor = "var(--text-muted)";
+  }
+
+  // Worst month date display
+  const worstMonthDate = monthKeyToDisplay(drawdown.worstMonthKey, fund);
+
+  // Monthly returns count for line chart
+  const monthlyCount = fund.monthlyReturns ? Object.keys(fund.monthlyReturns).filter(k => typeof fund.monthlyReturns![k] === "number").length : 0;
 
   return (
     <div style={{
@@ -93,6 +267,9 @@ export default function FundCard({ fund }: { fund: Fund }) {
       display: "flex",
       flexDirection: "column",
     }}>
+      {/* Print animation override */}
+      <style>{`@media print { .bar-animated { transform: scaleY(1) !important; transition: none !important; } }`}</style>
+
       {/* ── Header ── */}
       <div style={{ marginBottom: 12 }}>
         <div style={{
@@ -151,13 +328,18 @@ export default function FundCard({ fund }: { fund: Fund }) {
         <MetricCell
           label="חודש גרוע"
           value={drawdown.worstMonth !== null ? pct(drawdown.worstMonth) : "—"}
+          subValue={worstMonthDate || undefined}
           color={drawdown.worstMonth !== null ? returnColorInline(drawdown.worstMonth) : "var(--text-muted)"}
         />
-        <MetricCell
-          label="התאוששות"
-          value={recoveryDisplay}
-          color={drawdown.recoveryMonths !== null ? "var(--text-primary)" : "var(--text-muted)"}
-        />
+        <div style={{ textAlign: "center", padding: "0 2px" }}>
+          <div style={{ fontSize: 9.5, color: "var(--text-muted)", marginBottom: 4, whiteSpace: "nowrap", display: "flex", alignItems: "center", justifyContent: "center", gap: 2 }}>
+            התאוששות
+            <InfoTooltip text="מספר החודשים שנדרשו לקרן לחזור לשיא שלפני הירידה החדה ביותר" />
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: recoveryColor, fontVariantNumeric: "tabular-nums", lineHeight: 1.1 }}>
+            {recoveryDisplay}
+          </div>
+        </div>
         <MetricCell
           label="שארפ"
           value={fund.sharpe !== null ? num(fund.sharpe) : "—"}
@@ -188,7 +370,12 @@ export default function FundCard({ fund }: { fund: Fund }) {
             const isPos = val >= 0;
 
             return (
-              <div key={y.key} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", opacity }}>
+              <div
+                key={y.key}
+                style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", opacity, position: "relative" }}
+                onMouseEnter={() => setHoveredBar(i)}
+                onMouseLeave={() => setHoveredBar(null)}
+              >
                 {/* Value label */}
                 <div style={{
                   fontSize: 7.5,
@@ -202,15 +389,34 @@ export default function FundCard({ fund }: { fund: Fund }) {
                 }}>
                   {(val * 100).toFixed(1)}%
                 </div>
-                {/* Bar container (fixed height, bar grows from bottom) */}
-                <div style={{ height: MAX_BAR_HEIGHT, display: "flex", alignItems: "flex-end", width: "100%", justifyContent: "center" }}>
+                {/* Bar container */}
+                <div style={{ height: MAX_BAR_HEIGHT, display: "flex", alignItems: "flex-end", width: "100%", justifyContent: "center", position: "relative" }}>
+                  {/* Zero line */}
                   <div style={{
-                    width: "72%",
-                    height: barHeight,
-                    backgroundColor: isPos ? "var(--positive)" : "var(--negative)",
-                    borderRadius: isPos ? "3px 3px 0 0" : "0 0 3px 3px",
+                    position: "absolute", bottom: 0, left: 0, right: 0,
+                    height: 1, backgroundColor: "var(--border-table)", opacity: 0.5,
                   }} />
+                  <div
+                    className="bar-animated"
+                    style={{
+                      width: "72%",
+                      height: barHeight,
+                      background: isPos
+                        ? "linear-gradient(to top, #059669, #34d399)"
+                        : "linear-gradient(to bottom, #dc2626, #f87171)",
+                      borderRadius: isPos ? "4px 4px 0 0" : "0 0 4px 4px",
+                      transformOrigin: "bottom",
+                      transform: animated ? "scaleY(1)" : "scaleY(0)",
+                      transition: `transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) ${i * 0.06}s`,
+                    }}
+                  />
                 </div>
+                {/* Hover tooltip */}
+                <BarTooltip
+                  value={`${(val * 100).toFixed(2)}%`}
+                  year={y.isYtd ? "YTD " + y.label : y.label}
+                  visible={hoveredBar === i}
+                />
                 {/* Year label */}
                 <div style={{ fontSize: 7.5, color: "var(--text-muted)", marginTop: 3, whiteSpace: "nowrap" }}>
                   {y.isYtd ? "YTD" : y.label}
@@ -219,6 +425,11 @@ export default function FundCard({ fund }: { fund: Fund }) {
             );
           })}
         </div>
+      )}
+
+      {/* ── Monthly line chart ── */}
+      {monthlyCount >= 12 && fund.monthlyReturns && (
+        <MonthlyLineChart monthlyReturns={fund.monthlyReturns} />
       )}
     </div>
   );
