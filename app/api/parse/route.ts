@@ -164,7 +164,7 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v23: reverse month order in template to match visual LTR reading of RTL table
   // v24: remove pre-fill, fixed year range 2019-2026, all X cells
   // v27: single-pass only (removed buildDynamicStructuredPrompt second API call)
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 28) return null;
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 30) return null;
 
   return cached.result;
 }
@@ -853,13 +853,14 @@ const MONTH_ALIASES: Record<string, number> = {
   '09': 9, '10': 10, '11': 11, '12': 12,
 };
 
-const YTD_ALIASES = ['ytd','שנתי','שנתית','מצטבר','מתחילת השנה','מה״ש','annual','סה"כ שנתי'];
+const YTD_ALIASES = ['ytd','שנתי','שנתית','מצטבר','מתחילת השנה','מה״ש','annual','סה"כ שנתי','סה"כ','דצמבר',"דצמ'",'dec','december'];
 const ITD_ALIASES = ['itd','מהקמה','מאז הקמה','since inception','inception','מהקמה:'];
 const USD_ALIASES = ['$','($)','דולר','דולרי','דולרית','usd','dollar'];
 const ILS_ALIASES = ['₪','(₪)','שקל','שקלי','שקלית','ils'];
 
 interface RawTable {
   currency_label: string | null;
+  table_label: string | null;
   headers: string[];
   rows: { year: string; cells: (string | null)[] }[];
 }
@@ -882,8 +883,15 @@ function detectCurrency(label: string | null): 'ILS' | 'USD' | null {
   return null;
 }
 
+const BENCHMARK_LABEL_KEYWORDS = ['מדד', 'benchmark', 'index', 'כללי'];
+
+function isBenchmarkTable(table: RawTable): boolean {
+  const label = (table.table_label ?? '').toLowerCase();
+  return BENCHMARK_LABEL_KEYWORDS.some(kw => label.includes(kw.toLowerCase()));
+}
+
 function mapRawTablesToFields(tables: RawTable[]): MappedEntry[] {
-  return tables.map(table => {
+  return tables.filter(table => !isBenchmarkTable(table)).map(table => {
     const currency = detectCurrency(table.currency_label);
     const allMonthlyReturns: Record<string, number> = {};
     const fields: ParsedField[] = [];
@@ -938,7 +946,7 @@ function mapRawTablesToFields(tables: RawTable[]): MappedEntry[] {
     }
 
     return { returnBasis: currency, fields, allMonthlyReturns };
-  });
+  }).filter(entry => entry.fields.length > 0);
 }
 
 function buildRawExtractionPrompt(): string {
@@ -949,6 +957,7 @@ Find ALL performance tables in this document.
 For each table return:
 {
   "currency_label": "the exact currency text you see near this table — e.g. ($), (₪), דולרי, שקלי, $ or null if not found",
+  "table_label": "the name or label of the fund/entity this table belongs to — e.g. 'נוקד אג\"ח', 'Class A', or null if not found. If the table belongs to a market index or benchmark, write the index name here.",
   "headers": ["every column header exactly as written, from RIGHT to LEFT"],
   "rows": [
     {
@@ -967,7 +976,14 @@ RULES:
 - Numbers without % sign: 3.28% → "3.28"
 - Negative numbers keep minus: -5.94% → "-5.94"
 - Empty cell or dash → null
-- Return ONLY valid JSON. No explanation.`;
+- Cells with colored background, bold text, or any visual highlighting are still regular monthly values — extract the numeric value inside them exactly as you would any other cell. Do NOT treat highlighted cells as YTD or special — they are just styled cells.
+- Return ONLY valid JSON. No explanation.
+
+CRITICAL — FUND ROWS ONLY:
+- Extract ONLY rows belonging to the fund itself.
+- IGNORE rows that are benchmarks, indices, or comparison series.
+- Examples of rows to IGNORE: "מדד קונצרני כללי", "מדד ת\"א 125", "מדד אג\"ח כללי", "benchmark", "index", "מדד", or any row whose label is clearly a market index rather than the fund.
+- If a table has multiple data rows per year, take ONLY the first row (the fund's own row).`;
 }
 
 /** Month name → "MM" mapping for structured dual-currency response */
@@ -2515,6 +2531,39 @@ export async function POST(req: NextRequest) {
                 }
               }
             }
+            // Fallback ל-Pass-1: רץ אם Pass-2 לא הצליח לבנות dualCurrencyData
+            // (tables ריק, או שלא נמצאו entries לאחר mapping)
+            if (!result.dualCurrencyData) {
+              const pass1AMR: Record<string, number> = {};
+              for (const f of result.fields) {
+                const m = f.key?.match(/^monthlyReturns\.(\d{4}-\d{2})$/);
+                if (m && typeof f.value === 'number') pass1AMR[m[1]] = f.value;
+              }
+              // חשב YTD לשנת הדוח מ-compound של חודשים (לא מ-monthlyReturn האחרון)
+              const reportYear = result.reportMonth?.slice(0, 4);
+              const fallbackFields: ParsedField[] = result.fields.filter(f =>
+                // הסר returns.y*/returns.ytd* לשנת הדוח — נחשב מחדש
+                !(reportYear && f.key?.match(new RegExp(`^returns\\.(ytd|y)${reportYear}$`)))
+              );
+              if (reportYear) {
+                const yearMonths = Object.keys(pass1AMR)
+                  .filter(k => k.startsWith(reportYear + '-'))
+                  .sort();
+                if (yearMonths.length > 0) {
+                  const compound = yearMonths.reduce((acc, k) => acc * (1 + pass1AMR[k]), 1) - 1;
+                  fallbackFields.push({
+                    key: `returns.ytd${reportYear}`,
+                    value: Math.round(compound * 1e8) / 1e8,
+                    confidence: 0.8,
+                  });
+                }
+              }
+              result.dualCurrencyData = [{
+                returnBasis: result.returnBasis ?? 'ILS',
+                fields: fallbackFields,
+                allMonthlyReturns: pass1AMR,
+              }] as unknown as DualCurrencyEntry[];
+            }
           }
         }
       } catch (e) {
@@ -2525,6 +2574,11 @@ export async function POST(req: NextRequest) {
       const finalUsage = await getTokenUsage(clientKey);
       const finalLimits = await getClientTokenLimit(clientKey);
       const finalPercent = Math.round((finalUsage.inputTokens / finalLimits.monthlyInputTokens) * 100);
+
+      // Fallback לשם קרן: אם Pass-1 לא זיהה שם — קח את שם הקובץ ללא סיומת
+      if (!result.fundName) {
+        result.fundName = file.name.replace(/\.[^.]+$/, '');
+      }
 
       // Cache the result for future duplicate uploads (full format including dual currency)
       const resultObj: Record<string, unknown> = {
@@ -2543,7 +2597,7 @@ export async function POST(req: NextRequest) {
       if (result.corrections) {
         resultObj.corrections = result.corrections;
       }
-      resultObj._cacheVersion = 28;
+      resultObj._cacheVersion = 30;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
