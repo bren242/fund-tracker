@@ -411,7 +411,7 @@ function AdminContent() {
       {/* Tab content */}
       <div style={{ maxWidth: 1400, margin: "0 auto", padding: "20px 24px" }}>
         {activeTab === "data" && (
-          <MonthlyDataTab data={data} updateFund={updateFund} onUpdateDate={updateLastUpdated} />
+          <MonthlyDataTab data={data} updateFund={updateFund} onUpdateDate={updateLastUpdated} password={passwordRef.current} clientKey={clientKey} />
         )}
         {activeTab === "funds" && (
           <FundManagementTab
@@ -501,10 +501,12 @@ function AdminContent() {
 /* ================================================================== */
 /*  Monthly Data Tab                                                   */
 /* ================================================================== */
-function MonthlyDataTab({ data, updateFund, onUpdateDate }: {
+function MonthlyDataTab({ data, updateFund, onUpdateDate, password, clientKey }: {
   data: FundsData;
   updateFund: (catId: string, fundId: string, field: string, value: string) => void;
   onUpdateDate: (dateStr: string) => void;
+  password: string;
+  clientKey: string;
 }) {
   return (
     <>
@@ -554,12 +556,13 @@ function MonthlyDataTab({ data, updateFund, onUpdateDate }: {
                     <th style={thStyle(120)}>מצטבר 2026 (%)</th>
                     <th style={thStyle(80)}>2025</th>
                     <th style={thStyle(80)}>2024</th>
+                    <th style={thStyle(90)}>מטבע</th>
                     <th style={thStyle(undefined)}>מנהל</th>
                   </tr>
                 </thead>
                 <tbody>
                   {visibleFunds.map((fund, idx) => (
-                    <MonthlyRow key={fund.id} fund={fund} categoryId={cat.id} odd={idx % 2 === 1} onUpdate={updateFund} />
+                    <MonthlyRow key={fund.id} fund={fund} categoryId={cat.id} odd={idx % 2 === 1} onUpdate={updateFund} password={password} clientKey={clientKey} />
                   ))}
                 </tbody>
               </table>
@@ -582,13 +585,20 @@ function thStyle(width?: number): React.CSSProperties {
   };
 }
 
-function MonthlyRow({ fund, categoryId, odd, onUpdate }: {
+function MonthlyRow({ fund, categoryId, odd, onUpdate, password, clientKey }: {
   fund: Fund; categoryId: string; odd: boolean;
   onUpdate: (catId: string, fundId: string, field: string, value: string) => void;
+  password: string; clientKey: string;
 }) {
   const monthlyDisplay = fund.monthlyReturn !== null ? (fund.monthlyReturn * 100).toFixed(2) : "";
   const ytdDisplay = fund.returns.ytd2026 !== null ? (fund.returns.ytd2026 * 100).toFixed(2) : "";
-  const bg = odd ? "var(--bg-surface-alt)" : "var(--bg-surface)";
+  const hasCurrency = fund.currency === "ILS" || fund.currency === "USD";
+  const [pendingCurrency, setPendingCurrency] = useState<"ILS" | "USD">("ILS");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSavedLocal] = useState(false);
+
+  const bgBase = odd ? "var(--bg-surface-alt)" : "var(--bg-surface)";
+  const bg = !hasCurrency ? "#FFFBE6" : bgBase;
 
   const inputStyle: React.CSSProperties = {
     width: 80,
@@ -600,6 +610,17 @@ function MonthlyRow({ fund, categoryId, odd, onUpdate }: {
     backgroundColor: "var(--bg-input)",
     color: "var(--text-primary)",
   };
+
+  async function handleSaveCurrency() {
+    setSaving(true);
+    const res = await fetch(`/api/funds?action=set-currency&client=${encodeURIComponent(clientKey)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-admin-password": password },
+      body: JSON.stringify({ fundId: fund.id, currency: pendingCurrency }),
+    });
+    setSaving(false);
+    if (res.ok) { setSavedLocal(true); setTimeout(() => setSavedLocal(false), 2000); }
+  }
 
   return (
     <tr style={{ backgroundColor: bg, borderBottom: "1px solid var(--border-table)" }}>
@@ -637,6 +658,33 @@ function MonthlyRow({ fund, categoryId, odd, onUpdate }: {
       </td>
       <td style={{ padding: "6px 10px", textAlign: "center", color: returnColorInline(fund.returns.y2024), fontSize: 12 }}>
         {pct(fund.returns.y2024)}
+      </td>
+      <td style={{ padding: "5px 8px", textAlign: "center" }}>
+        {hasCurrency ? (
+          <span style={{ fontSize: 11, fontWeight: 600, color: fund.currency === "USD" ? "#1d4ed8" : "#059669", padding: "2px 8px", borderRadius: 4, backgroundColor: fund.currency === "USD" ? "#dbeafe" : "#d1fae5" }}>
+            {fund.currency}
+          </span>
+        ) : saved ? (
+          <span style={{ fontSize: 11, color: "#059669" }}>✓</span>
+        ) : (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <select
+              value={pendingCurrency}
+              onChange={(e) => setPendingCurrency(e.target.value as "ILS" | "USD")}
+              style={{ fontSize: 11, padding: "3px 6px", borderRadius: 5, border: "1px solid #f59e0b", backgroundColor: "#fff", cursor: "pointer" }}
+            >
+              <option value="ILS">ILS</option>
+              <option value="USD">USD</option>
+            </select>
+            <button
+              onClick={handleSaveCurrency}
+              disabled={saving}
+              style={{ fontSize: 10, padding: "3px 7px", borderRadius: 5, border: "none", backgroundColor: "#f59e0b", color: "#fff", cursor: saving ? "default" : "pointer", fontWeight: 600, opacity: saving ? 0.6 : 1 }}
+            >
+              {saving ? "..." : "שמור"}
+            </button>
+          </span>
+        )}
       </td>
       <td style={{ padding: "6px 10px", textAlign: "center", color: "var(--text-muted)", fontSize: 11 }}>{fund.manager}</td>
     </tr>

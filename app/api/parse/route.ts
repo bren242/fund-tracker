@@ -2091,9 +2091,10 @@ export async function POST(req: NextRequest) {
             funds[i].lastReportDate = reportMonth;
           }
 
-          // Set returnBasis on fund if provided (fund-level currency)
+          // Set returnBasis + currency on fund if provided (fund-level currency)
           if (applyReturnBasis === "ILS" || applyReturnBasis === "USD") {
             funds[i].returnBasis = applyReturnBasis;
+            funds[i].currency = applyReturnBasis;
           }
 
           // Update fund.lastUpdated for staleness tracking

@@ -160,3 +160,38 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });
 }
+
+export async function PATCH(req: NextRequest) {
+  const clientKey = getClientKeyFromRequest(req.url);
+  const data = await readData(clientKey);
+  const auth = isAuthorized(req, data);
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const url = new URL(req.url);
+
+  // Set currency on a single fund by ID
+  if (url.searchParams.get("action") === "set-currency") {
+    const body = await req.json();
+    const { fundId, currency } = body as { fundId: string; currency: string };
+    if (!fundId || (currency !== "ILS" && currency !== "USD")) {
+      return NextResponse.json({ error: "Missing fundId or invalid currency (ILS/USD)" }, { status: 400 });
+    }
+    let found = false;
+    const categories = (data.categories || []) as Record<string, unknown>[];
+    for (const cat of categories) {
+      const funds = cat.funds as Record<string, unknown>[];
+      const idx = funds.findIndex((f) => f.id === fundId);
+      if (idx >= 0) {
+        funds[idx].currency = currency;
+        funds[idx].returnBasis = currency;
+        found = true;
+        break;
+      }
+    }
+    if (!found) return NextResponse.json({ error: "Fund not found" }, { status: 404 });
+    await writeData(clientKey, data);
+    return NextResponse.json({ success: true });
+  }
+
+  return NextResponse.json({ error: "Unknown PATCH action" }, { status: 400 });
+}

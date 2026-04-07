@@ -21,6 +21,7 @@ export interface Fund {
   stdDev: number | null;
   aumMillions: number | null;
   active?: boolean;
+  currency?: "ILS" | "USD";
   monthlyReturns?: Record<string, number>;
   monthlyDirection?: "LTR" | "RTL" | null;
 }
