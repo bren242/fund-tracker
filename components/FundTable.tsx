@@ -44,7 +44,7 @@ const COL_WIDTHS = [
 ];
 
 /* ── Sorting ── */
-type SortCol = "name" | "classification" | "manager" | "avgAnnualReturn" | "sharpe" | "stdDev" | "aumMillions" | "monthlyReturn" | "ytd2026";
+type SortCol = "name" | "classification" | "manager" | "avgAnnualReturn" | "sharpe" | "stdDev" | "aumMillions" | "monthlyReturn" | "ytd2026" | "y2025" | "y2024" | "y2023" | "y2022" | "y2021" | "y2020" | "y2019";
 type SortDir = "asc" | "desc";
 
 const NULL_NUM = -Infinity;
@@ -59,16 +59,17 @@ function getSortValue(fund: Fund, col: SortCol): string | number {
     case "stdDev":         return fund.stdDev ?? NULL_NUM;
     case "aumMillions":    return fund.aumMillions ?? NULL_NUM;
     case "monthlyReturn":  return fund.monthlyReturn ?? NULL_NUM;
-    case "ytd2026":        return fund.returns.ytd2026 ?? NULL_NUM;
+    default:               return fund.returns[col as ReturnKey] ?? NULL_NUM;
   }
 }
 
-function SortableHeader({ label, col, sortCol, sortDir, onSort, style }: {
+function SortableHeader({ label, col, sortCol, sortDir, onSort, onReset, style }: {
   label: string;
   col: SortCol;
   sortCol: SortCol | null;
   sortDir: SortDir;
   onSort: (col: SortCol) => void;
+  onReset: () => void;
   style?: React.CSSProperties;
 }) {
   const isActive = sortCol === col;
@@ -93,6 +94,23 @@ function SortableHeader({ label, col, sortCol, sortDir, onSort, style }: {
         }}>
           {isActive ? (sortDir === "desc" ? "▼" : "▲") : "▾"}
         </span>
+        {isActive && (
+          <span
+            onClick={(e) => { e.stopPropagation(); onReset(); }}
+            title="בטל מיון"
+            style={{
+              fontSize: 9,
+              lineHeight: 1,
+              opacity: 0.7,
+              cursor: "pointer",
+              padding: "0 2px",
+              borderRadius: 3,
+              backgroundColor: "rgba(255,255,255,0.2)",
+            }}
+          >
+            ✕
+          </span>
+        )}
       </span>
     </th>
   );
@@ -293,7 +311,8 @@ export default function FundTable({ categories, comparisonEnabled, selectedFundI
     letterSpacing: 0.2,
   };
 
-  const sortProps = { sortCol, sortDir, onSort: handleSort };
+  function handleReset() { setSortCol(null); }
+  const sortProps = { sortCol, sortDir, onSort: handleSort, onReset: handleReset };
 
   return (
     <table className="fund-data-table" style={{ borderCollapse: "collapse", fontSize: "10.5px", lineHeight: 1.45 }}>
@@ -308,10 +327,9 @@ export default function FundTable({ categories, comparisonEnabled, selectedFundI
           <SortableHeader label="מנהל"        col="manager"        style={thBase}                                               {...sortProps} />
           <th style={thBase}>מועד עדכון</th>
           <SortableHeader label="חודשי"       col="monthlyReturn"  style={thBase}                                               {...sortProps} />
-          {activeYears.map((y) => y.key === "ytd2026"
-            ? <SortableHeader key={y.key} label={y.label} col="ytd2026" style={thBase} {...sortProps} />
-            : <th key={y.key} style={thBase}>{y.label}</th>
-          )}
+          {activeYears.map((y) => (
+            <SortableHeader key={y.key} label={y.label} col={y.key as SortCol} style={thBase} {...sortProps} />
+          ))}
           <SortableHeader label="ממוצע שנתי"  col="avgAnnualReturn" style={thBase}                                              {...sortProps} />
           <SortableHeader label="שארפ"        col="sharpe"         style={thBase}                                               {...sortProps} />
           <SortableHeader label="ס״ת"         col="stdDev"         style={thBase}                                               {...sortProps} />
