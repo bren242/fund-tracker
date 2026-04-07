@@ -25,6 +25,7 @@ function AnalysisContent() {
   const [group, setGroup] = useState(ALL);
   const [category, setCategory] = useState(ALL);
   const [classification, setClassification] = useState(ALL);
+  const [currencyFilter, setCurrencyFilter] = useState<"all" | "ILS" | "USD">("all");
 
   /* Manual comparison */
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -71,11 +72,12 @@ function AnalysisContent() {
       if (category !== ALL && cat.name !== category) continue;
       for (const f of cat.funds) {
         if (classification !== ALL && f.classification !== classification) continue;
+        if (currencyFilter !== "all" && f.currency !== currencyFilter) continue;
         result.push(f);
       }
     }
     return result;
-  }, [data, group, category, classification]);
+  }, [data, group, category, classification, currencyFilter]);
 
   /* ── TOP funds ── */
   const topFunds = useMemo(() => {
@@ -233,9 +235,33 @@ function AnalysisContent() {
                   {filterOptions.classifications.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
-              {hasFilters && (
+              {/* Currency toggle */}
+              <div>
+                <div style={labelStyle}>מטבע</div>
+                <div style={{ display: "flex", borderRadius: 8, overflow: "hidden", border: "1px solid var(--border)" }}>
+                  {(["all", "ILS", "USD"] as const).map((v) => {
+                    const active = currencyFilter === v;
+                    return (
+                      <button
+                        key={v}
+                        onClick={() => setCurrencyFilter(v)}
+                        style={{
+                          padding: "7px 14px", fontSize: 12, fontWeight: active ? 700 : 400,
+                          border: "none", cursor: "pointer",
+                          backgroundColor: active ? "var(--text-primary)" : "var(--bg-input)",
+                          color: active ? "var(--bg-surface)" : "var(--text-secondary)",
+                          transition: "all 0.15s",
+                        }}
+                      >
+                        {v === "all" ? "הכל" : v}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {(hasFilters || currencyFilter !== "all") && (
                 <button
-                  onClick={() => handleGroupChange(ALL)}
+                  onClick={() => { handleGroupChange(ALL); setCurrencyFilter("all"); }}
                   style={{ fontSize: 12, color: "var(--text-muted)", background: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "7px 12px", cursor: "pointer" }}
                 >
                   נקה סינון
