@@ -30,7 +30,7 @@ export function middleware(req: NextRequest) {
   // Block bare "/" and unknown paths (no valid client) — show 404
   // Allow /admin with ?client= param, and internal pages that already have ?client=
   const hasClientParam = req.nextUrl.searchParams.has("client");
-  const isAdminOrInternal = pathname === "/admin" || pathname === "/compare" || pathname === "/charts" || pathname === "/upload" || pathname === "/data-completion";
+  const isAdminOrInternal = pathname === "/admin" || pathname === "/compare" || pathname === "/charts" || pathname === "/upload" || pathname === "/data-completion" || pathname === "/analysis";
 
   if (!hasClientParam && !isAdminOrInternal && pathname === "/") {
     // Rewrite to Next.js not-found page
