@@ -1,0 +1,836 @@
+=== lib/types.ts ===
+
+export interface Fund {
+  id: string;
+  name: string;
+  classification: string;
+  startDate: string | null;
+  manager: string;
+  lastReportDate: string | null;
+  monthlyReturn: number | null;
+  returns: {
+    ytd2026: number | null;
+    y2025: number | null;
+    y2024: number | null;
+    y2023: number | null;
+    y2022: number | null;
+    y2021: number | null;
+    y2020: number | null;
+    y2019: number | null;
+  };
+  avgAnnualReturn: number | null;
+  sharpe: number | null;
+  stdDev: number | null;
+  aumMillions: number | null;
+  active?: boolean;
+  monthlyReturns?: Record<string, number>;
+  monthlyDirection?: "LTR" | "RTL" | null;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  parentSection: string;
+  funds: Fund[];
+}
+
+export interface Benchmark {
+  id: string;
+  name: string;
+  currency: "ILS" | "USD";
+  returns: {
+    ytd2026: number | null;
+    y2025: number | null;
+    y2024: number | null;
+    y2023: number | null;
+    y2022: number | null;
+    y2021: number | null;
+    y2020: number | null;
+    y2019: number | null;
+  };
+  monthlyReturns?: Record<string, number>;
+  active: boolean;
+}
+
+export interface FundsData {
+  lastUpdated: string;
+  categories: Category[];
+  adminPassword?: string;
+  superAdminPassword?: string;
+}
+
+
+=== lib/parseTypes.ts ===
+
+/**
+ * AI Parser types — Phase 1 + Sprint 1 (month handling + collision safety)
+ *
+ * Whitelist of fields that can be applied to funds.json:
+ *   - monthlyReturn
+ *   - returns (per year)
+ *   - manager
+ *   - classification
+ *
+ * Fund name is used for MATCHING only — never overwritten.
+ */
+
+export interface ParsedField {
+  key: string;
+  value: string | number | null;
+  confidence: number; // 0-1
+}
+
+export interface FundMatch {
+  fundId: string | null;
+  fundName: string | null;
+  similarity: number; // 0-1
+  categoryId: string | null;
+}
+
+export interface ParseDraft {
+  id: string;
+  createdAt: string;
+  source: {
+    type: "text" | "pdf" | "image";
+    preview: string; // first 200 chars of input
+  };
+  extracted: {
+    fundName: string;
+    fundNameConfidence: number;
+    fields: ParsedField[];
+  };
+  /** Report month in YYYY-MM format, null if not detected */
+  reportMonth: string | null;
+  /** Confidence of reportMonth detection */
+  reportMonthConfidence: "high" | "low";
+  /** Currency basis detected from document */
+  returnBasis: "ILS" | "USD" | null;
+  match: FundMatch | null;
+  status: "pending" | "applied" | "rejected";
+  appliedAt?: string;
+  rejectedAt?: string;
+  /** Diagnostic: corrections applied during parsing (swap/rotate) */
+  corrections?: string[];
+}
+
+export interface CollisionInfo {
+  field: string;
+  month: string;
+  existingValue: number;
+  newValue: number;
+}
+
+export interface ParseLogEntry {
+  id: string;
+  timestamp: string;
+  action: "parse" | "apply" | "reject";
+  draftId: string;
+  fundName: string;
+  fundId: string | null;
+  details: string;
+  /** Sprint 1: enhanced logging fields */
+  reportMonth?: string | null;
+  returnBasis?: "ILS" | "USD" | null;
+  collision?: boolean;
+  collisionDecision?: "replace" | "keep" | "new";
+  oldValue?: number | null;
+  newValue?: number | null;
+  autoApply?: boolean;
+  batchId?: string;
+}
+
+/** Fields allowed to be written to funds.json */
+export const APPLY_WHITELIST = [
+  "monthlyReturn",
+  "monthlyReturns",
+  "returns",
+  "manager",
+  "classification",
+  "sharpe",
+  "stdDev",
+] as const;
+
+export type ApplyableField = typeof APPLY_WHITELIST[number];
+
+
+=== lib/storage.ts ===
+
+/**
+ * Storage abstraction layer.
+ *
+ * Production (Vercel): reads/writes to Vercel KV (Redis).
+ * Local development:   reads/writes to filesystem (JSON files).
+ *
+ * KV key convention:
+ *   funds:{clientKey}         → FundsData
+ *   brand:{clientKey}         → BrandConfig
+ *   parse-drafts:{clientKey}  → ParseDraft[]
+ *   parse-log:{clientKey}     → ParseLogEntry[]
+ *
+ * Logo upload: OUT OF SCOPE — remains filesystem/static only.
+ */
+
+import fs from "fs";
+import path from "path";
+import { clientDataDir } from "./clientPaths";
+
+let kvInstance: { get: (key: string) => Promise<unknown>; set: (key: string, value: unknown) => Promise<unknown> } | null = null;
+let kvChecked = false;
+
+function isProduction(): boolean {
+  return process.env.VERCEL === "1" || process.env.NODE_ENV === "production";
+}
+
+function hasKvEnvVars(): boolean {
+  return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+}
+
+async function getKv() {
+  if (kvChecked) return kvInstance;
+  kvChecked = true;
+
+  // Don't even try if env vars are missing
+  if (!hasKvEnvVars()) {
+    console.warn("KV env vars not set — using filesystem fallback");
+    return null;
+  }
+
+  try {
+    const mod = await import("@vercel/kv");
+    kvInstance = mod.kv;
+    return kvInstance;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Map a storage key to its local filesystem path.
+ * Keys follow the pattern: "type:clientKey"
+ */
+function keyToFilePath(key: string): string {
+  const parts = key.split(":");
+  const type = parts[0];
+  const clientKey = parts[1];
+  const fileMap: Record<string, string> = {
+    funds: "funds.json",
+    brand: "brand.json",
+    "parse-drafts": "parse-drafts.json",
+    "parse-log": "parse-log.json",
+    benchmarks: "benchmarks.json",
+    "undo-state": "undo-state.json",
+    "token-usage": "token-usage.json",
+  };
+  // parse-cache has 3 segments: parse-cache:{clientKey}:{hash}
+  if (type === "parse-cache") {
+    const hash = parts[2] || "default";
+    const safeHash = hash.replace(/[^a-zA-Z0-9_-]/g, "_");
+    if (!clientKey) throw new Error(`Invalid storage key: ${key}`);
+    if (isProduction()) {
+      return path.join(process.cwd(), "data", clientKey, `parse-cache-${safeHash}.json`);
+    }
+    return path.join(clientDataDir(clientKey), `parse-cache-${safeHash}.json`);
+  }
+  const fileName = fileMap[type];
+  if (!fileName || !clientKey) {
+    throw new Error(`Invalid storage key: ${key}`);
+  }
+  if (isProduction()) {
+    return path.join(process.cwd(), "data", clientKey, fileName);
+  }
+  return path.join(clientDataDir(clientKey), fileName);
+}
+
+/**
+ * Read JSON data from storage.
+ * Returns fallback if key doesn't exist.
+ */
+export async function storageRead<T>(key: string, fallback: T): Promise<T> {
+  if (isProduction()) {
+    const store = await getKv();
+    if (store) {
+      try {
+        const data = await store.get(key);
+        if (data !== null && data !== undefined) {
+          return data as T;
+        }
+      } catch (err) {
+        console.error(`KV read error for key "${key}":`, err);
+      }
+    }
+  }
+
+  try {
+    const filePath = keyToFilePath(key);
+    const raw = fs.readFileSync(filePath, "utf-8");
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Write JSON data to storage.
+ */
+export async function storageWrite<T>(key: string, data: T): Promise<void> {
+  if (isProduction()) {
+    const store = await getKv();
+    if (store) {
+      try {
+        await store.set(key, data);
+        return;
+      } catch (err) {
+        console.error(`KV write error for key "${key}":`, err);
+        throw new Error(`Failed to save data (KV write error)`);
+      }
+    }
+  }
+
+  const filePath = keyToFilePath(key);
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+}
+
+/**
+ * Append to an array stored in KV/filesystem.
+ */
+export async function storageAppend<T>(key: string, entry: T): Promise<void> {
+  const arr = await storageRead<T[]>(key, []);
+  arr.push(entry);
+  await storageWrite(key, arr);
+}
+
+
+=== app/api/parse/route.ts ===
+
+import { NextRequest, NextResponse } from "next/server";
+import { getClientKeyFromRequest } from "@/lib/clientKey";
+import { storageRead, storageWrite, storageAppend } from "@/lib/storage";
+import { ParseDraft, ParseLogEntry, ParsedField, CollisionInfo } from "@/lib/parseTypes";
+import { createHash } from "crypto";
+
+const SUPER_ADMIN_PASSWORD = "super2026";
+const DEFAULT_ADMIN_PASSWORD = "admin2026";
+
+/* ================================================================== */
+/*  Token Usage Tracking                                               */
+/* ================================================================== */
+
+interface TokenUsageData {
+  month: string;
+  inputTokens: number;
+  outputTokens: number;
+  callCount: number;
+  calls: {
+    timestamp: string;
+    action: string;
+    inputTokens: number;
+    outputTokens: number;
+    fileName?: string;
+    cached?: boolean;
+  }[];
+}
+
+interface ApiUsage {
+  input_tokens: number;
+  output_tokens: number;
+}
+
+const DEFAULT_MONTHLY_TOKEN_LIMIT = 500_000;
+const DEFAULT_MONTHLY_CALL_LIMIT = 100;
+const WARN_THRESHOLD_PERCENT = 80;
+
+function getCurrentMonth(): string {
+  return new Date().toISOString().slice(0, 7);
+}
+
+async function getTokenUsage(clientKey: string): Promise<TokenUsageData> {
+  const currentMonth = getCurrentMonth();
+  const usage = await storageRead<TokenUsageData>(`token-usage:${clientKey}`, {
+    month: currentMonth,
+    inputTokens: 0,
+    outputTokens: 0,
+    callCount: 0,
+    calls: [],
+  });
+  if (usage.month !== currentMonth) {
+    return { month: currentMonth, inputTokens: 0, outputTokens: 0, callCount: 0, calls: [] };
+  }
+  return usage;
+}
+
+async function recordTokenUsage(clientKey: string, action: string, apiUsage: ApiUsage, fileName?: string, cached?: boolean): Promise<TokenUsageData> {
+  const usage = await getTokenUsage(clientKey);
+  usage.inputTokens += apiUsage.input_tokens;
+  usage.outputTokens += apiUsage.output_tokens;
+  usage.callCount += 1;
+  usage.calls.push({ timestamp: new Date().toISOString(), action, inputTokens: apiUsage.input_tokens, outputTokens: apiUsage.output_tokens, fileName, cached });
+  if (usage.calls.length > 200) usage.calls = usage.calls.slice(-200);
+  await storageWrite(`token-usage:${clientKey}`, usage);
+  return usage;
+}
+
+async function getClientTokenLimit(clientKey: string): Promise<{ monthlyInputTokens: number; monthlyCallCount: number }> {
+  const brand = await storageRead<Record<string, unknown>>(`brand:${clientKey}`, {});
+  const limits = brand.tokenLimits as Record<string, number> | undefined;
+  return {
+    monthlyInputTokens: limits?.monthlyInputTokens || DEFAULT_MONTHLY_TOKEN_LIMIT,
+    monthlyCallCount: limits?.monthlyCallCount || DEFAULT_MONTHLY_CALL_LIMIT,
+  };
+}
+
+async function checkTokenLimit(clientKey: string): Promise<{ allowed: boolean; usage: TokenUsageData; limit: number; percent: number; warning: boolean }> {
+  const usage = await getTokenUsage(clientKey);
+  const limits = await getClientTokenLimit(clientKey);
+  const percent = limits.monthlyInputTokens > 0 ? Math.round((usage.inputTokens / limits.monthlyInputTokens) * 100) : 0;
+  return {
+    allowed: usage.inputTokens < limits.monthlyInputTokens && usage.callCount < limits.monthlyCallCount,
+    usage, limit: limits.monthlyInputTokens, percent,
+    warning: percent >= WARN_THRESHOLD_PERCENT && percent < 100,
+  };
+}
+
+/* ================================================================== */
+/*  File Cache (hash-based duplicate detection)                        */
+/* ================================================================== */
+
+async function getCachedResult(clientKey: string, fileHash: string): Promise<Record<string, unknown> | null> {
+  const cached = await storageRead<{ result: Record<string, unknown>; cachedAt: string } | null>(
+    `parse-cache:${clientKey}:${fileHash}`, null
+  );
+  if (!cached) return null;
+  const cachedDate = new Date(cached.cachedAt);
+  const daysDiff = (Date.now() - cachedDate.getTime()) / (1000 * 60 * 60 * 24);
+  if (daysDiff > 30) return null;
+  if (!cached.result.returnBasisOptions) return null;
+  // Cache version 26: LAYOUT DETECTION prompt + normalizeMonthlyDirection disabled
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 26) return null;
+  return cached.result;
+}
+
+async function setCachedResult(clientKey: string, fileHash: string, result: Record<string, unknown>): Promise<void> {
+  await storageWrite(`parse-cache:${clientKey}:${fileHash}`, { result, cachedAt: new Date().toISOString() });
+}
+
+const ALLOWED_FIELD_KEYS = new Set(["monthlyReturn", "manager", "classification", "sharpe", "stdDev"]);
+
+function isAllowedKey(key: string): boolean {
+  if (ALLOWED_FIELD_KEYS.has(key)) return true;
+  if (/^returns\.(y\d{4}|ytd\d{4})$/.test(key)) return true;
+  if (/^monthlyReturns\.\d{4}-(0[1-9]|1[0-2])$/.test(key)) return true;
+  return false;
+}
+
+async function isAuthorized(req: NextRequest, clientKey: string): Promise<"super" | "admin" | false> {
+  const password = req.headers.get("x-admin-password") || "";
+  if (password === SUPER_ADMIN_PASSWORD) return "super";
+  const fundsData = await storageRead<Record<string, unknown>>(`funds:${clientKey}`, {});
+  const adminPw = (fundsData.adminPassword as string) || DEFAULT_ADMIN_PASSWORD;
+  if (password === adminPw) return "admin";
+  return false;
+}
+
+async function isAiParserEnabled(clientKey: string): Promise<boolean> {
+  const brand = await storageRead<Record<string, unknown>>(`brand:${clientKey}`, {});
+  const features = brand.features as Record<string, unknown> | undefined;
+  return features?.aiParser === true;
+}
+
+function generateId(): string {
+  return `parse-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function clamp(val: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, val));
+}
+
+/* ================================================================== */
+/*  Sharpe & StdDev Auto-Calculation                                    */
+/* ================================================================== */
+
+const RISK_FREE_MONTHLY = 0.003;
+const MIN_OBSERVATIONS = 12;
+
+function calculateRiskMetrics(monthlyReturns: Record<string, number>): { sharpe: number; stdDev: number } | null {
+  const values = Object.values(monthlyReturns).filter((v) => typeof v === "number" && !isNaN(v));
+  if (values.length < MIN_OBSERVATIONS) return null;
+  const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
+  const variance = values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / values.length;
+  const stdDev = Math.sqrt(variance);
+  const sharpe = stdDev > 0 ? ((mean - RISK_FREE_MONTHLY) / stdDev) * Math.sqrt(12) : 0;
+  return { sharpe: Math.round(sharpe * 100) / 100, stdDev: Math.round(stdDev * 10000) / 10000 };
+}
+
+function applyRiskMetrics(fund: Record<string, unknown>, hasExtractedSharpe: boolean, hasExtractedStdDev: boolean): void {
+  const monthlyReturns = fund.monthlyReturns as Record<string, number> | undefined;
+  if (monthlyReturns) {
+    const metrics = calculateRiskMetrics(monthlyReturns);
+    if (metrics) {
+      if (!hasExtractedSharpe) fund.sharpe = metrics.sharpe;
+      if (!hasExtractedStdDev) fund.stdDev = metrics.stdDev;
+    }
+  }
+  const currentAvg = fund.avgAnnualReturn;
+  if (currentAvg === null || currentAvg === undefined) {
+    const returns = (fund.returns || {}) as Record<string, unknown>;
+    const yearlyVals: number[] = [];
+    for (const [k, v] of Object.entries(returns)) {
+      if (/^y\d{4}$/.test(k) && typeof v === "number" && !isNaN(v)) yearlyVals.push(v);
+    }
+    if (yearlyVals.length >= 2) {
+      fund.avgAnnualReturn = Math.round((yearlyVals.reduce((s, v) => s + v, 0) / yearlyVals.length) * 10000) / 10000;
+    }
+  }
+}
+
+function normalizeConfidence(val: unknown): number {
+  if (typeof val !== "number" || isNaN(val)) return 0.5;
+  return clamp(val, 0, 1);
+}
+
+function sanitizeFields(rawFields: unknown[]): ParsedField[] {
+  if (!Array.isArray(rawFields)) return [];
+  const result: ParsedField[] = [];
+  for (const f of rawFields) {
+    if (!f || typeof f !== "object") continue;
+    const field = f as Record<string, unknown>;
+    let key = String(field.key || "");
+    if (/^(y\d{4}|ytd\d{4})$/.test(key)) key = `returns.${key}`;
+    if (!isAllowedKey(key)) continue;
+    let value: string | number | null = null;
+    if (field.value === null || field.value === undefined) {
+      value = null;
+    } else if (key === "manager" || key === "classification") {
+      value = String(field.value);
+    } else {
+      const num = Number(field.value);
+      value = isNaN(num) ? null : num;
+    }
+    result.push({ key, value, confidence: normalizeConfidence(field.confidence) });
+  }
+  const deduped = new Map<string, ParsedField>();
+  for (const f of result) {
+    const existing = deduped.get(f.key);
+    if (!existing || (existing.value === null && f.value !== null)) deduped.set(f.key, f);
+  }
+  return Array.from(deduped.values());
+}
+
+function validateDraft(draft: Partial<ParseDraft>): string | null {
+  if (!draft.extracted?.fundName && !draft.match?.fundId) return "Draft must include a fund name or a matched fund";
+  if (!draft.extracted?.fields || draft.extracted.fields.length === 0) return "Draft must include at least 1 valid field";
+  return null;
+}
+
+/** Call Claude API with 1 retry on failure */
+async function callClaude(apiKey: string, systemPrompt: string, userText: string): Promise<{ success: true; content: string; usage: ApiUsage } | { success: false; error: string }> {
+  const maxAttempts = 2;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 16384, temperature: 0, system: systemPrompt, messages: [{ role: "user", content: userText }] }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (!response.ok) { const e = await response.text().catch(() => "Unknown error"); if (attempt < maxAttempts) continue; return { success: false, error: `AI service error (${response.status})` }; }
+      const result = await response.json();
+      const content = result.content?.[0]?.text || "";
+      const usage: ApiUsage = result.usage || { input_tokens: 0, output_tokens: 0 };
+      if (!content) { if (attempt < maxAttempts) continue; return { success: false, error: "Empty response from AI" }; }
+      return { success: true, content, usage };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      if (attempt < maxAttempts) continue;
+      return { success: false, error: message.includes("abort") ? "AI service timeout (30s)" : "Failed to connect to AI service" };
+    }
+  }
+  return { success: false, error: "AI service unavailable" };
+}
+
+/** Call Claude Vision API for image/PDF parsing with 1 retry */
+async function callClaudeVision(apiKey: string, systemPrompt: string, base64Data: string, mediaType: string, userMessage?: string): Promise<{ success: true; content: string; usage: ApiUsage } | { success: false; error: string }> {
+  const maxAttempts = 2;
+  const isPdf = mediaType === "application/pdf";
+  const contentBlockType = isPdf ? "document" : "image";
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 45000);
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514", max_tokens: 16384, temperature: 0, system: systemPrompt,
+          messages: [{ role: "user", content: [
+            { type: contentBlockType, source: { type: "base64", media_type: mediaType, data: base64Data } },
+            { type: "text", text: userMessage || "Extract fund performance data from this document. Return valid JSON only." },
+          ]}],
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (!response.ok) { if (attempt < maxAttempts) continue; return { success: false, error: `AI service error (${response.status})` }; }
+      const result = await response.json();
+      const content = result.content?.[0]?.text || "";
+      const usage: ApiUsage = result.usage || { input_tokens: 0, output_tokens: 0 };
+      if (!content) { if (attempt < maxAttempts) continue; return { success: false, error: "Empty response from AI" }; }
+      return { success: true, content, usage };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      if (attempt < maxAttempts) continue;
+      return { success: false, error: message.includes("abort") ? "AI service timeout (45s)" : "Failed to connect to AI service" };
+    }
+  }
+  return { success: false, error: "AI service unavailable" };
+}
+
+const ALLOWED_MIME_TYPES: Record<string, string> = {
+  "application/pdf": "application/pdf", "image/png": "image/png",
+  "image/jpeg": "image/jpeg", "image/jpg": "image/jpeg", "image/webp": "image/webp",
+};
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+/** Build the extraction system prompt (Step 1 — general extraction) */
+function buildSystemPrompt(existingFunds: { id: string; name: string; returnBasis?: string }[]): string {
+  // [Full prompt — see route.ts lines 516-669]
+  // Key rules: header-driven parsing, NOT position-driven. RTL warning. All monthly history.
+  // Returns JSON with fundName, fields[], allMonthlyReturns, dualCurrencyData, etc.
+  return `[See full implementation in route.ts lines 516-669]`;
+}
+
+/** Build a dynamic structured prompt (Step 2 — fill JSON template) */
+function buildDynamicStructuredPrompt(options: { currencies: ("dollar" | "shekel")[]; reportMonth: string | null }): string {
+  // Fixed year range 2019-2026, canonical jan→dec order
+  // LAYOUT DETECTION: AI identifies ינואר position, then maps by Hebrew header name
+  // Returns JSON: { "shekel": { "2025": { "ytd": X, "jan": X, ..., "dec": X }, ... } }
+  // NOTE: All X cells filled by AI matching column header, never by position
+  return `[See full implementation in route.ts lines 675-793]`;
+}
+
+/** Month name → "MM" mapping */
+const MONTH_NAME_TO_NUM: Record<string, string> = {
+  jan: "01", feb: "02", mar: "03", apr: "04", may: "05", jun: "06",
+  jul: "07", aug: "08", sep: "09", oct: "10", nov: "11", dec: "12",
+};
+
+interface DualCurrencyEntry {
+  returnBasis: "ILS" | "USD";
+  fields: ParsedField[];
+}
+
+/** Parse structured JSON response (Step 2 output) → fields */
+function parseStructuredResponse(content: string): { entries: DualCurrencyEntry[]; reportMonth: string | null } | { error: string } {
+  // Parses { dollar: { "2025": { ytd, jan, ..., dec } }, shekel: {...} }
+  // ytd + dec present → returns.y{year}; ytd only → returns.ytd{year}
+  // currencyLatestMonth tracked per currency via string comparison "YYYY-MM"
+  // monthlyReturn = value at currencyLatestMonth
+  return { entries: [], reportMonth: null }; // stub
+}
+
+function isValidReportMonth(val: unknown): val is string {
+  if (typeof val !== "string") return false;
+  return /^\d{4}-(0[1-9]|1[0-2])$/.test(val);
+}
+
+/** Parse Step 1 Claude response JSON → structured result */
+function parseCloudeResponse(content: string, existingFunds: { id: string; name: string; categoryId: string; returnBasis?: string }[]): { fundName: string; fundNameConfidence: number; reportMonth: string | null; reportMonthConfidence: "high" | "low"; returnBasis: "ILS" | "USD" | null; returnBasisOptions: ("ILS" | "USD")[]; fields: ParsedField[]; match: { fundId: string; fundName: string; similarity: number; categoryId: string | null } | null; dualCurrencyData?: DualCurrencyEntry[]; corrections?: string[] } | { error: string } {
+  // Extracts fields, allMonthlyReturns, dualCurrencyData
+  // Auto-promotes ytdYYYY → yYYYY
+  // Runs fixAnnualJanSwapPerYear per year (swap/duplicate detection)
+  // corrections[] flags: "{year}:yearly_swap", "{year}:monthly_uncertain"
+  return { fundName: "", fundNameConfidence: 0, reportMonth: null, reportMonthConfidence: "low", returnBasis: null, returnBasisOptions: [], fields: [], match: null }; // stub
+}
+
+/* ================================================================== */
+/*  normalizeMonthlyDirection — DISABLED as of v26                    */
+/*                                                                     */
+/*  Function still exists in code (lines 1380-1427) but its calls     */
+/*  at lines 1509 and 1718 have been replaced with:                   */
+/*    const validFields = rawFields; // normalization disabled         */
+/*                                                                     */
+/*  Reason: New LAYOUT DETECTION prompt maps by Hebrew column name,   */
+/*  not by position. RTL reversal is now handled by the AI itself.    */
+/*  Applying normalizeMonthlyDirection would double-reverse correctly  */
+/*  parsed values, causing jan↔feb swap before save.                  */
+/* ================================================================== */
+
+/* ================================================================== */
+/*  GET handler: actions = drafts | log | token-usage                 */
+/*  POST handler: actions =                                           */
+/*    parse | save-draft | check-collision | set-direction |          */
+/*    apply | reject | create-fund | undo | parse-file                */
+/* ================================================================== */
+
+// parse-file flow:
+// 1. callClaudeVision(systemPrompt) → parseCloudeResponse() [Step 1]
+// 2. callClaudeVision(structuredPrompt) → parseStructuredResponse() [Step 2]
+// 3. Step 2 result overwrites Step 1 fields/dualCurrencyData
+// 4. result cached at _cacheVersion=26
+// 5. Draft saved → diff review → apply (normalizeMonthlyDirection SKIPPED)
+
+
+=== app/api/funds/route.ts ===
+
+import { NextRequest, NextResponse } from "next/server";
+import { getClientKeyFromRequest } from "@/lib/clientKey";
+import { storageRead, storageWrite } from "@/lib/storage";
+
+const DEFAULT_ADMIN_PASSWORD = "admin2026";
+const SUPER_ADMIN_PASSWORD = "super2026";
+
+const DEFAULT_FUNDS = { lastUpdated: "", categories: [], adminPassword: DEFAULT_ADMIN_PASSWORD };
+
+async function readData(clientKey: string) {
+  return storageRead(`funds:${clientKey}`, DEFAULT_FUNDS);
+}
+
+async function writeData(clientKey: string, data: unknown) {
+  await storageWrite(`funds:${clientKey}`, data);
+}
+
+function getAdminPassword(data: Record<string, unknown>): string {
+  return (data.adminPassword as string) || DEFAULT_ADMIN_PASSWORD;
+}
+
+function isAuthorized(req: NextRequest, data: Record<string, unknown>): "super" | "admin" | false {
+  const password = req.headers.get("x-admin-password") || "";
+  if (password === SUPER_ADMIN_PASSWORD) return "super";
+  if (password === getAdminPassword(data)) return "admin";
+  return false;
+}
+
+export async function GET(req: NextRequest) {
+  const clientKey = getClientKeyFromRequest(req.url);
+  const data = await readData(clientKey);
+  const url = new URL(req.url);
+
+  if (url.searchParams.get("export") === "true") {
+    const auth = isAuthorized(req, data);
+    if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return new NextResponse(JSON.stringify(data, null, 2), {
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Disposition": `attachment; filename=${clientKey}-backup-${new Date().toISOString().split("T")[0]}.json`,
+      },
+    });
+  }
+
+  // Strip passwords before sending
+  const { adminPassword: _ap, superAdminPassword: _sap, ...safeData } = data as Record<string, unknown>;
+
+  const isAdmin = url.searchParams.get("admin") === "true";
+  if (!isAdmin) {
+    const publicData = {
+      ...safeData,
+      categories: ((safeData.categories || []) as Record<string, unknown>[]).map((cat: Record<string, unknown>) => ({
+        ...cat,
+        funds: (cat.funds as Record<string, unknown>[]).filter((f: Record<string, unknown>) => {
+          const active = f.active !== undefined ? f.active : true;
+          return active;
+        }),
+      })),
+    };
+    return NextResponse.json(publicData);
+  }
+
+  return NextResponse.json(safeData);
+}
+
+export async function PUT(req: NextRequest) {
+  const clientKey = getClientKeyFromRequest(req.url);
+  const data = await readData(clientKey);
+  const auth = isAuthorized(req, data);
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const url = new URL(req.url);
+
+  if (url.searchParams.get("action") === "change-password") {
+    const body = await req.json();
+    if (!body.newPassword || body.newPassword.length < 4) return NextResponse.json({ error: "Password too short" }, { status: 400 });
+    data.adminPassword = body.newPassword;
+    await writeData(clientKey, data);
+    return NextResponse.json({ success: true });
+  }
+
+  if (url.searchParams.get("action") === "import") {
+    const body = await req.json();
+    if (!body.categories || !Array.isArray(body.categories)) return NextResponse.json({ error: "Invalid import: missing categories array" }, { status: 400 });
+    if (!body.adminPassword) body.adminPassword = data.adminPassword;
+    await writeData(clientKey, body);
+    return NextResponse.json({ success: true });
+  }
+
+  const body = await req.json();
+  if (!body.categories || !Array.isArray(body.categories)) return NextResponse.json({ error: "Invalid save: payload must contain categories array." }, { status: 400 });
+  if (!body.adminPassword && data.adminPassword) body.adminPassword = data.adminPassword;
+  await writeData(clientKey, body);
+  return NextResponse.json({ success: true });
+}
+
+export async function POST(req: NextRequest) {
+  const clientKey = getClientKeyFromRequest(req.url);
+  const data = await readData(clientKey);
+  const auth = isAuthorized(req, data);
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const url = new URL(req.url);
+
+  if (url.searchParams.get("action") === "verify") return NextResponse.json({ role: auth });
+
+  if (url.searchParams.get("action") === "move-fund") {
+    const body = await req.json();
+    const { categoryId, fundId, direction } = body;
+    if (!categoryId || !fundId || (direction !== "up" && direction !== "down")) return NextResponse.json({ error: "Missing categoryId, fundId, or direction" }, { status: 400 });
+    const categories = (data.categories || []) as Record<string, unknown>[];
+    const cat = categories.find((c) => c.id === categoryId);
+    if (!cat) return NextResponse.json({ error: "Category not found" }, { status: 404 });
+    const funds = cat.funds as Record<string, unknown>[];
+    const idx = funds.findIndex((f) => f.id === fundId);
+    if (idx < 0) return NextResponse.json({ error: "Fund not found" }, { status: 404 });
+    const newIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (newIdx < 0 || newIdx >= funds.length) return NextResponse.json({ success: true });
+    [funds[idx], funds[newIdx]] = [funds[newIdx], funds[idx]];
+    await writeData(clientKey, data);
+    return NextResponse.json({ success: true });
+  }
+
+  return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+}
+
+
+=== middleware.ts ===
+
+import { NextRequest, NextResponse } from "next/server";
+import { CLIENT_KEYS } from "./lib/clientKey";
+
+export function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+  const segments = pathname.split("/").filter(Boolean);
+  const firstSegment = segments[0]?.toLowerCase();
+
+  if (firstSegment && CLIENT_KEYS.has(firstSegment)) {
+    const restPath = "/" + segments.slice(1).join("/") || "/";
+    const url = req.nextUrl.clone();
+    url.pathname = restPath;
+    url.searchParams.set("client", firstSegment);
+    return NextResponse.rewrite(url);
+  }
+
+  const hasClientParam = req.nextUrl.searchParams.has("client");
+  const isAdminOrInternal = pathname === "/admin" || pathname === "/compare" || pathname === "/charts" || pathname === "/upload" || pathname === "/data-completion";
+
+  if (!hasClientParam && !isAdminOrInternal && pathname === "/") {
+    const url = req.nextUrl.clone();
+    url.pathname = "/_not-found";
+    return NextResponse.rewrite(url);
+  }
+
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: ["/((?!api|_next|favicon\\.ico|branding).*)"],
+};

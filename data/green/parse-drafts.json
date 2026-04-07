@@ -1,0 +1,4438 @@
+[
+  {
+    "id": "parse-1774941796818-3tn0cf",
+    "createdAt": "2026-03-31T07:23:16.818Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "ASPM",
+      "fundNameConfidence": 0.95,
+      "fields": [
+        {
+          "key": "monthlyReturn",
+          "value": 0.012,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.152,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.108,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2023",
+          "value": 0.045,
+          "confidence": 0.85
+        },
+        {
+          "key": "manager",
+          "value": "ASPM Management",
+          "confidence": 0.9
+        },
+        {
+          "key": "classification",
+          "value": "סקנדרי",
+          "confidence": 0.8
+        },
+        {
+          "key": "monthlyReturns.2025-01",
+          "value": 0.015,
+          "confidence": 0.8
+        },
+        {
+          "key": "monthlyReturns.2025-02",
+          "value": 0.012,
+          "confidence": 0.8
+        },
+        {
+          "key": "monthlyReturns.2025-03",
+          "value": -0.005,
+          "confidence": 0.8
+        },
+        {
+          "key": "monthlyReturns.2025-04",
+          "value": 0.018,
+          "confidence": 0.8
+        },
+        {
+          "key": "monthlyReturns.2025-05",
+          "value": 0.009,
+          "confidence": 0.8
+        },
+        {
+          "key": "monthlyReturns.2025-06",
+          "value": 0.021,
+          "confidence": 0.8
+        },
+        {
+          "key": "monthlyReturns.2025-07",
+          "value": 0.011,
+          "confidence": 0.8
+        },
+        {
+          "key": "monthlyReturns.2025-08",
+          "value": 0.014,
+          "confidence": 0.8
+        },
+        {
+          "key": "monthlyReturns.2025-09",
+          "value": -0.003,
+          "confidence": 0.8
+        },
+        {
+          "key": "monthlyReturns.2025-10",
+          "value": 0.016,
+          "confidence": 0.8
+        },
+        {
+          "key": "monthlyReturns.2025-11",
+          "value": 0.013,
+          "confidence": 0.8
+        },
+        {
+          "key": "monthlyReturns.2025-12",
+          "value": 0.012,
+          "confidence": 0.8
+        }
+      ]
+    },
+    "reportMonth": "2025-12",
+    "reportMonthConfidence": "high",
+    "returnBasis": "ILS",
+    "match": null,
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:40:47.378Z"
+  },
+  {
+    "id": "parse-1775137365240-evgkb2",
+    "createdAt": "2026-04-02T13:42:45.240Z",
+    "source": {
+      "type": "text",
+      "preview": "QA test draft for diff MVP"
+    },
+    "extracted": {
+      "fundName": "???? ????",
+      "fundNameConfidence": 0.95,
+      "fields": [
+        {
+          "key": "returns.y2025",
+          "value": 0.12,
+          "confidence": 0.95
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.027,
+          "confidence": 0.95
+        },
+        {
+          "key": "monthlyReturn",
+          "value": 0.015,
+          "confidence": 0.95
+        }
+      ]
+    },
+    "reportMonth": "2026-03",
+    "reportMonthConfidence": "high",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "???? ????",
+      "similarity": 1,
+      "categoryId": "bond-hedged",
+      "fundId": "fund-1"
+    },
+    "status": "rejected",
+    "appliedAt": "2026-04-02T13:43:34.699Z",
+    "rejectedAt": "2026-04-02T14:28:49.119Z"
+  },
+  {
+    "id": "parse-1775137540662-0soot0",
+    "createdAt": "2026-04-02T13:45:40.662Z",
+    "source": {
+      "type": "text",
+      "preview": "QA test draft 2 for diff MVP"
+    },
+    "extracted": {
+      "fundName": "???? ????",
+      "fundNameConfidence": 0.95,
+      "fields": [
+        {
+          "key": "returns.y2025",
+          "value": 0.13,
+          "confidence": 0.95
+        },
+        {
+          "key": "monthlyReturn",
+          "value": 0.008,
+          "confidence": 0.95
+        }
+      ]
+    },
+    "reportMonth": "2026-04",
+    "reportMonthConfidence": "high",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "???? ????",
+      "similarity": 1,
+      "categoryId": "bond-hedged",
+      "fundId": "fund-1"
+    },
+    "status": "rejected",
+    "appliedAt": "2026-04-02T13:56:58.378Z",
+    "rejectedAt": "2026-04-02T14:28:49.300Z"
+  },
+  {
+    "id": "parse-1775138556344-apa7rz",
+    "createdAt": "2026-04-02T14:02:36.344Z",
+    "source": {
+      "type": "text",
+      "preview": "QA gating test"
+    },
+    "extracted": {
+      "fundName": "????? ????",
+      "fundNameConfidence": 0.95,
+      "fields": [
+        {
+          "key": "returns.y2025",
+          "value": 0.115,
+          "confidence": 0.95
+        }
+      ]
+    },
+    "reportMonth": "2026-03",
+    "reportMonthConfidence": "high",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "????? ????",
+      "similarity": 1,
+      "categoryId": "bond-hedged",
+      "fundId": "fund-2"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T14:28:49.638Z"
+  },
+  {
+    "id": "parse-1775138818182-4hf92n",
+    "createdAt": "2026-04-02T14:06:58.182Z",
+    "source": {
+      "type": "text",
+      "preview": "QA gating test 2"
+    },
+    "extracted": {
+      "fundName": "????? ????",
+      "fundNameConfidence": 0.95,
+      "fields": [
+        {
+          "key": "returns.y2025",
+          "value": 0.115,
+          "confidence": 0.95
+        }
+      ]
+    },
+    "reportMonth": "2026-03",
+    "reportMonthConfidence": "high",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "????? ????",
+      "similarity": 1,
+      "categoryId": "bond-hedged",
+      "fundId": "fund-2"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T14:28:49.951Z"
+  },
+  {
+    "id": "parse-1775139126098-k904o8",
+    "createdAt": "2026-04-02T14:12:06.098Z",
+    "source": {
+      "type": "text",
+      "preview": "QA gating test 3"
+    },
+    "extracted": {
+      "fundName": "????? ????",
+      "fundNameConfidence": 0.95,
+      "fields": [
+        {
+          "key": "returns.y2025",
+          "value": 0.115,
+          "confidence": 0.95
+        }
+      ]
+    },
+    "reportMonth": "2026-03",
+    "reportMonthConfidence": "high",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "????? ????",
+      "similarity": 1,
+      "categoryId": "bond-hedged",
+      "fundId": "fund-2"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T14:28:50.718Z"
+  },
+  {
+    "id": "parse-1775139259954-geqdb8",
+    "createdAt": "2026-04-02T14:14:19.954Z",
+    "source": {
+      "type": "text",
+      "preview": "QA clear returns test"
+    },
+    "extracted": {
+      "fundName": "????? ????",
+      "fundNameConfidence": 0.95,
+      "fields": [
+        {
+          "key": "monthlyReturn",
+          "value": 0.005,
+          "confidence": 0.95
+        }
+      ]
+    },
+    "reportMonth": "2026-04",
+    "reportMonthConfidence": "high",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "????? ????",
+      "similarity": 1,
+      "categoryId": "bond-hedged",
+      "fundId": "fund-2"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T14:28:51.179Z"
+  },
+  {
+    "id": "parse-1775145575843-h7nbci",
+    "createdAt": "2026-04-02T15:59:35.843Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility bond",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 1.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.035,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:40:47.452Z"
+  },
+  {
+    "id": "parse-1775145578456-668q7k",
+    "createdAt": "2026-04-02T15:59:38.456Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility bond",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2022",
+          "value": 0.05,
+          "confidence": 0.8
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": null,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:40:47.533Z"
+  },
+  {
+    "id": "parse-1775145583002-7v4712",
+    "createdAt": "2026-04-02T15:59:43.002Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "sfera bond",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2019",
+          "value": 0.06,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": 1.96,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.048,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.027,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.115,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.127,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "sfera bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-1"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:40:47.606Z"
+  },
+  {
+    "id": "parse-1775145584336-8qkllp",
+    "createdAt": "2026-04-02T15:59:44.336Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "sfera bond",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2019",
+          "value": 0.08,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": 1.96,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.048,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.027,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.115,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.127,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "sfera bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-1"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:40:47.696Z"
+  },
+  {
+    "id": "parse-1775145585187-68n7bh",
+    "createdAt": "2026-04-02T15:59:45.187Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility bond",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2021",
+          "value": 0.12,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2022",
+          "value": null,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:40:47.784Z"
+  },
+  {
+    "id": "parse-1775145587655-r2km3t",
+    "createdAt": "2026-04-02T15:59:47.655Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "hatzavim bond",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 3,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.0267,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.0201,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.1103,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.0987,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "hatzavim bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-2"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:40:47.876Z"
+  },
+  {
+    "id": "parse-1775145588573-9fre5n",
+    "createdAt": "2026-04-02T15:59:48.574Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "hatzavim bond",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 9.99,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.0267,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.0201,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.1103,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.0987,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "hatzavim bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-2"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:40:47.982Z"
+  },
+  {
+    "id": "parse-1775145640281-2jpqih",
+    "createdAt": "2026-04-02T16:00:40.281Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility bond",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 1.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.035,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "applied",
+    "appliedAt": "2026-04-02T16:00:40.402Z"
+  },
+  {
+    "id": "parse-1775145641357-ye23sh",
+    "createdAt": "2026-04-02T16:00:41.357Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility bond",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 1.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2022",
+          "value": 0.05,
+          "confidence": 0.8
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.035,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "applied",
+    "appliedAt": "2026-04-02T16:00:41.676Z"
+  },
+  {
+    "id": "parse-1775145642835-13vcr7",
+    "createdAt": "2026-04-02T16:00:42.835Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "sfera bond",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2019",
+          "value": 0.06,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": 1.96,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.048,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.027,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.115,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.127,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "sfera bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-1"
+    },
+    "status": "applied",
+    "appliedAt": "2026-04-02T16:00:43.079Z"
+  },
+  {
+    "id": "parse-1775145643258-mliz9f",
+    "createdAt": "2026-04-02T16:00:43.258Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "sfera bond",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2019",
+          "value": 0.08,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": 1.96,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.048,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.027,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.115,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.127,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "sfera bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-1"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:40:48.138Z"
+  },
+  {
+    "id": "parse-1775145644059-fcl44w",
+    "createdAt": "2026-04-02T16:00:44.059Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility bond",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2021",
+          "value": 0.12,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": 1.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.035,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2022",
+          "value": 0.05,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:40:48.719Z"
+  },
+  {
+    "id": "parse-1775145646166-eb49cc",
+    "createdAt": "2026-04-02T16:00:46.166Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "hatzavim bond",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 3,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.0267,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.0201,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.1103,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.0987,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "hatzavim bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-2"
+    },
+    "status": "applied",
+    "appliedAt": "2026-04-02T16:00:46.433Z"
+  },
+  {
+    "id": "parse-1775145646814-2szntc",
+    "createdAt": "2026-04-02T16:00:46.814Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "hatzavim bond",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 9.99,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.0267,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.0201,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.1103,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.0987,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "hatzavim bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-2"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:40:48.804Z"
+  },
+  {
+    "id": "parse-1775173249533-6da2td",
+    "createdAt": "2026-04-02T23:40:49.533Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility bond",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 1.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.035,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "applied",
+    "appliedAt": "2026-04-02T23:40:50.606Z"
+  },
+  {
+    "id": "parse-1775173252112-0x123e",
+    "createdAt": "2026-04-02T23:40:52.113Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2022",
+          "value": 0.07,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": 1.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.035,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:41:00.295Z"
+  },
+  {
+    "id": "parse-1775173252533-fwp8e0",
+    "createdAt": "2026-04-02T23:40:52.533Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "sfera",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 2.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.048,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.027,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.115,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.127,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "sfera bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-1"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:41:01.837Z"
+  },
+  {
+    "id": "parse-1775173263846-vzhuoy",
+    "createdAt": "2026-04-02T23:41:03.846Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "sfera",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 9.99,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.048,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.027,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.115,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.127,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "sfera bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-1"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:41:05.804Z"
+  },
+  {
+    "id": "parse-1775173264625-6ur69q",
+    "createdAt": "2026-04-02T23:41:04.626Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "hatzavim",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 9.99,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.0267,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.0201,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.1103,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.0987,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "hatzavim bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-2"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:41:06.181Z"
+  },
+  {
+    "id": "parse-1775173266760-oqni5k",
+    "createdAt": "2026-04-02T23:41:06.760Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2021",
+          "value": 0.11,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": 1.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.035,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:41:16.946Z"
+  },
+  {
+    "id": "parse-1775173266854-7t5285",
+    "createdAt": "2026-04-02T23:41:06.854Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "ghost",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 1,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "ghost fund",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-999"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:41:07.965Z"
+  },
+  {
+    "id": "parse-1775173268842-dvualw",
+    "createdAt": "2026-04-02T23:41:08.842Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility-a",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2020",
+          "value": 0.09,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": 1.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.035,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:41:12.788Z"
+  },
+  {
+    "id": "parse-1775173269072-2sszhy",
+    "createdAt": "2026-04-02T23:41:09.072Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility-b",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2019",
+          "value": 0.04,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": 1.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.035,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:41:13.792Z"
+  },
+  {
+    "id": "parse-1775173274937-vom2fd",
+    "createdAt": "2026-04-02T23:41:14.937Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2019",
+          "value": 0.123,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2020",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": 1.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.035,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:41:17.075Z"
+  },
+  {
+    "id": "parse-1775173323674-ju51jj",
+    "createdAt": "2026-04-02T23:42:03.674Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility bond",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 1.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.035,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "applied",
+    "appliedAt": "2026-04-02T23:42:04.178Z"
+  },
+  {
+    "id": "parse-1775173325758-3lyjxi",
+    "createdAt": "2026-04-02T23:42:05.758Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2022",
+          "value": 0.07,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": null,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "applied",
+    "appliedAt": "2026-04-02T23:42:06.491Z"
+  },
+  {
+    "id": "parse-1775173325867-60d8j6",
+    "createdAt": "2026-04-02T23:42:05.867Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "sfera",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 2.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.048,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.027,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.115,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.127,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "sfera bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-1"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:42:07.332Z"
+  },
+  {
+    "id": "parse-1775173327979-kz6e2p",
+    "createdAt": "2026-04-02T23:42:07.979Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "sfera",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 9.99,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.048,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.027,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.115,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.127,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "sfera bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-1"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:42:09.137Z"
+  },
+  {
+    "id": "parse-1775173328240-lgtml1",
+    "createdAt": "2026-04-02T23:42:08.240Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "hatzavim",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 9.99,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.0267,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.0201,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.1103,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.0987,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "hatzavim bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-2"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:42:09.400Z"
+  },
+  {
+    "id": "parse-1775173331534-5potg0",
+    "createdAt": "2026-04-02T23:42:11.534Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2021",
+          "value": 0.11,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": null,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:42:13.609Z"
+  },
+  {
+    "id": "parse-1775173332015-p57k9d",
+    "createdAt": "2026-04-02T23:42:12.015Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "ghost",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 1,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "ghost fund",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-999"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:42:13.749Z"
+  },
+  {
+    "id": "parse-1775173334145-rpscoo",
+    "createdAt": "2026-04-02T23:42:14.145Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility-a",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2020",
+          "value": 0.09,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": null,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "applied",
+    "appliedAt": "2026-04-02T23:42:15.064Z"
+  },
+  {
+    "id": "parse-1775173334364-gx3wsv",
+    "createdAt": "2026-04-02T23:42:14.364Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility-b",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2019",
+          "value": 0.04,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": null,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:42:15.551Z"
+  },
+  {
+    "id": "parse-1775173336186-r2m2vq",
+    "createdAt": "2026-04-02T23:42:16.186Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2019",
+          "value": 0.123,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2020",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": null,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:42:18.377Z"
+  },
+  {
+    "id": "parse-1775173381969-4u1ggd",
+    "createdAt": "2026-04-02T23:43:01.969Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility bond",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 1.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.035,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "applied",
+    "appliedAt": "2026-04-02T23:43:02.460Z"
+  },
+  {
+    "id": "parse-1775173385123-dgpthu",
+    "createdAt": "2026-04-02T23:43:05.123Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2022",
+          "value": 0.07,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": null,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "applied",
+    "appliedAt": "2026-04-02T23:43:06.209Z"
+  },
+  {
+    "id": "parse-1775173385273-9dzxaz",
+    "createdAt": "2026-04-02T23:43:05.273Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "sfera",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 2.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.048,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.027,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.115,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.127,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "sfera bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-1"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:43:07.325Z"
+  },
+  {
+    "id": "parse-1775173388743-4ylbby",
+    "createdAt": "2026-04-02T23:43:08.743Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "sfera",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 9.99,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.048,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.027,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.115,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.127,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "sfera bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-1"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:43:10.667Z"
+  },
+  {
+    "id": "parse-1775173388981-7szwdd",
+    "createdAt": "2026-04-02T23:43:08.981Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "hatzavim",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 9.99,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.0267,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.0201,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.1103,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.0987,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "hatzavim bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-2"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:43:10.849Z"
+  },
+  {
+    "id": "parse-1775173392817-ehcxo0",
+    "createdAt": "2026-04-02T23:43:12.817Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2021",
+          "value": 0.11,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": null,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:43:15.566Z"
+  },
+  {
+    "id": "parse-1775173393688-vwn01i",
+    "createdAt": "2026-04-02T23:43:13.688Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "ghost",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 1,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "ghost fund",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-999"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:43:15.703Z"
+  },
+  {
+    "id": "parse-1775173397748-g96fjm",
+    "createdAt": "2026-04-02T23:43:17.748Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility-a",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2020",
+          "value": 0.09,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": null,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "applied",
+    "appliedAt": "2026-04-02T23:43:18.653Z"
+  },
+  {
+    "id": "parse-1775173397871-ye21jt",
+    "createdAt": "2026-04-02T23:43:17.871Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility-b",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2019",
+          "value": 0.04,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": null,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:43:19.125Z"
+  },
+  {
+    "id": "parse-1775173400166-43qdso",
+    "createdAt": "2026-04-02T23:43:20.166Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2019",
+          "value": 0.123,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2020",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": null,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:43:22.089Z"
+  },
+  {
+    "id": "parse-1775173419302-ld18rz",
+    "createdAt": "2026-04-02T23:43:39.302Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility bond",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 1.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.035,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:43:40.494Z"
+  },
+  {
+    "id": "parse-1775173421695-wgakcn",
+    "createdAt": "2026-04-02T23:43:41.695Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2022",
+          "value": 0.07,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": null,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "applied",
+    "appliedAt": "2026-04-02T23:43:42.645Z"
+  },
+  {
+    "id": "parse-1775173421811-nl9vca",
+    "createdAt": "2026-04-02T23:43:41.811Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "sfera",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 2.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.048,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.027,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.115,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.127,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "sfera bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-1"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:43:43.817Z"
+  },
+  {
+    "id": "parse-1775173424878-fqkvhx",
+    "createdAt": "2026-04-02T23:43:44.878Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "sfera",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 9.99,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.048,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.027,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.115,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.127,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "sfera bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-1"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:43:45.851Z"
+  },
+  {
+    "id": "parse-1775173425209-2p95ok",
+    "createdAt": "2026-04-02T23:43:45.209Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "hatzavim",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 9.99,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.0267,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.0201,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.1103,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.0987,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "hatzavim bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-2"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:43:45.943Z"
+  },
+  {
+    "id": "parse-1775173426832-qw13oj",
+    "createdAt": "2026-04-02T23:43:46.832Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2021",
+          "value": 0.11,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": null,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "applied",
+    "appliedAt": "2026-04-02T23:43:47.970Z"
+  },
+  {
+    "id": "parse-1775173426925-3w80gh",
+    "createdAt": "2026-04-02T23:43:46.925Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "ghost",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 1,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "ghost fund",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-999"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:43:48.646Z"
+  },
+  {
+    "id": "parse-1775173429982-k7mx9j",
+    "createdAt": "2026-04-02T23:43:49.982Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility-a",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2020",
+          "value": 0.09,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": null,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:43:51.954Z"
+  },
+  {
+    "id": "parse-1775173430074-fbnwcp",
+    "createdAt": "2026-04-02T23:43:50.074Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility-b",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2019",
+          "value": 0.04,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": null,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "applied",
+    "appliedAt": "2026-04-02T23:43:51.348Z"
+  },
+  {
+    "id": "parse-1775173433085-ysz1eh",
+    "createdAt": "2026-04-02T23:43:53.085Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2019",
+          "value": 0.123,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2020",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": null,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:43:55.048Z"
+  },
+  {
+    "id": "parse-1775173447484-19vp9c",
+    "createdAt": "2026-04-02T23:44:07.484Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility bond",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 1.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.035,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "applied",
+    "appliedAt": "2026-04-02T23:44:07.716Z"
+  },
+  {
+    "id": "parse-1775173450478-svfpy6",
+    "createdAt": "2026-04-02T23:44:10.478Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2022",
+          "value": 0.07,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": null,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "applied",
+    "appliedAt": "2026-04-02T23:44:11.478Z"
+  },
+  {
+    "id": "parse-1775173450565-xmvo90",
+    "createdAt": "2026-04-02T23:44:10.565Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "sfera",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 2.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.048,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.027,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.115,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.127,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "sfera bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-1"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:44:16.414Z"
+  },
+  {
+    "id": "parse-1775173455271-cboryd",
+    "createdAt": "2026-04-02T23:44:15.271Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "sfera",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 9.99,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.048,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.027,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.115,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.127,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "sfera bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-1"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:44:16.497Z"
+  },
+  {
+    "id": "parse-1775173455342-o9iss7",
+    "createdAt": "2026-04-02T23:44:15.342Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "hatzavim",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 9.99,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.0267,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.0201,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.1103,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.0987,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "hatzavim bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-2"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:44:16.577Z"
+  },
+  {
+    "id": "parse-1775173458892-l3y1om",
+    "createdAt": "2026-04-02T23:44:18.892Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2021",
+          "value": 0.11,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": null,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "applied",
+    "appliedAt": "2026-04-02T23:44:19.464Z"
+  },
+  {
+    "id": "parse-1775173459026-otkqpp",
+    "createdAt": "2026-04-02T23:44:19.026Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "ghost",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 1,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "ghost fund",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-999"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:44:19.924Z"
+  },
+  {
+    "id": "parse-1775173462334-7jauc9",
+    "createdAt": "2026-04-02T23:44:22.334Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility-a",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2020",
+          "value": 0.09,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": null,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "applied",
+    "appliedAt": "2026-04-02T23:44:22.890Z"
+  },
+  {
+    "id": "parse-1775173462424-ziik9e",
+    "createdAt": "2026-04-02T23:44:22.424Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility-b",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2019",
+          "value": 0.04,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": null,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:44:23.276Z"
+  },
+  {
+    "id": "parse-1775173465559-m8wl9d",
+    "createdAt": "2026-04-02T23:44:25.559Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2019",
+          "value": 0.123,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2020",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": null,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:44:27.388Z"
+  },
+  {
+    "id": "parse-1775173564999-snd51l",
+    "createdAt": "2026-04-02T23:46:04.999Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility bond",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 1.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.035,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "applied",
+    "appliedAt": "2026-04-02T23:46:05.979Z"
+  },
+  {
+    "id": "parse-1775173567620-255uvu",
+    "createdAt": "2026-04-02T23:46:07.620Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2022",
+          "value": 0.07,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": 1.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.035,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:46:29.617Z"
+  },
+  {
+    "id": "parse-1775173568042-c6qtgq",
+    "createdAt": "2026-04-02T23:46:08.042Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "sfera",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 2.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.048,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.027,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.115,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.127,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "sfera bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-1"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:46:11.890Z"
+  },
+  {
+    "id": "parse-1775173573324-282p33",
+    "createdAt": "2026-04-02T23:46:13.324Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "sfera",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 9.99,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.048,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.027,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.115,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.127,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "sfera bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-1"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:46:15.589Z"
+  },
+  {
+    "id": "parse-1775173573629-2cn7dd",
+    "createdAt": "2026-04-02T23:46:13.629Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "hatzavim",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 9.99,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.0267,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.0201,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.1103,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.0987,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "hatzavim bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-2"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:46:16.099Z"
+  },
+  {
+    "id": "parse-1775173577602-56rlzs",
+    "createdAt": "2026-04-02T23:46:17.602Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2021",
+          "value": 0.11,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": 1.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.035,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:46:20.046Z"
+  },
+  {
+    "id": "parse-1775173577917-xq20se",
+    "createdAt": "2026-04-02T23:46:17.917Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "ghost",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 1,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "ghost fund",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-999"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:46:20.137Z"
+  },
+  {
+    "id": "parse-1775173582418-j6hcyc",
+    "createdAt": "2026-04-02T23:46:22.418Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility-a",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2020",
+          "value": 0.09,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": 1.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.035,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:46:25.677Z"
+  },
+  {
+    "id": "parse-1775173582601-ge753e",
+    "createdAt": "2026-04-02T23:46:22.601Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility-b",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2019",
+          "value": 0.04,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": 1.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.035,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:46:26.847Z"
+  },
+  {
+    "id": "parse-1775173587298-eii6fa",
+    "createdAt": "2026-04-02T23:46:27.298Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2019",
+          "value": 0.123,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2020",
+          "value": null,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": 1.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.035,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:46:29.754Z"
+  },
+  {
+    "id": "parse-1775173683175-29fztc",
+    "createdAt": "2026-04-02T23:48:03.175Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 1.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "applied",
+    "appliedAt": "2026-04-02T23:48:05.095Z"
+  },
+  {
+    "id": "parse-1775173687119-hse8ju",
+    "createdAt": "2026-04-02T23:48:07.119Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2022",
+          "value": 0.05,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": 1.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "applied",
+    "appliedAt": "2026-04-02T23:48:08.958Z"
+  },
+  {
+    "id": "parse-1775173687254-puwj50",
+    "createdAt": "2026-04-02T23:48:07.254Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "sfera",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 99.99,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.048,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.027,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.115,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.127,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "sfera bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-1"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:48:10.486Z"
+  },
+  {
+    "id": "parse-1775173692052-2ved2z",
+    "createdAt": "2026-04-02T23:48:12.052Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "sfera",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 99.99,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.048,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.027,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.115,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.127,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "sfera bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-1"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:48:14.841Z"
+  },
+  {
+    "id": "parse-1775173692324-72fw4i",
+    "createdAt": "2026-04-02T23:48:12.324Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "hatzavim",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 99.99,
+          "confidence": 0.9
+        },
+        {
+          "key": "stdDev",
+          "value": 0.0267,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.0201,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.1103,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2024",
+          "value": 0.0987,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "hatzavim bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-2"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:48:15.212Z"
+  },
+  {
+    "id": "parse-1775173696387-8z3mu8",
+    "createdAt": "2026-04-02T23:48:16.387Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "ghost",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "sharpe",
+          "value": 1,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "ghost fund",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-999"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:48:18.440Z"
+  },
+  {
+    "id": "parse-1775173696546-lt6aol",
+    "createdAt": "2026-04-02T23:48:16.546Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2021",
+          "value": 0.11,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": 1.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2022",
+          "value": 0.05,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "applied",
+    "appliedAt": "2026-04-02T23:48:17.592Z"
+  },
+  {
+    "id": "parse-1775173699006-2oi0rd",
+    "createdAt": "2026-04-02T23:48:19.006Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility-a",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2020",
+          "value": 0.09,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": 1.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2022",
+          "value": 0.05,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2021",
+          "value": 0.11,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "applied",
+    "appliedAt": "2026-04-02T23:48:20.091Z"
+  },
+  {
+    "id": "parse-1775173699149-lnmsf2",
+    "createdAt": "2026-04-02T23:48:19.149Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility-b",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2019",
+          "value": 0.04,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": 1.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2022",
+          "value": 0.05,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2021",
+          "value": 0.11,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:48:21.660Z"
+  },
+  {
+    "id": "parse-1775173703319-h9fsla",
+    "createdAt": "2026-04-02T23:48:23.319Z",
+    "source": {
+      "type": "text",
+      "preview": ""
+    },
+    "extracted": {
+      "fundName": "agility",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "returns.y2019",
+          "value": 0.777,
+          "confidence": 0.9
+        },
+        {
+          "key": "sharpe",
+          "value": 1.5,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.ytd2026",
+          "value": 0.019,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.0943,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2022",
+          "value": 0.05,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2021",
+          "value": 0.11,
+          "confidence": 0.9
+        },
+        {
+          "key": "returns.y2020",
+          "value": 0.09,
+          "confidence": 0.9
+        }
+      ]
+    },
+    "reportMonth": "2026-02",
+    "reportMonthConfidence": "low",
+    "returnBasis": "ILS",
+    "match": {
+      "fundName": "agility bond",
+      "categoryId": "bond-hedged",
+      "fundId": "fund-3"
+    },
+    "status": "rejected",
+    "rejectedAt": "2026-04-02T23:48:27.549Z"
+  },
+  {
+    "id": "parse-1775284575161-vsb34p",
+    "createdAt": "2026-04-04T06:36:15.162Z",
+    "source": {
+      "type": "text",
+      "preview": "QA test draft for direction control"
+    },
+    "extracted": {
+      "fundName": "ספרה בונד",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "monthlyReturns.2025-01",
+          "value": 0.012,
+          "confidence": 0.5
+        },
+        {
+          "key": "monthlyReturns.2025-02",
+          "value": 0.008,
+          "confidence": 0.5
+        },
+        {
+          "key": "monthlyReturns.2025-03",
+          "value": -0.005,
+          "confidence": 0.5
+        },
+        {
+          "key": "monthlyReturns.2025-04",
+          "value": 0.015,
+          "confidence": 0.5
+        },
+        {
+          "key": "monthlyReturns.2025-05",
+          "value": 0.003,
+          "confidence": 0.5
+        },
+        {
+          "key": "monthlyReturns.2025-06",
+          "value": -0.002,
+          "confidence": 0.5
+        },
+        {
+          "key": "monthlyReturns.2025-07",
+          "value": 0.009,
+          "confidence": 0.5
+        },
+        {
+          "key": "monthlyReturns.2025-08",
+          "value": 0.011,
+          "confidence": 0.5
+        },
+        {
+          "key": "monthlyReturns.2025-09",
+          "value": -0.007,
+          "confidence": 0.5
+        },
+        {
+          "key": "monthlyReturns.2025-10",
+          "value": 0.006,
+          "confidence": 0.5
+        },
+        {
+          "key": "monthlyReturns.2025-11",
+          "value": 0.004,
+          "confidence": 0.5
+        },
+        {
+          "key": "monthlyReturns.2025-12",
+          "value": 0.013,
+          "confidence": 0.5
+        },
+        {
+          "key": "returns.y2025",
+          "value": 0.068,
+          "confidence": 0.5
+        }
+      ]
+    },
+    "reportMonth": "2025-12",
+    "reportMonthConfidence": "high",
+    "returnBasis": "ILS",
+    "match": {
+      "fundId": "fund-1",
+      "categoryId": "bond-hedged",
+      "fundName": "ספרה בונד"
+    },
+    "status": "pending",
+    "corrections": [
+      "2025:yearly_swap",
+      "2025:monthly_uncertain"
+    ]
+  },
+  {
+    "id": "parse-1775284839460-yvldkc",
+    "createdAt": "2026-04-04T06:40:39.460Z",
+    "source": {
+      "type": "text",
+      "preview": "QA test 2"
+    },
+    "extracted": {
+      "fundName": "ספרה בונד",
+      "fundNameConfidence": 0.5,
+      "fields": [
+        {
+          "key": "monthlyReturns.2025-01",
+          "value": 0.01,
+          "confidence": 0.5
+        },
+        {
+          "key": "monthlyReturns.2025-02",
+          "value": 0.02,
+          "confidence": 0.5
+        }
+      ]
+    },
+    "reportMonth": "2025-11",
+    "reportMonthConfidence": "high",
+    "returnBasis": "ILS",
+    "match": {
+      "fundId": "fund-1",
+      "categoryId": "bond-hedged",
+      "fundName": "ספרה בונד"
+    },
+    "status": "pending",
+    "corrections": [
+      "2025:monthly_uncertain"
+    ]
+  }
+]

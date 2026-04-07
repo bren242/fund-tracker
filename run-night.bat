@@ -1,0 +1,2 @@
+cd /d C:\Users\Agam\Desktop\מעקב קרנות\fund-tracker
+claude --dangerously-skip-permissions "בצע בדיקת רגרסיה מלאה על Two-Pass Architecture: עבור על כל קבצי הדוחות הקיימים בפרויקט (PNG/PDF של קרנות). הרץ כל אחד דרך /api/parse החדש. תעד בקובץ test-results.md: שם קרן, מטבע, שנים שנחלצו, האם YTD קיים, ערכי החודשים האם עשרוניים או אחוזים, שגיאות וערכים null. אל תתקן כלום — רק תעד."

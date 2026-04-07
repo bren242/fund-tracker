@@ -1,0 +1,2090 @@
+[
+  {
+    "id": "parse-1774941796819-kt2jvy",
+    "timestamp": "2026-03-31T07:23:16.819Z",
+    "action": "parse",
+    "draftId": "parse-1774941796818-3tn0cf",
+    "fundName": "ASPM",
+    "fundId": null,
+    "details": "Parsed text (0 chars preview). 18 fields extracted: monthlyReturn, returns.y2025, returns.y2024, returns.y2023, manager, classification, monthlyReturns.2025-01, monthlyReturns.2025-02, monthlyReturns.2025-03, monthlyReturns.2025-04, monthlyReturns.2025-05, monthlyReturns.2025-06, monthlyReturns.2025-07, monthlyReturns.2025-08, monthlyReturns.2025-09, monthlyReturns.2025-10, monthlyReturns.2025-11, monthlyReturns.2025-12"
+  },
+  {
+    "id": "parse-1774942258498-k3soa6",
+    "timestamp": "2026-03-31T07:30:58.498Z",
+    "action": "apply",
+    "draftId": "parse-1774941796818-3tn0cf",
+    "fundName": "ASPM",
+    "fundId": "fund-82",
+    "details": "Applied 15 fields to fund: monthlyReturn, returns.y2025, returns.y2024, returns.y2023, monthlyReturns.2025-01, monthlyReturns.2025-02, monthlyReturns.2025-03, monthlyReturns.2025-04, monthlyReturns.2025-05, monthlyReturns.2025-06, monthlyReturns.2025-07, monthlyReturns.2025-08, monthlyReturns.2025-09, monthlyReturns.2025-10, monthlyReturns.2025-11. Skipped: monthlyReturns.2025-12. Values: monthlyReturn=0.012, returns.y2025=0.152, returns.y2024=0.108, returns.y2023=0.045, monthlyReturns.2025-01=0.015, monthlyReturns.2025-02=0.012, monthlyReturns.2025-03=-0.005, monthlyReturns.2025-04=0.018, monthlyReturns.2025-05=0.009, monthlyReturns.2025-06=0.021, monthlyReturns.2025-07=0.011, monthlyReturns.2025-08=0.014, monthlyReturns.2025-09=-0.003, monthlyReturns.2025-10=0.016, monthlyReturns.2025-11=0.013, monthlyReturns.2025-12=0.012",
+    "reportMonth": "2025-12",
+    "collision": true,
+    "collisionDecision": "new",
+    "oldValue": null
+  },
+  {
+    "id": "parse-1774942304312-dfrjxo",
+    "timestamp": "2026-03-31T07:31:44.312Z",
+    "action": "reject",
+    "draftId": "parse-1774941796818-3tn0cf",
+    "fundName": "IBI CLO -Strategies Fund (דולר)LP",
+    "fundId": "fund-82",
+    "details": "Undo: reverted apply on fund \"IBI CLO -Strategies Fund (דולר)LP\" (draft parse-1774941796818-3tn0cf)"
+  },
+  {
+    "id": "parse-1775137365244-puw31z",
+    "timestamp": "2026-04-02T13:42:45.244Z",
+    "action": "parse",
+    "draftId": "parse-1775137365240-evgkb2",
+    "fundName": "???? ????",
+    "fundId": "fund-1",
+    "details": "Parsed text (26 chars preview). 3 fields extracted: returns.y2025, returns.ytd2026, monthlyReturn"
+  },
+  {
+    "id": "parse-1775137414701-ebarrv",
+    "timestamp": "2026-04-02T13:43:34.701Z",
+    "action": "apply",
+    "draftId": "parse-1775137365240-evgkb2",
+    "fundName": "???? ????",
+    "fundId": "fund-1",
+    "details": "Applied 3 fields: returns.y2025, returns.ytd2026, monthlyReturn. Replaced: returns.y2025 (0.115→0.12)",
+    "reportMonth": "2026-03",
+    "collision": true,
+    "collisionDecision": "replace"
+  },
+  {
+    "id": "parse-1775137540669-3od382",
+    "timestamp": "2026-04-02T13:45:40.669Z",
+    "action": "parse",
+    "draftId": "parse-1775137540662-0soot0",
+    "fundName": "???? ????",
+    "fundId": "fund-1",
+    "details": "Parsed text (28 chars preview). 2 fields extracted: returns.y2025, monthlyReturn"
+  },
+  {
+    "id": "parse-1775138218378-ofunn5",
+    "timestamp": "2026-04-02T13:56:58.378Z",
+    "action": "apply",
+    "draftId": "parse-1775137540662-0soot0",
+    "fundName": "???? ????",
+    "fundId": "fund-1",
+    "details": "Applied 3 fields: monthlyReturn, cleared:sharpe, cleared:stdDev. Kept existing: returns.y2025",
+    "reportMonth": "2026-04",
+    "collision": true,
+    "collisionDecision": "keep"
+  },
+  {
+    "id": "parse-1775138556348-s28vc3",
+    "timestamp": "2026-04-02T14:02:36.348Z",
+    "action": "parse",
+    "draftId": "parse-1775138556344-apa7rz",
+    "fundName": "????? ????",
+    "fundId": "fund-2",
+    "details": "Parsed text (14 chars preview). 1 fields extracted: returns.y2025"
+  },
+  {
+    "id": "parse-1775138818185-ugyuvb",
+    "timestamp": "2026-04-02T14:06:58.185Z",
+    "action": "parse",
+    "draftId": "parse-1775138818182-4hf92n",
+    "fundName": "????? ????",
+    "fundId": "fund-2",
+    "details": "Parsed text (16 chars preview). 1 fields extracted: returns.y2025"
+  },
+  {
+    "id": "parse-1775139126101-yz0i2n",
+    "timestamp": "2026-04-02T14:12:06.102Z",
+    "action": "parse",
+    "draftId": "parse-1775139126098-k904o8",
+    "fundName": "????? ????",
+    "fundId": "fund-2",
+    "details": "Parsed text (16 chars preview). 1 fields extracted: returns.y2025"
+  },
+  {
+    "id": "parse-1775139259957-5kh9s4",
+    "timestamp": "2026-04-02T14:14:19.957Z",
+    "action": "parse",
+    "draftId": "parse-1775139259954-geqdb8",
+    "fundName": "????? ????",
+    "fundId": "fund-2",
+    "details": "Parsed text (21 chars preview). 1 fields extracted: monthlyReturn"
+  },
+  {
+    "id": "parse-1775139260021-usc876",
+    "timestamp": "2026-04-02T14:14:20.021Z",
+    "action": "apply",
+    "draftId": "parse-1775139259954-geqdb8",
+    "fundName": "????? ????",
+    "fundId": "fund-2",
+    "details": "Applied 2 fields: monthlyReturn, cleared:returns.y2025",
+    "reportMonth": "2026-04",
+    "collision": true,
+    "collisionDecision": "new"
+  },
+  {
+    "id": "parse-1775139603559-okfndp",
+    "timestamp": "2026-04-02T14:20:03.559Z",
+    "action": "reject",
+    "draftId": "parse-1775139259954-geqdb8",
+    "fundName": "חצבים בונד",
+    "fundId": "fund-2",
+    "details": "Undo: reverted apply on fund \"חצבים בונד\" (draft parse-1775139259954-geqdb8)"
+  },
+  {
+    "id": "parse-1775140129121-ccunwl",
+    "timestamp": "2026-04-02T14:28:49.121Z",
+    "action": "reject",
+    "draftId": "parse-1775137365240-evgkb2",
+    "fundName": "???? ????",
+    "fundId": "fund-1",
+    "details": "Draft rejected by super. Fields: returns.y2025, returns.ytd2026, monthlyReturn"
+  },
+  {
+    "id": "parse-1775140129301-nqwpyr",
+    "timestamp": "2026-04-02T14:28:49.301Z",
+    "action": "reject",
+    "draftId": "parse-1775137540662-0soot0",
+    "fundName": "???? ????",
+    "fundId": "fund-1",
+    "details": "Draft rejected by super. Fields: returns.y2025, monthlyReturn"
+  },
+  {
+    "id": "parse-1775140129639-zz7oun",
+    "timestamp": "2026-04-02T14:28:49.639Z",
+    "action": "reject",
+    "draftId": "parse-1775138556344-apa7rz",
+    "fundName": "????? ????",
+    "fundId": "fund-2",
+    "details": "Draft rejected by super. Fields: returns.y2025"
+  },
+  {
+    "id": "parse-1775140129953-ajzt9r",
+    "timestamp": "2026-04-02T14:28:49.953Z",
+    "action": "reject",
+    "draftId": "parse-1775138818182-4hf92n",
+    "fundName": "????? ????",
+    "fundId": "fund-2",
+    "details": "Draft rejected by super. Fields: returns.y2025"
+  },
+  {
+    "id": "parse-1775140130720-s8enpk",
+    "timestamp": "2026-04-02T14:28:50.720Z",
+    "action": "reject",
+    "draftId": "parse-1775139126098-k904o8",
+    "fundName": "????? ????",
+    "fundId": "fund-2",
+    "details": "Draft rejected by super. Fields: returns.y2025"
+  },
+  {
+    "id": "parse-1775140131181-tfv8sc",
+    "timestamp": "2026-04-02T14:28:51.181Z",
+    "action": "reject",
+    "draftId": "parse-1775139259954-geqdb8",
+    "fundName": "????? ????",
+    "fundId": "fund-2",
+    "details": "Draft rejected by super. Fields: monthlyReturn"
+  },
+  {
+    "id": "parse-1775145446494-u523ns",
+    "timestamp": "2026-04-02T15:57:26.494Z",
+    "action": "apply",
+    "draftId": "qa-auto-1",
+    "fundName": "",
+    "fundId": "fund-3",
+    "details": "Applied 2 fields: sharpe, stdDev",
+    "reportMonth": "2026-03",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true
+  },
+  {
+    "id": "parse-1775145449279-3j1uoe",
+    "timestamp": "2026-04-02T15:57:29.279Z",
+    "action": "apply",
+    "draftId": "qa-auto-2",
+    "fundName": "",
+    "fundId": "fund-3",
+    "details": "Applied 2 fields: sharpe, returns.y2022",
+    "reportMonth": "2026-03",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true
+  },
+  {
+    "id": "parse-1775145452456-ehxcoc",
+    "timestamp": "2026-04-02T15:57:32.456Z",
+    "action": "apply",
+    "draftId": "qa-auto-5a",
+    "fundName": "",
+    "fundId": "fund-1",
+    "details": "Applied 1 fields: returns.y2019",
+    "reportMonth": "2026-03",
+    "collision": false,
+    "collisionDecision": "new"
+  },
+  {
+    "id": "parse-1775145575846-dr0e98",
+    "timestamp": "2026-04-02T15:59:35.846Z",
+    "action": "parse",
+    "draftId": "parse-1775145575843-h7nbci",
+    "fundName": "agility bond",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 4 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025"
+  },
+  {
+    "id": "parse-1775145578475-xqer9m",
+    "timestamp": "2026-04-02T15:59:38.475Z",
+    "action": "parse",
+    "draftId": "parse-1775145578456-668q7k",
+    "fundName": "agility bond",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: sharpe, returns.y2022, returns.ytd2026, returns.y2025, stdDev"
+  },
+  {
+    "id": "parse-1775145583011-vy6xij",
+    "timestamp": "2026-04-02T15:59:43.011Z",
+    "action": "parse",
+    "draftId": "parse-1775145583002-7v4712",
+    "fundName": "sfera bond",
+    "fundId": "fund-1",
+    "details": "Parsed text (0 chars preview). 6 fields extracted: returns.y2019, sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775145584339-od1cof",
+    "timestamp": "2026-04-02T15:59:44.339Z",
+    "action": "parse",
+    "draftId": "parse-1775145584336-8qkllp",
+    "fundName": "sfera bond",
+    "fundId": "fund-1",
+    "details": "Parsed text (0 chars preview). 6 fields extracted: returns.y2019, sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775145585199-b64e5j",
+    "timestamp": "2026-04-02T15:59:45.199Z",
+    "action": "parse",
+    "draftId": "parse-1775145585187-68n7bh",
+    "fundName": "agility bond",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 6 fields extracted: returns.y2021, sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2022"
+  },
+  {
+    "id": "parse-1775145586279-7ho3un",
+    "timestamp": "2026-04-02T15:59:46.279Z",
+    "action": "reject",
+    "draftId": "qa-auto-5a",
+    "fundName": "ספרה בונד",
+    "fundId": "fund-1",
+    "details": "Undo: reverted apply on fund \"ספרה בונד\" (draft qa-auto-5a)"
+  },
+  {
+    "id": "parse-1775145587660-2u4kuw",
+    "timestamp": "2026-04-02T15:59:47.660Z",
+    "action": "parse",
+    "draftId": "parse-1775145587655-r2km3t",
+    "fundName": "hatzavim bond",
+    "fundId": "fund-2",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775145588584-2ckc9l",
+    "timestamp": "2026-04-02T15:59:48.584Z",
+    "action": "parse",
+    "draftId": "parse-1775145588573-9fre5n",
+    "fundName": "hatzavim bond",
+    "fundId": "fund-2",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775145640285-xcdv0v",
+    "timestamp": "2026-04-02T16:00:40.285Z",
+    "action": "parse",
+    "draftId": "parse-1775145640281-2jpqih",
+    "fundName": "agility bond",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 4 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025"
+  },
+  {
+    "id": "parse-1775145640406-gdhcdd",
+    "timestamp": "2026-04-02T16:00:40.406Z",
+    "action": "apply",
+    "draftId": "parse-1775145640281-2jpqih",
+    "fundName": "agility bond",
+    "fundId": "fund-3",
+    "details": "Applied 4 fields: sharpe, stdDev, returns.ytd2026, returns.y2025",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true
+  },
+  {
+    "id": "parse-1775145641361-a2niuu",
+    "timestamp": "2026-04-02T16:00:41.361Z",
+    "action": "parse",
+    "draftId": "parse-1775145641357-ye23sh",
+    "fundName": "agility bond",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: sharpe, returns.y2022, returns.ytd2026, returns.y2025, stdDev"
+  },
+  {
+    "id": "parse-1775145641678-4jnzr1",
+    "timestamp": "2026-04-02T16:00:41.678Z",
+    "action": "apply",
+    "draftId": "parse-1775145641357-ye23sh",
+    "fundName": "agility bond",
+    "fundId": "fund-3",
+    "details": "Applied 5 fields: sharpe, returns.y2022, returns.ytd2026, returns.y2025, stdDev",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true
+  },
+  {
+    "id": "parse-1775145642838-mjfe6y",
+    "timestamp": "2026-04-02T16:00:42.838Z",
+    "action": "parse",
+    "draftId": "parse-1775145642835-13vcr7",
+    "fundName": "sfera bond",
+    "fundId": "fund-1",
+    "details": "Parsed text (0 chars preview). 6 fields extracted: returns.y2019, sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775145643080-j2dpiz",
+    "timestamp": "2026-04-02T16:00:43.080Z",
+    "action": "apply",
+    "draftId": "parse-1775145642835-13vcr7",
+    "fundName": "sfera bond",
+    "fundId": "fund-1",
+    "details": "Applied 6 fields: returns.y2019, sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new"
+  },
+  {
+    "id": "parse-1775145643264-sk42em",
+    "timestamp": "2026-04-02T16:00:43.264Z",
+    "action": "parse",
+    "draftId": "parse-1775145643258-mliz9f",
+    "fundName": "sfera bond",
+    "fundId": "fund-1",
+    "details": "Parsed text (0 chars preview). 6 fields extracted: returns.y2019, sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775145644063-f8lvo9",
+    "timestamp": "2026-04-02T16:00:44.063Z",
+    "action": "parse",
+    "draftId": "parse-1775145644059-fcl44w",
+    "fundName": "agility bond",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 6 fields extracted: returns.y2021, sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2022"
+  },
+  {
+    "id": "parse-1775145644161-b4qw1l",
+    "timestamp": "2026-04-02T16:00:44.161Z",
+    "action": "apply",
+    "draftId": "parse-1775145644059-fcl44w",
+    "fundName": "agility bond",
+    "fundId": "fund-3",
+    "details": "Applied 6 fields: returns.y2021, sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2022",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true
+  },
+  {
+    "id": "parse-1775145645079-sra536",
+    "timestamp": "2026-04-02T16:00:45.079Z",
+    "action": "reject",
+    "draftId": "parse-1775145644059-fcl44w",
+    "fundName": "אג'יליטי בונד",
+    "fundId": "fund-3",
+    "details": "Undo: reverted apply on fund \"אג'יליטי בונד\" (draft parse-1775145644059-fcl44w)"
+  },
+  {
+    "id": "parse-1775145646169-i4jsol",
+    "timestamp": "2026-04-02T16:00:46.169Z",
+    "action": "parse",
+    "draftId": "parse-1775145646166-eb49cc",
+    "fundName": "hatzavim bond",
+    "fundId": "fund-2",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775145646436-f3mnqz",
+    "timestamp": "2026-04-02T16:00:46.436Z",
+    "action": "apply",
+    "draftId": "parse-1775145646166-eb49cc",
+    "fundName": "hatzavim bond",
+    "fundId": "fund-2",
+    "details": "Applied 5 fields: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024. Replaced: sharpe (2.81→3)",
+    "reportMonth": "2026-02",
+    "collision": true,
+    "collisionDecision": "replace"
+  },
+  {
+    "id": "parse-1775145646818-i94y5g",
+    "timestamp": "2026-04-02T16:00:46.818Z",
+    "action": "parse",
+    "draftId": "parse-1775145646814-2szntc",
+    "fundName": "hatzavim bond",
+    "fundId": "fund-2",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173247380-9eo3lo",
+    "timestamp": "2026-04-02T23:40:47.380Z",
+    "action": "reject",
+    "draftId": "parse-1774941796818-3tn0cf",
+    "fundName": "ASPM",
+    "fundId": null,
+    "details": "Draft rejected by super. Fields: monthlyReturn, returns.y2025, returns.y2024, returns.y2023, manager, classification, monthlyReturns.2025-01, monthlyReturns.2025-02, monthlyReturns.2025-03, monthlyReturns.2025-04, monthlyReturns.2025-05, monthlyReturns.2025-06, monthlyReturns.2025-07, monthlyReturns.2025-08, monthlyReturns.2025-09, monthlyReturns.2025-10, monthlyReturns.2025-11, monthlyReturns.2025-12"
+  },
+  {
+    "id": "parse-1775173247454-ziznn5",
+    "timestamp": "2026-04-02T23:40:47.454Z",
+    "action": "reject",
+    "draftId": "parse-1775145575843-h7nbci",
+    "fundName": "agility bond",
+    "fundId": "fund-3",
+    "details": "Draft rejected by super. Fields: sharpe, stdDev, returns.ytd2026, returns.y2025"
+  },
+  {
+    "id": "parse-1775173247534-64yd3c",
+    "timestamp": "2026-04-02T23:40:47.534Z",
+    "action": "reject",
+    "draftId": "parse-1775145578456-668q7k",
+    "fundName": "agility bond",
+    "fundId": "fund-3",
+    "details": "Draft rejected by super. Fields: sharpe, returns.y2022, returns.ytd2026, returns.y2025, stdDev"
+  },
+  {
+    "id": "parse-1775173247608-vuxfqn",
+    "timestamp": "2026-04-02T23:40:47.608Z",
+    "action": "reject",
+    "draftId": "parse-1775145583002-7v4712",
+    "fundName": "sfera bond",
+    "fundId": "fund-1",
+    "details": "Draft rejected by super. Fields: returns.y2019, sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173247698-jhn09b",
+    "timestamp": "2026-04-02T23:40:47.698Z",
+    "action": "reject",
+    "draftId": "parse-1775145584336-8qkllp",
+    "fundName": "sfera bond",
+    "fundId": "fund-1",
+    "details": "Draft rejected by super. Fields: returns.y2019, sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173247786-gu9wu1",
+    "timestamp": "2026-04-02T23:40:47.786Z",
+    "action": "reject",
+    "draftId": "parse-1775145585187-68n7bh",
+    "fundName": "agility bond",
+    "fundId": "fund-3",
+    "details": "Draft rejected by super. Fields: returns.y2021, sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2022"
+  },
+  {
+    "id": "parse-1775173247878-30c04v",
+    "timestamp": "2026-04-02T23:40:47.878Z",
+    "action": "reject",
+    "draftId": "parse-1775145587655-r2km3t",
+    "fundName": "hatzavim bond",
+    "fundId": "fund-2",
+    "details": "Draft rejected by super. Fields: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173247984-mwubg1",
+    "timestamp": "2026-04-02T23:40:47.984Z",
+    "action": "reject",
+    "draftId": "parse-1775145588573-9fre5n",
+    "fundName": "hatzavim bond",
+    "fundId": "fund-2",
+    "details": "Draft rejected by super. Fields: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173248140-0r5ru9",
+    "timestamp": "2026-04-02T23:40:48.140Z",
+    "action": "reject",
+    "draftId": "parse-1775145643258-mliz9f",
+    "fundName": "sfera bond",
+    "fundId": "fund-1",
+    "details": "Draft rejected by super. Fields: returns.y2019, sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173248721-eofrzu",
+    "timestamp": "2026-04-02T23:40:48.721Z",
+    "action": "reject",
+    "draftId": "parse-1775145644059-fcl44w",
+    "fundName": "agility bond",
+    "fundId": "fund-3",
+    "details": "Draft rejected by super. Fields: returns.y2021, sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2022"
+  },
+  {
+    "id": "parse-1775173248806-mks484",
+    "timestamp": "2026-04-02T23:40:48.806Z",
+    "action": "reject",
+    "draftId": "parse-1775145646814-2szntc",
+    "fundName": "hatzavim bond",
+    "fundId": "fund-2",
+    "details": "Draft rejected by super. Fields: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173249537-284p4r",
+    "timestamp": "2026-04-02T23:40:49.537Z",
+    "action": "parse",
+    "draftId": "parse-1775173249533-6da2td",
+    "fundName": "agility bond",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 4 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025"
+  },
+  {
+    "id": "parse-1775173250607-3tjrwk",
+    "timestamp": "2026-04-02T23:40:50.608Z",
+    "action": "apply",
+    "draftId": "parse-1775173249533-6da2td",
+    "fundName": "agility bond",
+    "fundId": "fund-3",
+    "details": "Applied 4 fields: sharpe, stdDev, returns.ytd2026, returns.y2025",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true,
+    "batchId": "batch-2026-04-02T23:40:50.4401043Z"
+  },
+  {
+    "id": "parse-1775173252116-6sret6",
+    "timestamp": "2026-04-02T23:40:52.116Z",
+    "action": "parse",
+    "draftId": "parse-1775173252112-0x123e",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: returns.y2022, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173252537-smn40z",
+    "timestamp": "2026-04-02T23:40:52.537Z",
+    "action": "parse",
+    "draftId": "parse-1775173252533-fwp8e0",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173260298-rg3qnm",
+    "timestamp": "2026-04-02T23:41:00.298Z",
+    "action": "reject",
+    "draftId": "parse-1775173252112-0x123e",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Draft rejected by super. Fields: returns.y2022, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173261839-pvngmi",
+    "timestamp": "2026-04-02T23:41:01.839Z",
+    "action": "reject",
+    "draftId": "parse-1775173252533-fwp8e0",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Draft rejected by super. Fields: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173263849-xiydkx",
+    "timestamp": "2026-04-02T23:41:03.849Z",
+    "action": "parse",
+    "draftId": "parse-1775173263846-vzhuoy",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173264630-mf8rsa",
+    "timestamp": "2026-04-02T23:41:04.630Z",
+    "action": "parse",
+    "draftId": "parse-1775173264625-6ur69q",
+    "fundName": "hatzavim",
+    "fundId": "fund-2",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173265808-hkz21q",
+    "timestamp": "2026-04-02T23:41:05.808Z",
+    "action": "reject",
+    "draftId": "parse-1775173263846-vzhuoy",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Draft rejected by super. Fields: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173266184-m7ajk6",
+    "timestamp": "2026-04-02T23:41:06.184Z",
+    "action": "reject",
+    "draftId": "parse-1775173264625-6ur69q",
+    "fundName": "hatzavim",
+    "fundId": "fund-2",
+    "details": "Draft rejected by super. Fields: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173266764-z064zh",
+    "timestamp": "2026-04-02T23:41:06.764Z",
+    "action": "parse",
+    "draftId": "parse-1775173266760-oqni5k",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: returns.y2021, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173266857-s8phay",
+    "timestamp": "2026-04-02T23:41:06.857Z",
+    "action": "parse",
+    "draftId": "parse-1775173266854-7t5285",
+    "fundName": "ghost",
+    "fundId": "fund-999",
+    "details": "Parsed text (0 chars preview). 1 fields extracted: sharpe"
+  },
+  {
+    "id": "parse-1775173267396-hofonr",
+    "timestamp": "2026-04-02T23:41:07.396Z",
+    "action": "apply",
+    "draftId": "parse-1775173266760-oqni5k",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Applied 5 fields: returns.y2021, returns.ytd2026, returns.y2025, sharpe, stdDev",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true,
+    "batchId": "batch-2026-04-02T23:41:07.1408058Z"
+  },
+  {
+    "id": "parse-1775173267968-zswjoq",
+    "timestamp": "2026-04-02T23:41:07.968Z",
+    "action": "reject",
+    "draftId": "parse-1775173266854-7t5285",
+    "fundName": "ghost",
+    "fundId": "fund-999",
+    "details": "Draft rejected by super. Fields: sharpe"
+  },
+  {
+    "id": "parse-1775173268849-t05aq2",
+    "timestamp": "2026-04-02T23:41:08.849Z",
+    "action": "parse",
+    "draftId": "parse-1775173268842-dvualw",
+    "fundName": "agility-a",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: returns.y2020, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173269078-r491u5",
+    "timestamp": "2026-04-02T23:41:09.078Z",
+    "action": "parse",
+    "draftId": "parse-1775173269072-2sszhy",
+    "fundName": "agility-b",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: returns.y2019, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173272792-q7fw4y",
+    "timestamp": "2026-04-02T23:41:12.792Z",
+    "action": "reject",
+    "draftId": "parse-1775173268842-dvualw",
+    "fundName": "agility-a",
+    "fundId": "fund-3",
+    "details": "Draft rejected by super. Fields: returns.y2020, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173273794-l8asl0",
+    "timestamp": "2026-04-02T23:41:13.794Z",
+    "action": "reject",
+    "draftId": "parse-1775173269072-2sszhy",
+    "fundName": "agility-b",
+    "fundId": "fund-3",
+    "details": "Draft rejected by super. Fields: returns.y2019, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173274944-lln4vz",
+    "timestamp": "2026-04-02T23:41:14.944Z",
+    "action": "parse",
+    "draftId": "parse-1775173274937-vom2fd",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 6 fields extracted: returns.y2019, returns.ytd2026, returns.y2025, returns.y2020, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173275760-aaftbj",
+    "timestamp": "2026-04-02T23:41:15.760Z",
+    "action": "reject",
+    "draftId": "parse-1775173266760-oqni5k",
+    "fundName": "אג'יליטי בונד",
+    "fundId": "fund-3",
+    "details": "Undo: reverted apply on fund \"אג'יליטי בונד\" (draft parse-1775173266760-oqni5k)"
+  },
+  {
+    "id": "parse-1775173276948-imbfw0",
+    "timestamp": "2026-04-02T23:41:16.948Z",
+    "action": "reject",
+    "draftId": "parse-1775173266760-oqni5k",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Draft rejected by super. Fields: returns.y2021, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173277078-cdnvr7",
+    "timestamp": "2026-04-02T23:41:17.078Z",
+    "action": "reject",
+    "draftId": "parse-1775173274937-vom2fd",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Draft rejected by super. Fields: returns.y2019, returns.ytd2026, returns.y2025, returns.y2020, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173323679-kmbrxp",
+    "timestamp": "2026-04-02T23:42:03.679Z",
+    "action": "parse",
+    "draftId": "parse-1775173323674-ju51jj",
+    "fundName": "agility bond",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 4 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025"
+  },
+  {
+    "id": "parse-1775173324180-ceftmn",
+    "timestamp": "2026-04-02T23:42:04.180Z",
+    "action": "apply",
+    "draftId": "parse-1775173323674-ju51jj",
+    "fundName": "agility bond",
+    "fundId": "fund-3",
+    "details": "Applied 4 fields: sharpe, stdDev, returns.ytd2026, returns.y2025",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true,
+    "batchId": "batch-2026-04-02T23:42:03.9611722Z"
+  },
+  {
+    "id": "parse-1775173325763-hiyej7",
+    "timestamp": "2026-04-02T23:42:05.763Z",
+    "action": "parse",
+    "draftId": "parse-1775173325758-3lyjxi",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: returns.y2022, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173325873-oj9s3i",
+    "timestamp": "2026-04-02T23:42:05.873Z",
+    "action": "parse",
+    "draftId": "parse-1775173325867-60d8j6",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173326494-5pmnib",
+    "timestamp": "2026-04-02T23:42:06.494Z",
+    "action": "apply",
+    "draftId": "parse-1775173325758-3lyjxi",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Applied 5 fields: returns.y2022, returns.ytd2026, returns.y2025, sharpe, stdDev",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true,
+    "batchId": "batch-2026-04-02T23:42:06.2300100Z"
+  },
+  {
+    "id": "parse-1775173327335-p9w725",
+    "timestamp": "2026-04-02T23:42:07.335Z",
+    "action": "reject",
+    "draftId": "parse-1775173325867-60d8j6",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Draft rejected by super. Fields: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173327983-olzayx",
+    "timestamp": "2026-04-02T23:42:07.984Z",
+    "action": "parse",
+    "draftId": "parse-1775173327979-kz6e2p",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173328247-fgpw8q",
+    "timestamp": "2026-04-02T23:42:08.247Z",
+    "action": "parse",
+    "draftId": "parse-1775173328240-lgtml1",
+    "fundName": "hatzavim",
+    "fundId": "fund-2",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173329144-778e30",
+    "timestamp": "2026-04-02T23:42:09.144Z",
+    "action": "reject",
+    "draftId": "parse-1775173327979-kz6e2p",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Draft rejected by super. Fields: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173329404-83t1mf",
+    "timestamp": "2026-04-02T23:42:09.404Z",
+    "action": "reject",
+    "draftId": "parse-1775173328240-lgtml1",
+    "fundName": "hatzavim",
+    "fundId": "fund-2",
+    "details": "Draft rejected by super. Fields: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173331541-x58r1j",
+    "timestamp": "2026-04-02T23:42:11.541Z",
+    "action": "parse",
+    "draftId": "parse-1775173331534-5potg0",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: returns.y2021, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173332025-8jaz9x",
+    "timestamp": "2026-04-02T23:42:12.025Z",
+    "action": "parse",
+    "draftId": "parse-1775173332015-p57k9d",
+    "fundName": "ghost",
+    "fundId": "fund-999",
+    "details": "Parsed text (0 chars preview). 1 fields extracted: sharpe"
+  },
+  {
+    "id": "parse-1775173333612-dwe0f1",
+    "timestamp": "2026-04-02T23:42:13.612Z",
+    "action": "reject",
+    "draftId": "parse-1775173331534-5potg0",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Draft rejected by super. Fields: returns.y2021, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173333751-bryp4p",
+    "timestamp": "2026-04-02T23:42:13.751Z",
+    "action": "reject",
+    "draftId": "parse-1775173332015-p57k9d",
+    "fundName": "ghost",
+    "fundId": "fund-999",
+    "details": "Draft rejected by super. Fields: sharpe"
+  },
+  {
+    "id": "parse-1775173334152-zpff8b",
+    "timestamp": "2026-04-02T23:42:14.152Z",
+    "action": "parse",
+    "draftId": "parse-1775173334145-rpscoo",
+    "fundName": "agility-a",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: returns.y2020, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173334370-5g4s7x",
+    "timestamp": "2026-04-02T23:42:14.370Z",
+    "action": "parse",
+    "draftId": "parse-1775173334364-gx3wsv",
+    "fundName": "agility-b",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: returns.y2019, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173335068-a8ku6g",
+    "timestamp": "2026-04-02T23:42:15.068Z",
+    "action": "apply",
+    "draftId": "parse-1775173334145-rpscoo",
+    "fundName": "agility-a",
+    "fundId": "fund-3",
+    "details": "Applied 5 fields: returns.y2020, returns.ytd2026, returns.y2025, sharpe, stdDev",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true,
+    "batchId": "batch-2026-04-02T23:42:14.8629184Z"
+  },
+  {
+    "id": "parse-1775173335554-s1dndb",
+    "timestamp": "2026-04-02T23:42:15.554Z",
+    "action": "reject",
+    "draftId": "parse-1775173334364-gx3wsv",
+    "fundName": "agility-b",
+    "fundId": "fund-3",
+    "details": "Draft rejected by super. Fields: returns.y2019, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173336190-1bu74z",
+    "timestamp": "2026-04-02T23:42:16.190Z",
+    "action": "parse",
+    "draftId": "parse-1775173336186-r2m2vq",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 6 fields extracted: returns.y2019, returns.ytd2026, returns.y2025, returns.y2020, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173336797-fjvvbx",
+    "timestamp": "2026-04-02T23:42:16.797Z",
+    "action": "apply",
+    "draftId": "parse-1775173336186-r2m2vq",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Applied 6 fields: returns.y2019, returns.ytd2026, returns.y2025, returns.y2020, sharpe, stdDev",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true,
+    "batchId": "batch-2026-04-02T23:42:16.6067382Z"
+  },
+  {
+    "id": "parse-1775173337287-itbgfj",
+    "timestamp": "2026-04-02T23:42:17.287Z",
+    "action": "reject",
+    "draftId": "parse-1775173336186-r2m2vq",
+    "fundName": "אג'יליטי בונד",
+    "fundId": "fund-3",
+    "details": "Undo: reverted apply on fund \"אג'יליטי בונד\" (draft parse-1775173336186-r2m2vq)"
+  },
+  {
+    "id": "parse-1775173338381-vp7m5d",
+    "timestamp": "2026-04-02T23:42:18.381Z",
+    "action": "reject",
+    "draftId": "parse-1775173336186-r2m2vq",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Draft rejected by super. Fields: returns.y2019, returns.ytd2026, returns.y2025, returns.y2020, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173381976-hhe1ch",
+    "timestamp": "2026-04-02T23:43:01.976Z",
+    "action": "parse",
+    "draftId": "parse-1775173381969-4u1ggd",
+    "fundName": "agility bond",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 4 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025"
+  },
+  {
+    "id": "parse-1775173382462-z3utqu",
+    "timestamp": "2026-04-02T23:43:02.462Z",
+    "action": "apply",
+    "draftId": "parse-1775173381969-4u1ggd",
+    "fundName": "agility bond",
+    "fundId": "fund-3",
+    "details": "Applied 4 fields: sharpe, stdDev, returns.ytd2026, returns.y2025",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true,
+    "batchId": "batch-2026-04-02T23:43:02.2639077Z"
+  },
+  {
+    "id": "parse-1775173385132-59ozs8",
+    "timestamp": "2026-04-02T23:43:05.132Z",
+    "action": "parse",
+    "draftId": "parse-1775173385123-dgpthu",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: returns.y2022, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173385279-fbmzr6",
+    "timestamp": "2026-04-02T23:43:05.279Z",
+    "action": "parse",
+    "draftId": "parse-1775173385273-9dzxaz",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173386211-iluxhg",
+    "timestamp": "2026-04-02T23:43:06.211Z",
+    "action": "apply",
+    "draftId": "parse-1775173385123-dgpthu",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Applied 5 fields: returns.y2022, returns.ytd2026, returns.y2025, sharpe, stdDev",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true,
+    "batchId": "batch-2026-04-02T23:43:05.6908283Z"
+  },
+  {
+    "id": "parse-1775173387330-rjas8t",
+    "timestamp": "2026-04-02T23:43:07.330Z",
+    "action": "reject",
+    "draftId": "parse-1775173385273-9dzxaz",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Draft rejected by super. Fields: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173388764-75nhzd",
+    "timestamp": "2026-04-02T23:43:08.764Z",
+    "action": "parse",
+    "draftId": "parse-1775173388743-4ylbby",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173388988-3e3jp4",
+    "timestamp": "2026-04-02T23:43:08.988Z",
+    "action": "parse",
+    "draftId": "parse-1775173388981-7szwdd",
+    "fundName": "hatzavim",
+    "fundId": "fund-2",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173390670-4g9dw8",
+    "timestamp": "2026-04-02T23:43:10.671Z",
+    "action": "reject",
+    "draftId": "parse-1775173388743-4ylbby",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Draft rejected by super. Fields: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173390853-kftmow",
+    "timestamp": "2026-04-02T23:43:10.853Z",
+    "action": "reject",
+    "draftId": "parse-1775173388981-7szwdd",
+    "fundName": "hatzavim",
+    "fundId": "fund-2",
+    "details": "Draft rejected by super. Fields: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173392846-qjgz3j",
+    "timestamp": "2026-04-02T23:43:12.846Z",
+    "action": "parse",
+    "draftId": "parse-1775173392817-ehcxo0",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: returns.y2021, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173393694-6xtf1u",
+    "timestamp": "2026-04-02T23:43:13.694Z",
+    "action": "parse",
+    "draftId": "parse-1775173393688-vwn01i",
+    "fundName": "ghost",
+    "fundId": "fund-999",
+    "details": "Parsed text (0 chars preview). 1 fields extracted: sharpe"
+  },
+  {
+    "id": "parse-1775173395572-6ksolg",
+    "timestamp": "2026-04-02T23:43:15.572Z",
+    "action": "reject",
+    "draftId": "parse-1775173392817-ehcxo0",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Draft rejected by super. Fields: returns.y2021, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173395723-i0uhe2",
+    "timestamp": "2026-04-02T23:43:15.723Z",
+    "action": "reject",
+    "draftId": "parse-1775173393688-vwn01i",
+    "fundName": "ghost",
+    "fundId": "fund-999",
+    "details": "Draft rejected by super. Fields: sharpe"
+  },
+  {
+    "id": "parse-1775173397755-qf9sra",
+    "timestamp": "2026-04-02T23:43:17.755Z",
+    "action": "parse",
+    "draftId": "parse-1775173397748-g96fjm",
+    "fundName": "agility-a",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: returns.y2020, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173397875-5g3l4k",
+    "timestamp": "2026-04-02T23:43:17.875Z",
+    "action": "parse",
+    "draftId": "parse-1775173397871-ye21jt",
+    "fundName": "agility-b",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: returns.y2019, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173398656-lw95vd",
+    "timestamp": "2026-04-02T23:43:18.656Z",
+    "action": "apply",
+    "draftId": "parse-1775173397748-g96fjm",
+    "fundName": "agility-a",
+    "fundId": "fund-3",
+    "details": "Applied 5 fields: returns.y2020, returns.ytd2026, returns.y2025, sharpe, stdDev",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true,
+    "batchId": "batch-2026-04-02T23:43:18.5312797Z"
+  },
+  {
+    "id": "parse-1775173399128-s1b58c",
+    "timestamp": "2026-04-02T23:43:19.128Z",
+    "action": "reject",
+    "draftId": "parse-1775173397871-ye21jt",
+    "fundName": "agility-b",
+    "fundId": "fund-3",
+    "details": "Draft rejected by super. Fields: returns.y2019, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173400170-ilqp1x",
+    "timestamp": "2026-04-02T23:43:20.171Z",
+    "action": "parse",
+    "draftId": "parse-1775173400166-43qdso",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 6 fields extracted: returns.y2019, returns.ytd2026, returns.y2025, returns.y2020, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173400636-5vhuac",
+    "timestamp": "2026-04-02T23:43:20.636Z",
+    "action": "apply",
+    "draftId": "parse-1775173400166-43qdso",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Applied 6 fields: returns.y2019, returns.ytd2026, returns.y2025, returns.y2020, sharpe, stdDev",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true,
+    "batchId": "batch-2026-04-02T23:43:20.4867799Z"
+  },
+  {
+    "id": "parse-1775173401106-87a24x",
+    "timestamp": "2026-04-02T23:43:21.106Z",
+    "action": "reject",
+    "draftId": "parse-1775173400166-43qdso",
+    "fundName": "אג'יליטי בונד",
+    "fundId": "fund-3",
+    "details": "Undo: reverted apply on fund \"אג'יליטי בונד\" (draft parse-1775173400166-43qdso)"
+  },
+  {
+    "id": "parse-1775173402091-w3y69z",
+    "timestamp": "2026-04-02T23:43:22.091Z",
+    "action": "reject",
+    "draftId": "parse-1775173400166-43qdso",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Draft rejected by super. Fields: returns.y2019, returns.ytd2026, returns.y2025, returns.y2020, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173419305-6zs333",
+    "timestamp": "2026-04-02T23:43:39.305Z",
+    "action": "parse",
+    "draftId": "parse-1775173419302-ld18rz",
+    "fundName": "agility bond",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 4 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025"
+  },
+  {
+    "id": "parse-1775173420501-i2xgb4",
+    "timestamp": "2026-04-02T23:43:40.501Z",
+    "action": "reject",
+    "draftId": "parse-1775173419302-ld18rz",
+    "fundName": "agility bond",
+    "fundId": "fund-3",
+    "details": "Draft rejected by super. Fields: sharpe, stdDev, returns.ytd2026, returns.y2025"
+  },
+  {
+    "id": "parse-1775173421701-x43wnd",
+    "timestamp": "2026-04-02T23:43:41.701Z",
+    "action": "parse",
+    "draftId": "parse-1775173421695-wgakcn",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: returns.y2022, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173421817-h3gla0",
+    "timestamp": "2026-04-02T23:43:41.817Z",
+    "action": "parse",
+    "draftId": "parse-1775173421811-nl9vca",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173422648-o0ezu0",
+    "timestamp": "2026-04-02T23:43:42.648Z",
+    "action": "apply",
+    "draftId": "parse-1775173421695-wgakcn",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Applied 5 fields: returns.y2022, returns.ytd2026, returns.y2025, sharpe, stdDev",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true,
+    "batchId": "batch-2026-04-02T23:43:42.3485163Z"
+  },
+  {
+    "id": "parse-1775173423820-ajlne7",
+    "timestamp": "2026-04-02T23:43:43.820Z",
+    "action": "reject",
+    "draftId": "parse-1775173421811-nl9vca",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Draft rejected by super. Fields: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173424891-vr97a6",
+    "timestamp": "2026-04-02T23:43:44.891Z",
+    "action": "parse",
+    "draftId": "parse-1775173424878-fqkvhx",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173425216-21eba8",
+    "timestamp": "2026-04-02T23:43:45.216Z",
+    "action": "parse",
+    "draftId": "parse-1775173425209-2p95ok",
+    "fundName": "hatzavim",
+    "fundId": "fund-2",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173425855-8brb71",
+    "timestamp": "2026-04-02T23:43:45.855Z",
+    "action": "reject",
+    "draftId": "parse-1775173424878-fqkvhx",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Draft rejected by super. Fields: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173425946-xnm783",
+    "timestamp": "2026-04-02T23:43:45.946Z",
+    "action": "reject",
+    "draftId": "parse-1775173425209-2p95ok",
+    "fundName": "hatzavim",
+    "fundId": "fund-2",
+    "details": "Draft rejected by super. Fields: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173426838-u97jfm",
+    "timestamp": "2026-04-02T23:43:46.838Z",
+    "action": "parse",
+    "draftId": "parse-1775173426832-qw13oj",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: returns.y2021, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173426938-7oewfq",
+    "timestamp": "2026-04-02T23:43:46.938Z",
+    "action": "parse",
+    "draftId": "parse-1775173426925-3w80gh",
+    "fundName": "ghost",
+    "fundId": "fund-999",
+    "details": "Parsed text (0 chars preview). 1 fields extracted: sharpe"
+  },
+  {
+    "id": "parse-1775173427974-l81r6f",
+    "timestamp": "2026-04-02T23:43:47.974Z",
+    "action": "apply",
+    "draftId": "parse-1775173426832-qw13oj",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Applied 5 fields: returns.y2021, returns.ytd2026, returns.y2025, sharpe, stdDev",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true,
+    "batchId": "batch-2026-04-02T23:43:47.7915884Z"
+  },
+  {
+    "id": "parse-1775173428650-bbkuyi",
+    "timestamp": "2026-04-02T23:43:48.650Z",
+    "action": "reject",
+    "draftId": "parse-1775173426925-3w80gh",
+    "fundName": "ghost",
+    "fundId": "fund-999",
+    "details": "Draft rejected by super. Fields: sharpe"
+  },
+  {
+    "id": "parse-1775173429990-80tpka",
+    "timestamp": "2026-04-02T23:43:49.990Z",
+    "action": "parse",
+    "draftId": "parse-1775173429982-k7mx9j",
+    "fundName": "agility-a",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: returns.y2020, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173430081-u0nhbj",
+    "timestamp": "2026-04-02T23:43:50.081Z",
+    "action": "parse",
+    "draftId": "parse-1775173430074-fbnwcp",
+    "fundName": "agility-b",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: returns.y2019, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173431351-hnfbwg",
+    "timestamp": "2026-04-02T23:43:51.351Z",
+    "action": "apply",
+    "draftId": "parse-1775173430074-fbnwcp",
+    "fundName": "agility-b",
+    "fundId": "fund-3",
+    "details": "Applied 5 fields: returns.y2019, returns.ytd2026, returns.y2025, sharpe, stdDev",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true,
+    "batchId": "batch-2026-04-02T23:43:50.4784229Z"
+  },
+  {
+    "id": "parse-1775173431959-xu7tmv",
+    "timestamp": "2026-04-02T23:43:51.960Z",
+    "action": "reject",
+    "draftId": "parse-1775173429982-k7mx9j",
+    "fundName": "agility-a",
+    "fundId": "fund-3",
+    "details": "Draft rejected by super. Fields: returns.y2020, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173433108-f78y0g",
+    "timestamp": "2026-04-02T23:43:53.108Z",
+    "action": "parse",
+    "draftId": "parse-1775173433085-ysz1eh",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 6 fields extracted: returns.y2019, returns.ytd2026, returns.y2025, returns.y2020, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173433616-8olg25",
+    "timestamp": "2026-04-02T23:43:53.616Z",
+    "action": "apply",
+    "draftId": "parse-1775173433085-ysz1eh",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Applied 6 fields: returns.y2019, returns.ytd2026, returns.y2025, returns.y2020, sharpe, stdDev",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true,
+    "batchId": "batch-2026-04-02T23:43:53.4844857Z"
+  },
+  {
+    "id": "parse-1775173433964-zeogd9",
+    "timestamp": "2026-04-02T23:43:53.964Z",
+    "action": "reject",
+    "draftId": "parse-1775173433085-ysz1eh",
+    "fundName": "אג'יליטי בונד",
+    "fundId": "fund-3",
+    "details": "Undo: reverted apply on fund \"אג'יליטי בונד\" (draft parse-1775173433085-ysz1eh)"
+  },
+  {
+    "id": "parse-1775173435051-1nu484",
+    "timestamp": "2026-04-02T23:43:55.051Z",
+    "action": "reject",
+    "draftId": "parse-1775173433085-ysz1eh",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Draft rejected by super. Fields: returns.y2019, returns.ytd2026, returns.y2025, returns.y2020, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173447486-hhz5yc",
+    "timestamp": "2026-04-02T23:44:07.486Z",
+    "action": "parse",
+    "draftId": "parse-1775173447484-19vp9c",
+    "fundName": "agility bond",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 4 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025"
+  },
+  {
+    "id": "parse-1775173447718-fl4pn4",
+    "timestamp": "2026-04-02T23:44:07.718Z",
+    "action": "apply",
+    "draftId": "parse-1775173447484-19vp9c",
+    "fundName": "agility bond",
+    "fundId": "fund-3",
+    "details": "Applied 4 fields: sharpe, stdDev, returns.ytd2026, returns.y2025",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true,
+    "batchId": "batch-2026-04-02T23:44:07.6245552Z"
+  },
+  {
+    "id": "parse-1775173450482-hz7s0y",
+    "timestamp": "2026-04-02T23:44:10.482Z",
+    "action": "parse",
+    "draftId": "parse-1775173450478-svfpy6",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: returns.y2022, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173450571-7h2btu",
+    "timestamp": "2026-04-02T23:44:10.571Z",
+    "action": "parse",
+    "draftId": "parse-1775173450565-xmvo90",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173451481-xdnnc7",
+    "timestamp": "2026-04-02T23:44:11.481Z",
+    "action": "apply",
+    "draftId": "parse-1775173450478-svfpy6",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Applied 5 fields: returns.y2022, returns.ytd2026, returns.y2025, sharpe, stdDev",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true,
+    "batchId": "batch-2026-04-02T23:44:11.3476233Z"
+  },
+  {
+    "id": "parse-1775173455275-d2qvlm",
+    "timestamp": "2026-04-02T23:44:15.275Z",
+    "action": "parse",
+    "draftId": "parse-1775173455271-cboryd",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173455346-fedf9k",
+    "timestamp": "2026-04-02T23:44:15.346Z",
+    "action": "parse",
+    "draftId": "parse-1775173455342-o9iss7",
+    "fundName": "hatzavim",
+    "fundId": "fund-2",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173456416-cnuvnt",
+    "timestamp": "2026-04-02T23:44:16.416Z",
+    "action": "reject",
+    "draftId": "parse-1775173450565-xmvo90",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Draft rejected by super. Fields: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173456500-x4rd29",
+    "timestamp": "2026-04-02T23:44:16.500Z",
+    "action": "reject",
+    "draftId": "parse-1775173455271-cboryd",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Draft rejected by super. Fields: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173456579-8o69mf",
+    "timestamp": "2026-04-02T23:44:16.579Z",
+    "action": "reject",
+    "draftId": "parse-1775173455342-o9iss7",
+    "fundName": "hatzavim",
+    "fundId": "fund-2",
+    "details": "Draft rejected by super. Fields: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173458898-ltxuva",
+    "timestamp": "2026-04-02T23:44:18.898Z",
+    "action": "parse",
+    "draftId": "parse-1775173458892-l3y1om",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: returns.y2021, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173459035-ijgekj",
+    "timestamp": "2026-04-02T23:44:19.035Z",
+    "action": "parse",
+    "draftId": "parse-1775173459026-otkqpp",
+    "fundName": "ghost",
+    "fundId": "fund-999",
+    "details": "Parsed text (0 chars preview). 1 fields extracted: sharpe"
+  },
+  {
+    "id": "parse-1775173459467-s9ewza",
+    "timestamp": "2026-04-02T23:44:19.467Z",
+    "action": "apply",
+    "draftId": "parse-1775173458892-l3y1om",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Applied 5 fields: returns.y2021, returns.ytd2026, returns.y2025, sharpe, stdDev",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true,
+    "batchId": "batch-2026-04-02T23:44:19.3274200Z"
+  },
+  {
+    "id": "parse-1775173459929-mv4y77",
+    "timestamp": "2026-04-02T23:44:19.929Z",
+    "action": "reject",
+    "draftId": "parse-1775173459026-otkqpp",
+    "fundName": "ghost",
+    "fundId": "fund-999",
+    "details": "Draft rejected by super. Fields: sharpe"
+  },
+  {
+    "id": "parse-1775173462341-vcsynv",
+    "timestamp": "2026-04-02T23:44:22.341Z",
+    "action": "parse",
+    "draftId": "parse-1775173462334-7jauc9",
+    "fundName": "agility-a",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: returns.y2020, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173462429-zju4jq",
+    "timestamp": "2026-04-02T23:44:22.429Z",
+    "action": "parse",
+    "draftId": "parse-1775173462424-ziik9e",
+    "fundName": "agility-b",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: returns.y2019, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173462893-z8byyb",
+    "timestamp": "2026-04-02T23:44:22.893Z",
+    "action": "apply",
+    "draftId": "parse-1775173462334-7jauc9",
+    "fundName": "agility-a",
+    "fundId": "fund-3",
+    "details": "Applied 5 fields: returns.y2020, returns.ytd2026, returns.y2025, sharpe, stdDev",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true,
+    "batchId": "batch-2026-04-02T23:44:22.7667286Z"
+  },
+  {
+    "id": "parse-1775173463280-mpkmst",
+    "timestamp": "2026-04-02T23:44:23.280Z",
+    "action": "reject",
+    "draftId": "parse-1775173462424-ziik9e",
+    "fundName": "agility-b",
+    "fundId": "fund-3",
+    "details": "Draft rejected by super. Fields: returns.y2019, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173465564-lfcdtq",
+    "timestamp": "2026-04-02T23:44:25.564Z",
+    "action": "parse",
+    "draftId": "parse-1775173465559-m8wl9d",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 6 fields extracted: returns.y2019, returns.ytd2026, returns.y2025, returns.y2020, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173465928-jdqc7f",
+    "timestamp": "2026-04-02T23:44:25.928Z",
+    "action": "apply",
+    "draftId": "parse-1775173465559-m8wl9d",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Applied 6 fields: returns.y2019, returns.ytd2026, returns.y2025, returns.y2020, sharpe, stdDev",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true,
+    "batchId": "batch-2026-04-02T23:44:25.8243261Z"
+  },
+  {
+    "id": "parse-1775173466193-i7kye9",
+    "timestamp": "2026-04-02T23:44:26.193Z",
+    "action": "reject",
+    "draftId": "parse-1775173465559-m8wl9d",
+    "fundName": "אג'יליטי בונד",
+    "fundId": "fund-3",
+    "details": "Undo: reverted apply on fund \"אג'יליטי בונד\" (draft parse-1775173465559-m8wl9d)"
+  },
+  {
+    "id": "parse-1775173467392-2n4toi",
+    "timestamp": "2026-04-02T23:44:27.392Z",
+    "action": "reject",
+    "draftId": "parse-1775173465559-m8wl9d",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Draft rejected by super. Fields: returns.y2019, returns.ytd2026, returns.y2025, returns.y2020, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173565008-9hmthv",
+    "timestamp": "2026-04-02T23:46:05.008Z",
+    "action": "parse",
+    "draftId": "parse-1775173564999-snd51l",
+    "fundName": "agility bond",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 4 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025"
+  },
+  {
+    "id": "parse-1775173565984-8dha0s",
+    "timestamp": "2026-04-02T23:46:05.984Z",
+    "action": "apply",
+    "draftId": "parse-1775173564999-snd51l",
+    "fundName": "agility bond",
+    "fundId": "fund-3",
+    "details": "Applied 4 fields: sharpe, stdDev, returns.ytd2026, returns.y2025",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true,
+    "batchId": "batch-2026-04-02T23:46:05.7700545Z"
+  },
+  {
+    "id": "parse-1775173567636-x5047y",
+    "timestamp": "2026-04-02T23:46:07.636Z",
+    "action": "parse",
+    "draftId": "parse-1775173567620-255uvu",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: returns.y2022, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173568056-8p1ea0",
+    "timestamp": "2026-04-02T23:46:08.056Z",
+    "action": "parse",
+    "draftId": "parse-1775173568042-c6qtgq",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173568996-vawmdf",
+    "timestamp": "2026-04-02T23:46:08.996Z",
+    "action": "apply",
+    "draftId": "parse-1775173567620-255uvu",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Applied 5 fields: returns.y2022, returns.ytd2026, returns.y2025, sharpe, stdDev",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true,
+    "batchId": "batch-2026-04-02T23:46:08.8092508Z"
+  },
+  {
+    "id": "parse-1775173571898-vjgq55",
+    "timestamp": "2026-04-02T23:46:11.898Z",
+    "action": "reject",
+    "draftId": "parse-1775173568042-c6qtgq",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Draft rejected by super. Fields: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173573331-5iaom2",
+    "timestamp": "2026-04-02T23:46:13.331Z",
+    "action": "parse",
+    "draftId": "parse-1775173573324-282p33",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173573637-jmxea7",
+    "timestamp": "2026-04-02T23:46:13.637Z",
+    "action": "parse",
+    "draftId": "parse-1775173573629-2cn7dd",
+    "fundName": "hatzavim",
+    "fundId": "fund-2",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173575594-y5hegb",
+    "timestamp": "2026-04-02T23:46:15.594Z",
+    "action": "reject",
+    "draftId": "parse-1775173573324-282p33",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Draft rejected by super. Fields: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173576116-4x80is",
+    "timestamp": "2026-04-02T23:46:16.116Z",
+    "action": "reject",
+    "draftId": "parse-1775173573629-2cn7dd",
+    "fundName": "hatzavim",
+    "fundId": "fund-2",
+    "details": "Draft rejected by super. Fields: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173577640-3z2n5m",
+    "timestamp": "2026-04-02T23:46:17.640Z",
+    "action": "parse",
+    "draftId": "parse-1775173577602-56rlzs",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: returns.y2021, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173577933-mr74ib",
+    "timestamp": "2026-04-02T23:46:17.933Z",
+    "action": "parse",
+    "draftId": "parse-1775173577917-xq20se",
+    "fundName": "ghost",
+    "fundId": "fund-999",
+    "details": "Parsed text (0 chars preview). 1 fields extracted: sharpe"
+  },
+  {
+    "id": "parse-1775173580050-kykiqw",
+    "timestamp": "2026-04-02T23:46:20.050Z",
+    "action": "reject",
+    "draftId": "parse-1775173577602-56rlzs",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Draft rejected by super. Fields: returns.y2021, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173580140-bznb0z",
+    "timestamp": "2026-04-02T23:46:20.140Z",
+    "action": "reject",
+    "draftId": "parse-1775173577917-xq20se",
+    "fundName": "ghost",
+    "fundId": "fund-999",
+    "details": "Draft rejected by super. Fields: sharpe"
+  },
+  {
+    "id": "parse-1775173582425-2dqtwa",
+    "timestamp": "2026-04-02T23:46:22.425Z",
+    "action": "parse",
+    "draftId": "parse-1775173582418-j6hcyc",
+    "fundName": "agility-a",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: returns.y2020, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173582608-mpwbhy",
+    "timestamp": "2026-04-02T23:46:22.608Z",
+    "action": "parse",
+    "draftId": "parse-1775173582601-ge753e",
+    "fundName": "agility-b",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: returns.y2019, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173585681-8wv3lk",
+    "timestamp": "2026-04-02T23:46:25.681Z",
+    "action": "reject",
+    "draftId": "parse-1775173582418-j6hcyc",
+    "fundName": "agility-a",
+    "fundId": "fund-3",
+    "details": "Draft rejected by super. Fields: returns.y2020, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173586850-1gdxhp",
+    "timestamp": "2026-04-02T23:46:26.850Z",
+    "action": "reject",
+    "draftId": "parse-1775173582601-ge753e",
+    "fundName": "agility-b",
+    "fundId": "fund-3",
+    "details": "Draft rejected by super. Fields: returns.y2019, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173587305-eqw9tw",
+    "timestamp": "2026-04-02T23:46:27.305Z",
+    "action": "parse",
+    "draftId": "parse-1775173587298-eii6fa",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 6 fields extracted: returns.y2019, returns.ytd2026, returns.y2025, returns.y2020, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173588299-f4qhc0",
+    "timestamp": "2026-04-02T23:46:28.299Z",
+    "action": "reject",
+    "draftId": "parse-1775173567620-255uvu",
+    "fundName": "אג'יליטי בונד",
+    "fundId": "fund-3",
+    "details": "Undo: reverted apply on fund \"אג'יליטי בונד\" (draft parse-1775173567620-255uvu)"
+  },
+  {
+    "id": "parse-1775173589622-nu8mna",
+    "timestamp": "2026-04-02T23:46:29.622Z",
+    "action": "reject",
+    "draftId": "parse-1775173567620-255uvu",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Draft rejected by super. Fields: returns.y2022, returns.ytd2026, returns.y2025, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173589757-eypye8",
+    "timestamp": "2026-04-02T23:46:29.757Z",
+    "action": "reject",
+    "draftId": "parse-1775173587298-eii6fa",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Draft rejected by super. Fields: returns.y2019, returns.ytd2026, returns.y2025, returns.y2020, sharpe, stdDev"
+  },
+  {
+    "id": "parse-1775173683186-ofiadc",
+    "timestamp": "2026-04-02T23:48:03.186Z",
+    "action": "parse",
+    "draftId": "parse-1775173683175-29fztc",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 3 fields extracted: sharpe, returns.ytd2026, returns.y2025"
+  },
+  {
+    "id": "parse-1775173685099-ivieb2",
+    "timestamp": "2026-04-02T23:48:05.099Z",
+    "action": "apply",
+    "draftId": "parse-1775173683175-29fztc",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Applied 3 fields: sharpe, returns.ytd2026, returns.y2025",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true,
+    "batchId": "batch-2026-04-02T23:48:04.8691134Z"
+  },
+  {
+    "id": "parse-1775173687125-rm6ovk",
+    "timestamp": "2026-04-02T23:48:07.125Z",
+    "action": "parse",
+    "draftId": "parse-1775173687119-hse8ju",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 4 fields extracted: returns.y2022, sharpe, returns.ytd2026, returns.y2025"
+  },
+  {
+    "id": "parse-1775173687261-alsgbg",
+    "timestamp": "2026-04-02T23:48:07.261Z",
+    "action": "parse",
+    "draftId": "parse-1775173687254-puwj50",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173688962-4lxmx8",
+    "timestamp": "2026-04-02T23:48:08.962Z",
+    "action": "apply",
+    "draftId": "parse-1775173687119-hse8ju",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Applied 4 fields: returns.y2022, sharpe, returns.ytd2026, returns.y2025",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true,
+    "batchId": "batch-2026-04-02T23:48:08.8145525Z"
+  },
+  {
+    "id": "parse-1775173690498-i1solz",
+    "timestamp": "2026-04-02T23:48:10.498Z",
+    "action": "reject",
+    "draftId": "parse-1775173687254-puwj50",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Draft rejected by super. Fields: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173692060-5mc7pe",
+    "timestamp": "2026-04-02T23:48:12.060Z",
+    "action": "parse",
+    "draftId": "parse-1775173692052-2ved2z",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173692331-o6fj2z",
+    "timestamp": "2026-04-02T23:48:12.331Z",
+    "action": "parse",
+    "draftId": "parse-1775173692324-72fw4i",
+    "fundName": "hatzavim",
+    "fundId": "fund-2",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173694845-i0yc0i",
+    "timestamp": "2026-04-02T23:48:14.845Z",
+    "action": "reject",
+    "draftId": "parse-1775173692052-2ved2z",
+    "fundName": "sfera",
+    "fundId": "fund-1",
+    "details": "Draft rejected by super. Fields: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173695215-haugw8",
+    "timestamp": "2026-04-02T23:48:15.215Z",
+    "action": "reject",
+    "draftId": "parse-1775173692324-72fw4i",
+    "fundName": "hatzavim",
+    "fundId": "fund-2",
+    "details": "Draft rejected by super. Fields: sharpe, stdDev, returns.ytd2026, returns.y2025, returns.y2024"
+  },
+  {
+    "id": "parse-1775173696394-huxhmu",
+    "timestamp": "2026-04-02T23:48:16.394Z",
+    "action": "parse",
+    "draftId": "parse-1775173696387-8z3mu8",
+    "fundName": "ghost",
+    "fundId": "fund-999",
+    "details": "Parsed text (0 chars preview). 1 fields extracted: sharpe"
+  },
+  {
+    "id": "parse-1775173696554-dl3z91",
+    "timestamp": "2026-04-02T23:48:16.554Z",
+    "action": "parse",
+    "draftId": "parse-1775173696546-lt6aol",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 5 fields extracted: returns.y2021, sharpe, returns.ytd2026, returns.y2025, returns.y2022"
+  },
+  {
+    "id": "parse-1775173697595-3gjf7x",
+    "timestamp": "2026-04-02T23:48:17.595Z",
+    "action": "apply",
+    "draftId": "parse-1775173696546-lt6aol",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Applied 5 fields: returns.y2021, sharpe, returns.ytd2026, returns.y2025, returns.y2022",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true,
+    "batchId": "batch-2026-04-02T23:48:17.4240400Z"
+  },
+  {
+    "id": "parse-1775173698444-82tw2t",
+    "timestamp": "2026-04-02T23:48:18.444Z",
+    "action": "reject",
+    "draftId": "parse-1775173696387-8z3mu8",
+    "fundName": "ghost",
+    "fundId": "fund-999",
+    "details": "Draft rejected by super. Fields: sharpe"
+  },
+  {
+    "id": "parse-1775173699013-i9ze4k",
+    "timestamp": "2026-04-02T23:48:19.013Z",
+    "action": "parse",
+    "draftId": "parse-1775173699006-2oi0rd",
+    "fundName": "agility-a",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 6 fields extracted: returns.y2020, sharpe, returns.ytd2026, returns.y2025, returns.y2022, returns.y2021"
+  },
+  {
+    "id": "parse-1775173699157-q7p9k8",
+    "timestamp": "2026-04-02T23:48:19.157Z",
+    "action": "parse",
+    "draftId": "parse-1775173699149-lnmsf2",
+    "fundName": "agility-b",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 6 fields extracted: returns.y2019, sharpe, returns.ytd2026, returns.y2025, returns.y2022, returns.y2021"
+  },
+  {
+    "id": "parse-1775173700095-ondz15",
+    "timestamp": "2026-04-02T23:48:20.095Z",
+    "action": "apply",
+    "draftId": "parse-1775173699006-2oi0rd",
+    "fundName": "agility-a",
+    "fundId": "fund-3",
+    "details": "Applied 6 fields: returns.y2020, sharpe, returns.ytd2026, returns.y2025, returns.y2022, returns.y2021",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true,
+    "batchId": "batch-2026-04-02T23:48:19.9628690Z"
+  },
+  {
+    "id": "parse-1775173701663-r0zttk",
+    "timestamp": "2026-04-02T23:48:21.663Z",
+    "action": "reject",
+    "draftId": "parse-1775173699149-lnmsf2",
+    "fundName": "agility-b",
+    "fundId": "fund-3",
+    "details": "Draft rejected by super. Fields: returns.y2019, sharpe, returns.ytd2026, returns.y2025, returns.y2022, returns.y2021"
+  },
+  {
+    "id": "parse-1775173703327-kz8es7",
+    "timestamp": "2026-04-02T23:48:23.327Z",
+    "action": "parse",
+    "draftId": "parse-1775173703319-h9fsla",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Parsed text (0 chars preview). 7 fields extracted: returns.y2019, sharpe, returns.ytd2026, returns.y2025, returns.y2022, returns.y2021, returns.y2020"
+  },
+  {
+    "id": "parse-1775173705021-hxlseu",
+    "timestamp": "2026-04-02T23:48:25.022Z",
+    "action": "apply",
+    "draftId": "parse-1775173703319-h9fsla",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Applied 7 fields: returns.y2019, sharpe, returns.ytd2026, returns.y2025, returns.y2022, returns.y2021, returns.y2020",
+    "reportMonth": "2026-02",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true,
+    "batchId": "batch-2026-04-02T23:48:24.8596557Z"
+  },
+  {
+    "id": "parse-1775173706541-1pony3",
+    "timestamp": "2026-04-02T23:48:26.541Z",
+    "action": "reject",
+    "draftId": "parse-1775173703319-h9fsla",
+    "fundName": "אג'יליטי בונד",
+    "fundId": "fund-3",
+    "details": "Undo: reverted apply on fund \"אג'יליטי בונד\" (draft parse-1775173703319-h9fsla)"
+  },
+  {
+    "id": "parse-1775173707553-k1cl0j",
+    "timestamp": "2026-04-02T23:48:27.554Z",
+    "action": "reject",
+    "draftId": "parse-1775173703319-h9fsla",
+    "fundName": "agility",
+    "fundId": "fund-3",
+    "details": "Draft rejected by super. Fields: returns.y2019, sharpe, returns.ytd2026, returns.y2025, returns.y2022, returns.y2021, returns.y2020"
+  },
+  {
+    "id": "parse-1775248773046-elqg47",
+    "timestamp": "2026-04-03T20:39:33.046Z",
+    "action": "apply",
+    "draftId": "qa-clean-001",
+    "fundName": "ספרה בונד",
+    "fundId": "fund-1",
+    "details": "Applied 1 fields: monthlyReturn",
+    "reportMonth": "2026-03",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true
+  },
+  {
+    "id": "parse-1775284575202-caqfor",
+    "timestamp": "2026-04-04T06:36:15.203Z",
+    "action": "parse",
+    "draftId": "parse-1775284575161-vsb34p",
+    "fundName": "ספרה בונד",
+    "fundId": "fund-1",
+    "details": "Parsed text (35 chars preview). 13 fields extracted: monthlyReturns.2025-01, monthlyReturns.2025-02, monthlyReturns.2025-03, monthlyReturns.2025-04, monthlyReturns.2025-05, monthlyReturns.2025-06, monthlyReturns.2025-07, monthlyReturns.2025-08, monthlyReturns.2025-09, monthlyReturns.2025-10, monthlyReturns.2025-11, monthlyReturns.2025-12, returns.y2025"
+  },
+  {
+    "id": "parse-1775284808444-7dncuv",
+    "timestamp": "2026-04-04T06:40:08.444Z",
+    "action": "apply",
+    "draftId": "test-fake",
+    "fundName": "",
+    "fundId": "fund-1",
+    "details": "Applied 1 fields: monthlyReturns.2025-01",
+    "reportMonth": "2025-12",
+    "collision": false,
+    "collisionDecision": "new",
+    "autoApply": true
+  },
+  {
+    "id": "parse-1775284839468-d90kky",
+    "timestamp": "2026-04-04T06:40:39.468Z",
+    "action": "parse",
+    "draftId": "parse-1775284839460-yvldkc",
+    "fundName": "ספרה בונד",
+    "fundId": "fund-1",
+    "details": "Parsed text (9 chars preview). 2 fields extracted: monthlyReturns.2025-01, monthlyReturns.2025-02"
+  }
+]

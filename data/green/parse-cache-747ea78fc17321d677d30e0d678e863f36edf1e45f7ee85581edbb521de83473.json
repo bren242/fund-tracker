@@ -1,0 +1,830 @@
+{
+  "result": {
+    "fundName": "morefeb",
+    "fundNameConfidence": 0,
+    "reportMonth": null,
+    "reportMonthConfidence": "low",
+    "returnBasis": null,
+    "returnBasisOptions": [],
+    "fields": [
+      {
+        "key": "monthlyReturns.2020-12",
+        "value": 0.0175,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2020-11",
+        "value": 0.0588,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2020-10",
+        "value": 0.0111,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2020-09",
+        "value": -0.0021,
+        "confidence": 0.95
+      },
+      {
+        "key": "returns.y2020",
+        "value": 0.0874,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2021-12",
+        "value": 0.0017,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2021-11",
+        "value": -0.0022,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2021-10",
+        "value": 0.0042,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2021-09",
+        "value": 0.005,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2021-08",
+        "value": 0.0024,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2021-07",
+        "value": 0.0028,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2021-06",
+        "value": 0.0037,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2021-05",
+        "value": 0.0111,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2021-04",
+        "value": 0.0094,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2021-03",
+        "value": 0.0024,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2021-02",
+        "value": 0.0082,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2021-01",
+        "value": 0.0297,
+        "confidence": 0.95
+      },
+      {
+        "key": "returns.y2021",
+        "value": 0.0825,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2022-12",
+        "value": 0.0062,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2022-11",
+        "value": 0.0315,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2022-10",
+        "value": 0.0075,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2022-09",
+        "value": -0.0492,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2022-08",
+        "value": 0.0177,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2022-07",
+        "value": 0.0028,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2022-06",
+        "value": -0.0097,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2022-05",
+        "value": -0.0408,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2022-04",
+        "value": -0.0101,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2022-03",
+        "value": 0.0083,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2022-02",
+        "value": -0.0173,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2022-01",
+        "value": -0.0014,
+        "confidence": 0.95
+      },
+      {
+        "key": "returns.y2022",
+        "value": -0.0539,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2023-12",
+        "value": 0.018,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2023-11",
+        "value": 0.0195,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2023-10",
+        "value": -0.0061,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2023-09",
+        "value": 0.0146,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2023-08",
+        "value": 0.018,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2023-07",
+        "value": 0.0312,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2023-06",
+        "value": 0.0124,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2023-05",
+        "value": 0.0003,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2023-04",
+        "value": 0.0264,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2023-03",
+        "value": -0.0169,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2023-02",
+        "value": 0.0053,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2023-01",
+        "value": 0.0189,
+        "confidence": 0.95
+      },
+      {
+        "key": "returns.y2023",
+        "value": 0.1435,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2024-12",
+        "value": 0.009,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2024-11",
+        "value": 0.011,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2024-10",
+        "value": 0.0125,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2024-09",
+        "value": 0.0102,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2024-08",
+        "value": 0.0026,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2024-07",
+        "value": 0.0057,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2024-06",
+        "value": 0.0013,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2024-05",
+        "value": 0.0229,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2024-04",
+        "value": 0.0175,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2024-03",
+        "value": 0.0188,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2024-02",
+        "value": 0.0076,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2024-01",
+        "value": 0.0351,
+        "confidence": 0.95
+      },
+      {
+        "key": "returns.y2024",
+        "value": 0.1662,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2025-12",
+        "value": 0.0025,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2025-11",
+        "value": 0.0012,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2025-10",
+        "value": 0.0024,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2025-09",
+        "value": 0.0116,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2025-08",
+        "value": 0.0065,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2025-07",
+        "value": 0.011,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2025-06",
+        "value": 0.0056,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2025-05",
+        "value": 0.0119,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2025-04",
+        "value": -0.0024,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2025-03",
+        "value": -0.007,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2025-02",
+        "value": 0.007,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2025-01",
+        "value": 0.0129,
+        "confidence": 0.95
+      },
+      {
+        "key": "returns.y2025",
+        "value": 0.0669,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2026-02",
+        "value": -0.0467,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturns.2026-01",
+        "value": 0.0065,
+        "confidence": 0.95
+      },
+      {
+        "key": "returns.ytd2026",
+        "value": -0.0404,
+        "confidence": 0.95
+      },
+      {
+        "key": "monthlyReturn",
+        "value": -0.0467,
+        "confidence": 0.95
+      }
+    ],
+    "match": null,
+    "dualCurrencyData": [
+      {
+        "returnBasis": "ILS",
+        "fields": [
+          {
+            "key": "monthlyReturns.2020-12",
+            "value": 0.0175,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2020-11",
+            "value": 0.0588,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2020-10",
+            "value": 0.0111,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2020-09",
+            "value": -0.0021,
+            "confidence": 0.95
+          },
+          {
+            "key": "returns.y2020",
+            "value": 0.0874,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2021-12",
+            "value": 0.0017,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2021-11",
+            "value": -0.0022,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2021-10",
+            "value": 0.0042,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2021-09",
+            "value": 0.005,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2021-08",
+            "value": 0.0024,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2021-07",
+            "value": 0.0028,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2021-06",
+            "value": 0.0037,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2021-05",
+            "value": 0.0111,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2021-04",
+            "value": 0.0094,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2021-03",
+            "value": 0.0024,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2021-02",
+            "value": 0.0082,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2021-01",
+            "value": 0.0297,
+            "confidence": 0.95
+          },
+          {
+            "key": "returns.y2021",
+            "value": 0.0825,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2022-12",
+            "value": 0.0062,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2022-11",
+            "value": 0.0315,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2022-10",
+            "value": 0.0075,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2022-09",
+            "value": -0.0492,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2022-08",
+            "value": 0.0177,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2022-07",
+            "value": 0.0028,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2022-06",
+            "value": -0.0097,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2022-05",
+            "value": -0.0408,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2022-04",
+            "value": -0.0101,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2022-03",
+            "value": 0.0083,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2022-02",
+            "value": -0.0173,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2022-01",
+            "value": -0.0014,
+            "confidence": 0.95
+          },
+          {
+            "key": "returns.y2022",
+            "value": -0.0539,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2023-12",
+            "value": 0.018,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2023-11",
+            "value": 0.0195,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2023-10",
+            "value": -0.0061,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2023-09",
+            "value": 0.0146,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2023-08",
+            "value": 0.018,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2023-07",
+            "value": 0.0312,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2023-06",
+            "value": 0.0124,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2023-05",
+            "value": 0.0003,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2023-04",
+            "value": 0.0264,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2023-03",
+            "value": -0.0169,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2023-02",
+            "value": 0.0053,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2023-01",
+            "value": 0.0189,
+            "confidence": 0.95
+          },
+          {
+            "key": "returns.y2023",
+            "value": 0.1435,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2024-12",
+            "value": 0.009,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2024-11",
+            "value": 0.011,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2024-10",
+            "value": 0.0125,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2024-09",
+            "value": 0.0102,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2024-08",
+            "value": 0.0026,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2024-07",
+            "value": 0.0057,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2024-06",
+            "value": 0.0013,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2024-05",
+            "value": 0.0229,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2024-04",
+            "value": 0.0175,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2024-03",
+            "value": 0.0188,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2024-02",
+            "value": 0.0076,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2024-01",
+            "value": 0.0351,
+            "confidence": 0.95
+          },
+          {
+            "key": "returns.y2024",
+            "value": 0.1662,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2025-12",
+            "value": 0.0025,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2025-11",
+            "value": 0.0012,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2025-10",
+            "value": 0.0024,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2025-09",
+            "value": 0.0116,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2025-08",
+            "value": 0.0065,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2025-07",
+            "value": 0.011,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2025-06",
+            "value": 0.0056,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2025-05",
+            "value": 0.0119,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2025-04",
+            "value": -0.0024,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2025-03",
+            "value": -0.007,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2025-02",
+            "value": 0.007,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2025-01",
+            "value": 0.0129,
+            "confidence": 0.95
+          },
+          {
+            "key": "returns.y2025",
+            "value": 0.0669,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2026-02",
+            "value": -0.0467,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturns.2026-01",
+            "value": 0.0065,
+            "confidence": 0.95
+          },
+          {
+            "key": "returns.ytd2026",
+            "value": -0.0404,
+            "confidence": 0.95
+          },
+          {
+            "key": "monthlyReturn",
+            "value": -0.0467,
+            "confidence": 0.95
+          }
+        ],
+        "allMonthlyReturns": {
+          "2020-12": 0.0175,
+          "2020-11": 0.0588,
+          "2020-10": 0.0111,
+          "2020-09": -0.0021,
+          "2021-12": 0.0017,
+          "2021-11": -0.0022,
+          "2021-10": 0.0042,
+          "2021-09": 0.005,
+          "2021-08": 0.0024,
+          "2021-07": 0.0028,
+          "2021-06": 0.0037,
+          "2021-05": 0.0111,
+          "2021-04": 0.0094,
+          "2021-03": 0.0024,
+          "2021-02": 0.0082,
+          "2021-01": 0.0297,
+          "2022-12": 0.0062,
+          "2022-11": 0.0315,
+          "2022-10": 0.0075,
+          "2022-09": -0.0492,
+          "2022-08": 0.0177,
+          "2022-07": 0.0028,
+          "2022-06": -0.0097,
+          "2022-05": -0.0408,
+          "2022-04": -0.0101,
+          "2022-03": 0.0083,
+          "2022-02": -0.0173,
+          "2022-01": -0.0014,
+          "2023-12": 0.018,
+          "2023-11": 0.0195,
+          "2023-10": -0.0061,
+          "2023-09": 0.0146,
+          "2023-08": 0.018,
+          "2023-07": 0.0312,
+          "2023-06": 0.0124,
+          "2023-05": 0.0003,
+          "2023-04": 0.0264,
+          "2023-03": -0.0169,
+          "2023-02": 0.0053,
+          "2023-01": 0.0189,
+          "2024-12": 0.009,
+          "2024-11": 0.011,
+          "2024-10": 0.0125,
+          "2024-09": 0.0102,
+          "2024-08": 0.0026,
+          "2024-07": 0.0057,
+          "2024-06": 0.0013,
+          "2024-05": 0.0229,
+          "2024-04": 0.0175,
+          "2024-03": 0.0188,
+          "2024-02": 0.0076,
+          "2024-01": 0.0351,
+          "2025-12": 0.0025,
+          "2025-11": 0.0012,
+          "2025-10": 0.0024,
+          "2025-09": 0.0116,
+          "2025-08": 0.0065,
+          "2025-07": 0.011,
+          "2025-06": 0.0056,
+          "2025-05": 0.0119,
+          "2025-04": -0.0024,
+          "2025-03": -0.007,
+          "2025-02": 0.007,
+          "2025-01": 0.0129,
+          "2026-02": -0.0467,
+          "2026-01": 0.0065
+        }
+      }
+    ],
+    "_cacheVersion": 29
+  },
+  "cachedAt": "2026-04-07T07:28:52.272Z"
+}

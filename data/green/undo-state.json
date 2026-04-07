@@ -1,0 +1,31 @@
+{
+  "draftId": "test-fake",
+  "fundId": "fund-1",
+  "categoryId": "bond-hedged",
+  "fundSnapshot": {
+    "id": "fund-1",
+    "name": "ספרה בונד",
+    "classification": "לונג אג\"ח קונצרני",
+    "startDate": "2023-06-01",
+    "manager": "צפריר אפרתי",
+    "lastReportDate": "2026-02-28",
+    "monthlyReturn": 0.012,
+    "returns": {
+      "ytd2026": 0.027,
+      "y2025": 0.115,
+      "y2024": 0.127,
+      "y2023": null,
+      "y2022": null,
+      "y2021": null,
+      "y2020": null,
+      "y2019": null
+    },
+    "avgAnnualReturn": null,
+    "sharpe": 1.96,
+    "stdDev": 0.048,
+    "aumMillions": 200,
+    "monthlyDirection": "RTL"
+  },
+  "timestamp": "2026-04-04T06:40:08.432Z",
+  "fieldDecisions": {}
+}

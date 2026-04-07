@@ -1,0 +1,159 @@
+
+> fund-tracker@1.0.0 dev
+> next dev
+
+   ▲ Next.js 15.5.14
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.1.138:3000
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 4.4s
+ ○ Compiling /api/test-env ...
+ ✓ Compiled /api/test-env in 1798ms (297 modules)
+ GET /api/test-env 200 in 2446ms
+ ✓ Compiled /api/parse in 430ms (310 modules)
+[parse-file] type=image, media_type=image/png, base64_length=61484
+[parse-file] type=image, media_type=image/png, base64_length=61484
+ POST /api/parse?action=parse-file&client=green 200 in 33125ms
+ ✓ Compiled in 120ms (113 modules)
+ ✓ Compiled in 221ms (308 modules)
+ ✓ Compiled in 79ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 1376ms (543 modules)
+ GET /api/test-env 404 in 2237ms
+ ○ Compiling /api/parse ...
+ ✓ Compiled /api/parse in 1942ms (339 modules)
+POST /api/parse error: [TypeError: Failed to parse body as FormData.] {
+  [cause]: [TypeError: no boundary found in multipart body]
+}
+ POST /api/parse?action=parse-file&client=green 500 in 2485ms
+ GET /api/parse 401 in 31ms
+ POST /api/parse 401 in 25ms
+ POST /api/parse?client=green 401 in 14ms
+ POST /api/parse?client=green 400 in 50ms
+[parse-file] type=document, media_type=application/pdf, base64_length=830364
+[parse-file] type=document, media_type=application/pdf, base64_length=830364
+ ✓ Compiled in 275ms (231 modules)
+ POST /api/parse?client=green&action=parse-file 200 in 41461ms
+ ✓ Compiled in 109ms (231 modules)
+ ✓ Compiled in 119ms (231 modules)
+ ✓ Compiled in 706ms (231 modules)
+ ✓ Compiled in 143ms (231 modules)
+ ✓ Compiled in 121ms (231 modules)
+ ✓ Compiled in 108ms (231 modules)
+ ✓ Compiled in 392ms (231 modules)
+ ✓ Compiled in 229ms (231 modules)
+ ✓ Compiled in 440ms (231 modules)
+ ○ Compiling /api/parse ...
+ ✓ Compiled /api/parse in 1117ms (113 modules)
+[parse-file] type=document, media_type=application/pdf, base64_length=830364
+[parse-file] type=document, media_type=application/pdf, base64_length=830364
+ ✓ Compiled in 191ms (231 modules)
+ POST /api/parse?client=green&action=parse-file 200 in 40999ms
+ ✓ Compiled in 216ms (231 modules)
+ ✓ Compiled in 676ms (231 modules)
+ ✓ Compiled in 127ms (231 modules)
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 568ms (115 modules)
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 509ms (312 modules)
+ GET / 404 in 1454ms
+ GET / 404 in 166ms
+ GET /%D7%A2%D7%A8%D7%A7%D7%A7%D7%9E 404 in 47ms
+ ○ Compiling / ...
+ ✓ Compiled / in 1018ms (580 modules)
+ GET /green 200 in 1418ms
+ ○ Compiling /api/brand ...
+ ✓ Compiled /api/brand in 579ms (595 modules)
+ GET /api/brand?client=green 200 in 820ms
+ GET /api/funds?client=green 200 in 856ms
+ ✓ Compiled /api/client-auth in 387ms (597 modules)
+ POST /api/client-auth?client=green 200 in 558ms
+ ○ Compiling /data-completion ...
+ ✓ Compiled /data-completion in 747ms (604 modules)
+ GET /data-completion?client=green 200 in 1466ms
+ GET /api/brand?client=green 200 in 90ms
+ GET /api/funds?client=green 200 in 117ms
+ PUT /api/funds?client=green 200 in 23ms
+ ✓ Compiled in 219ms (250 modules)
+ GET /data-completion?client=green 200 in 50ms
+ GET /?client=green 200 in 1770ms
+ GET /api/funds?client=green 200 in 299ms
+ GET /api/brand?client=green 200 in 1054ms
+ GET /api/brand?client=green 200 in 89ms
+ GET /api/brand?client=green 200 in 154ms
+ ✓ Compiled in 4.2s (586 modules)
+ GET /?client=green 200 in 2210ms
+ ○ Compiling /api/parse ...
+ ✓ Compiled /api/parse in 1502ms (363 modules)
+ POST /api/parse?client=green&action=parse-file 200 in 2423ms
+ ✓ Compiled in 1412ms (250 modules)
+ GET /?client=green 200 in 1285ms
+ GET /?client=green 200 in 180ms
+ ✓ Compiled in 4.1s (586 modules)
+ ✓ Compiled in 5.2s (586 modules)
+ ✓ Compiled in 3.9s (586 modules)
+ GET /?client=green 200 in 2527ms
+ GET /?client=green 200 in 197ms
+ ✓ Compiled in 6.9s (586 modules)
+ GET /?client=green 200 in 1971ms
+ GET /?client=green 200 in 211ms
+ ✓ Compiled in 7.8s (586 modules)
+ GET /?client=green 200 in 2966ms
+ ✓ Compiled in 4.2s (250 modules)
+ ✓ Compiled in 739ms (250 modules)
+ GET /?client=green 200 in 899ms
+ GET /?client=green 200 in 144ms
+ ✓ Compiled in 1101ms (250 modules)
+ GET /?client=green 200 in 361ms
+ ✓ Compiled in 2s (250 modules)
+ GET /?client=green 200 in 315ms
+ ✓ Compiled in 2.1s (250 modules)
+ ✓ Compiled in 1972ms (250 modules)
+ ✓ Compiled in 770ms (250 modules)
+ GET /?client=green 200 in 177ms
+ GET /?client=green 200 in 238ms
+ GET /?client=green 200 in 158ms
+ ✓ Compiled in 1358ms (250 modules)
+ GET /?client=green 200 in 257ms
+ ✓ Compiled in 2.5s (250 modules)
+ ✓ Compiled in 2.6s (250 modules)
+ GET /?client=green 200 in 1248ms
+ ✓ Compiled in 1234ms (250 modules)
+ ✓ Compiled in 1439ms (250 modules)
+ ✓ Compiled in 1761ms (250 modules)
+ ✓ Compiled in 1328ms (250 modules)
+ ✓ Compiled in 405ms (250 modules)
+ ✓ Compiled in 372ms (250 modules)
+ ✓ Compiled in 1484ms (250 modules)
+ ✓ Compiled in 1194ms (250 modules)
+ ✓ Compiled in 643ms (250 modules)
+ ✓ Compiled in 731ms (250 modules)
+ ✓ Compiled in 725ms (250 modules)
+ ✓ Compiled in 516ms (250 modules)
+ ✓ Compiled in 4.4s (586 modules)
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 1410ms (337 modules)
+ ⨯ [Error [InvariantError]: Invariant: Expected clientReferenceManifest to be defined. This is a bug in Next.js.]
+ ⨯ [Error [InvariantError]: Invariant: Expected clientReferenceManifest to be defined. This is a bug in Next.js.]
+ GET / 500 in 6915ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 16.2s (919 modules)
+ GET / 404 in 1779ms
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Agam\Desktop\מעקב קרנות\fund-tracker\.next\server\app\page.js'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Agam\\Desktop\\מעקב קרנות\\fund-tracker\\.next\\server\\app\\page.js',
+  page: '/'
+}
+ GET /green 500 in 877ms
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Agam\Desktop\מעקב קרנות\fund-tracker\.next\server\app\page.js'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Agam\\Desktop\\מעקב קרנות\\fund-tracker\\.next\\server\\app\\page.js',
+  page: '/'
+}
+ GET /green 500 in 391ms
