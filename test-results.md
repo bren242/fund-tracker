@@ -1,5 +1,6 @@
 # Regression Test Results — Two-Pass Architecture
 > Generated: 2026-04-07 | v28 cache
+> Re-verified: 2026-04-08 (night run) — no new report files found in repo, previous results still valid
 
 ## Summary
 
