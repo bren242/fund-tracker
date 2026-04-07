@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, Suspense } from "react";
 import {
   ScatterChart, Scatter, XAxis, YAxis, Tooltip,
   CartesianGrid, Cell, ZAxis, Label, LabelList,
-  ReferenceLine, ReferenceArea,
+  ReferenceLine, ReferenceArea, Customized,
 } from "recharts";
 import { FundsData, Fund } from "@/lib/types";
 import { ThemeToggle } from "@/components/ThemeProvider";
@@ -68,6 +68,58 @@ function buildScatterData(funds: Fund[], returnKey: string): ScatterPoint[] {
 }
 
 const COLORS = { top: "#059669", bottom: "#dc2626", normal: "#64748b" };
+
+/* ── Quadrant Labels (rendered inside SVG via Customized) ── */
+function QuadrantLabels({ xAxisMap, yAxisMap, avgX, avgY }: { xAxisMap?: Record<string, { x: number; width: number; scale: (v: number) => number }>; yAxisMap?: Record<string, { y: number; height: number; scale: (v: number) => number }>; avgX: number; avgY: number }) {
+  if (!xAxisMap || !yAxisMap) return null;
+  const xAxis = Object.values(xAxisMap)[0];
+  const yAxis = Object.values(yAxisMap)[0];
+  if (!xAxis || !yAxis) return null;
+
+  const cx = xAxis.scale(avgX);
+  const cy = yAxis.scale(avgY);
+  const left = xAxis.x + 8;
+  const right = xAxis.x + xAxis.width - 8;
+  const top = yAxis.y + 12;
+  const bottom = yAxis.y + yAxis.height - 8;
+
+  const labels: { x: number; y: number; text: string; fill: string; bold: boolean }[] = [
+    { x: left, y: top, text: "סיכון גבוה תשואה נמוכה", fill: "#94a3b8", bold: false },
+    { x: right, y: top, text: "אגרסיבי", fill: "#94a3b8", bold: false },
+    { x: left, y: bottom, text: "הגנתי", fill: "#94a3b8", bold: false },
+    { x: right, y: bottom, text: "הגביע הקדוש ✦", fill: "#059669", bold: true },
+  ];
+
+  return (
+    <g>
+      {labels.map((l) => (
+        <text key={l.text} x={l.x} y={l.y} fill={l.fill} fontSize={9} fontWeight={l.bold ? 700 : 600} textAnchor="start" dominantBaseline="hanging">
+          {l.text}
+        </text>
+      ))}
+    </g>
+  );
+}
+
+/* ── Explanation block ── */
+function ChartExplanation() {
+  return (
+    <div className="no-print" style={{
+      backgroundColor: "var(--bg-surface-alt)", borderRadius: 10,
+      padding: "12px 18px", marginBottom: 16, fontSize: 12,
+      color: "var(--text-secondary)", lineHeight: 1.7, direction: "rtl",
+      border: "1px solid var(--border)",
+    }}>
+      <div style={{ fontWeight: 600, marginBottom: 4, color: "var(--text-primary)", fontSize: 13 }}>הסבר הגרף</div>
+      <div>ציר אופקי — תשואה שנתית ממוצעת &nbsp;|&nbsp; ציר אנכי — סטיית תקן</div>
+      <div>
+        <span style={{ color: "#059669", fontWeight: 600 }}>ירוק</span> = שארפ גבוה &nbsp;|&nbsp;
+        <span style={{ color: "#dc2626", fontWeight: 600 }}>אדום</span> = שארפ נמוך &nbsp;|&nbsp;
+        קווים מקווקווים = ממוצע הקטגוריה
+      </div>
+    </div>
+  );
+}
 
 /* ================================================================== */
 /*  Main Page                                                          */
@@ -201,7 +253,10 @@ function ChartsContent() {
             </span>
           </td></tr>
 
-          {/* 2. Chart — centered */}
+          {/* 2. Explanation + Chart */}
+          <tr><td style={{ padding: "8px 20px 0" }}>
+            <ChartExplanation />
+          </td></tr>
           <tr><td style={{ textAlign: "center", padding: "8px 0 16px" }}>
             <div className="chart-card" style={{ backgroundColor: "var(--bg-surface)", borderRadius: 12, boxShadow: "var(--shadow-card)", border: "1px solid var(--border)", padding: 24, display: "inline-block" }}>
               {points.length < 2 ? (
@@ -220,15 +275,11 @@ function ChartsContent() {
                   {/* Quadrant dividers */}
                   <ReferenceLine x={avgX} stroke="#94a3b8" strokeDasharray="5 5" strokeWidth={1.5} />
                   <ReferenceLine y={avgY} stroke="#94a3b8" strokeDasharray="5 5" strokeWidth={1.5} />
+                  {/* Quadrant shading */}
+                  <ReferenceArea x1={avgX} x2={9999} y1={-9999} y2={avgY} fill="#059669" fillOpacity={0.03} />
+                  <ReferenceArea x1={-9999} x2={avgX} y1={avgY} y2={9999} fill="#dc2626" fillOpacity={0.03} />
                   {/* Quadrant labels */}
-                  <ReferenceArea x1={-9999} x2={avgX} y1={avgY} y2={9999} fill="transparent"
-                    label={{ value: "גרוע", position: "insideTopRight", fontSize: 9, fill: "#94a3b8", fontWeight: 600 } as unknown as string} />
-                  <ReferenceArea x1={avgX} x2={9999} y1={avgY} y2={9999} fill="transparent"
-                    label={{ value: "אגרסיבי", position: "insideTopLeft", fontSize: 9, fill: "#94a3b8", fontWeight: 600 } as unknown as string} />
-                  <ReferenceArea x1={-9999} x2={avgX} y1={-9999} y2={avgY} fill="transparent"
-                    label={{ value: "הגנתי", position: "insideBottomRight", fontSize: 9, fill: "#94a3b8", fontWeight: 600 } as unknown as string} />
-                  <ReferenceArea x1={avgX} x2={9999} y1={-9999} y2={avgY} fill="transparent"
-                    label={{ value: "הגביע הקדוש ✦", position: "insideBottomLeft", fontSize: 9, fill: "#059669", fontWeight: 700 } as unknown as string} />
+                  <Customized component={(props: Record<string, unknown>) => <QuadrantLabels {...props as Parameters<typeof QuadrantLabels>[0]} avgX={avgX} avgY={avgY} />} />
                   <Scatter data={points}>
                     <LabelList dataKey="idx" position="top" className="scatter-label" style={{ fontSize: 9, fontWeight: 700, fill: "#1a1f2b" }} />
                     {points.map((p, i) => (
