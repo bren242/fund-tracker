@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo, Suspense } from "react";
 import {
   ScatterChart, Scatter, XAxis, YAxis, Tooltip,
   CartesianGrid, Cell, ZAxis, Label, LabelList,
+  ReferenceLine, ReferenceArea,
 } from "recharts";
 import { FundsData, Fund } from "@/lib/types";
 import { ThemeToggle } from "@/components/ThemeProvider";
@@ -50,14 +51,19 @@ function buildScatterData(funds: Fund[], returnKey: string): ScatterPoint[] {
     })
     .filter((p): p is Omit<ScatterPoint, "rank" | "idx"> => p !== null);
 
-  const sorted = [...valid].sort((a, b) => b.x - a.x);
-  const topNames = new Set(sorted.slice(0, 2).map((p) => p.name));
-  const bottomNames = new Set(sorted.slice(-2).map((p) => p.name));
+  // Rank by Sharpe (only funds that have a valid Sharpe value)
+  const withSharpe = valid.filter((p) => p.sharpe !== null);
+  const sortedBySharpe = [...withSharpe].sort((a, b) => (b.sharpe ?? -Infinity) - (a.sharpe ?? -Infinity));
+  const topNames = new Set(sortedBySharpe.slice(0, 2).map((p) => p.name));
+  const bottomNames = new Set(sortedBySharpe.slice(-2).map((p) => p.name));
 
   return valid.map((p, i) => ({
     ...p,
     idx: i + 1,
-    rank: topNames.has(p.name) ? "top" as const : bottomNames.has(p.name) ? "bottom" as const : "normal" as const,
+    // Funds without Sharpe → always "normal"; top/bottom only from Sharpe-ranked set
+    rank: p.sharpe !== null && topNames.has(p.name) ? "top" as const
+        : p.sharpe !== null && bottomNames.has(p.name) ? "bottom" as const
+        : "normal" as const,
   }));
 }
 
@@ -102,6 +108,10 @@ function ChartsContent() {
   );
   const topFunds = points.filter((p) => p.rank === "top");
   const bottomFunds = points.filter((p) => p.rank === "bottom");
+
+  // Quadrant reference lines — average of all plotted points
+  const avgX = points.length > 0 ? points.reduce((s, p) => s + p.x, 0) / points.length : 0;
+  const avgY = points.length > 0 ? points.reduce((s, p) => s + p.y, 0) / points.length : 0;
 
   if (!data) return <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>טוען נתונים...</div>;
 
@@ -207,6 +217,18 @@ function ChartsContent() {
                   </YAxis>
                   <ZAxis range={[70, 70]} />
                   <Tooltip content={<CustomTooltip />} />
+                  {/* Quadrant dividers */}
+                  <ReferenceLine x={avgX} stroke="#94a3b8" strokeDasharray="5 5" strokeWidth={1.5} />
+                  <ReferenceLine y={avgY} stroke="#94a3b8" strokeDasharray="5 5" strokeWidth={1.5} />
+                  {/* Quadrant labels */}
+                  <ReferenceArea x1={-9999} x2={avgX} y1={avgY} y2={9999} fill="transparent"
+                    label={{ value: "גרוע", position: "insideTopRight", fontSize: 9, fill: "#94a3b8", fontWeight: 600 } as unknown as string} />
+                  <ReferenceArea x1={avgX} x2={9999} y1={avgY} y2={9999} fill="transparent"
+                    label={{ value: "אגרסיבי", position: "insideTopLeft", fontSize: 9, fill: "#94a3b8", fontWeight: 600 } as unknown as string} />
+                  <ReferenceArea x1={-9999} x2={avgX} y1={-9999} y2={avgY} fill="transparent"
+                    label={{ value: "הגנתי", position: "insideBottomRight", fontSize: 9, fill: "#94a3b8", fontWeight: 600 } as unknown as string} />
+                  <ReferenceArea x1={avgX} x2={9999} y1={-9999} y2={avgY} fill="transparent"
+                    label={{ value: "הגביע הקדוש ✦", position: "insideBottomLeft", fontSize: 9, fill: "#059669", fontWeight: 700 } as unknown as string} />
                   <Scatter data={points}>
                     <LabelList dataKey="idx" position="top" className="scatter-label" style={{ fontSize: 9, fontWeight: 700, fill: "#1a1f2b" }} />
                     {points.map((p, i) => (
