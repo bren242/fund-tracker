@@ -232,7 +232,7 @@ const MIN_OBSERVATIONS = 12;
  * Does NOT overwrite values extracted from the document (AI-extracted values take priority).
  */
 function calculateRiskMetrics(monthlyReturns: Record<string, number>): {
-  sharpe: number;
+  sharpe: number | null;
   stdDev: number;
 } | null {
   const values = Object.values(monthlyReturns).filter((v) => typeof v === "number" && !isNaN(v));
@@ -241,15 +241,22 @@ function calculateRiskMetrics(monthlyReturns: Record<string, number>): {
   // Mean monthly return
   const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
 
-  // Standard deviation (population)
+  // Standard deviation (sample, ÷N-1)
   const variance = values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / (values.length - 1);
   const stdDev = Math.sqrt(variance);
 
   // Sharpe ratio (annualized): (mean - riskFree) / stdDev * sqrt(12)
-  const sharpe = stdDev > 0 ? ((mean - RISK_FREE_MONTHLY) / stdDev) * Math.sqrt(12) : 0;
+  // Cap: stdDev < 0.001 or |sharpe| > 5 → null (unreliable for stable-income funds)
+  let sharpe: number | null = null;
+  if (stdDev >= 0.001) {
+    const raw = ((mean - RISK_FREE_MONTHLY) / stdDev) * Math.sqrt(12);
+    if (Math.abs(raw) <= 5) {
+      sharpe = Math.round(raw * 100) / 100;
+    }
+  }
 
   return {
-    sharpe: Math.round(sharpe * 100) / 100,    // 2 decimals
+    sharpe,
     stdDev: Math.round(stdDev * 10000) / 10000, // 4 decimals (percentage precision)
   };
 }

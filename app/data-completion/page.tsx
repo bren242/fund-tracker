@@ -47,26 +47,35 @@ function analyzeData(data: FundsData) {
 
       const canAvg = missingAvg && yearlyVals.length >= 2;
       const canStd = missingStd && monthlyVals.length >= 12;
-      const canSharpe = missingSharpe && ((!missingAvg || canAvg) && (!missingStd || canStd));
+      // Sharpe requires monthly data (need monthly mean) regardless of existing stdDev
+      const canSharpe = missingSharpe && monthlyVals.length >= 12;
 
       let computedAvg: number | null = null;
       if (canAvg) {
-        computedAvg = yearlyVals.reduce((s, v) => s + v, 0) / yearlyVals.length;
+        // Geometric mean: (∏(1+y_i))^(1/n) - 1
+        const product = yearlyVals.reduce((p, v) => p * (1 + v), 1);
+        computedAvg = Math.pow(product, 1 / yearlyVals.length) - 1;
       }
 
       let computedStd: number | null = null;
-      if (canStd) {
+      let monthlyMean: number | null = null;
+      if (canStd || canSharpe) {
         const mean = monthlyVals.reduce((s, v) => s + v, 0) / monthlyVals.length;
-        const variance = monthlyVals.reduce((s, v) => s + (v - mean) ** 2, 0) / monthlyVals.length;
-        computedStd = Math.sqrt(variance);
+        monthlyMean = mean;
+        if (canStd) {
+          // Sample standard deviation (÷N-1)
+          const variance = monthlyVals.reduce((s, v) => s + (v - mean) ** 2, 0) / (monthlyVals.length - 1);
+          computedStd = Math.sqrt(variance);
+        }
       }
 
       let computedSharpe: number | null = null;
-      if (canSharpe) {
-        const avg = computedAvg ?? fund.avgAnnualReturn;
+      if (canSharpe && monthlyMean !== null) {
         const std = computedStd ?? fund.stdDev;
-        if (avg !== null && avg !== undefined && std !== null && std !== undefined && std > 0) {
-          computedSharpe = ((avg / 100) / 12 / std) * Math.sqrt(12);
+        // Cap: stdDev < 0.001 or |sharpe| > 5 → null (unreliable for stable-income funds)
+        if (std !== null && std !== undefined && std >= 0.001) {
+          const raw = ((monthlyMean - 0.003) / std) * Math.sqrt(12);
+          if (Math.abs(raw) <= 5) computedSharpe = raw;
         }
       }
 
