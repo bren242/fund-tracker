@@ -508,6 +508,8 @@ function MonthlyDataTab({ data, updateFund, onUpdateDate, password, clientKey }:
   password: string;
   clientKey: string;
 }) {
+  const [search, setSearch] = useState("");
+
   return (
     <>
       {/* Month Updated field */}
@@ -536,10 +538,41 @@ function MonthlyDataTab({ data, updateFund, onUpdateDate, password, clientKey }:
         </span>
       </div>
 
+      {/* Search */}
+      <div style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+        <input
+          type="text"
+          placeholder="חיפוש קרן..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+            padding: "7px 14px",
+            fontSize: 13,
+            width: 260,
+            backgroundColor: "var(--bg-input)",
+            color: "var(--text-primary)",
+            outline: "none",
+          }}
+          dir="rtl"
+        />
+        {search && (
+          <button
+            onClick={() => setSearch("")}
+            style={{ fontSize: 12, color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", padding: "4px 8px" }}
+          >
+            ✕ נקה
+          </button>
+        )}
+      </div>
+
       {data.categories.map((cat) => {
         const visibleFunds = cat.funds.filter((f) => {
           const active = f.active !== undefined ? f.active : true;
-          return active;
+          if (!active) return false;
+          if (search && !f.name.toLowerCase().includes(search.toLowerCase())) return false;
+          return true;
         });
         if (visibleFunds.length === 0) return null;
         return (
@@ -596,6 +629,8 @@ function MonthlyRow({ fund, categoryId, odd, onUpdate, password, clientKey }: {
   const [pendingCurrency, setPendingCurrency] = useState<"ILS" | "USD">("ILS");
   const [saving, setSaving] = useState(false);
   const [saved, setSavedLocal] = useState(false);
+  const [managerInput, setManagerInput] = useState(fund.manager || "");
+  const [managerSaved, setManagerSaved] = useState(false);
 
   const bgBase = odd ? "var(--bg-surface-alt)" : "var(--bg-surface)";
   const bg = !hasCurrency ? "#FFFBE6" : bgBase;
@@ -620,6 +655,18 @@ function MonthlyRow({ fund, categoryId, odd, onUpdate, password, clientKey }: {
     });
     setSaving(false);
     if (res.ok) { setSavedLocal(true); setTimeout(() => setSavedLocal(false), 2000); }
+  }
+
+  async function handleSaveManager() {
+    const trimmed = managerInput.trim();
+    if (trimmed === (fund.manager || "")) return; // no change
+    await fetch(`/api/funds?action=set-manager&client=${encodeURIComponent(clientKey)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-admin-password": password },
+      body: JSON.stringify({ fundId: fund.id, manager: trimmed }),
+    });
+    setManagerSaved(true);
+    setTimeout(() => setManagerSaved(false), 2000);
   }
 
   return (
@@ -686,7 +733,39 @@ function MonthlyRow({ fund, categoryId, odd, onUpdate, password, clientKey }: {
           </span>
         )}
       </td>
-      <td style={{ padding: "6px 10px", textAlign: "center", color: "var(--text-muted)", fontSize: 11 }}>{fund.manager}</td>
+      <td style={{ padding: "5px 8px", textAlign: "center", position: "relative" }}>
+        <input
+          type="text"
+          value={managerInput}
+          onChange={(e) => setManagerInput(e.target.value)}
+          onFocus={(e) => {
+            e.currentTarget.style.borderColor = "var(--border)";
+            e.currentTarget.style.backgroundColor = "var(--bg-input)";
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.borderColor = "transparent";
+            e.currentTarget.style.backgroundColor = "transparent";
+            handleSaveManager();
+          }}
+          placeholder="—"
+          style={{
+            width: 110,
+            textAlign: "center",
+            border: "1px solid transparent",
+            borderRadius: 6,
+            padding: "3px 6px",
+            fontSize: 12,
+            backgroundColor: "transparent",
+            color: "var(--text-primary)",
+            outline: "none",
+            transition: "border-color 0.15s, background-color 0.15s",
+          }}
+          dir="rtl"
+        />
+        {managerSaved && (
+          <span style={{ position: "absolute", top: "50%", right: -2, transform: "translateY(-50%)", fontSize: 10, color: "#059669" }}>✓</span>
+        )}
+      </td>
     </tr>
   );
 }

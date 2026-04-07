@@ -193,5 +193,28 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ success: true });
   }
 
+  // Set manager on a single fund by ID
+  if (url.searchParams.get("action") === "set-manager") {
+    const body = await req.json();
+    const { fundId, manager } = body as { fundId: string; manager: string };
+    if (!fundId) {
+      return NextResponse.json({ error: "Missing fundId" }, { status: 400 });
+    }
+    let found = false;
+    const categories = (data.categories || []) as Record<string, unknown>[];
+    for (const cat of categories) {
+      const funds = cat.funds as Record<string, unknown>[];
+      const idx = funds.findIndex((f) => f.id === fundId);
+      if (idx >= 0) {
+        funds[idx].manager = manager ?? "";
+        found = true;
+        break;
+      }
+    }
+    if (!found) return NextResponse.json({ error: "Fund not found" }, { status: 404 });
+    await writeData(clientKey, data);
+    return NextResponse.json({ success: true });
+  }
+
   return NextResponse.json({ error: "Unknown PATCH action" }, { status: 400 });
 }

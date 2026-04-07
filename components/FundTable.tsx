@@ -159,6 +159,20 @@ function FundRow({ fund, even, comparisonEnabled, isSelected, onToggle, activeYe
             />
           )}
           {fund.name}
+          {fund.currency && (
+            <span style={{
+              fontSize: 8,
+              fontWeight: 700,
+              color: fund.currency === "USD" ? "#1d4ed8" : "#059669",
+              backgroundColor: fund.currency === "USD" ? "#dbeafe" : "#d1fae5",
+              padding: "1px 4px",
+              borderRadius: 3,
+              letterSpacing: 0.3,
+              flexShrink: 0,
+            }}>
+              {fund.currency}
+            </span>
+          )}
         </span>
       </td>
       <td style={{ padding: "5px 6px", borderBottom: "1px solid var(--border-table)", color: "var(--text-secondary)", textAlign: "right", fontSize: "9.5px" }}>
