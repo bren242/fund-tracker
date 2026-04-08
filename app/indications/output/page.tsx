@@ -52,10 +52,10 @@ function CardContent({ selectedList, primary, accent, reportMonth }: {
       </div>
 
       {/* טבלה */}
-      <div style={{ padding: "8px 40px 4px" }}>
+      <div style={{ padding: "8px 60px 4px" }}>
 
         {/* כותרת עמודות */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 140px 140px", gap: 4, padding: "6px 8px", borderBottom: `2px solid #B8975A`, marginBottom: 4 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(200px, auto) 140px 140px", gap: 4, padding: "6px 8px", borderBottom: `2px solid #B8975A`, marginBottom: 4 }}>
           <div style={{ fontSize: 13, color: "#5a7a6a", fontWeight: 700 }}>שם קרן</div>
           <div style={{ fontSize: 13, color: "#5a7a6a", fontWeight: 700, textAlign: "center" }}>חודש אחרון</div>
           <div style={{ fontSize: 13, color: "#5a7a6a", fontWeight: 700, textAlign: "center" }}>YTD</div>
@@ -67,7 +67,7 @@ function CardContent({ selectedList, primary, accent, reportMonth }: {
             key={ind.id}
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 140px 140px",
+              gridTemplateColumns: "minmax(200px, auto) 140px 140px",
               gap: 4,
               padding: "7px 8px",
               backgroundColor: idx % 2 === 0 ? "rgba(27,58,47,0.05)" : "transparent",
