@@ -125,7 +125,12 @@
 
 ---
 
-## עדכון אחרון (ריצת לילה 2026-04-08)
+## עדכון אחרון (2026-04-08 — סשן המשך)
+- **Scatter quadrant labels (task 7.1):** הוחלפה גישת SVG/Customized (לא עבדה) ב-4 `div` מוחלטים מעל הגרף. `position:relative` על `chart-card`. תוויות: סיכון גבוה (אדום) / אגרסיבי (כתום) / הגנתי (אפור) / הגביע הקדוש ✦ (ירוק bold). כולן `no-print`.
+- **test-data/ directory (task 7.2):** תיקייה חדשה עם README להוספת קבצי דוחות ידנית (ILS + USD). `.gitignore` מוחיר pdf/png/jpg בתיקייה + test-results.md.
+- **Push:** שני קומיטים עלו ל-main (c291e6a + 27b0b5f).
+
+## עדכון קודם (ריצת לילה 2026-04-08)
 - FundCard: tooltip, "טרם הושגה", תאריך חודש גרוע, גרף עמודות עם gradient/אנימציה, גרף קו חודשי
 - פילטר מטבע (הכל/ILS/USD) בדף ניתוח
 - Scatter chart: תוויות ריבועים (SVG), בלוק הסבר, הצללת ריבועים
@@ -254,6 +259,8 @@ fund-tracker/
 │   ├── green/brand.json          # brand GREEN
 │   └── nox/...                   # נתוני NOX (מבנה זהה)
 ├── middleware.ts                 # URL rewriting: /green → /?client=green
+├── test-data/                    # קבצי דוחות לבדיקת רגרסיה (לא ב-repo)
+│   └── README.md                 # הנחיות הוספת קבצים ידנית
 ├── SPEC.md                       # ← המסמך הזה
 └── MILESTONE_v2.md               # סיכום milestone אפריל 2026
 ```
