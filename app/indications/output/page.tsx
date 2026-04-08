@@ -18,7 +18,7 @@ function today() {
 function GreenLogoInline() {
   return (
     <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-      <img src="/branding/green/logoTransparent.png" alt="GREEN" style={{ height: 36, objectFit: "contain" }} />
+      <img src="/branding/green/green-logo-transparent.png" alt="GREEN" style={{ height: 36, objectFit: "contain" }} />
     </div>
   );
 }

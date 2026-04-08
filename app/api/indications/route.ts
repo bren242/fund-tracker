@@ -121,6 +121,15 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ success: true, deleted: "all" });
   }
 
+  // Delete by month
+  if (url.searchParams.get("month")) {
+    const month = url.searchParams.get("month")!;
+    const all = await storageRead<Indication[]>(`indications:${clientKey}`, []);
+    const filtered = all.filter((i) => i.reportMonth !== month);
+    await storageWrite(`indications:${clientKey}`, filtered);
+    return NextResponse.json({ deleted: all.length - filtered.length });
+  }
+
   // Delete by id
   const id = url.searchParams.get("id");
   if (!id) {

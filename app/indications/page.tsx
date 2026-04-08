@@ -135,6 +135,22 @@ function IndicationsContent() {
     }
   }, [selectedFund, monthReturn, ytd, reportMonth, clientKey]);
 
+  const handleDeleteMonth = async () => {
+    if (sorted.length === 0) return;
+    const monthCounts: Record<string, number> = {};
+    sorted.forEach((i) => { monthCounts[i.reportMonth] = (monthCounts[i.reportMonth] || 0) + 1; });
+    const dominantMonth = Object.entries(monthCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+    if (!dominantMonth) return;
+    if (!confirm(`למחוק את כל האינדיקציות של חודש ${dominantMonth}?`)) return;
+    const res = await fetch(
+      `/api/indications?month=${encodeURIComponent(dominantMonth)}&client=${encodeURIComponent(clientKey)}`,
+      { method: "DELETE", headers: { "x-admin-password": passwordRef.current } }
+    );
+    if (res.ok) {
+      setIndications((prev) => prev.filter((i) => i.reportMonth !== dominantMonth));
+    }
+  };
+
   const handleDelete = async (id: string) => {
     const res = await fetch(`/api/indications?id=${id}&client=${encodeURIComponent(clientKey)}`, {
       method: "DELETE",
@@ -377,9 +393,17 @@ function IndicationsContent() {
                   אינדיקטיבי · לא מאומת
                 </span>
               </div>
-              <a href={withClient("/indications/output", clientKey)} style={{ fontSize: 12, color: PRIMARY, textDecoration: "none", fontWeight: 600 }}>
-                צור פלט →
-              </a>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <button
+                  onClick={handleDeleteMonth}
+                  style={{ fontSize: 11, padding: "4px 12px", borderRadius: 6, border: "1px solid #ef444430", backgroundColor: "transparent", color: "#ef4444", cursor: "pointer", fontWeight: 600 }}
+                >
+                  🗑 איפוס חודש
+                </button>
+                <a href={withClient("/indications/output", clientKey)} style={{ fontSize: 12, color: PRIMARY, textDecoration: "none", fontWeight: 600 }}>
+                  צור פלט →
+                </a>
+              </div>
             </div>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
