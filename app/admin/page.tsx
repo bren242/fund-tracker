@@ -22,7 +22,7 @@ function AdminContent() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
-  const [activeTab, setActiveTab] = useState<"data" | "funds" | "branding" | "settings" | "monthly-history" | "ai-parser" | "benchmarks">("data");
+  const [activeTab, setActiveTab] = useState<"data" | "funds" | "branding" | "settings" | "monthly-history" | "ai-parser" | "benchmarks" | "indications">("data");
   const brand = useBrand(clientKey);
   const [showAddFund, setShowAddFund] = useState(false);
   const [addFundCategory, setAddFundCategory] = useState("");
@@ -383,6 +383,7 @@ function AdminContent() {
               { id: "monthly-history" as const, label: "היסטוריה חודשית" },
               ...(brand.features?.aiParser ? [{ id: "ai-parser" as const, label: "🤖 קליטת נתונים" }] : []),
               ...(brand.features?.benchmarks ? [{ id: "benchmarks" as const, label: "📊 מדדי ייחוס" }] : []),
+              { id: "indications" as const, label: "⚡ אינדיקציה" },
               { id: "branding" as const, label: "מיתוג ודוחות" },
               { id: "settings" as const, label: "הגדרות" },
             ] : []),
@@ -457,6 +458,9 @@ function AdminContent() {
         )}
         {activeTab === "benchmarks" && brand.features?.benchmarks && (
           <BenchmarkTab password={passwordRef.current} clientKey={clientKey} onStatus={showStatus} />
+        )}
+        {activeTab === "indications" && (
+          <IndicationsAdminTab password={passwordRef.current} clientKey={clientKey} onStatus={showStatus} brand={brand} onBrandRefresh={() => invalidateBrandCache(clientKey)} />
         )}
         {activeTab === "branding" && (
           <BrandingTab password={passwordRef.current} clientKey={clientKey} onStatus={showStatus} />
@@ -4552,6 +4556,141 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
           })()}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ================================================================== */
+/*  Indications Admin Tab                                              */
+/* ================================================================== */
+function IndicationsAdminTab({ password, clientKey, onStatus, brand, onBrandRefresh }: {
+  password: string;
+  clientKey: string;
+  onStatus: (msg: string) => void;
+  brand: import("@/config/brand").BrandConfig;
+  onBrandRefresh: () => void;
+}) {
+  const [enabled, setEnabled] = useState<boolean>(brand.features?.indications ?? false);
+  const [saving, setSaving] = useState(false);
+  const [count, setCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/indications?client=${encodeURIComponent(clientKey)}`)
+      .then((r) => r.json())
+      .then((arr: unknown[]) => setCount(arr.length))
+      .catch(() => setCount(0));
+  }, [clientKey]);
+
+  const handleToggle = async (val: boolean) => {
+    setSaving(true);
+    setEnabled(val);
+    try {
+      // Save via brand API
+      const brandRes = await fetch(`/api/brand?client=${encodeURIComponent(clientKey)}`);
+      const currentBrand = await brandRes.json();
+      const updated = {
+        ...currentBrand,
+        features: { ...(currentBrand.features || {}), indications: val },
+      };
+      const saveRes = await fetch(`/api/brand?client=${encodeURIComponent(clientKey)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "x-admin-password": password },
+        body: JSON.stringify(updated),
+      });
+      if (saveRes.ok) {
+        onBrandRefresh();
+        onStatus(`✓ אינדיקציה ${val ? "הופעלה" : "כובתה"}`);
+      } else {
+        onStatus("❌ שגיאה בשמירה");
+        setEnabled(!val);
+      }
+    } catch {
+      onStatus("❌ שגיאה בשמירה");
+      setEnabled(!val);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleReset = async () => {
+    if (!window.confirm("למחוק את כל האינדיקציות? פעולה זו בלתי הפיכה.")) return;
+    const res = await fetch(`/api/indications?all=true&client=${encodeURIComponent(clientKey)}`, {
+      method: "DELETE",
+      headers: { "x-admin-password": password },
+    });
+    if (res.ok) {
+      setCount(0);
+      onStatus("✓ כל האינדיקציות נמחקו");
+    } else {
+      onStatus("❌ שגיאה במחיקה");
+    }
+  };
+
+  return (
+    <div style={{ maxWidth: 560 }}>
+      <SectionCard title="הגדרות אינדיקציה">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0" }}>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)", marginBottom: 4 }}>
+              הפעלת מסך אינדיקציה מהירה
+            </div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+              מאפשר הזנה מהירה של תשואות חודשיות לפני אישור רשמי
+            </div>
+          </div>
+          <button
+            onClick={() => !saving && handleToggle(!enabled)}
+            disabled={saving}
+            style={{
+              width: 52, height: 28, borderRadius: 14, border: "none", cursor: saving ? "default" : "pointer",
+              backgroundColor: enabled ? brand.primaryColor : "var(--border)",
+              position: "relative", transition: "background-color 0.2s", flexShrink: 0,
+            }}
+          >
+            <span style={{
+              position: "absolute", top: 3, transition: "left 0.2s",
+              left: enabled ? 26 : 3, width: 22, height: 22, borderRadius: "50%",
+              backgroundColor: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+            }} />
+          </button>
+        </div>
+
+        {enabled && (
+          <div style={{ marginTop: 4, padding: "10px 14px", backgroundColor: "var(--bg-surface-alt)", borderRadius: 8, border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+              {count === null ? "טוען..." : `${count} אינדיקציות שמורות`}
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <a
+                href={`/indications?client=${encodeURIComponent(clientKey)}`}
+                target="_blank"
+                style={{ fontSize: 12, color: "var(--text-secondary)", textDecoration: "none", padding: "5px 12px", borderRadius: 6, border: "1px solid var(--border)", backgroundColor: "var(--bg-input)" }}
+              >
+                פתח מסך הזנה ↗
+              </a>
+              <button
+                onClick={handleReset}
+                disabled={count === 0}
+                style={{
+                  fontSize: 12, color: count === 0 ? "var(--text-muted)" : "#ef4444",
+                  backgroundColor: "transparent", border: `1px solid ${count === 0 ? "var(--border)" : "#ef444440"}`,
+                  borderRadius: 6, padding: "5px 12px", cursor: count === 0 ? "default" : "pointer",
+                  opacity: count === 0 ? 0.5 : 1,
+                }}
+              >
+                איפוס אינדיקציות
+              </button>
+            </div>
+          </div>
+        )}
+      </SectionCard>
+
+      <div style={{ marginTop: 12, padding: "10px 14px", backgroundColor: "var(--bg-surface-alt)", borderRadius: 8, border: "1px solid var(--border)" }}>
+        <p style={{ fontSize: 11, color: "var(--text-muted)", margin: 0, lineHeight: 1.6 }}>
+          נתוני אינדיקציה הם <strong>זמניים ואינדיקטיביים בלבד</strong> — לא מחליפים נתוני קרן רשמיים.
+          לאחר קליטת דוח חודשי רשמי, יש לאפס.
+        </p>
+      </div>
     </div>
   );
 }

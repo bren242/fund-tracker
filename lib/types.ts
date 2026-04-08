@@ -57,3 +57,15 @@ export interface FundsData {
   adminPassword?: string;
   superAdminPassword?: string;
 }
+
+export interface Indication {
+  id: string;
+  fundId: string;
+  fundName: string;
+  currency: "ILS" | "USD";
+  monthReturn: number;
+  ytd: number;
+  reportMonth: string; // MM/YYYY
+  createdAt: number;
+  tenant: string;
+}

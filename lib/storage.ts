@@ -63,6 +63,7 @@ function keyToFilePath(key: string): string {
     benchmarks: "benchmarks.json",
     "undo-state": "undo-state.json",
     "token-usage": "token-usage.json",
+    indications: "indications.json",
   };
   // parse-cache has 3 segments: parse-cache:{clientKey}:{hash}
   if (type === "parse-cache") {
