@@ -18,7 +18,7 @@ import { useFilters } from "@/lib/useFilters";
 import FilterBar from "@/components/FilterBar";
 
 /* ------------------------------------------------------------------ */
-/*  Year range helpers — improvement 1+2                               */
+/*  Year range helpers                                                  */
 /* ------------------------------------------------------------------ */
 const ALL_YEARS = [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026];
 
@@ -68,7 +68,6 @@ function buildScatterData(funds: Fund[], fromYear: number, toYear: number): Scat
     valid.push({ name: f.name, x: ret * 100, y: f.stdDev * 100, sharpe: f.sharpe, aum: f.aumMillions, currency: f.currency });
   }
 
-  // Rank by Sharpe (only funds that have a valid Sharpe value)
   const withSharpe = valid.filter((p) => p.sharpe !== null);
   const sortedBySharpe = [...withSharpe].sort((a, b) => (b.sharpe ?? -Infinity) - (a.sharpe ?? -Infinity));
   const topNames = new Set(sortedBySharpe.slice(0, 2).map((p) => p.name));
@@ -83,29 +82,55 @@ function buildScatterData(funds: Fund[], fromYear: number, toYear: number): Scat
   }));
 }
 
-const COLORS = { top: "#059669", bottom: "#dc2626", normal: "#64748b" };
+const COLORS = { top: "#1B3A2F", bottom: "#dc2626", normal: "#64748b" };
+
+/* ── AUM → dot radius ── */
+function dotRadius(aum: number | null): number {
+  if (aum === null) return 5;
+  if (aum > 2000) return 10;
+  if (aum >= 500) return 7;
+  return 5;
+}
+
+/* ── Sharpe badge helper ── */
+function SharpeBadge({ value }: { value: number | null }) {
+  if (value === null) return <span style={{ color: "#94a3b8" }}>—</span>;
+  let bg: string, fg: string;
+  if (value >= 2) { bg = "#DCFCE7"; fg = "#166534"; }
+  else if (value >= 1) { bg = "#FEF9C3"; fg = "#854D0E"; }
+  else { bg = "#FEE2E2"; fg = "#991B1B"; }
+  return (
+    <span style={{
+      display: "inline-block", padding: "2px 10px", borderRadius: 999,
+      backgroundColor: bg, color: fg, fontSize: 11, fontWeight: 600, lineHeight: 1.5,
+    }}>
+      {value.toFixed(2)}
+    </span>
+  );
+}
 
 /* ── Explanation block ── */
 function ChartExplanation() {
   return (
     <div className="no-print" style={{
-      backgroundColor: "var(--bg-surface-alt)", borderRadius: 10,
-      padding: "12px 18px", marginBottom: 16, fontSize: 12,
-      color: "var(--text-secondary)", lineHeight: 1.7, direction: "rtl",
-      border: "1px solid var(--border)",
+      backgroundColor: "#F8FAFC", borderRadius: 10,
+      padding: "12px 18px", marginBottom: 12, fontSize: 12,
+      color: "#64748B", lineHeight: 1.7, direction: "rtl",
+      border: "1px solid #e2e8f0",
     }}>
-      <div style={{ fontWeight: 600, marginBottom: 4, color: "var(--text-primary)", fontSize: 13 }}>הסבר הגרף</div>
+      <div style={{ fontWeight: 600, marginBottom: 4, color: "#1B3A2F", fontSize: 13 }}>הסבר הגרף</div>
       <div>ציר אופקי — תשואה שנתית ממוצעת &nbsp;|&nbsp; ציר אנכי — סטיית תקן</div>
       <div>
-        <span style={{ color: "#059669", fontWeight: 600 }}>ירוק</span> = שארפ גבוה &nbsp;|&nbsp;
+        <span style={{ color: "#1B3A2F", fontWeight: 600 }}>ירוק</span> = שארפ גבוה &nbsp;|&nbsp;
         <span style={{ color: "#dc2626", fontWeight: 600 }}>אדום</span> = שארפ נמוך &nbsp;|&nbsp;
-        קווים מקווקווים = ממוצע הקטגוריה
+        קווים מקווקווים = ממוצע הקטגוריה &nbsp;|&nbsp;
+        גודל נקודה = AUM
       </div>
     </div>
   );
 }
 
-/* ── Insights block — improvement 5 ── */
+/* ── Insights block ── */
 function InsightsBlock({
   points, avgX, avgY, currencyFilter,
 }: {
@@ -118,13 +143,11 @@ function InsightsBlock({
 
   const sentences: string[] = [];
 
-  // 1. Return range
   const returns = points.map((p) => p.x);
   const minR = Math.min(...returns);
   const maxR = Math.max(...returns);
   sentences.push(`טווח התשואות בקטגוריה: ${minR.toFixed(1)}%–${maxR.toFixed(1)}% (פיזור של ${(maxR - minR).toFixed(1)}%)`);
 
-  // 2. Holy grail: above avg return AND below avg stdDev
   const holyGrail = points.filter((p) => p.x > avgX && p.y < avgY);
   if (holyGrail.length > 0) {
     sentences.push(`${holyGrail.length} קרנות בגביע הקדוש — תשואה גבוהה עם סיכון נמוך`);
@@ -132,7 +155,6 @@ function InsightsBlock({
     sentences.push("אין קרנות בגביע הקדוש בתקופה זו");
   }
 
-  // 3. Best Sharpe fund
   const withSharpe = points.filter((p) => p.sharpe !== null);
   if (withSharpe.length > 0) {
     const best = withSharpe.reduce((a, b) => (b.sharpe! > a.sharpe! ? b : a));
@@ -141,7 +163,6 @@ function InsightsBlock({
     );
   }
 
-  // 4. Mixed currency warning — only in "all" mode
   if (currencyFilter === "all") {
     const currencies = new Set(points.map((p) => p.currency).filter(Boolean));
     if (currencies.size >= 2) {
@@ -152,13 +173,13 @@ function InsightsBlock({
   return (
     <div className="no-print" style={{
       backgroundColor: "#F0FDF4", borderRadius: 10, padding: "14px 18px",
-      marginTop: 14, border: "1px solid #bbf7d0", direction: "rtl",
+      border: "1px solid #bbf7d0", direction: "rtl",
       maxWidth: 710, margin: "14px auto 0",
     }}>
       <div style={{ fontWeight: 700, fontSize: 13, color: "#14532d", marginBottom: 10 }}>תובנות אוטומטיות</div>
       {sentences.map((s, i) => (
         <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6, fontSize: 12, color: "#166534", lineHeight: 1.6 }}>
-          <span style={{ color: "#059669", fontWeight: 700, flexShrink: 0, marginTop: 1 }}>●</span>
+          <span style={{ color: "#1B3A2F", fontWeight: 700, flexShrink: 0, marginTop: 1 }}>●</span>
           <span>{s}</span>
         </div>
       ))}
@@ -174,7 +195,6 @@ function ChartsContent() {
   const [data, setData] = useState<FundsData | null>(null);
   const brand = useBrand(clientKey);
 
-  // Local chart controls — fully independent from report page selectors
   const [fromYear, setFromYear] = useState<number>(2020);
   const [toYear, setToYear] = useState<number>(2025);
   const [currencyFilter, setCurrencyFilter] = useState<"all" | "ILS" | "USD">("all");
@@ -185,32 +205,27 @@ function ChartsContent() {
     });
   }, [clientKey]);
 
-  // Shared cascading filters — same hook as report page
   const {
     group, category, classification, search,
     options, setFilter, clearAll, filtered, activeFilterCount, ALL,
   } = useFilters(data?.categories || []);
 
-  // Flatten all funds from filtered categories for the chart
   const funds = useMemo(
     () => filtered.flatMap((cat) => cat.funds),
     [filtered],
   );
 
-  // Apply currency filter — funds with missing currency only shown in "all" mode
   const fundsByCurrency = useMemo(() => {
     if (currencyFilter === "all") return funds;
     return funds.filter((f) => f.currency === currencyFilter);
   }, [funds, currencyFilter]);
 
-  // Label for print header
   const selectedCategoryLabel = useMemo(() => {
     if (category !== ALL) return category;
     if (group !== ALL) return group;
     return "כל הקרנות";
   }, [group, category, ALL]);
 
-  // Dynamic period label for legend header
   const periodLabel = useMemo(() => {
     if (fromYear === toYear) return yearLabel(fromYear);
     return `${fromYear}–${toYear}`;
@@ -223,120 +238,142 @@ function ChartsContent() {
   const topFunds = points.filter((p) => p.rank === "top");
   const bottomFunds = points.filter((p) => p.rank === "bottom");
 
-  // Quadrant reference lines — average of all plotted points
   const avgX = points.length > 0 ? points.reduce((s, p) => s + p.x, 0) / points.length : 0;
   const avgY = points.length > 0 ? points.reduce((s, p) => s + p.y, 0) / points.length : 0;
 
-  if (!data) return <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>טוען נתונים...</div>;
+  if (!data) return <div style={{ padding: 40, textAlign: "center", color: "#64748B" }}>טוען נתונים...</div>;
 
   const selectStyle: React.CSSProperties = {
-    fontSize: 12, padding: "3px 8px", borderRadius: 6,
-    border: "1px solid var(--border)", backgroundColor: "var(--bg-input)",
-    color: "var(--text-primary)", cursor: "pointer",
+    fontSize: 12, padding: "6px 12px", borderRadius: 8,
+    border: "1px solid #e2e8f0", backgroundColor: "#fff",
+    color: "#1B3A2F", cursor: "pointer", fontWeight: 500,
   };
 
   return (
     <ClientGate clientKey={clientKey}>
-    {/* Print: portrait, no browser headers/footers */}
     <style>{`@media print { @page { size: A4 portrait; margin: 8mm 10mm 16mm 10mm; } }`}</style>
-    <div style={{ minHeight: "100vh", ...brandCssVars(brand.primaryColor, brand.accentColor) } as React.CSSProperties}>
+    <div style={{ minHeight: "100vh", backgroundColor: "#FAFBFC", ...brandCssVars(brand.primaryColor, brand.accentColor) } as React.CSSProperties}>
       {/* Thin brand color bar */}
-      <div style={{ height: 4, backgroundColor: brand.primaryColor }} />
+      <div style={{ height: 3, background: `linear-gradient(90deg, #1B3A2F 0%, #B8975A 100%)` }} />
+
       {/* Header — screen only */}
-      <div className="no-print" style={{ backgroundColor: "var(--bg-surface)", borderBottom: "1px solid var(--border)" }}>
+      <div className="no-print" style={{ backgroundColor: "#fff", borderBottom: "1px solid #e2e8f0" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <BrandLogo brand={brand} height={28} variant="light" />
-            <span style={{ fontSize: 14, color: "var(--text-primary)", fontWeight: 600 }}>סיכון מול תשואה</span>
           </div>
-          <div className="no-print" style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>עדכון: {formatDate(data.lastUpdated)}</span>
+          <div className="no-print" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 11, color: "#94a3b8" }}>עדכון: {formatDate(data.lastUpdated)}</span>
             {brand.version && (
-              <span style={{ fontSize: 10, color: "var(--text-muted)", backgroundColor: "var(--bg-input)", padding: "2px 8px", borderRadius: 4, fontWeight: 500 }}>
+              <span style={{ fontSize: 10, color: "#94a3b8", backgroundColor: "#f1f5f9", padding: "2px 8px", borderRadius: 4, fontWeight: 500 }}>
                 v{brand.version}
               </span>
             )}
             <button
               onClick={() => window.print()}
-              style={{ backgroundColor: brand.primaryColor, color: "#fff", fontWeight: 700, padding: "6px 16px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12 }}
+              style={{ backgroundColor: "#1B3A2F", color: "#fff", fontWeight: 600, padding: "6px 16px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12, letterSpacing: "0.02em" }}
             >
               הדפסה / PDF
             </button>
-            <a href={withClient("/", clientKey)} style={{ fontSize: 12, color: "var(--text-secondary)", textDecoration: "none", padding: "5px 10px", borderRadius: 6, border: "1px solid var(--border)" }}>דוח</a>
+            <a href={withClient("/", clientKey)} style={{ fontSize: 12, color: "#64748B", textDecoration: "none", padding: "5px 12px", borderRadius: 8, border: "1px solid #e2e8f0", fontWeight: 500 }}>דוח</a>
             {brand.features?.dataCompletion && (
-              <a href={withClient("/data-completion", clientKey)} style={{ fontSize: 12, color: "var(--text-secondary)", textDecoration: "none", padding: "5px 10px", borderRadius: 6, border: "1px solid var(--border)" }}>השלמת נתונים</a>
+              <a href={withClient("/data-completion", clientKey)} style={{ fontSize: 12, color: "#64748B", textDecoration: "none", padding: "5px 12px", borderRadius: 8, border: "1px solid #e2e8f0", fontWeight: 500 }}>השלמת נתונים</a>
             )}
-            <a href={withClient("/admin", clientKey)} style={{ fontSize: 12, color: "var(--text-secondary)", textDecoration: "none", padding: "5px 10px", borderRadius: 6, border: "1px solid var(--border)" }}>ניהול</a>
+            <a href={withClient("/admin", clientKey)} style={{ fontSize: 12, color: "#64748B", textDecoration: "none", padding: "5px 12px", borderRadius: 8, border: "1px solid #e2e8f0", fontWeight: 500 }}>ניהול</a>
             <ThemeToggle />
           </div>
-          <div className="print-only" style={{ fontSize: 12, color: "var(--text-primary)" }}>
+          <div className="print-only" style={{ fontSize: 12, color: "#1B3A2F" }}>
             עדכון: {formatDate(data.lastUpdated)}
           </div>
         </div>
       </div>
 
-      {/* Category + fund filters */}
-      <FilterBar
-        group={group}
-        category={category}
-        classification={classification}
-        search={search}
-        options={options}
-        activeFilterCount={activeFilterCount}
-        onGroupChange={(v) => setFilter("group", v)}
-        onCategoryChange={(v) => setFilter("category", v)}
-        onClassificationChange={(v) => setFilter("classification", v)}
-        onSearchChange={(v) => setFilter("search", v)}
-        onClearAll={clearAll}
-        accentColor={brand.primaryColor}
-      />
+      {/* ── Hero title — upgrade 5 ── */}
+      <div className="no-print" style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 24px 0", direction: "rtl" }}>
+        <h1 style={{ fontSize: 28, fontWeight: 700, color: "#1B3A2F", margin: 0, letterSpacing: "-0.01em" }}>סיכון מול תשואה</h1>
+        <p style={{ fontSize: 14, color: "#64748B", margin: "6px 0 0", fontWeight: 400 }}>ניתוח השוואתי של קרנות השקעה לפי קטגוריה ותקופה</p>
+      </div>
 
-      {/* Local chart controls — year range + currency filter (improvement 1+2+3) */}
+      {/* ── Unified filter area — upgrade 6 ── */}
       <div className="no-print" style={{
-        backgroundColor: "var(--bg-surface-alt)", borderBottom: "1px solid var(--border)",
-        padding: "8px 20px", display: "flex", alignItems: "center", gap: 24,
-        flexWrap: "wrap", direction: "rtl",
+        maxWidth: 1100, margin: "20px auto 0", padding: "20px 24px",
+        backgroundColor: "#F8FAFC", borderRadius: 12, border: "1px solid #e2e8f0",
+        direction: "rtl",
       }}>
-        {/* Year range selector */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 600 }}>תקופה:</span>
-          <select
-            value={fromYear}
-            onChange={(e) => { const v = Number(e.target.value); setFromYear(v); if (v > toYear) setToYear(v); }}
-            style={selectStyle}
-          >
-            {ALL_YEARS.map((y) => <option key={y} value={y}>{yearLabel(y)}</option>)}
-          </select>
-          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>—</span>
-          <select
-            value={toYear}
-            onChange={(e) => setToYear(Number(e.target.value))}
-            style={selectStyle}
-          >
-            {ALL_YEARS.filter((y) => y >= fromYear).map((y) => <option key={y} value={y}>{yearLabel(y)}</option>)}
-          </select>
-        </div>
+        <div style={{ display: "flex", gap: 32, flexWrap: "wrap", alignItems: "flex-start" }}>
+          {/* Group: Category filters */}
+          <div style={{ flex: "1 1 auto", minWidth: 300 }}>
+            <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>קטגוריה</div>
+            <FilterBar
+              group={group}
+              category={category}
+              classification={classification}
+              search={search}
+              options={options}
+              activeFilterCount={activeFilterCount}
+              onGroupChange={(v) => setFilter("group", v)}
+              onCategoryChange={(v) => setFilter("category", v)}
+              onClassificationChange={(v) => setFilter("classification", v)}
+              onSearchChange={(v) => setFilter("search", v)}
+              onClearAll={clearAll}
+              accentColor="#1B3A2F"
+            />
+          </div>
 
-        {/* Currency filter toggle (improvement 3) */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 600 }}>מטבע:</span>
-          {(["all", "ILS", "USD"] as const).map((c) => (
-            <button
-              key={c}
-              onClick={() => setCurrencyFilter(c)}
-              style={{
-                fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 5,
-                border: "1px solid", cursor: "pointer", transition: "all 0.15s",
-                backgroundColor: currencyFilter === c ? brand.primaryColor : "transparent",
-                color: currencyFilter === c ? "#fff" : "var(--text-secondary)",
-                borderColor: currencyFilter === c ? brand.primaryColor : "var(--border)",
-              }}
-            >
-              {c === "all" ? "הכל" : c}
-            </button>
-          ))}
+          {/* Divider */}
+          <div style={{ width: 1, alignSelf: "stretch", backgroundColor: "#e2e8f0", minHeight: 40 }} />
+
+          {/* Group: Period */}
+          <div>
+            <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>תקופה</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <select
+                value={fromYear}
+                onChange={(e) => { const v = Number(e.target.value); setFromYear(v); if (v > toYear) setToYear(v); }}
+                style={selectStyle}
+              >
+                {ALL_YEARS.map((y) => <option key={y} value={y}>{yearLabel(y)}</option>)}
+              </select>
+              <span style={{ fontSize: 14, color: "#94a3b8" }}>—</span>
+              <select
+                value={toYear}
+                onChange={(e) => setToYear(Number(e.target.value))}
+                style={selectStyle}
+              >
+                {ALL_YEARS.filter((y) => y >= fromYear).map((y) => <option key={y} value={y}>{yearLabel(y)}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div style={{ width: 1, alignSelf: "stretch", backgroundColor: "#e2e8f0", minHeight: 40 }} />
+
+          {/* Group: Currency */}
+          <div>
+            <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>מטבע</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {(["all", "ILS", "USD"] as const).map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setCurrencyFilter(c)}
+                  style={{
+                    fontSize: 12, fontWeight: 600, padding: "6px 14px", borderRadius: 8,
+                    border: "1px solid", cursor: "pointer", transition: "all 0.15s",
+                    backgroundColor: currencyFilter === c ? "#1B3A2F" : "#fff",
+                    color: currencyFilter === c ? "#fff" : "#64748B",
+                    borderColor: currencyFilter === c ? "#1B3A2F" : "#e2e8f0",
+                  }}
+                >
+                  {c === "all" ? "הכל" : c}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Main content area */}
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px" }}>
 
       {/* All content in one table — thead repeats on every printed page */}
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -344,10 +381,10 @@ function ChartsContent() {
           <tr><td style={{ padding: 0, borderBottom: `2px solid ${brand.secondaryColor}`, background: "white" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}><tbody><tr>
               <td style={{ width: "120px", textAlign: "right", verticalAlign: "middle", padding: "6px 8px" }}>
-                <span style={{ fontSize: "7pt", color: "#5a6577", whiteSpace: "nowrap" }}>מעודכן ל: {formatDate(data.lastUpdated)}</span>
+                <span style={{ fontSize: "7pt", color: "#64748B", whiteSpace: "nowrap" }}>מעודכן ל: {formatDate(data.lastUpdated)}</span>
               </td>
               <td style={{ textAlign: "center", verticalAlign: "middle" }}>
-                <span style={{ fontSize: "11pt", color: brand.primaryColor, fontWeight: 700 }}>סיכון מול תשואה</span>
+                <span style={{ fontSize: "11pt", color: "#1B3A2F", fontWeight: 700 }}>סיכון מול תשואה</span>
               </td>
               <td style={{ width: "120px", textAlign: "left", verticalAlign: "middle", padding: "6px 8px" }}>
                 {(brand.logoLight || brand.logo) && (
@@ -357,95 +394,99 @@ function ChartsContent() {
               </td>
             </tr></tbody></table>
           </td></tr>
-          {/* Spacer row — creates gap BELOW the border on every page */}
           <tr><td style={{ height: 14, padding: 0, border: "none", background: "white", lineHeight: 0, fontSize: 0 }} /></tr>
         </thead>
         <tbody>
-          {/* 1. Category title */}
+          {/* 1. Category title (print) */}
           <tr><td style={{ textAlign: "center", padding: "20px 0 10px" }}>
-            <span className="print-only" style={{ fontSize: "13pt", fontWeight: 700, color: brand.secondaryColor, borderBottom: `2px solid ${brand.secondaryColor}`, paddingBottom: 4 }}>
+            <span className="print-only" style={{ fontSize: "13pt", fontWeight: 700, color: "#B8975A", borderBottom: "2px solid #B8975A", paddingBottom: 4 }}>
               {selectedCategoryLabel}
             </span>
           </td></tr>
 
           {/* 2. Explanation + Period info + Chart */}
-          <tr><td style={{ padding: "8px 20px 0" }}>
+          <tr><td style={{ padding: "24px 0 0" }}>
             <ChartExplanation />
-            {/* Period display — improvement 4 */}
+            {/* Period display */}
             <div style={{
-              fontSize: 12, color: "var(--text-secondary)", direction: "rtl",
-              marginBottom: 10, textAlign: "center",
+              fontSize: 13, color: "#64748B", direction: "rtl",
+              marginBottom: 14, textAlign: "center",
             }}>
               מציג נתונים לתקופה:&nbsp;
-              <strong style={{ color: "var(--text-primary)" }}>{yearLabel(fromYear)} – {yearLabel(toYear)}</strong>
+              <strong style={{ color: "#1B3A2F", fontWeight: 600 }}>{yearLabel(fromYear)} – {yearLabel(toYear)}</strong>
               &nbsp;|&nbsp;{points.length} קרנות
             </div>
           </td></tr>
-          <tr><td style={{ textAlign: "center", padding: "8px 0 16px" }}>
-            <div className="chart-card" style={{ backgroundColor: "var(--bg-surface)", borderRadius: 12, boxShadow: "var(--shadow-card)", border: "1px solid var(--border)", padding: 24, display: "inline-block", position: "relative" }}>
+
+          <tr><td style={{ textAlign: "center", padding: "4px 0 16px" }}>
+            <div className="chart-card" style={{
+              backgroundColor: "#fff", borderRadius: 16,
+              boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)",
+              border: "1px solid #e2e8f0", padding: 28, display: "inline-block", position: "relative",
+            }}>
               {points.length < 2 ? (
-                <div style={{ textAlign: "center", padding: 60, color: "var(--text-muted)", fontSize: 14 }}>אין מספיק נתונים להצגה</div>
+                <div style={{ textAlign: "center", padding: 60, color: "#94a3b8", fontSize: 14 }}>אין מספיק נתונים להצגה</div>
               ) : (
                 <ScatterChart width={660} height={380} margin={{ top: 16, right: 30, bottom: 36, left: 36 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#d1d5db" />
-                  <XAxis type="number" dataKey="x" tick={{ fontSize: 12, fill: "#5a6577" }} stroke="#d1d5db" tickLine={{ stroke: "#d1d5db" }}>
-                    <Label value="(%) תשואה" position="bottom" offset={14} style={{ fontSize: 13, fill: "#1a1f2b", fontWeight: 500 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis type="number" dataKey="x" tick={{ fontSize: 12, fill: "#94a3b8" }} stroke="#e2e8f0" tickLine={{ stroke: "#e2e8f0" }}>
+                    <Label value="(%) תשואה" position="bottom" offset={14} style={{ fontSize: 13, fill: "#1B3A2F", fontWeight: 500 }} />
                   </XAxis>
-                  <YAxis type="number" dataKey="y" tick={{ fontSize: 12, fill: "#5a6577" }} stroke="#d1d5db" tickLine={{ stroke: "#d1d5db" }}>
-                    <Label value="(%) ס״ת" angle={-90} position="insideLeft" offset={-14} style={{ fontSize: 13, fill: "#1a1f2b", fontWeight: 500, textAnchor: "middle" }} />
+                  <YAxis type="number" dataKey="y" tick={{ fontSize: 12, fill: "#94a3b8" }} stroke="#e2e8f0" tickLine={{ stroke: "#e2e8f0" }}>
+                    <Label value="(%) ס״ת" angle={-90} position="insideLeft" offset={-14} style={{ fontSize: 13, fill: "#1B3A2F", fontWeight: 500, textAnchor: "middle" }} />
                   </YAxis>
-                  <ZAxis range={[70, 70]} />
+                  <ZAxis dataKey="aum" range={[50, 400]} />
                   <Tooltip content={<CustomTooltip />} />
-                  {/* Quadrant dividers */}
-                  <ReferenceLine x={avgX} stroke="#94a3b8" strokeDasharray="5 5" strokeWidth={1.5} />
-                  <ReferenceLine y={avgY} stroke="#94a3b8" strokeDasharray="5 5" strokeWidth={1.5} />
-                  {/* Quadrant shading */}
-                  <ReferenceArea x1={avgX} x2={9999} y1={-9999} y2={avgY} fill="#059669" fillOpacity={0.03} />
-                  <ReferenceArea x1={-9999} x2={avgX} y1={avgY} y2={9999} fill="#dc2626" fillOpacity={0.03} />
+                  <ReferenceLine x={avgX} stroke="#cbd5e1" strokeDasharray="5 5" strokeWidth={1} />
+                  <ReferenceLine y={avgY} stroke="#cbd5e1" strokeDasharray="5 5" strokeWidth={1} />
+                  <ReferenceArea x1={avgX} x2={9999} y1={-9999} y2={avgY} fill="#1B3A2F" fillOpacity={0.02} />
+                  <ReferenceArea x1={-9999} x2={avgX} y1={avgY} y2={9999} fill="#dc2626" fillOpacity={0.02} />
                   <Scatter data={points}>
-                    <LabelList dataKey="idx" position="top" className="scatter-label" style={{ fontSize: 9, fontWeight: 700, fill: "#1a1f2b" }} />
+                    <LabelList dataKey="idx" position="top" className="scatter-label" style={{ fontSize: 9, fontWeight: 600, fill: "#64748B" }} />
                     {points.map((p, i) => (
-                      <Cell key={i} fill={COLORS[p.rank]} fillOpacity={1} stroke={COLORS[p.rank]} strokeWidth={2} />
+                      <Cell
+                        key={i}
+                        fill={COLORS[p.rank]}
+                        fillOpacity={0.85}
+                        stroke="#fff"
+                        strokeWidth={2}
+                        r={dotRadius(p.aum)}
+                      />
                     ))}
                   </Scatter>
                 </ScatterChart>
               )}
-              {/* Quadrant labels — absolute overlay, hidden on print */}
+              {/* Quadrant labels */}
               {points.length >= 2 && (<>
-                {/* top-left: high stdDev, low return */}
-                <div className="no-print" style={{ position: "absolute", top: 45, left: 65, fontSize: 11, color: "#dc2626", opacity: 0.6, pointerEvents: "none", direction: "rtl" }}>
+                <div className="no-print" style={{ position: "absolute", top: 48, left: 68, fontSize: 10, color: "#dc2626", opacity: 0.5, pointerEvents: "none", direction: "rtl", letterSpacing: "0.01em" }}>
                   סיכון גבוה, תשואה נמוכה
                 </div>
-                {/* top-right: high stdDev, high return */}
-                <div className="no-print" style={{ position: "absolute", top: 45, right: 58, fontSize: 11, color: "#f59e0b", opacity: 0.6, pointerEvents: "none", direction: "rtl" }}>
+                <div className="no-print" style={{ position: "absolute", top: 48, right: 60, fontSize: 10, color: "#f59e0b", opacity: 0.5, pointerEvents: "none", direction: "rtl", letterSpacing: "0.01em" }}>
                   אגרסיבי
                 </div>
-                {/* bottom-left: low stdDev, low return */}
-                <div className="no-print" style={{ position: "absolute", bottom: 64, left: 65, fontSize: 11, color: "#64748b", opacity: 0.6, pointerEvents: "none", direction: "rtl" }}>
+                <div className="no-print" style={{ position: "absolute", bottom: 68, left: 68, fontSize: 10, color: "#94a3b8", opacity: 0.5, pointerEvents: "none", direction: "rtl", letterSpacing: "0.01em" }}>
                   הגנתי
                 </div>
-                {/* bottom-right: low stdDev, high return */}
-                <div className="no-print" style={{ position: "absolute", bottom: 64, right: 58, fontSize: 11, color: "#059669", fontWeight: 700, opacity: 0.8, pointerEvents: "none", direction: "rtl" }}>
+                <div className="no-print" style={{ position: "absolute", bottom: 68, right: 60, fontSize: 10, color: "#1B3A2F", fontWeight: 700, opacity: 0.7, pointerEvents: "none", direction: "rtl", letterSpacing: "0.01em" }}>
                   ✦ הגביע הקדוש
                 </div>
               </>)}
             </div>
 
-            {/* Insights block — improvement 5 */}
             <InsightsBlock points={points} avgX={avgX} avgY={avgY} currencyFilter={currencyFilter} />
           </td></tr>
 
-          {/* 3. Legend table — centered via .print-only-table CSS */}
-          <tr><td style={{ textAlign: "center", padding: "0 20px" }}>
+          {/* 3. Legend table (print) — upgrade 1+2 typography & table */}
+          <tr><td style={{ textAlign: "center", padding: "0 0" }}>
             {points.length >= 2 && <PrintLegend points={points} periodLabel={periodLabel} />}
           </td></tr>
 
-          {/* 4. Top / Bottom cards — centered via .rank-cards-grid CSS */}
-          <tr><td style={{ textAlign: "center", padding: "14px 20px 0" }}>
+          {/* 4. Top / Bottom cards — upgrade 4 */}
+          <tr><td style={{ padding: "20px 0 0" }}>
             {points.length >= 2 && (
-              <div className="rank-cards-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                <RankCard title="מובילות" funds={topFunds} color="#059669" bg="rgba(5,150,105,0.08)" border="rgba(5,150,105,0.2)" />
-                <RankCard title="מפגרות" funds={bottomFunds} color="#dc2626" bg="rgba(220,38,38,0.08)" border="rgba(220,38,38,0.2)" />
+              <div className="rank-cards-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                <RankCard title="מובילות" funds={topFunds} color="#1B3A2F" periodLabel={periodLabel} variant="top" />
+                <RankCard title="מפגרות" funds={bottomFunds} color="#dc2626" periodLabel={periodLabel} variant="bottom" />
               </div>
             )}
           </td></tr>
@@ -453,7 +494,9 @@ function ChartsContent() {
         </tbody>
       </table>
 
-      {/* Fixed print footer — pinned to bottom of every printed page */}
+      </div>{/* end max-width wrapper */}
+
+      {/* Fixed print footer */}
       <div className="print-footer print-only" style={{ borderTop: "1px solid #ccc" }}>
         {brand.footerDisclaimer && (
           <div style={{ padding: "3px 8px", fontSize: "4.5pt", color: "#666", lineHeight: 1.3, background: "white" }}>
@@ -467,7 +510,7 @@ function ChartsContent() {
         </div>
       </div>
 
-      <div className="no-print" style={{ textAlign: "center", padding: "8px 0 20px", fontSize: 10, color: "var(--text-muted)", letterSpacing: 0.2 }}>
+      <div className="no-print" style={{ textAlign: "center", padding: "20px 0 32px", fontSize: 11, color: "#94a3b8", letterSpacing: 0.2 }}>
         {brand.showCredit && brand.creditText ? `All rights reserved — ${brand.creditText}` : brand.fullName ? `© ${brand.fullName}` : ""}
       </div>
     </div>
@@ -479,46 +522,70 @@ function ChartsContent() {
 /*  Sub-components                                                     */
 /* ================================================================== */
 
-
+/* ── Tooltip card — upgrade 3 ── */
 function CustomTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: ScatterPoint }> }) {
   if (!active || !payload?.[0]) return null;
   const p = payload[0].payload;
   return (
-    <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 10,
-      padding: "12px 16px", fontSize: 13, direction: "rtl", boxShadow: "0 4px 16px rgba(0,0,0,0.15)" }}>
-      <div style={{ fontWeight: 700, marginBottom: 8, color: "var(--text-primary)", fontSize: 14 }}>{p.name}</div>
-      <TipRow label="תשואה" value={p.x.toFixed(2) + "%"} />
-      <TipRow label="ס״ת" value={p.y.toFixed(2) + "%"} />
-      {p.sharpe != null && <TipRow label="שארפ" value={p.sharpe.toFixed(2)} />}
-      {p.aum != null && <TipRow label="AUM" value={p.aum.toLocaleString() + " מ׳"} />}
-      {p.currency && <TipRow label="מטבע" value={p.currency} />}
+    <div style={{
+      backgroundColor: "#fff", border: "1px solid #e2e8f0", borderRadius: 8,
+      padding: 12, fontSize: 12, direction: "rtl",
+      boxShadow: "0 4px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06)",
+      minWidth: 180,
+    }}>
+      <div style={{ fontWeight: 700, marginBottom: 6, color: "#1B3A2F", fontSize: 13 }}>{p.name}</div>
+      <div style={{ display: "flex", gap: 12, color: "#64748B", fontSize: 12, lineHeight: 1.8 }}>
+        <span>תשואה <strong style={{ color: "#1B3A2F" }}>{p.x.toFixed(2)}%</strong></span>
+        <span>ס״ת <strong style={{ color: "#64748B" }}>{p.y.toFixed(2)}%</strong></span>
+        {p.sharpe != null && <span>שארפ <strong style={{ color: "#1B3A2F" }}>{p.sharpe.toFixed(2)}</strong></span>}
+      </div>
+      {p.aum != null && (
+        <div style={{ marginTop: 4, fontSize: 11, color: "#94a3b8" }}>AUM {p.aum.toLocaleString()} מ׳</div>
+      )}
+      {p.currency && (
+        <div style={{ marginTop: 2, fontSize: 11, color: "#94a3b8" }}>{p.currency}</div>
+      )}
     </div>
   );
 }
 
-function TipRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", gap: 20, lineHeight: 1.8 }}>
-      <span style={{ color: "var(--text-muted)" }}>{label}</span>
-      <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{value}</span>
-    </div>
-  );
-}
-
-function RankCard({ title, funds, color, bg, border }: {
-  title: string; funds: ScatterPoint[]; color: string; bg: string; border: string;
+/* ── Rank card — upgrade 4 ── */
+function RankCard({ title, funds, color, periodLabel, variant }: {
+  title: string; funds: ScatterPoint[]; color: string; periodLabel: string; variant: "top" | "bottom";
 }) {
+  const bgColor = variant === "top" ? "#F0FDF4" : "#FEF2F2";
+  const borderColor = variant === "top" ? "#bbf7d0" : "#fecaca";
   return (
-    <div style={{ backgroundColor: bg, borderRadius: 12, padding: "16px 20px", border: `1.5px solid ${border}` }}>
-      <h4 style={{ fontSize: 13, fontWeight: 700, color, marginBottom: 12, margin: "0 0 12px 0", letterSpacing: 0.2 }}>{title}</h4>
-      {funds.map((f) => (
-        <div key={f.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
-          padding: "7px 0", borderBottom: "1px solid rgba(128,128,128,0.1)", fontSize: 13 }}>
-          <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{f.name}</span>
-          <div style={{ display: "flex", gap: 16, color: "var(--text-secondary)", fontSize: 12 }}>
-            <span>תשואה: <b style={{ color }}>{f.x.toFixed(2)}%</b></span>
-            <span>ס״ת: {f.y.toFixed(2)}%</span>
-            {f.sharpe !== null && <span>שארפ: {f.sharpe.toFixed(2)}</span>}
+    <div style={{
+      backgroundColor: bgColor, borderRadius: 12, padding: 20,
+      border: `1px solid ${borderColor}`,
+      boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+      position: "relative",
+    }}>
+      <h4 style={{ fontSize: 14, fontWeight: 700, color, margin: "0 0 4px 0", letterSpacing: "0.01em" }}>{title}</h4>
+      <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 16 }}>תקופה: {periodLabel}</div>
+      {funds.map((f, i) => (
+        <div key={f.name} style={{
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          padding: "10px 0",
+          borderBottom: i < funds.length - 1 ? "1px solid rgba(0,0,0,0.05)" : "none",
+          fontSize: 13, position: "relative",
+        }}>
+          {/* Ranking circle */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{
+              width: 24, height: 24, borderRadius: "50%", backgroundColor: color,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              color: "#fff", fontSize: 11, fontWeight: 700, flexShrink: 0,
+            }}>
+              {i + 1}
+            </div>
+            <span style={{ fontWeight: 500, color: "#1B3A2F" }}>{f.name}</span>
+          </div>
+          <div style={{ display: "flex", gap: 14, color: "#64748B", fontSize: 12, alignItems: "center" }}>
+            <span>תשואה <b style={{ color }}>{f.x.toFixed(2)}%</b></span>
+            <span>ס״ת {f.y.toFixed(2)}%</span>
+            {f.sharpe !== null && <SharpeBadge value={f.sharpe} />}
           </div>
         </div>
       ))}
@@ -526,40 +593,49 @@ function RankCard({ title, funds, color, bg, border }: {
   );
 }
 
+/* ── Print legend — upgrade 1+2 ── */
 function PrintLegend({ points, periodLabel }: { points: ScatterPoint[]; periodLabel: string }) {
   const sorted = [...points].sort((a, b) => a.idx - b.idx);
   return (
-    <table className="print-only-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, direction: "rtl", marginBottom: 20 }}>
+    <table className="print-only-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, direction: "rtl", marginBottom: 20 }}>
       <thead>
-        <tr style={{ backgroundColor: "#f1f5f9", borderBottom: "2px solid #cbd5e1" }}>
-          <th style={{ padding: "7px 8px", textAlign: "center", fontWeight: 600, color: "#334155", width: 36 }}>#</th>
-          <th style={{ padding: "7px 8px", textAlign: "right", fontWeight: 600, color: "#334155" }}>קרן</th>
-          <th style={{ padding: "7px 8px", textAlign: "center", fontWeight: 600, color: "#334155" }}>תשואה שנתית ממוצעת ({periodLabel})</th>
-          <th style={{ padding: "7px 8px", textAlign: "center", fontWeight: 600, color: "#334155" }}>ס״ת</th>
-          <th style={{ padding: "7px 8px", textAlign: "center", fontWeight: 600, color: "#334155" }}>שארפ</th>
-          <th style={{ padding: "7px 8px", textAlign: "center", fontWeight: 600, color: "#334155" }}>AUM (מ׳)</th>
+        <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
+          <th style={{ padding: "10px 16px", textAlign: "center", fontWeight: 500, color: "#64748B", letterSpacing: "0.05em", fontSize: 11, width: 40 }}>#</th>
+          <th style={{ padding: "10px 16px", textAlign: "right", fontWeight: 500, color: "#64748B", letterSpacing: "0.05em", fontSize: 11 }}>קרן</th>
+          <th style={{ padding: "10px 16px", textAlign: "center", fontWeight: 500, color: "#64748B", letterSpacing: "0.05em", fontSize: 11 }}>תשואה ({periodLabel})</th>
+          <th style={{ padding: "10px 16px", textAlign: "center", fontWeight: 500, color: "#64748B", letterSpacing: "0.05em", fontSize: 11 }}>ס״ת</th>
+          <th style={{ padding: "10px 16px", textAlign: "center", fontWeight: 500, color: "#64748B", letterSpacing: "0.05em", fontSize: 11 }}>שארפ</th>
+          <th style={{ padding: "10px 16px", textAlign: "center", fontWeight: 500, color: "#64748B", letterSpacing: "0.05em", fontSize: 11 }}>AUM (מ׳)</th>
         </tr>
       </thead>
       <tbody>
-        {sorted.map((p, i) => (
-          <tr key={p.name} style={{ borderBottom: "1px solid #e2e8f0", backgroundColor: i % 2 === 0 ? "white" : "#f8fafc" }}>
-            <td style={{ padding: "6px 8px", textAlign: "center", fontWeight: 700, fontSize: 10,
-              color: p.rank === "top" ? COLORS.top : p.rank === "bottom" ? COLORS.bottom : "#475569" }}>
-              {p.idx}
-            </td>
-            <td style={{ padding: "6px 8px", fontWeight: p.rank !== "normal" ? 600 : 400,
-              color: p.rank === "top" ? COLORS.top : p.rank === "bottom" ? COLORS.bottom : "#1e293b" }}>
-              {p.name}
-            </td>
-            <td style={{ padding: "6px 8px", textAlign: "center", fontWeight: 600,
-              color: p.rank === "top" ? COLORS.top : p.rank === "bottom" ? COLORS.bottom : "#1e293b" }}>
-              {p.x.toFixed(2)}%
-            </td>
-            <td style={{ padding: "6px 8px", textAlign: "center", color: "#475569" }}>{p.y.toFixed(2)}%</td>
-            <td style={{ padding: "6px 8px", textAlign: "center", color: "#475569" }}>{p.sharpe != null ? p.sharpe.toFixed(2) : "—"}</td>
-            <td style={{ padding: "6px 8px", textAlign: "center", color: "#475569" }}>{p.aum != null ? p.aum.toLocaleString() : "—"}</td>
-          </tr>
-        ))}
+        {sorted.map((p, i) => {
+          const borderLeft = p.rank === "top" ? "3px solid #1B3A2F" : p.rank === "bottom" ? "3px solid #DC2626" : "3px solid transparent";
+          return (
+            <tr
+              key={p.name}
+              className="legend-row"
+              style={{ borderLeft, transition: "background-color 0.15s" }}
+              onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "#F0FDF4"; }}
+              onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+            >
+              <td style={{ padding: "14px 16px", textAlign: "center", fontWeight: 600, fontSize: 11, color: "#94a3b8" }}>
+                {i + 1}
+              </td>
+              <td style={{ padding: "14px 16px", fontWeight: 500, color: "#1B3A2F" }}>
+                {p.name}
+              </td>
+              <td style={{ padding: "14px 16px", textAlign: "center", fontWeight: 700, fontSize: 14, color: "#1B3A2F" }}>
+                {p.x.toFixed(2)}%
+              </td>
+              <td style={{ padding: "14px 16px", textAlign: "center", color: "#64748B", fontSize: 12 }}>{p.y.toFixed(2)}%</td>
+              <td style={{ padding: "14px 16px", textAlign: "center" }}>
+                <SharpeBadge value={p.sharpe} />
+              </td>
+              <td style={{ padding: "14px 16px", textAlign: "center", color: "#64748B", fontSize: 12 }}>{p.aum != null ? p.aum.toLocaleString() : "—"}</td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );
@@ -567,7 +643,7 @@ function PrintLegend({ points, periodLabel }: { points: ScatterPoint[]; periodLa
 
 export default function ChartsPage() {
   return (
-    <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>טוען...</div>}>
+    <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: "#64748B" }}>טוען...</div>}>
       <ChartsContent />
     </Suspense>
   );
