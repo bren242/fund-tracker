@@ -125,31 +125,59 @@
 
 ---
 
-## עדכון אחרון (2026-04-08 — סשן המשך)
-- **Scatter quadrant labels (task 7.1):** הוחלפה גישת SVG/Customized (לא עבדה) ב-4 `div` מוחלטים מעל הגרף. `position:relative` על `chart-card`. תוויות: סיכון גבוה (אדום) / אגרסיבי (כתום) / הגנתי (אפור) / הגביע הקדוש ✦ (ירוק bold). כולן `no-print`.
-- **test-data/ directory (task 7.2):** תיקייה חדשה עם README להוספת קבצי דוחות ידנית (ILS + USD). `.gitignore` מוחיר pdf/png/jpg בתיקייה + test-results.md.
-- **Push:** שני קומיטים עלו ל-main (c291e6a + 27b0b5f).
+## עדכון אחרון (2026-04-08 — סשן שלישי)
 
-## עדכון קודם (ריצת לילה 2026-04-08)
-- FundCard: tooltip, "טרם הושגה", תאריך חודש גרוע, גרף עמודות עם gradient/אנימציה, גרף קו חודשי
-- פילטר מטבע (הכל/ILS/USD) בדף ניתוח
-- Scatter chart: תוויות ריבועים (SVG), בלוק הסבר, הצללת ריבועים
-- בדיקת רגרסיה: אין קבצי דוחות ב-repo, תוצאות קודמות (04-07) אושרו
+### Scatter Chart — שדרוג מלא
+- **Premium UI redesign:** טיפוגרפיה משודרגת, hero title, unified filter area (קטגוריה/תקופה/מטבע), SharpeBadge component, rank cards עם עיגולי מיקום
+- **Year range selector:** בחירת טווח שנים (2019–2026), תשואה מחושבת כממוצע גיאומטרי
+- **Currency filter:** הכל/ILS/USD — פילטר פנימי בדף scatter
+- **Period display:** שורת מידע "מציג נתונים לתקופה: X–Y | N קרנות"
+- **Deterministic insights:** 4 תובנות אוטומטיות (טווח תשואות, גביע קדוש, קרן בולטת, אזהרת מטבע מעורב)
+- **AUM bubble size:** גודל נקודה לפי AUM — `dotRadius()` function (5/7/10px)
+- **Hover card:** tooltip משודרג עם שם, תשואה, ס"ת, שארפ, AUM, מטבע
+- **Dark mode מלא:** כל רכיב תומך dark — גרף (`#1E2A2A` רקע, `#2D3748` גריד, `#CBD5E1` צירים), כרטיסים, טבלה, insights, פילטרים
+- **Card colors fix:** מובילות `#DCFCE7`, מפגרות `#FEE2E2`
+- **Dedup fix:** `buildScatterData` מסנן כפילויות לפי שם קרן (Set)
+- **Bottom logic fix:** BOTTOM = שארפ נמוך ביותר רק אם תשואה מתחת לממוצע הקטגוריה. תשואה מעל ממוצע → "normal"
+
+### FundCard (ריצת לילה קודמת)
+- גרף עמודות משודרג: gradient, אנימציה, tooltip
+- גרף קו חודשי
+- tooltip (i) התאוששות, תאריך חודש גרוע, לוגיקת "טרם הושגה התאוששות"
+
+### כלליים
+- **פילטר מטבע** בדף ניתוח (הכל/ILS/USD)
+- **ריצת לילה:** `run-night.bat` + `night-report.md` מופק אוטומטית
+- **test-data/:** תיקייה עם README + `.gitignore`
+
+## עדכונים קודמים
+<details>
+<summary>2026-04-08 — סשנים 1+2</summary>
+
+- Scatter quadrant labels: 4 `div` מוחלטים (position:relative על chart-card)
+- test-data/ directory עם README
+- FundCard: tooltip, "טרם הושגה", תאריך חודש גרוע, גרף עמודות gradient/אנימציה, גרף קו חודשי
+- פילטר מטבע בדף ניתוח
+- Scatter: תוויות ריבועים, בלוק הסבר, הצללת ריבועים
+- בדיקת רגרסיה: תוצאות 04-07 אושרו
+</details>
 
 ## הצעד הבא
 
 **עדיפות גבוהה:**
-1. **תיוג מטבע ל-85 קרנות GREEN** — שלב 0 מוכן (UI + API). צריך לעבור על כל קרן ולתייג ILS/USD
-2. **YTD לדצמבר** — להרחיב `YTD_ALIASES` ו/או לזהות דצמבר כחודש מיוחד ולחשב YTD = annual. קובץ: `mapRawTablesToFields()` ב-`route.ts`
-3. **UI לניהול קרנות** — עריכת fund נוכחית היא raw JSON. לשפר לטופס מסודר עם validation
+1. **דוחות מרץ 2026** — כשיגיעו, פרסור מלא של כל הקרנות
+2. **בנצ'מרק פנימי** — ממוצע תשואה לפי קטגוריה (reference line / overlay)
+3. **שדרוג PDF של דף Scatter** — הפקת PDF מלוטש עם גרף + טבלה
+4. **YTD לדצמבר** — להרחיב `YTD_ALIASES` / לזהות דצמבר כחודש מיוחד
+5. **Maximum Drawdown (MDD)** — להחליט אם מחליף "חודשי התאוששות"
 
 **עדיפות בינונית:**
-4. **Pre-check לגודל PDF** — לפני שליחה ל-Claude, לבדוק מספר עמודים. אם >5 → להחזיר error ידידותי במקום 400
-5. **שיפור fundName extraction** — לבקש מ-Claude לחלץ fundName בצורה אגרסיבית יותר גם מקבצי PNG
-6. **Multi-entry deduplication** — כשיש 2 entries עם אותה currency ואותם ערכים בדיוק → לאחד
+6. **UI לניהול קרנות** — עריכת fund נוכחית היא raw JSON. לשפר לטופס מסודר עם validation
+7. **Pre-check לגודל PDF** — לפני שליחה ל-Claude, לבדוק מספר עמודים. >5 → error ידידותי
+8. **המשך טאב ניתוח והשוואה** — FundCard improvements
 
 **עדיפות נמוכה:**
-7. **Mobile dashboard** — טבלת הקרנות הראשית לא קריאה במובייל (בעיה ידועה, לא בפוקוס כרגע)
+9. **Mobile dashboard** — טבלה ראשית לא קריאה במובייל (ידוע, לא בפוקוס)
 
 ---
 
