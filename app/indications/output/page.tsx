@@ -10,10 +10,6 @@ import { ThemeToggle } from "@/components/ThemeProvider";
 import { brandCssVars } from "@/lib/colors";
 
 /* ── helpers ─────────────────────────────────────────────── */
-// No + sign — color distinguishes positive/negative
-function pctCard(v: number) {
-  return `${(v * 100).toFixed(2)}%`;
-}
 function today() {
   return new Date().toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
@@ -21,79 +17,95 @@ function today() {
 /* ── Inline logo — SVG-style div on beige ────────────────── */
 function GreenLogoInline() {
   return (
-    <div style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-      <div style={{ backgroundColor: "#1B3A2F", padding: "6px 14px", borderRadius: 4, border: "2px solid #B8975A" }}>
-        <span style={{ color: "#f5f0e8", fontWeight: 800, fontSize: 20, letterSpacing: 3, fontFamily: "Arial, sans-serif" }}>GREEN</span>
-      </div>
-      <span style={{ color: "#a0b8a8", fontSize: 9, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase" as const, fontFamily: "Arial, sans-serif", lineHeight: 1.4 }}>WEALTH<br/>MANAGEMENT</span>
+    <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+      <img src="/branding/green/logoLight.png" alt="GREEN" style={{ height: 36, objectFit: "contain" }} />
     </div>
   );
 }
 
 /* ── Shared card content (used in hidden div + modal mirror) */
-function CardContent({ selectedList, primary, reportMonth }: {
+function CardContent({ selectedList, primary, accent, reportMonth }: {
   selectedList: Indication[];
   primary: string;
+  accent: string;
   reportMonth: string;
 }) {
   return (
     <div style={{ width: 1080, backgroundColor: "#f5f0e8", fontFamily: "Arial, sans-serif", direction: "rtl" }}>
-      {/* Beige top bar with logo */}
-      <div style={{ backgroundColor: "#f5f0e8", padding: "16px 40px 12px", display: "flex", justifyContent: "center" }}>
+
+      {/* פס בז' עליון — לוגו בלבד, ללא רקע */}
+      <div style={{ backgroundColor: "#f5f0e8", padding: "16px 40px 12px", display: "flex", justifyContent: "center", alignItems: "center" }}>
         <GreenLogoInline />
       </div>
 
-      {/* Green title strip */}
-      <div style={{ backgroundColor: "#1B3A2F", padding: "10px 40px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <div style={{ color: "#B8975A", fontSize: 18, fontWeight: 700, letterSpacing: 0.5 }}>מעקב קרנות השקעה</div>
-          <div style={{ color: "#a0b8a8", fontSize: 10, marginTop: 3 }}>נתונים אינדיקטיביים · {reportMonth}</div>
-        </div>
-        <span style={{ backgroundColor: "#7a4f00", color: "#fde68a", padding: "4px 14px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
+      {/* פס ירוק — כותרת בלבד */}
+      <div style={{ backgroundColor: "#1B3A2F", padding: "10px 40px 14px" }}>
+        <div style={{ color: "#B8975A", fontSize: 18, fontWeight: 700, textAlign: "center" }}>מעקב קרנות השקעה</div>
+        <div style={{ color: "#a0b8a8", fontSize: 10, textAlign: "center", marginTop: 3 }}>נתונים אינדיקטיביים · {reportMonth}</div>
+      </div>
+
+      {/* Badge */}
+      <div style={{ backgroundColor: "#f5f0e8", padding: "8px 40px 0", display: "flex", justifyContent: "flex-start" }}>
+        <span style={{ backgroundColor: "#7a4f00", color: "#fde68a", fontSize: 10, fontWeight: 700, padding: "3px 12px", borderRadius: 20 }}>
           אינדיקטיבי · לא מאומת
         </span>
       </div>
 
-      {/* Table */}
-      <div style={{ padding: "32px 48px 0px" }}>
-        <div style={{ display: "flex", borderBottom: `2px solid ${primary}`, paddingBottom: 10, marginBottom: 4 }}>
-          <div style={{ flex: 1, fontSize: 14, fontWeight: 700, color: primary }}>שם קרן</div>
-          <div style={{ width: 80, textAlign: "center", fontSize: 14, fontWeight: 700, color: primary }}>מטבע</div>
-          <div style={{ width: 140, textAlign: "center", fontSize: 14, fontWeight: 700, color: primary }}>חודש אחרון</div>
-          <div style={{ width: 140, textAlign: "center", fontSize: 14, fontWeight: 700, color: primary }}>YTD</div>
+      {/* טבלה */}
+      <div style={{ padding: "8px 40px 4px" }}>
+
+        {/* כותרת עמודות */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 100px 100px", gap: 4, padding: "6px 8px", borderBottom: `2px solid #B8975A`, marginBottom: 4 }}>
+          <div style={{ fontSize: 13, color: "#5a7a6a", fontWeight: 700 }}>שם קרן</div>
+          <div style={{ fontSize: 13, color: "#5a7a6a", fontWeight: 700, textAlign: "center" }}>חודש אחרון</div>
+          <div style={{ fontSize: 13, color: "#5a7a6a", fontWeight: 700, textAlign: "center" }}>YTD</div>
         </div>
+
+        {/* שורות */}
         {selectedList.map((ind, idx) => (
           <div
             key={ind.id}
-            style={{ display: "flex", alignItems: "center", padding: "13px 0", borderBottom: "1px solid #e5e7eb", backgroundColor: idx % 2 === 0 ? "transparent" : "#f9fafb" }}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 100px 100px",
+              gap: 4,
+              padding: "7px 8px",
+              backgroundColor: idx % 2 === 0 ? "rgba(27,58,47,0.05)" : "transparent",
+              borderRadius: 4,
+              alignItems: "center",
+            }}
           >
-            <div style={{ flex: 1, fontSize: 16, color: "#111827", fontWeight: 500 }}>{ind.fundName}</div>
-            <div style={{ width: 80, textAlign: "center" }}>
-              <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, backgroundColor: ind.currency === "USD" ? "#dbeafe" : "#d1fae5", color: ind.currency === "USD" ? "#1d4ed8" : "#047857", fontWeight: 700 }}>
+            {/* שם קרן + badge מטבע */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, direction: "rtl" }}>
+              <span style={{ fontSize: 10, backgroundColor: "#dde8e3", color: "#1B3A2F", padding: "2px 7px", borderRadius: 10, fontWeight: 700, whiteSpace: "nowrap" }}>
                 {ind.currency}
               </span>
+              <span style={{ fontSize: 15, color: "#1B3A2F", fontWeight: 500 }}>{ind.fundName}</span>
             </div>
-            <div style={{ width: 140, textAlign: "center", fontSize: 18, fontWeight: 700, color: ind.monthReturn >= 0 ? "#059669" : "#dc2626" }}>
-              {pctCard(ind.monthReturn)}
+
+            {/* חודש — ללא סימן, צבע בלבד */}
+            <div style={{ fontSize: 16, fontWeight: 700, color: ind.monthReturn >= 0 ? "#1a6640" : "#b91c1c", textAlign: "center" }}>
+              {Math.abs(ind.monthReturn * 100).toFixed(2)}%
             </div>
-            <div style={{ width: 140, textAlign: "center", fontSize: 18, fontWeight: 700, color: ind.ytd >= 0 ? "#059669" : "#dc2626" }}>
-              {pctCard(ind.ytd)}
+
+            {/* YTD — ללא סימן, צבע בלבד */}
+            <div style={{ fontSize: 16, fontWeight: 700, color: ind.ytd >= 0 ? "#1a6640" : "#b91c1c", textAlign: "center" }}>
+              {Math.abs(ind.ytd * 100).toFixed(2)}%
             </div>
           </div>
         ))}
 
-        {/* Footnote */}
-        <div style={{ borderTop: "1px solid #c8bfa8", marginTop: 20, paddingTop: 10, paddingBottom: 16 }}>
-          <span style={{ fontSize: 9, color: "#7a6a55" }}>*אינדיקציה לתשואות כפי שנמסרו מהקרנות</span>
+        {/* כוכבית */}
+        <div style={{ borderTop: "1px solid #c8bfa8", marginTop: 10, paddingTop: 8, paddingBottom: 12 }}>
+          <span style={{ fontSize: 11, color: "#7a6a55" }}>*אינדיקציה לתשואות כפי שנמסרו מהקרנות</span>
         </div>
       </div>
 
       {/* Footer */}
-      <div style={{ backgroundColor: primary, padding: "16px 60px" }}>
-        <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, textAlign: "center" }}>
-          GREEN Wealth Management · {today()}
-        </div>
+      <div style={{ backgroundColor: "#1B3A2F", padding: "10px 40px", textAlign: "center" }}>
+        <div style={{ color: "#a0b8a8", fontSize: 11 }}>נתונים אינדיקטיביים בלבד · GREEN Wealth Management</div>
       </div>
+
     </div>
   );
 }
@@ -305,7 +317,7 @@ function OutputContent() {
       {/* Hidden card for html2canvas — 1080px, off-screen */}
       <div style={{ position: "absolute", left: -9999, top: 0, width: 1080, pointerEvents: "none" }}>
         <div ref={cardRef} style={{ width: 1080 }}>
-          <CardContent selectedList={selectedList} primary={PRIMARY} reportMonth={reportMonth} />
+          <CardContent selectedList={selectedList} primary={PRIMARY} accent={ACCENT} reportMonth={reportMonth} />
         </div>
       </div>
 
@@ -341,7 +353,7 @@ function OutputContent() {
                   position: "absolute", top: 0, right: 0,
                 }}>
                   {/* Mirror of hidden card */}
-                  <CardContent selectedList={selectedList} primary={PRIMARY} reportMonth={reportMonth} />
+                  <CardContent selectedList={selectedList} primary={PRIMARY} accent={ACCENT} reportMonth={reportMonth} />
                 </div>
               </div>
             </div>
