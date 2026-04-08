@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, Suspense } from "react";
 import {
   ScatterChart, Scatter, XAxis, YAxis, Tooltip,
   CartesianGrid, Cell, ZAxis, Label, LabelList,
-  ReferenceLine, ReferenceArea, Customized,
+  ReferenceLine, ReferenceArea,
 } from "recharts";
 import { FundsData, Fund } from "@/lib/types";
 import { ThemeToggle } from "@/components/ThemeProvider";
@@ -68,38 +68,6 @@ function buildScatterData(funds: Fund[], returnKey: string): ScatterPoint[] {
 }
 
 const COLORS = { top: "#059669", bottom: "#dc2626", normal: "#64748b" };
-
-/* ── Quadrant Labels (rendered inside SVG via Customized) ── */
-function QuadrantLabels({ xAxisMap, yAxisMap, avgX, avgY }: { xAxisMap?: Record<string, { x: number; width: number; scale: (v: number) => number }>; yAxisMap?: Record<string, { y: number; height: number; scale: (v: number) => number }>; avgX: number; avgY: number }) {
-  if (!xAxisMap || !yAxisMap) return null;
-  const xAxis = Object.values(xAxisMap)[0];
-  const yAxis = Object.values(yAxisMap)[0];
-  if (!xAxis || !yAxis) return null;
-
-  const cx = xAxis.scale(avgX);
-  const cy = yAxis.scale(avgY);
-  const left = xAxis.x + 8;
-  const right = xAxis.x + xAxis.width - 8;
-  const top = yAxis.y + 12;
-  const bottom = yAxis.y + yAxis.height - 8;
-
-  const labels: { x: number; y: number; text: string; fill: string; bold: boolean }[] = [
-    { x: left, y: top, text: "סיכון גבוה תשואה נמוכה", fill: "#94a3b8", bold: false },
-    { x: right, y: top, text: "אגרסיבי", fill: "#94a3b8", bold: false },
-    { x: left, y: bottom, text: "הגנתי", fill: "#94a3b8", bold: false },
-    { x: right, y: bottom, text: "הגביע הקדוש ✦", fill: "#059669", bold: true },
-  ];
-
-  return (
-    <g>
-      {labels.map((l) => (
-        <text key={l.text} x={l.x} y={l.y} fill={l.fill} fontSize={9} fontWeight={l.bold ? 700 : 600} textAnchor="start" dominantBaseline="hanging">
-          {l.text}
-        </text>
-      ))}
-    </g>
-  );
-}
 
 /* ── Explanation block ── */
 function ChartExplanation() {
@@ -258,7 +226,7 @@ function ChartsContent() {
             <ChartExplanation />
           </td></tr>
           <tr><td style={{ textAlign: "center", padding: "8px 0 16px" }}>
-            <div className="chart-card" style={{ backgroundColor: "var(--bg-surface)", borderRadius: 12, boxShadow: "var(--shadow-card)", border: "1px solid var(--border)", padding: 24, display: "inline-block" }}>
+            <div className="chart-card" style={{ backgroundColor: "var(--bg-surface)", borderRadius: 12, boxShadow: "var(--shadow-card)", border: "1px solid var(--border)", padding: 24, display: "inline-block", position: "relative" }}>
               {points.length < 2 ? (
                 <div style={{ textAlign: "center", padding: 60, color: "var(--text-muted)", fontSize: 14 }}>אין מספיק נתונים להצגה</div>
               ) : (
@@ -278,8 +246,6 @@ function ChartsContent() {
                   {/* Quadrant shading */}
                   <ReferenceArea x1={avgX} x2={9999} y1={-9999} y2={avgY} fill="#059669" fillOpacity={0.03} />
                   <ReferenceArea x1={-9999} x2={avgX} y1={avgY} y2={9999} fill="#dc2626" fillOpacity={0.03} />
-                  {/* Quadrant labels */}
-                  <Customized component={(props: Record<string, unknown>) => <QuadrantLabels {...props as Parameters<typeof QuadrantLabels>[0]} avgX={avgX} avgY={avgY} />} />
                   <Scatter data={points}>
                     <LabelList dataKey="idx" position="top" className="scatter-label" style={{ fontSize: 9, fontWeight: 700, fill: "#1a1f2b" }} />
                     {points.map((p, i) => (
@@ -288,6 +254,25 @@ function ChartsContent() {
                   </Scatter>
                 </ScatterChart>
               )}
+              {/* Quadrant labels — absolute overlay, hidden on print */}
+              {points.length >= 2 && (<>
+                {/* top-left: high stdDev, low return */}
+                <div className="no-print" style={{ position: "absolute", top: 45, left: 65, fontSize: 11, color: "#dc2626", opacity: 0.6, pointerEvents: "none", direction: "rtl" }}>
+                  סיכון גבוה, תשואה נמוכה
+                </div>
+                {/* top-right: high stdDev, high return */}
+                <div className="no-print" style={{ position: "absolute", top: 45, right: 58, fontSize: 11, color: "#f59e0b", opacity: 0.6, pointerEvents: "none", direction: "rtl" }}>
+                  אגרסיבי
+                </div>
+                {/* bottom-left: low stdDev, low return */}
+                <div className="no-print" style={{ position: "absolute", bottom: 64, left: 65, fontSize: 11, color: "#64748b", opacity: 0.6, pointerEvents: "none", direction: "rtl" }}>
+                  הגנתי
+                </div>
+                {/* bottom-right: low stdDev, high return */}
+                <div className="no-print" style={{ position: "absolute", bottom: 64, right: 58, fontSize: 11, color: "#059669", fontWeight: 700, opacity: 0.8, pointerEvents: "none", direction: "rtl" }}>
+                  ✦ הגביע הקדוש
+                </div>
+              </>)}
             </div>
           </td></tr>
 
