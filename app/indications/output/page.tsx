@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef, Suspense } from "react";
-import dynamic from "next/dynamic";
 import { useClientKey, withClient } from "@/lib/useClientKey";
 import { useBrand } from "@/lib/useBrand";
 import { Indication } from "@/lib/types";
@@ -9,9 +8,6 @@ import ClientGate from "@/components/ClientGate";
 import BrandLogo from "@/components/BrandLogo";
 import { ThemeToggle } from "@/components/ThemeProvider";
 import { brandCssVars } from "@/lib/colors";
-
-/* ── react-pdf: client-only ─────────────────────────────── */
-const PDFDownloadButton = dynamic(() => import("./PDFDownloadButton"), { ssr: false });
 
 /* ── helpers ─────────────────────────────────────────────── */
 function pct(v: number) {
@@ -30,9 +26,15 @@ function OutputContent() {
   const [indications, setIndications] = useState<Indication[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [capturing, setCapturing] = useState(false);
 
-  const hiddenRef = useRef<HTMLDivElement>(null);
+  // Preview modal
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewMode, setPreviewMode] = useState<"image" | "pdf">("image");
+  const [downloading, setDownloading] = useState(false);
+
+  // Card ref for dynamic height calculation
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [cardHeight, setCardHeight] = useState(0);
 
   const PRIMARY = brand.primaryColor || "#1B3A2F";
   const ACCENT = brand.accentColor || "#B8975A";
@@ -48,6 +50,16 @@ function OutputContent() {
       });
   }, [clientKey]);
 
+  // Recalculate card height when selection changes
+  useEffect(() => {
+    const measure = () => {
+      if (cardRef.current) setCardHeight(cardRef.current.offsetHeight);
+    };
+    measure();
+    const timer = setTimeout(measure, 100);
+    return () => clearTimeout(timer);
+  }, [selected, indications]);
+
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -61,33 +73,61 @@ function OutputContent() {
 
   const selectedList = indications.filter((i) => selected.has(i.id));
 
-  /* ── WhatsApp image ─────────────────────────────────── */
-  const handleWhatsapp = async () => {
-    if (selectedList.length === 0) return;
-    setCapturing(true);
+  // Most common reportMonth among selected
+  const reportMonth = selectedList.length > 0
+    ? [...selectedList]
+        .map((i) => i.reportMonth)
+        .sort((a, b) =>
+          selectedList.filter((x) => x.reportMonth === b).length -
+          selectedList.filter((x) => x.reportMonth === a).length
+        )[0]
+    : today().slice(3); // MM/YYYY fallback
+
+  const openPreview = (mode: "image" | "pdf") => {
+    setPreviewMode(mode);
+    setPreviewOpen(true);
+  };
+
+  /* ── Download handler ──────────────────────────────────── */
+  const handleDownload = async () => {
+    if (!cardRef.current || selectedList.length === 0) return;
+    setDownloading(true);
     try {
       const html2canvas = (await import("html2canvas")).default;
-      if (!hiddenRef.current) return;
-      const canvas = await html2canvas(hiddenRef.current, {
+      const canvas = await html2canvas(cardRef.current, {
         scale: 2,
         useCORS: true,
         backgroundColor: "#F8F9FA",
-        width: 1080,
-        height: hiddenRef.current.scrollHeight,
         logging: false,
       });
-      const link = document.createElement("a");
-      link.download = `indications-${today().replace(/\//g, "-")}.png`;
-      link.href = canvas.toDataURL("image/png");
-      link.click();
+
+      const fileName = `green-indications-${reportMonth.replace("/", "-")}`;
+
+      if (previewMode === "image") {
+        const link = document.createElement("a");
+        link.download = `${fileName}.png`;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+      } else {
+        const { jsPDF } = await import("jspdf");
+        const pdf = new jsPDF({ orientation: "portrait", unit: "px", format: "a4" });
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const imgHeight = (canvas.height * pageWidth) / canvas.width;
+        pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pageWidth, imgHeight);
+        pdf.save(`${fileName}.pdf`);
+      }
+      setPreviewOpen(false);
     } finally {
-      setCapturing(false);
+      setDownloading(false);
     }
   };
 
   if (loading || brand.name === "") {
     return <div style={{ padding: 60, textAlign: "center", color: "var(--text-muted)" }}>טוען...</div>;
   }
+
+  const scaleRatio = 0.42;
+  const previewHeight = cardHeight > 0 ? Math.round(cardHeight * scaleRatio) : 300;
 
   return (
     <div style={{ minHeight: "100vh", ...brandCssVars(PRIMARY, ACCENT) as React.CSSProperties }}>
@@ -145,61 +185,35 @@ function OutputContent() {
         {/* Export buttons */}
         <div style={{ display: "flex", gap: 12, marginBottom: 24 }}>
           <button
-            onClick={handleWhatsapp}
-            disabled={selectedList.length === 0 || capturing}
+            onClick={() => openPreview("image")}
+            disabled={selectedList.length === 0}
             style={{
               flex: 1, padding: "12px 0", borderRadius: 10, fontWeight: 700, fontSize: 14, border: "none",
-              backgroundColor: selectedList.length > 0 && !capturing ? "#25D366" : "var(--border)",
-              color: selectedList.length > 0 && !capturing ? "#fff" : "var(--text-muted)",
-              cursor: selectedList.length > 0 && !capturing ? "pointer" : "default",
+              backgroundColor: selectedList.length > 0 ? "#25D366" : "var(--border)",
+              color: selectedList.length > 0 ? "#fff" : "var(--text-muted)",
+              cursor: selectedList.length > 0 ? "pointer" : "default",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-              transition: "opacity 0.15s",
             }}
           >
             <span style={{ fontSize: 18 }}>📱</span>
-            {capturing ? "מייצר תמונה..." : "תמונה לוואטסאפ"}
+            תמונה לוואטסאפ
           </button>
 
-          <PDFDownloadButton
-            selectedList={selectedList}
-            brand={brand}
-            clientKey={clientKey}
-          />
+          <button
+            onClick={() => openPreview("pdf")}
+            disabled={selectedList.length === 0}
+            style={{
+              flex: 1, padding: "12px 0", borderRadius: 10, fontWeight: 700, fontSize: 14, border: "none",
+              backgroundColor: selectedList.length > 0 ? PRIMARY : "var(--border)",
+              color: selectedList.length > 0 ? "#fff" : "var(--text-muted)",
+              cursor: selectedList.length > 0 ? "pointer" : "default",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            }}
+          >
+            <span style={{ fontSize: 18 }}>📄</span>
+            PDF
+          </button>
         </div>
-
-        {/* Preview table */}
-        {selectedList.length > 0 && (
-          <div style={{ backgroundColor: "var(--bg-surface)", borderRadius: 12, border: "1px solid var(--border)", overflow: "hidden", boxShadow: "var(--shadow-card)" }}>
-            <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>תצוגה מקדימה</span>
-              <span style={{ fontSize: 11, padding: "2px 10px", borderRadius: 10, backgroundColor: "#f59e0b20", color: "#f59e0b", fontWeight: 600 }}>אינדיקטיבי · לא מאומת</span>
-            </div>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead>
-                <tr style={{ backgroundColor: "var(--bg-surface-alt)" }}>
-                  <th style={thP}>שם קרן</th>
-                  <th style={thPC}>מטבע</th>
-                  <th style={thPC}>חודש אחרון</th>
-                  <th style={thPC}>YTD</th>
-                </tr>
-              </thead>
-              <tbody>
-                {selectedList.map((ind, idx) => (
-                  <tr key={ind.id} style={{ backgroundColor: idx % 2 === 0 ? "var(--bg-surface)" : "var(--bg-surface-alt)" }}>
-                    <td style={tdP}>{ind.fundName}</td>
-                    <td style={{ ...tdP, textAlign: "center" }}>
-                      <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 4, backgroundColor: ind.currency === "USD" ? "#3b82f615" : "#10b98115", color: ind.currency === "USD" ? "#3b82f6" : "#10b981", fontWeight: 600 }}>
-                        {ind.currency}
-                      </span>
-                    </td>
-                    <td style={{ ...tdP, textAlign: "center", color: ind.monthReturn >= 0 ? "#10b981" : "#ef4444", fontWeight: 600 }}>{pct(ind.monthReturn)}</td>
-                    <td style={{ ...tdP, textAlign: "center", color: ind.ytd >= 0 ? "#10b981" : "#ef4444", fontWeight: 600 }}>{pct(ind.ytd)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
 
         {selectedList.length === 0 && (
           <div style={{ textAlign: "center", padding: "32px 0", color: "var(--text-muted)", fontSize: 13 }}>
@@ -208,9 +222,13 @@ function OutputContent() {
         )}
       </div>
 
-      {/* Hidden canvas div for html2canvas — 1080px wide */}
+      {/* Hidden card for html2canvas — 1080px, off-screen */}
       <div style={{ position: "absolute", left: -9999, top: 0, width: 1080, pointerEvents: "none" }}>
-        <div ref={hiddenRef} style={{ width: 1080, backgroundColor: "#F8F9FA", fontFamily: "Arial, sans-serif", direction: "rtl" }}>
+        <div
+          id="preview-card"
+          ref={cardRef}
+          style={{ width: 1080, backgroundColor: "#F8F9FA", fontFamily: "Arial, sans-serif", direction: "rtl" }}
+        >
           {/* Header */}
           <div style={{ backgroundColor: PRIMARY, padding: "36px 60px 28px" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -228,7 +246,7 @@ function OutputContent() {
                   {brand.mainTitle || "GREEN Wealth Management"}
                 </div>
                 <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 16, marginTop: 6 }}>
-                  נתונים אינדיקטיביים · {today()}
+                  נתונים אינדיקטיביים · {reportMonth} · {today()}
                 </div>
               </div>
               <div style={{ textAlign: "left" }}>
@@ -241,7 +259,6 @@ function OutputContent() {
 
           {/* Table */}
           <div style={{ padding: "32px 48px 20px" }}>
-            {/* Column headers */}
             <div style={{ display: "flex", borderBottom: `2px solid ${PRIMARY}`, paddingBottom: 10, marginBottom: 4 }}>
               <div style={{ flex: 1, fontSize: 14, fontWeight: 700, color: PRIMARY }}>שם קרן</div>
               <div style={{ width: 80, textAlign: "center", fontSize: 14, fontWeight: 700, color: PRIMARY }}>מטבע</div>
@@ -269,16 +286,10 @@ function OutputContent() {
                     {ind.currency}
                   </span>
                 </div>
-                <div style={{
-                  width: 140, textAlign: "center", fontSize: 18, fontWeight: 700,
-                  color: ind.monthReturn >= 0 ? "#059669" : "#dc2626",
-                }}>
+                <div style={{ width: 140, textAlign: "center", fontSize: 18, fontWeight: 700, color: ind.monthReturn >= 0 ? "#059669" : "#dc2626" }}>
                   {pct(ind.monthReturn)}
                 </div>
-                <div style={{
-                  width: 140, textAlign: "center", fontSize: 18, fontWeight: 700,
-                  color: ind.ytd >= 0 ? "#059669" : "#dc2626",
-                }}>
+                <div style={{ width: 140, textAlign: "center", fontSize: 18, fontWeight: 700, color: ind.ytd >= 0 ? "#059669" : "#dc2626" }}>
                   {pct(ind.ytd)}
                 </div>
               </div>
@@ -288,18 +299,118 @@ function OutputContent() {
           {/* Footer */}
           <div style={{ backgroundColor: PRIMARY, padding: "20px 60px", marginTop: 20 }}>
             <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, textAlign: "center" }}>
-              נתונים אינדיקטיביים בלבד · GREEN Wealth Management · {today()}
+              * נתונים אינדיקטיביים בלבד, טרם אומתו · GREEN Wealth Management · {today()}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Preview Modal */}
+      {previewOpen && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setPreviewOpen(false); }}
+          style={{
+            position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.72)",
+            zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <div style={{
+            backgroundColor: "#fff", borderRadius: 12, width: "90vw", maxWidth: 480,
+            maxHeight: "90vh", overflowY: "auto", position: "relative",
+            display: "flex", flexDirection: "column",
+          }}>
+            {/* Modal header */}
+            <div style={{ padding: "14px 20px", borderBottom: "1px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#111827", direction: "rtl" }}>
+                תצוגה מקדימה — {previewMode === "image" ? "תמונה" : "PDF"}
+              </span>
+              <button onClick={() => setPreviewOpen(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#6b7280", lineHeight: 1, padding: "0 4px" }}>✕</button>
+            </div>
+
+            {/* Scaled preview */}
+            <div style={{ padding: "16px 20px", backgroundColor: "#f9fafb", overflow: "hidden" }}>
+              <div style={{ height: previewHeight, overflow: "hidden", position: "relative" }}>
+                <div style={{
+                  width: 1080,
+                  transform: `scale(${scaleRatio})`,
+                  transformOrigin: "top right",
+                  position: "absolute", top: 0, right: 0,
+                }}>
+                  {/* Mirror of hidden card — same JSX */}
+                  <div style={{ width: 1080, backgroundColor: "#F8F9FA", fontFamily: "Arial, sans-serif", direction: "rtl" }}>
+                    <div style={{ backgroundColor: PRIMARY, padding: "36px 60px 28px" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <div>
+                          {(brand.logoLight || brand.logo) && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={brand.logoLight || brand.logo} alt={brand.name} style={{ height: 60, marginBottom: 14, display: "block" }} crossOrigin="anonymous" />
+                          )}
+                          <div style={{ color: ACCENT, fontSize: 28, fontWeight: 800 }}>{brand.mainTitle || "GREEN Wealth Management"}</div>
+                          <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 16, marginTop: 6 }}>נתונים אינדיקטיביים · {reportMonth} · {today()}</div>
+                        </div>
+                        <div>
+                          <span style={{ backgroundColor: "#f59e0b", color: "#fff", padding: "6px 18px", borderRadius: 20, fontSize: 13, fontWeight: 700 }}>אינדיקטיבי · לא מאומת</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ padding: "32px 48px 20px" }}>
+                      <div style={{ display: "flex", borderBottom: `2px solid ${PRIMARY}`, paddingBottom: 10, marginBottom: 4 }}>
+                        <div style={{ flex: 1, fontSize: 14, fontWeight: 700, color: PRIMARY }}>שם קרן</div>
+                        <div style={{ width: 80, textAlign: "center", fontSize: 14, fontWeight: 700, color: PRIMARY }}>מטבע</div>
+                        <div style={{ width: 140, textAlign: "center", fontSize: 14, fontWeight: 700, color: PRIMARY }}>חודש אחרון</div>
+                        <div style={{ width: 140, textAlign: "center", fontSize: 14, fontWeight: 700, color: PRIMARY }}>YTD</div>
+                      </div>
+                      {selectedList.map((ind, idx) => (
+                        <div key={ind.id} style={{ display: "flex", alignItems: "center", padding: "13px 0", borderBottom: "1px solid #e5e7eb", backgroundColor: idx % 2 === 0 ? "transparent" : "#f9fafb" }}>
+                          <div style={{ flex: 1, fontSize: 16, color: "#111827", fontWeight: 500 }}>{ind.fundName}</div>
+                          <div style={{ width: 80, textAlign: "center" }}>
+                            <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, backgroundColor: ind.currency === "USD" ? "#dbeafe" : "#d1fae5", color: ind.currency === "USD" ? "#1d4ed8" : "#047857", fontWeight: 700 }}>
+                              {ind.currency}
+                            </span>
+                          </div>
+                          <div style={{ width: 140, textAlign: "center", fontSize: 18, fontWeight: 700, color: ind.monthReturn >= 0 ? "#059669" : "#dc2626" }}>{pct(ind.monthReturn)}</div>
+                          <div style={{ width: 140, textAlign: "center", fontSize: 18, fontWeight: 700, color: ind.ytd >= 0 ? "#059669" : "#dc2626" }}>{pct(ind.ytd)}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ backgroundColor: PRIMARY, padding: "20px 60px", marginTop: 20 }}>
+                      <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, textAlign: "center" }}>
+                        * נתונים אינדיקטיביים בלבד, טרם אומתו · GREEN Wealth Management · {today()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal footer */}
+            <div style={{ padding: "14px 20px", borderTop: "1px solid #e5e7eb", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+              <button
+                onClick={() => setPreviewOpen(false)}
+                style={{ padding: "8px 20px", borderRadius: 8, border: "1px solid #d1d5db", backgroundColor: "#fff", color: "#374151", cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+              >
+                סגור
+              </button>
+              <button
+                onClick={handleDownload}
+                disabled={downloading}
+                style={{
+                  padding: "8px 24px", borderRadius: 8, border: "none",
+                  backgroundColor: downloading ? "#9ca3af" : PRIMARY,
+                  color: "#fff", cursor: downloading ? "default" : "pointer",
+                  fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 8,
+                }}
+              >
+                {downloading ? "מוריד..." : previewMode === "image" ? "📱 הורד תמונה" : "📄 הורד PDF"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-const thP: React.CSSProperties = { padding: "8px 14px", textAlign: "right", fontWeight: 500, fontSize: 11, color: "var(--text-muted)" };
-const thPC: React.CSSProperties = { ...thP, textAlign: "center" };
-const tdP: React.CSSProperties = { padding: "9px 14px", borderBottom: "1px solid var(--border)", fontSize: 13, color: "var(--text-primary)" };
 const smallBtn: React.CSSProperties = { fontSize: 11, padding: "4px 12px", borderRadius: 6, border: "1px solid var(--border)", backgroundColor: "var(--bg-input)", color: "var(--text-secondary)", cursor: "pointer" };
 
 export default function OutputPage() {
