@@ -21,42 +21,37 @@ function today() {
 /* ── Inline logo — SVG-style div on beige ────────────────── */
 function GreenLogoInline() {
   return (
-    <div style={{ display: "inline-flex", alignItems: "center", gap: 10, backgroundColor: "#f5f0e8", padding: "10px 16px 10px 10px", borderRadius: 6, marginBottom: 14 }}>
-      <div style={{ backgroundColor: "#1B3A2F", padding: "6px 14px", borderRadius: 4 }}>
-        <span style={{ color: "#fff", fontWeight: 800, fontSize: 20, letterSpacing: 3, fontFamily: "Arial, sans-serif" }}>GREEN</span>
+    <div style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+      <div style={{ backgroundColor: "#1B3A2F", padding: "6px 14px", borderRadius: 4, border: "2px solid #B8975A" }}>
+        <span style={{ color: "#f5f0e8", fontWeight: 800, fontSize: 20, letterSpacing: 3, fontFamily: "Arial, sans-serif" }}>GREEN</span>
       </div>
-      <span style={{ color: "#5a7a6a", fontSize: 11, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase" as const, fontFamily: "Arial, sans-serif" }}>WEALTH MANAGEMENT</span>
+      <span style={{ color: "#a0b8a8", fontSize: 9, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase" as const, fontFamily: "Arial, sans-serif", lineHeight: 1.4 }}>WEALTH<br/>MANAGEMENT</span>
     </div>
   );
 }
 
 /* ── Shared card content (used in hidden div + modal mirror) */
-function CardContent({ selectedList, primary, accent, reportMonth }: {
+function CardContent({ selectedList, primary, reportMonth }: {
   selectedList: Indication[];
   primary: string;
-  accent: string;
   reportMonth: string;
 }) {
   return (
-    <div style={{ width: 1080, backgroundColor: "#F8F9FA", fontFamily: "Arial, sans-serif", direction: "rtl" }}>
-      {/* Header strip */}
-      <div style={{ backgroundColor: primary, padding: "10px 24px 14px" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div>
-            <GreenLogoInline />
-            <div style={{ color: accent, fontSize: 22, fontWeight: 800, letterSpacing: 0.5 }}>
-              GREEN Wealth Management
-            </div>
-            <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 14, marginTop: 4 }}>
-              נתונים אינדיקטיביים · {reportMonth} · {today()}
-            </div>
-          </div>
-          <div>
-            <span style={{ backgroundColor: "#f59e0b", color: "#fff", padding: "6px 18px", borderRadius: 20, fontSize: 13, fontWeight: 700 }}>
-              אינדיקטיבי · לא מאומת
-            </span>
-          </div>
+    <div style={{ width: 1080, backgroundColor: "#f5f0e8", fontFamily: "Arial, sans-serif", direction: "rtl" }}>
+      {/* Beige top bar with logo */}
+      <div style={{ backgroundColor: "#f5f0e8", padding: "16px 40px 12px", display: "flex", justifyContent: "center" }}>
+        <GreenLogoInline />
+      </div>
+
+      {/* Green title strip */}
+      <div style={{ backgroundColor: "#1B3A2F", padding: "10px 40px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <div style={{ color: "#B8975A", fontSize: 18, fontWeight: 700, letterSpacing: 0.5 }}>מעקב קרנות השקעה</div>
+          <div style={{ color: "#a0b8a8", fontSize: 10, marginTop: 3 }}>נתונים אינדיקטיביים · {reportMonth}</div>
         </div>
+        <span style={{ backgroundColor: "#7a4f00", color: "#fde68a", padding: "4px 14px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
+          אינדיקטיבי · לא מאומת
+        </span>
       </div>
 
       {/* Table */}
@@ -310,7 +305,7 @@ function OutputContent() {
       {/* Hidden card for html2canvas — 1080px, off-screen */}
       <div style={{ position: "absolute", left: -9999, top: 0, width: 1080, pointerEvents: "none" }}>
         <div ref={cardRef} style={{ width: 1080 }}>
-          <CardContent selectedList={selectedList} primary={PRIMARY} accent={ACCENT} reportMonth={reportMonth} />
+          <CardContent selectedList={selectedList} primary={PRIMARY} reportMonth={reportMonth} />
         </div>
       </div>
 
@@ -346,7 +341,7 @@ function OutputContent() {
                   position: "absolute", top: 0, right: 0,
                 }}>
                   {/* Mirror of hidden card */}
-                  <CardContent selectedList={selectedList} primary={PRIMARY} accent={ACCENT} reportMonth={reportMonth} />
+                  <CardContent selectedList={selectedList} primary={PRIMARY} reportMonth={reportMonth} />
                 </div>
               </div>
             </div>
