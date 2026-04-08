@@ -55,6 +55,7 @@ interface ScatterPoint {
   sharpe: number | null;
   aum: number | null;
   rank: "top" | "bottom" | "normal";
+  currency?: "ILS" | "USD";
 }
 
 type ValidPoint = Omit<ScatterPoint, "rank" | "idx">;
@@ -64,7 +65,7 @@ function buildScatterData(funds: Fund[], fromYear: number, toYear: number): Scat
   for (const f of funds) {
     const ret = computeRangeReturn(f, fromYear, toYear);
     if (ret === null || f.stdDev === null) continue;
-    valid.push({ name: f.name, x: ret * 100, y: f.stdDev * 100, sharpe: f.sharpe, aum: f.aumMillions });
+    valid.push({ name: f.name, x: ret * 100, y: f.stdDev * 100, sharpe: f.sharpe, aum: f.aumMillions, currency: f.currency });
   }
 
   // Rank by Sharpe (only funds that have a valid Sharpe value)
@@ -115,6 +116,7 @@ function ChartsContent() {
   // Local chart controls — fully independent from report page selectors
   const [fromYear, setFromYear] = useState<number>(2020);
   const [toYear, setToYear] = useState<number>(2025);
+  const [currencyFilter, setCurrencyFilter] = useState<"all" | "ILS" | "USD">("all");
 
   useEffect(() => {
     fetch(`/api/funds?client=${encodeURIComponent(clientKey)}`).then((r) => r.json()).then((d: FundsData) => {
@@ -134,6 +136,12 @@ function ChartsContent() {
     [filtered],
   );
 
+  // Apply currency filter — funds with missing currency only shown in "all" mode
+  const fundsByCurrency = useMemo(() => {
+    if (currencyFilter === "all") return funds;
+    return funds.filter((f) => f.currency === currencyFilter);
+  }, [funds, currencyFilter]);
+
   // Label for print header
   const selectedCategoryLabel = useMemo(() => {
     if (category !== ALL) return category;
@@ -148,8 +156,8 @@ function ChartsContent() {
   }, [fromYear, toYear]);
 
   const points = useMemo(
-    () => buildScatterData(funds, fromYear, toYear),
-    [funds, fromYear, toYear],
+    () => buildScatterData(fundsByCurrency, fromYear, toYear),
+    [fundsByCurrency, fromYear, toYear],
   );
   const topFunds = points.filter((p) => p.rank === "top");
   const bottomFunds = points.filter((p) => p.rank === "bottom");
@@ -222,12 +230,13 @@ function ChartsContent() {
         accentColor={brand.primaryColor}
       />
 
-      {/* Local chart controls — year range selector (improvement 1+2) */}
+      {/* Local chart controls — year range + currency filter (improvement 1+2+3) */}
       <div className="no-print" style={{
         backgroundColor: "var(--bg-surface-alt)", borderBottom: "1px solid var(--border)",
         padding: "8px 20px", display: "flex", alignItems: "center", gap: 24,
         flexWrap: "wrap", direction: "rtl",
       }}>
+        {/* Year range selector */}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 600 }}>תקופה:</span>
           <select
@@ -245,6 +254,26 @@ function ChartsContent() {
           >
             {ALL_YEARS.filter((y) => y >= fromYear).map((y) => <option key={y} value={y}>{yearLabel(y)}</option>)}
           </select>
+        </div>
+
+        {/* Currency filter toggle (improvement 3) */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 600 }}>מטבע:</span>
+          {(["all", "ILS", "USD"] as const).map((c) => (
+            <button
+              key={c}
+              onClick={() => setCurrencyFilter(c)}
+              style={{
+                fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 5,
+                border: "1px solid", cursor: "pointer", transition: "all 0.15s",
+                backgroundColor: currencyFilter === c ? brand.primaryColor : "transparent",
+                color: currencyFilter === c ? "#fff" : "var(--text-secondary)",
+                borderColor: currencyFilter === c ? brand.primaryColor : "var(--border)",
+              }}
+            >
+              {c === "all" ? "הכל" : c}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -389,6 +418,7 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Array<
       <TipRow label="ס״ת" value={p.y.toFixed(2) + "%"} />
       {p.sharpe != null && <TipRow label="שארפ" value={p.sharpe.toFixed(2)} />}
       {p.aum != null && <TipRow label="AUM" value={p.aum.toLocaleString() + " מ׳"} />}
+      {p.currency && <TipRow label="מטבע" value={p.currency} />}
     </div>
   );
 }
