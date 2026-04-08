@@ -215,6 +215,15 @@ function OutputContent() {
           <div style={{ backgroundColor: PRIMARY, padding: "36px 60px 28px" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
+                {(brand.logoLight || brand.logo) && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={brand.logoLight || brand.logo}
+                    alt={brand.name}
+                    style={{ height: 60, marginBottom: 14, display: "block" }}
+                    crossOrigin="anonymous"
+                  />
+                )}
                 <div style={{ color: ACCENT, fontSize: 28, fontWeight: 800, letterSpacing: 0.5 }}>
                   {brand.mainTitle || "GREEN Wealth Management"}
                 </div>

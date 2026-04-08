@@ -224,9 +224,11 @@ function IndicationsContent() {
         <div style={{ backgroundColor: "var(--bg-surface)", borderRadius: 12, padding: "20px 24px", border: "1px solid var(--border)", marginBottom: 24, boxShadow: "var(--shadow-card)" }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>הזנה מהירה</div>
 
-          <div style={{ display: "flex", gap: 10, alignItems: "flex-start", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
             {/* Fund search */}
-            <div style={{ position: "relative", flex: "1 1 240px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: "1 1 220px", minWidth: 0 }}>
+              <label style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500 }}>שם קרן</label>
+              <div style={{ position: "relative" }}>
               <input
                 ref={searchRef}
                 type="text"
@@ -273,6 +275,7 @@ function IndicationsContent() {
                   ))}
                 </div>
               )}
+              </div>
             </div>
 
             {/* Month % */}
