@@ -18,11 +18,31 @@ import { useFilters } from "@/lib/useFilters";
 import FilterBar from "@/components/FilterBar";
 
 /* ------------------------------------------------------------------ */
-/*  Chart uses annual average data only — no year selection             */
+/*  Year range helpers — improvement 1+2                               */
 /* ------------------------------------------------------------------ */
-const RETURN_KEY = "_avg";
-const RETURN_LABEL = "תשואה שנתית ממוצעת";
+const ALL_YEARS = [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026];
 
+const YEAR_KEYS: Partial<Record<number, keyof Fund["returns"]>> = {
+  2019: "y2019", 2020: "y2020", 2021: "y2021", 2022: "y2022",
+  2023: "y2023", 2024: "y2024", 2025: "y2025", 2026: "ytd2026",
+};
+
+function computeRangeReturn(fund: Fund, fromYear: number, toYear: number): number | null {
+  const vals: number[] = [];
+  for (let y = fromYear; y <= toYear; y++) {
+    const key = YEAR_KEYS[y];
+    if (!key) continue;
+    const v = fund.returns[key];
+    if (v !== null && v !== undefined) vals.push(v);
+  }
+  if (vals.length === 0) return null;
+  const product = vals.reduce((acc, v) => acc * (1 + v), 1);
+  return Math.pow(product, 1 / vals.length) - 1;
+}
+
+function yearLabel(y: number) {
+  return y === 2026 ? "2026 (YTD)" : String(y);
+}
 
 /* ------------------------------------------------------------------ */
 /*  Scatter helpers                                                    */
@@ -37,19 +57,15 @@ interface ScatterPoint {
   rank: "top" | "bottom" | "normal";
 }
 
-function getReturnValue(fund: Fund, key: string): number | null {
-  if (key === "_avg") return fund.avgAnnualReturn;
-  return (fund.returns as Record<string, number | null>)[key] ?? null;
-}
+type ValidPoint = Omit<ScatterPoint, "rank" | "idx">;
 
-function buildScatterData(funds: Fund[], returnKey: string): ScatterPoint[] {
-  const valid = funds
-    .map((f) => {
-      const ret = getReturnValue(f, returnKey);
-      if (ret === null || f.stdDev === null) return null;
-      return { name: f.name, x: ret * 100, y: f.stdDev * 100, sharpe: f.sharpe, aum: f.aumMillions };
-    })
-    .filter((p): p is Omit<ScatterPoint, "rank" | "idx"> => p !== null);
+function buildScatterData(funds: Fund[], fromYear: number, toYear: number): ScatterPoint[] {
+  const valid: ValidPoint[] = [];
+  for (const f of funds) {
+    const ret = computeRangeReturn(f, fromYear, toYear);
+    if (ret === null || f.stdDev === null) continue;
+    valid.push({ name: f.name, x: ret * 100, y: f.stdDev * 100, sharpe: f.sharpe, aum: f.aumMillions });
+  }
 
   // Rank by Sharpe (only funds that have a valid Sharpe value)
   const withSharpe = valid.filter((p) => p.sharpe !== null);
@@ -60,7 +76,6 @@ function buildScatterData(funds: Fund[], returnKey: string): ScatterPoint[] {
   return valid.map((p, i) => ({
     ...p,
     idx: i + 1,
-    // Funds without Sharpe → always "normal"; top/bottom only from Sharpe-ranked set
     rank: p.sharpe !== null && topNames.has(p.name) ? "top" as const
         : p.sharpe !== null && bottomNames.has(p.name) ? "bottom" as const
         : "normal" as const,
@@ -97,6 +112,10 @@ function ChartsContent() {
   const [data, setData] = useState<FundsData | null>(null);
   const brand = useBrand(clientKey);
 
+  // Local chart controls — fully independent from report page selectors
+  const [fromYear, setFromYear] = useState<number>(2020);
+  const [toYear, setToYear] = useState<number>(2025);
+
   useEffect(() => {
     fetch(`/api/funds?client=${encodeURIComponent(clientKey)}`).then((r) => r.json()).then((d: FundsData) => {
       setData(d);
@@ -122,9 +141,15 @@ function ChartsContent() {
     return "כל הקרנות";
   }, [group, category, ALL]);
 
+  // Dynamic period label for legend header
+  const periodLabel = useMemo(() => {
+    if (fromYear === toYear) return yearLabel(fromYear);
+    return `${fromYear}–${toYear}`;
+  }, [fromYear, toYear]);
+
   const points = useMemo(
-    () => buildScatterData(funds, RETURN_KEY),
-    [funds],
+    () => buildScatterData(funds, fromYear, toYear),
+    [funds, fromYear, toYear],
   );
   const topFunds = points.filter((p) => p.rank === "top");
   const bottomFunds = points.filter((p) => p.rank === "bottom");
@@ -134,6 +159,12 @@ function ChartsContent() {
   const avgY = points.length > 0 ? points.reduce((s, p) => s + p.y, 0) / points.length : 0;
 
   if (!data) return <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>טוען נתונים...</div>;
+
+  const selectStyle: React.CSSProperties = {
+    fontSize: 12, padding: "3px 8px", borderRadius: 6,
+    border: "1px solid var(--border)", backgroundColor: "var(--bg-input)",
+    color: "var(--text-primary)", cursor: "pointer",
+  };
 
   return (
     <ClientGate clientKey={clientKey}>
@@ -175,7 +206,7 @@ function ChartsContent() {
         </div>
       </div>
 
-      {/* Filter bar — same as report page */}
+      {/* Category + fund filters */}
       <FilterBar
         group={group}
         category={category}
@@ -190,6 +221,32 @@ function ChartsContent() {
         onClearAll={clearAll}
         accentColor={brand.primaryColor}
       />
+
+      {/* Local chart controls — year range selector (improvement 1+2) */}
+      <div className="no-print" style={{
+        backgroundColor: "var(--bg-surface-alt)", borderBottom: "1px solid var(--border)",
+        padding: "8px 20px", display: "flex", alignItems: "center", gap: 24,
+        flexWrap: "wrap", direction: "rtl",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 600 }}>תקופה:</span>
+          <select
+            value={fromYear}
+            onChange={(e) => { const v = Number(e.target.value); setFromYear(v); if (v > toYear) setToYear(v); }}
+            style={selectStyle}
+          >
+            {ALL_YEARS.map((y) => <option key={y} value={y}>{yearLabel(y)}</option>)}
+          </select>
+          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>—</span>
+          <select
+            value={toYear}
+            onChange={(e) => setToYear(Number(e.target.value))}
+            style={selectStyle}
+          >
+            {ALL_YEARS.filter((y) => y >= fromYear).map((y) => <option key={y} value={y}>{yearLabel(y)}</option>)}
+          </select>
+        </div>
+      </div>
 
       {/* All content in one table — thead repeats on every printed page */}
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -278,7 +335,7 @@ function ChartsContent() {
 
           {/* 3. Legend table — centered via .print-only-table CSS */}
           <tr><td style={{ textAlign: "center", padding: "0 20px" }}>
-            {points.length >= 2 && <PrintLegend points={points} returnLabel={RETURN_LABEL} />}
+            {points.length >= 2 && <PrintLegend points={points} periodLabel={periodLabel} />}
           </td></tr>
 
           {/* 4. Top / Bottom cards — centered via .rank-cards-grid CSS */}
@@ -366,7 +423,7 @@ function RankCard({ title, funds, color, bg, border }: {
   );
 }
 
-function PrintLegend({ points, returnLabel }: { points: ScatterPoint[]; returnLabel: string }) {
+function PrintLegend({ points, periodLabel }: { points: ScatterPoint[]; periodLabel: string }) {
   const sorted = [...points].sort((a, b) => a.idx - b.idx);
   return (
     <table className="print-only-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, direction: "rtl", marginBottom: 20 }}>
@@ -374,7 +431,7 @@ function PrintLegend({ points, returnLabel }: { points: ScatterPoint[]; returnLa
         <tr style={{ backgroundColor: "#f1f5f9", borderBottom: "2px solid #cbd5e1" }}>
           <th style={{ padding: "7px 8px", textAlign: "center", fontWeight: 600, color: "#334155", width: 36 }}>#</th>
           <th style={{ padding: "7px 8px", textAlign: "right", fontWeight: 600, color: "#334155" }}>קרן</th>
-          <th style={{ padding: "7px 8px", textAlign: "center", fontWeight: 600, color: "#334155" }}>תשואה ({returnLabel})</th>
+          <th style={{ padding: "7px 8px", textAlign: "center", fontWeight: 600, color: "#334155" }}>תשואה שנתית ממוצעת ({periodLabel})</th>
           <th style={{ padding: "7px 8px", textAlign: "center", fontWeight: 600, color: "#334155" }}>ס״ת</th>
           <th style={{ padding: "7px 8px", textAlign: "center", fontWeight: 600, color: "#334155" }}>שארפ</th>
           <th style={{ padding: "7px 8px", textAlign: "center", fontWeight: 600, color: "#334155" }}>AUM (מ׳)</th>
