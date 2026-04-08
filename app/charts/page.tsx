@@ -435,7 +435,7 @@ function ChartsContent() {
 
           <tr><td style={{ textAlign: "center", padding: "4px 0 16px" }}>
             <div className="chart-card" style={{
-              backgroundColor: "var(--bg-surface)", borderRadius: 16,
+              backgroundColor: dark ? "#1E2A2A" : "var(--bg-surface)", borderRadius: 16,
               boxShadow: "var(--shadow-card)",
               border: "1px solid var(--border)", padding: 28, display: "inline-block", position: "relative",
             }}>
@@ -443,17 +443,17 @@ function ChartsContent() {
                 <div style={{ textAlign: "center", padding: 60, color: "var(--text-muted)", fontSize: 14 }}>אין מספיק נתונים להצגה</div>
               ) : (
                 <ScatterChart width={660} height={380} margin={{ top: 16, right: 30, bottom: 36, left: 36 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={dark ? "#2a3244" : "#e2e8f0"} />
-                  <XAxis type="number" dataKey="x" tick={{ fontSize: 12, fill: dark ? "#5a6577" : "#94a3b8" }} stroke={dark ? "#2a3244" : "#e2e8f0"} tickLine={{ stroke: dark ? "#2a3244" : "#e2e8f0" }}>
-                    <Label value="(%) תשואה" position="bottom" offset={14} style={{ fontSize: 13, fill: dark ? "#e2e6ea" : "#1B3A2F", fontWeight: 500 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={dark ? "#2D3748" : "#e2e8f0"} />
+                  <XAxis type="number" dataKey="x" tick={{ fontSize: 12, fill: dark ? "#CBD5E1" : "#94a3b8" }} stroke={dark ? "#2D3748" : "#e2e8f0"} tickLine={{ stroke: dark ? "#2D3748" : "#e2e8f0" }}>
+                    <Label value="(%) תשואה" position="bottom" offset={14} style={{ fontSize: 13, fill: dark ? "#CBD5E1" : "#1B3A2F", fontWeight: 500 }} />
                   </XAxis>
-                  <YAxis type="number" dataKey="y" tick={{ fontSize: 12, fill: dark ? "#5a6577" : "#94a3b8" }} stroke={dark ? "#2a3244" : "#e2e8f0"} tickLine={{ stroke: dark ? "#2a3244" : "#e2e8f0" }}>
-                    <Label value="(%) ס״ת" angle={-90} position="insideLeft" offset={-14} style={{ fontSize: 13, fill: dark ? "#e2e6ea" : "#1B3A2F", fontWeight: 500, textAnchor: "middle" }} />
+                  <YAxis type="number" dataKey="y" tick={{ fontSize: 12, fill: dark ? "#CBD5E1" : "#94a3b8" }} stroke={dark ? "#2D3748" : "#e2e8f0"} tickLine={{ stroke: dark ? "#2D3748" : "#e2e8f0" }}>
+                    <Label value="(%) ס״ת" angle={-90} position="insideLeft" offset={-14} style={{ fontSize: 13, fill: dark ? "#CBD5E1" : "#1B3A2F", fontWeight: 500, textAnchor: "middle" }} />
                   </YAxis>
                   <ZAxis dataKey="aum" range={[50, 400]} />
                   <Tooltip content={<CustomTooltip dark={dark} />} />
-                  <ReferenceLine x={avgX} stroke={dark ? "#3a4558" : "#cbd5e1"} strokeDasharray="5 5" strokeWidth={1} />
-                  <ReferenceLine y={avgY} stroke={dark ? "#3a4558" : "#cbd5e1"} strokeDasharray="5 5" strokeWidth={1} />
+                  <ReferenceLine x={avgX} stroke={dark ? "#4A5568" : "#cbd5e1"} strokeDasharray="5 5" strokeWidth={1} />
+                  <ReferenceLine y={avgY} stroke={dark ? "#4A5568" : "#cbd5e1"} strokeDasharray="5 5" strokeWidth={1} />
                   <ReferenceArea x1={avgX} x2={9999} y1={-9999} y2={avgY} fill={dark ? "#4ade80" : "#1B3A2F"} fillOpacity={dark ? 0.04 : 0.02} />
                   <ReferenceArea x1={-9999} x2={avgX} y1={avgY} y2={9999} fill="#dc2626" fillOpacity={dark ? 0.04 : 0.02} />
                   <Scatter data={points}>
@@ -463,7 +463,7 @@ function ChartsContent() {
                         key={i}
                         fill={colorMap[p.rank]}
                         fillOpacity={0.85}
-                        stroke={dark ? "#161b22" : "#fff"}
+                        stroke={dark ? "#1E2A2A" : "#fff"}
                         strokeWidth={2}
                         r={dotRadius(p.aum)}
                       />
