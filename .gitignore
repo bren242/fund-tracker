@@ -38,3 +38,10 @@ next-env.d.ts
 
 .vercel
 .env*.local
+
+# test-data — הוסף קבצי דוחות ידנית, לא נשמרים ב-repo
+test-data/*.pdf
+test-data/*.png
+test-data/*.jpg
+test-data/*.jpeg
+test-results.md
