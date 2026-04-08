@@ -307,9 +307,18 @@ function ChartsContent() {
             </span>
           </td></tr>
 
-          {/* 2. Explanation + Chart */}
+          {/* 2. Explanation + Period info + Chart */}
           <tr><td style={{ padding: "8px 20px 0" }}>
             <ChartExplanation />
+            {/* Period display — improvement 4 */}
+            <div style={{
+              fontSize: 12, color: "var(--text-secondary)", direction: "rtl",
+              marginBottom: 10, textAlign: "center",
+            }}>
+              מציג נתונים לתקופה:&nbsp;
+              <strong style={{ color: "var(--text-primary)" }}>{yearLabel(fromYear)} – {yearLabel(toYear)}</strong>
+              &nbsp;|&nbsp;{points.length} קרנות
+            </div>
           </td></tr>
           <tr><td style={{ textAlign: "center", padding: "8px 0 16px" }}>
             <div className="chart-card" style={{ backgroundColor: "var(--bg-surface)", borderRadius: 12, boxShadow: "var(--shadow-card)", border: "1px solid var(--border)", padding: 24, display: "inline-block", position: "relative" }}>
