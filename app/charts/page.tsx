@@ -105,6 +105,67 @@ function ChartExplanation() {
   );
 }
 
+/* ── Insights block — improvement 5 ── */
+function InsightsBlock({
+  points, avgX, avgY, currencyFilter,
+}: {
+  points: ScatterPoint[];
+  avgX: number;
+  avgY: number;
+  currencyFilter: "all" | "ILS" | "USD";
+}) {
+  if (points.length < 2) return null;
+
+  const sentences: string[] = [];
+
+  // 1. Return range
+  const returns = points.map((p) => p.x);
+  const minR = Math.min(...returns);
+  const maxR = Math.max(...returns);
+  sentences.push(`טווח התשואות בקטגוריה: ${minR.toFixed(1)}%–${maxR.toFixed(1)}% (פיזור של ${(maxR - minR).toFixed(1)}%)`);
+
+  // 2. Holy grail: above avg return AND below avg stdDev
+  const holyGrail = points.filter((p) => p.x > avgX && p.y < avgY);
+  if (holyGrail.length > 0) {
+    sentences.push(`${holyGrail.length} קרנות בגביע הקדוש — תשואה גבוהה עם סיכון נמוך`);
+  } else {
+    sentences.push("אין קרנות בגביע הקדוש בתקופה זו");
+  }
+
+  // 3. Best Sharpe fund
+  const withSharpe = points.filter((p) => p.sharpe !== null);
+  if (withSharpe.length > 0) {
+    const best = withSharpe.reduce((a, b) => (b.sharpe! > a.sharpe! ? b : a));
+    sentences.push(
+      `הקרן הבולטת: ${best.name} — שארפ ${best.sharpe!.toFixed(2)}, תשואה ${best.x.toFixed(2)}%, סטיית תקן ${best.y.toFixed(2)}%`
+    );
+  }
+
+  // 4. Mixed currency warning — only in "all" mode
+  if (currencyFilter === "all") {
+    const currencies = new Set(points.map((p) => p.currency).filter(Boolean));
+    if (currencies.size >= 2) {
+      sentences.push("⚠️ הגרף כולל קרנות בשקל ובדולר — ההשוואה עלולה להיות מטעה");
+    }
+  }
+
+  return (
+    <div className="no-print" style={{
+      backgroundColor: "#F0FDF4", borderRadius: 10, padding: "14px 18px",
+      marginTop: 14, border: "1px solid #bbf7d0", direction: "rtl",
+      maxWidth: 710, margin: "14px auto 0",
+    }}>
+      <div style={{ fontWeight: 700, fontSize: 13, color: "#14532d", marginBottom: 10 }}>תובנות אוטומטיות</div>
+      {sentences.map((s, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6, fontSize: 12, color: "#166534", lineHeight: 1.6 }}>
+          <span style={{ color: "#059669", fontWeight: 700, flexShrink: 0, marginTop: 1 }}>●</span>
+          <span>{s}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ================================================================== */
 /*  Main Page                                                          */
 /* ================================================================== */
@@ -369,6 +430,9 @@ function ChartsContent() {
                 </div>
               </>)}
             </div>
+
+            {/* Insights block — improvement 5 */}
+            <InsightsBlock points={points} avgX={avgX} avgY={avgY} currencyFilter={currencyFilter} />
           </td></tr>
 
           {/* 3. Legend table — centered via .print-only-table CSS */}
