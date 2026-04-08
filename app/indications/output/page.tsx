@@ -10,12 +10,97 @@ import { ThemeToggle } from "@/components/ThemeProvider";
 import { brandCssVars } from "@/lib/colors";
 
 /* ── helpers ─────────────────────────────────────────────── */
-function pct(v: number) {
-  const sign = v > 0 ? "+" : "";
-  return `${sign}${(v * 100).toFixed(2)}%`;
+// No + sign — color distinguishes positive/negative
+function pctCard(v: number) {
+  return `${(v * 100).toFixed(2)}%`;
 }
 function today() {
   return new Date().toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+/* ── Inline logo — SVG-style div on beige ────────────────── */
+function GreenLogoInline() {
+  return (
+    <div style={{ display: "inline-flex", alignItems: "center", gap: 10, backgroundColor: "#f5f0e8", padding: "10px 16px 10px 10px", borderRadius: 6, marginBottom: 14 }}>
+      <div style={{ backgroundColor: "#1B3A2F", padding: "6px 14px", borderRadius: 4 }}>
+        <span style={{ color: "#fff", fontWeight: 800, fontSize: 20, letterSpacing: 3, fontFamily: "Arial, sans-serif" }}>GREEN</span>
+      </div>
+      <span style={{ color: "#5a7a6a", fontSize: 11, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase" as const, fontFamily: "Arial, sans-serif" }}>WEALTH MANAGEMENT</span>
+    </div>
+  );
+}
+
+/* ── Shared card content (used in hidden div + modal mirror) */
+function CardContent({ selectedList, primary, accent, reportMonth }: {
+  selectedList: Indication[];
+  primary: string;
+  accent: string;
+  reportMonth: string;
+}) {
+  return (
+    <div style={{ width: 1080, backgroundColor: "#F8F9FA", fontFamily: "Arial, sans-serif", direction: "rtl" }}>
+      {/* Header strip */}
+      <div style={{ backgroundColor: primary, padding: "10px 24px 14px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <GreenLogoInline />
+            <div style={{ color: accent, fontSize: 22, fontWeight: 800, letterSpacing: 0.5 }}>
+              GREEN Wealth Management
+            </div>
+            <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 14, marginTop: 4 }}>
+              נתונים אינדיקטיביים · {reportMonth} · {today()}
+            </div>
+          </div>
+          <div>
+            <span style={{ backgroundColor: "#f59e0b", color: "#fff", padding: "6px 18px", borderRadius: 20, fontSize: 13, fontWeight: 700 }}>
+              אינדיקטיבי · לא מאומת
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div style={{ padding: "32px 48px 0px" }}>
+        <div style={{ display: "flex", borderBottom: `2px solid ${primary}`, paddingBottom: 10, marginBottom: 4 }}>
+          <div style={{ flex: 1, fontSize: 14, fontWeight: 700, color: primary }}>שם קרן</div>
+          <div style={{ width: 80, textAlign: "center", fontSize: 14, fontWeight: 700, color: primary }}>מטבע</div>
+          <div style={{ width: 140, textAlign: "center", fontSize: 14, fontWeight: 700, color: primary }}>חודש אחרון</div>
+          <div style={{ width: 140, textAlign: "center", fontSize: 14, fontWeight: 700, color: primary }}>YTD</div>
+        </div>
+        {selectedList.map((ind, idx) => (
+          <div
+            key={ind.id}
+            style={{ display: "flex", alignItems: "center", padding: "13px 0", borderBottom: "1px solid #e5e7eb", backgroundColor: idx % 2 === 0 ? "transparent" : "#f9fafb" }}
+          >
+            <div style={{ flex: 1, fontSize: 16, color: "#111827", fontWeight: 500 }}>{ind.fundName}</div>
+            <div style={{ width: 80, textAlign: "center" }}>
+              <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, backgroundColor: ind.currency === "USD" ? "#dbeafe" : "#d1fae5", color: ind.currency === "USD" ? "#1d4ed8" : "#047857", fontWeight: 700 }}>
+                {ind.currency}
+              </span>
+            </div>
+            <div style={{ width: 140, textAlign: "center", fontSize: 18, fontWeight: 700, color: ind.monthReturn >= 0 ? "#059669" : "#dc2626" }}>
+              {pctCard(ind.monthReturn)}
+            </div>
+            <div style={{ width: 140, textAlign: "center", fontSize: 18, fontWeight: 700, color: ind.ytd >= 0 ? "#059669" : "#dc2626" }}>
+              {pctCard(ind.ytd)}
+            </div>
+          </div>
+        ))}
+
+        {/* Footnote */}
+        <div style={{ borderTop: "1px solid #c8bfa8", marginTop: 20, paddingTop: 10, paddingBottom: 16 }}>
+          <span style={{ fontSize: 9, color: "#7a6a55" }}>*אינדיקציה לתשואות כפי שנמסרו מהקרנות</span>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div style={{ backgroundColor: primary, padding: "16px 60px" }}>
+        <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, textAlign: "center" }}>
+          GREEN Wealth Management · {today()}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /* ── output content ─────────────────────────────────────── */
@@ -224,84 +309,8 @@ function OutputContent() {
 
       {/* Hidden card for html2canvas — 1080px, off-screen */}
       <div style={{ position: "absolute", left: -9999, top: 0, width: 1080, pointerEvents: "none" }}>
-        <div
-          id="preview-card"
-          ref={cardRef}
-          style={{ width: 1080, backgroundColor: "#F8F9FA", fontFamily: "Arial, sans-serif", direction: "rtl" }}
-        >
-          {/* Header */}
-          <div style={{ backgroundColor: PRIMARY, padding: "36px 60px 28px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div>
-                {(brand.logoLight || brand.logo) && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={brand.logoLight || brand.logo}
-                    alt={brand.name}
-                    style={{ height: 60, marginBottom: 14, display: "block" }}
-                    crossOrigin="anonymous"
-                  />
-                )}
-                <div style={{ color: ACCENT, fontSize: 28, fontWeight: 800, letterSpacing: 0.5 }}>
-                  {brand.mainTitle || "GREEN Wealth Management"}
-                </div>
-                <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 16, marginTop: 6 }}>
-                  נתונים אינדיקטיביים · {reportMonth} · {today()}
-                </div>
-              </div>
-              <div style={{ textAlign: "left" }}>
-                <span style={{ backgroundColor: "#f59e0b", color: "#fff", padding: "6px 18px", borderRadius: 20, fontSize: 13, fontWeight: 700 }}>
-                  אינדיקטיבי · לא מאומת
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Table */}
-          <div style={{ padding: "32px 48px 20px" }}>
-            <div style={{ display: "flex", borderBottom: `2px solid ${PRIMARY}`, paddingBottom: 10, marginBottom: 4 }}>
-              <div style={{ flex: 1, fontSize: 14, fontWeight: 700, color: PRIMARY }}>שם קרן</div>
-              <div style={{ width: 80, textAlign: "center", fontSize: 14, fontWeight: 700, color: PRIMARY }}>מטבע</div>
-              <div style={{ width: 140, textAlign: "center", fontSize: 14, fontWeight: 700, color: PRIMARY }}>חודש אחרון</div>
-              <div style={{ width: 140, textAlign: "center", fontSize: 14, fontWeight: 700, color: PRIMARY }}>YTD</div>
-            </div>
-            {selectedList.map((ind, idx) => (
-              <div
-                key={ind.id}
-                style={{
-                  display: "flex", alignItems: "center",
-                  padding: "13px 0",
-                  borderBottom: "1px solid #e5e7eb",
-                  backgroundColor: idx % 2 === 0 ? "transparent" : "#f9fafb",
-                }}
-              >
-                <div style={{ flex: 1, fontSize: 16, color: "#111827", fontWeight: 500 }}>{ind.fundName}</div>
-                <div style={{ width: 80, textAlign: "center" }}>
-                  <span style={{
-                    fontSize: 12, padding: "3px 10px", borderRadius: 6,
-                    backgroundColor: ind.currency === "USD" ? "#dbeafe" : "#d1fae5",
-                    color: ind.currency === "USD" ? "#1d4ed8" : "#047857",
-                    fontWeight: 700,
-                  }}>
-                    {ind.currency}
-                  </span>
-                </div>
-                <div style={{ width: 140, textAlign: "center", fontSize: 18, fontWeight: 700, color: ind.monthReturn >= 0 ? "#059669" : "#dc2626" }}>
-                  {pct(ind.monthReturn)}
-                </div>
-                <div style={{ width: 140, textAlign: "center", fontSize: 18, fontWeight: 700, color: ind.ytd >= 0 ? "#059669" : "#dc2626" }}>
-                  {pct(ind.ytd)}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Footer */}
-          <div style={{ backgroundColor: PRIMARY, padding: "20px 60px", marginTop: 20 }}>
-            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, textAlign: "center" }}>
-              * נתונים אינדיקטיביים בלבד, טרם אומתו · GREEN Wealth Management · {today()}
-            </div>
-          </div>
+        <div ref={cardRef} style={{ width: 1080 }}>
+          <CardContent selectedList={selectedList} primary={PRIMARY} accent={ACCENT} reportMonth={reportMonth} />
         </div>
       </div>
 
@@ -336,49 +345,8 @@ function OutputContent() {
                   transformOrigin: "top right",
                   position: "absolute", top: 0, right: 0,
                 }}>
-                  {/* Mirror of hidden card — same JSX */}
-                  <div style={{ width: 1080, backgroundColor: "#F8F9FA", fontFamily: "Arial, sans-serif", direction: "rtl" }}>
-                    <div style={{ backgroundColor: PRIMARY, padding: "36px 60px 28px" }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <div>
-                          {(brand.logoLight || brand.logo) && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={brand.logoLight || brand.logo} alt={brand.name} style={{ height: 60, marginBottom: 14, display: "block" }} crossOrigin="anonymous" />
-                          )}
-                          <div style={{ color: ACCENT, fontSize: 28, fontWeight: 800 }}>{brand.mainTitle || "GREEN Wealth Management"}</div>
-                          <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 16, marginTop: 6 }}>נתונים אינדיקטיביים · {reportMonth} · {today()}</div>
-                        </div>
-                        <div>
-                          <span style={{ backgroundColor: "#f59e0b", color: "#fff", padding: "6px 18px", borderRadius: 20, fontSize: 13, fontWeight: 700 }}>אינדיקטיבי · לא מאומת</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{ padding: "32px 48px 20px" }}>
-                      <div style={{ display: "flex", borderBottom: `2px solid ${PRIMARY}`, paddingBottom: 10, marginBottom: 4 }}>
-                        <div style={{ flex: 1, fontSize: 14, fontWeight: 700, color: PRIMARY }}>שם קרן</div>
-                        <div style={{ width: 80, textAlign: "center", fontSize: 14, fontWeight: 700, color: PRIMARY }}>מטבע</div>
-                        <div style={{ width: 140, textAlign: "center", fontSize: 14, fontWeight: 700, color: PRIMARY }}>חודש אחרון</div>
-                        <div style={{ width: 140, textAlign: "center", fontSize: 14, fontWeight: 700, color: PRIMARY }}>YTD</div>
-                      </div>
-                      {selectedList.map((ind, idx) => (
-                        <div key={ind.id} style={{ display: "flex", alignItems: "center", padding: "13px 0", borderBottom: "1px solid #e5e7eb", backgroundColor: idx % 2 === 0 ? "transparent" : "#f9fafb" }}>
-                          <div style={{ flex: 1, fontSize: 16, color: "#111827", fontWeight: 500 }}>{ind.fundName}</div>
-                          <div style={{ width: 80, textAlign: "center" }}>
-                            <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, backgroundColor: ind.currency === "USD" ? "#dbeafe" : "#d1fae5", color: ind.currency === "USD" ? "#1d4ed8" : "#047857", fontWeight: 700 }}>
-                              {ind.currency}
-                            </span>
-                          </div>
-                          <div style={{ width: 140, textAlign: "center", fontSize: 18, fontWeight: 700, color: ind.monthReturn >= 0 ? "#059669" : "#dc2626" }}>{pct(ind.monthReturn)}</div>
-                          <div style={{ width: 140, textAlign: "center", fontSize: 18, fontWeight: 700, color: ind.ytd >= 0 ? "#059669" : "#dc2626" }}>{pct(ind.ytd)}</div>
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{ backgroundColor: PRIMARY, padding: "20px 60px", marginTop: 20 }}>
-                      <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, textAlign: "center" }}>
-                        * נתונים אינדיקטיביים בלבד, טרם אומתו · GREEN Wealth Management · {today()}
-                      </div>
-                    </div>
-                  </div>
+                  {/* Mirror of hidden card */}
+                  <CardContent selectedList={selectedList} primary={PRIMARY} accent={ACCENT} reportMonth={reportMonth} />
                 </div>
               </div>
             </div>
