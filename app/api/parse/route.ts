@@ -164,7 +164,7 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v23: reverse month order in template to match visual LTR reading of RTL table
   // v24: remove pre-fill, fixed year range 2019-2026, all X cells
   // v27: single-pass only (removed buildDynamicStructuredPrompt second API call)
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 31) return null;
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 32) return null;
 
   return cached.result;
 }
@@ -983,6 +983,8 @@ RULES:
 - Numbers without % sign: 3.28% → "3.28"
 - Negative numbers keep minus: -5.94% → "-5.94"
 - Empty cell or dash → null
+- Partial rows (years with only some months filled): fill missing months with null. NEVER shift cells — if January has a value but February is empty, cells must be [jan_value, null, mar_value, ...] not [jan_value, mar_value, ...].
+- For the current/incomplete year row: cells order must EXACTLY match headers order, padding missing months with null.
 - Cells with colored background, bold text, or any visual highlighting are still regular monthly values — extract the numeric value inside them exactly as you would any other cell. Do NOT treat highlighted cells as YTD or special — they are just styled cells.
 - Return ONLY valid JSON. No explanation.
 
@@ -2612,7 +2614,7 @@ export async function POST(req: NextRequest) {
       if (result.corrections) {
         resultObj.corrections = result.corrections;
       }
-      resultObj._cacheVersion = 31;
+      resultObj._cacheVersion = 32;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
