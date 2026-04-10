@@ -2236,9 +2236,10 @@ export async function POST(req: NextRequest) {
             appliedFieldNames.push(`cleared:${clearKey}`);
           }
 
-          // Update lastReportDate if reportMonth provided
+          // Update lastReportDate if reportMonth provided — store as MM/YYYY for display consistency
           if (isValidReportMonth(reportMonth)) {
-            funds[i].lastReportDate = reportMonth;
+            const [yyyy, mm] = reportMonth.split("-");
+            funds[i].lastReportDate = `${mm}/${yyyy}`;
           }
 
           // Set returnBasis + currency on fund if provided (fund-level currency)

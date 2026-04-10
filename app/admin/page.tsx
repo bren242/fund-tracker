@@ -1940,7 +1940,7 @@ function FundModal({ title, categories, selectedCategory, existingFund, onCatego
           </div>
           <div>
             <label style={labelStyle}>תאריך דוח אחרון</label>
-            <input type="date" value={form.lastReportDate} onChange={(e) => update("lastReportDate", e.target.value)} style={fieldStyle} dir="ltr" />
+            <input type="text" value={form.lastReportDate ?? ""} onChange={(e) => update("lastReportDate", e.target.value)} style={fieldStyle} dir="ltr" placeholder="לא עודכן" />
           </div>
         </div>
 

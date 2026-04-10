@@ -36,6 +36,19 @@ function monthsBehind(latest: string, expected: string): number {
   return (ey - ly) * 12 + (em - lm);
 }
 
+/**
+ * Normalize any date string to "YYYY-MM" for comparison.
+ * Handles: "MM/YYYY", "YYYY-MM", "YYYY-MM-DD"
+ */
+function toYYYYMM(s: string | null | undefined): string | null {
+  if (!s) return null;
+  // MM/YYYY
+  if (/^\d{2}\/\d{4}$/.test(s)) return `${s.slice(3)}-${s.slice(0, 2)}`;
+  // YYYY-MM or YYYY-MM-DD
+  if (/^\d{4}-\d{2}/.test(s)) return s.slice(0, 7);
+  return null;
+}
+
 type StatusKey = "updated" | "warning" | "old";
 
 function computeStatus(fund: Fund, expected: string): StatusKey {
@@ -79,6 +92,7 @@ function FundStatusContent() {
   const brand = useBrand(clientKey);
   const [data, setData] = useState<FundsData | null>(null);
   const [filter, setFilter] = useState<"all" | StatusKey>("all");
+  const [search, setSearch] = useState("");
 
   // Redirect if feature disabled
   useEffect(() => {
@@ -102,8 +116,8 @@ function FundStatusContent() {
       for (const fund of cat.funds) {
         if (fund.active === false) continue;
         const lk = getLatestKey(fund);
-        const rdk = fund.lastReportDate ?? null; // "YYYY-MM" or null
-        const mismatch = !!lk && !!rdk && lk !== rdk;
+        const rdk = fund.lastReportDate ?? null;
+        const mismatch = !!lk && !!rdk && toYYYYMM(lk) !== toYYYYMM(rdk);
         out.push({
           id: fund.id,
           name: fund.name,
@@ -127,10 +141,14 @@ function FundStatusContent() {
     old:     rows.filter((r) => r.status === "old").length,
   }), [rows]);
 
-  const filtered = useMemo(
-    () => filter === "all" ? rows : rows.filter((r) => r.status === filter),
-    [rows, filter]
-  );
+  const filtered = useMemo(() => {
+    let result = filter === "all" ? rows : rows.filter((r) => r.status === filter);
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      result = result.filter((r) => r.name.toLowerCase().includes(q));
+    }
+    return result;
+  }, [rows, filter, search]);
 
   const navLink: React.CSSProperties = {
     fontSize: 12, color: "var(--text-secondary)", textDecoration: "none",
@@ -202,6 +220,28 @@ function FundStatusContent() {
           </div>
 
           {/* Filter bar */}
+          {/* Search */}
+          <div style={{ marginBottom: 12, position: "relative", maxWidth: 360 }}>
+            <span style={{ position: "absolute", top: "50%", right: 12, transform: "translateY(-50%)", fontSize: 14, color: "var(--text-muted)", pointerEvents: "none" }}>🔍</span>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="חיפוש קרן..."
+              dir="rtl"
+              style={{
+                width: "100%", boxSizing: "border-box",
+                padding: "8px 36px 8px 12px", borderRadius: 8,
+                border: "1px solid var(--border)", backgroundColor: "var(--bg-surface)",
+                color: "var(--text-primary)", fontSize: 13, outline: "none",
+                transition: "border-color 0.15s",
+              }}
+              onFocus={(e) => (e.target.style.borderColor = brand.primaryColor)}
+              onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+            />
+          </div>
+
+          {/* Filter buttons */}
           <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
             {FILTERS.map((f) => {
               const active = filter === f.id;
