@@ -164,7 +164,7 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v23: reverse month order in template to match visual LTR reading of RTL table
   // v24: remove pre-fill, fixed year range 2019-2026, all X cells
   // v27: single-pass only (removed buildDynamicStructuredPrompt second API call)
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 35) return null;
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 36) return null;
 
   return cached.result;
 }
@@ -952,8 +952,55 @@ function mapRawTablesToFields(tables: RawTable[]): MappedEntry[] {
       fields.push({ key: 'monthlyReturn', value: allMonthlyReturns[latestMonth], confidence: 0.95 });
     }
 
-    return { returnBasis: currency, fields, allMonthlyReturns };
+    let mutableFields = fields;
+    const years = [...new Set(
+      mutableFields
+        .filter(f => f.key.startsWith('monthlyReturns.'))
+        .map(f => f.key.split('.')[1].split('-')[0])
+    )];
+    for (const year of years) {
+      mutableFields = fixDecemberYtdSwap(mutableFields, year);
+    }
+
+    return { returnBasis: currency, fields: mutableFields, allMonthlyReturns };
   }).filter(entry => entry.fields.length > 0);
+}
+
+function fixDecemberYtdSwap(fields: ParsedField[], year: string): ParsedField[] {
+  const decKey = `monthlyReturns.${year}-12`;
+  const annualKey = `returns.y${year}`;
+  const ytdKey = `returns.ytd${year}`;
+
+  const hasDec = fields.some(f => f.key === decKey);
+  const hasAnnual = fields.some(f => f.key === annualKey || f.key === ytdKey);
+
+  if (!hasDec || hasAnnual) return fields;
+
+  // בדוק שזו שנה חלקית — ינואר לא קיים
+  const hasJan = fields.some(f => f.key === `monthlyReturns.${year}-01`);
+  if (hasJan) return fields;
+
+  // חשב compound של כל החודשים חוץ מדצמבר
+  const nonDecMonths = fields
+    .filter(f => f.key.startsWith(`monthlyReturns.${year}-`) && f.key !== decKey)
+    .map(f => f.value as number);
+
+  if (nonDecMonths.length === 0) return fields;
+
+  const compound = nonDecMonths.reduce((acc, m) => acc * (1 + m), 1) - 1;
+  const decVal = fields.find(f => f.key === decKey)!.value as number;
+
+  // אם הפער קטן מ-0.5% — זה YTD שנפל לדצמבר
+  if (Math.abs(compound - decVal) > 0.005) return fields;
+
+  console.log(`[parse] ${year}: dec_ytd_swap detected — moving 2019-12 (${(decVal*100).toFixed(2)}%) → ${ytdKey}`);
+
+  // תיקון: העבר דצמבר ל-ytd
+  const corrected = fields.filter(f => f.key !== decKey);
+  corrected.push({ key: ytdKey, value: decVal, confidence: 0.95 });
+  corrected.push({ key: 'corrections', value: `${year}:dec_ytd_swap`, confidence: 1 });
+
+  return corrected;
 }
 
 function buildRawExtractionPrompt(): string {
@@ -2728,7 +2775,7 @@ export async function POST(req: NextRequest) {
         resultObj.validation = result.validation;
         resultObj.validationStatus = result.validationStatus;
       }
-      resultObj._cacheVersion = 35;
+      resultObj._cacheVersion = 36;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
