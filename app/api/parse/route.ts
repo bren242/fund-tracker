@@ -2533,12 +2533,9 @@ export async function POST(req: NextRequest) {
           if (rawMatch) {
             const rawData = JSON.parse(rawMatch[0]);
             if (rawData.tables && Array.isArray(rawData.tables) && rawData.tables.length > 0) {
-              // TEMP DEBUG — log raw tables from pass-2 AI response
-              const tables2026 = rawData.tables.filter((t: RawTable) => t.rows?.some((r: { year: string }) => r.year?.includes('2026')));
-              if (tables2026.length > 0) {
-                console.log('RAW_TABLES_2026:', JSON.stringify(tables2026, null, 2));
-              } else {
-                console.log('RAW_TABLES_ALL:', JSON.stringify(rawData.tables, null, 2));
+              // DEBUG (dev only) — log raw tables from pass-2 AI response
+              if (process.env.NODE_ENV === 'development') {
+                console.log('RAW_TABLES:', JSON.stringify(rawData.tables, null, 2));
               }
               const mappedEntries = mapRawTablesToFields(rawData.tables as RawTable[]);
               if (mappedEntries.length > 0) {
