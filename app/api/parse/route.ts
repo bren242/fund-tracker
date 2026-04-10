@@ -1059,7 +1059,7 @@ function validateParsedEntry(entry: MappedEntry): ValidationSummary {
       byYear[year][month] = field.value as number;
     }
 
-    const annualMatch = field.key.match(/^returns\.(y|ytd)(\d{4})$/);
+    const annualMatch = field.key.match(/^returns\.(ytd|y)(\d{4})$/);
     if (annualMatch) {
       annualByYear[annualMatch[2]] = field.value as number;
     }
