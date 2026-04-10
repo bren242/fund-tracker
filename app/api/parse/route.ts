@@ -164,7 +164,7 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v23: reverse month order in template to match visual LTR reading of RTL table
   // v24: remove pre-fill, fixed year range 2019-2026, all X cells
   // v27: single-pass only (removed buildDynamicStructuredPrompt second API call)
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 34) return null;
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 35) return null;
 
   return cached.result;
 }
@@ -2728,7 +2728,7 @@ export async function POST(req: NextRequest) {
         resultObj.validation = result.validation;
         resultObj.validationStatus = result.validationStatus;
       }
-      resultObj._cacheVersion = 34;
+      resultObj._cacheVersion = 35;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
