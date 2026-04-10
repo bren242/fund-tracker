@@ -23,6 +23,7 @@
     "mobileUpload": true,
     "desktopUpload": true,
     "benchmarks": true,
-    "dataCompletion": true
+    "dataCompletion": true,
+    "indications": true
   }
 }
