@@ -164,7 +164,7 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v23: reverse month order in template to match visual LTR reading of RTL table
   // v24: remove pre-fill, fixed year range 2019-2026, all X cells
   // v27: single-pass only (removed buildDynamicStructuredPrompt second API call)
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 41) return null;
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 42) return null;
 
   return cached.result;
 }
@@ -1044,6 +1044,12 @@ CRITICAL — partial rows (ANY year, including historical years when fund starte
 - This applies to ALL years, not just the current year.
   Example: a fund starting in February 2017 will have January 2017 = null.
   Do NOT shift February's value into January's position.
+- Example of fund starting mid-year (partial from the START):
+  if headers are [YTD, דצמ, נוב, אוק, ספט, אוג, יול, יוני, מאי, אפר, מרץ, פבר, ינו]
+  and fund started in February (January is empty):
+  cells = [ytd_value, dec, nov, oct, sep, aug, jul, jun, may, apr, mar, feb, null]
+  NEVER: cells = [ytd_value, dec, nov, oct, sep, aug, jul, jun, may, apr, mar, feb_shifted_to_jan]
+  The empty January cell must remain null — do not shift February into January's position.
 
 STEP 5 — IDENTIFY COLUMN TYPES:
 - Month columns: named after months (ינו׳, פבר׳, jan, feb, etc.) → monthly return values
@@ -2790,7 +2796,7 @@ export async function POST(req: NextRequest) {
         resultObj.validation = result.validation;
         resultObj.validationStatus = result.validationStatus;
       }
-      resultObj._cacheVersion = 41;
+      resultObj._cacheVersion = 42;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
