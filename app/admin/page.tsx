@@ -3553,14 +3553,19 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
                 const newMonth = e.target.value;
                 setReportMonth(newMonth);
                 // Re-run validation immediately with the new reportMonth
+                console.log('[revalidate] onChange fired', { newMonth, hasParseResult: !!parseResult, hasValidation: !!(parseResult?.validation) });
                 if (parseResult && newMonth && parseResult.validation) {
                   const entries = parseResult.dualCurrencyData && parseResult.dualCurrencyData.length > 0
                     ? parseResult.dualCurrencyData
                     : [{ fields: parseResult.fields }];
                   const newValidation = recomputeValidation(entries, newMonth);
+                  console.log('[revalidate] newValidation computed', newValidation.map(v => ({ status: v.overallStatus, suspicious: v.suspiciousMonths, rowCount: v.rows.length })));
                   const newStatus: 'valid' | 'warning' | 'error' = newValidation.some(v => v.overallStatus === 'error') ? 'error'
                     : newValidation.some(v => v.overallStatus === 'warning') ? 'warning' : 'valid';
                   setParseResult({ ...parseResult, validation: newValidation, validationStatus: newStatus });
+                  console.log('[revalidate] setParseResult called');
+                } else {
+                  console.log('[revalidate] SKIPPED — condition failed', { parseResult: !!parseResult, newMonth, validation: parseResult?.validation });
                 }
               }}
               style={{
