@@ -175,6 +175,9 @@ function ReportContent() {
               {brand.features?.fundStatus && (
                 <a href={withClient("/fund-status", clientKey)} style={{ fontSize: 12, color: "var(--text-secondary)", textDecoration: "none", padding: "5px 10px", borderRadius: 6, border: "1px solid var(--border)", transition: "border-color 0.15s" }}>סטטוס</a>
               )}
+              {brand.features?.consistencyAnalysis && (
+                <a href={withClient("/consistency", clientKey)} style={{ fontSize: 12, color: "var(--text-secondary)", textDecoration: "none", padding: "5px 10px", borderRadius: 6, border: "1px solid var(--border)", transition: "border-color 0.15s" }}>עקביות</a>
+              )}
               <a href={withClient("/admin", clientKey)} style={{ fontSize: 12, color: "var(--text-secondary)", textDecoration: "none", padding: "5px 10px", borderRadius: 6, border: "1px solid var(--border)", transition: "border-color 0.15s" }}>ניהול</a>
               <ThemeToggle />
             </div>

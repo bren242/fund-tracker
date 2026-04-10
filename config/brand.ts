@@ -12,6 +12,7 @@ export interface AppFeatures {
   dataCompletion?: boolean;
   indications?: boolean;
   fundStatus?: boolean;
+  consistencyAnalysis?: boolean;
 }
 
 export interface BrandConfig {
