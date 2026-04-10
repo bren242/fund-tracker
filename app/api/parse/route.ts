@@ -164,7 +164,7 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v23: reverse month order in template to match visual LTR reading of RTL table
   // v24: remove pre-fill, fixed year range 2019-2026, all X cells
   // v27: single-pass only (removed buildDynamicStructuredPrompt second API call)
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 43) return null;
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 44) return null;
 
   return cached.result;
 }
@@ -1322,6 +1322,57 @@ function fixAnnualJanSwapPerYear(fields: ParsedField[], corrections: string[], l
     corrections.push(`${prefix}${year}:monthly_uncertain`);
     console.log(`[parse] ${prefix}${year}: ${rule} corrected (yearly fixed, monthly order uncertain)`);
   }
+}
+
+function fixMonthShiftError(fields: ParsedField[], year: string): ParsedField[] {
+  const monthKeys = Array.from({length: 12}, (_, i) =>
+    `monthlyReturns.${year}-${String(i+1).padStart(2,'0')}`);
+
+  const monthValues = monthKeys.map(k =>
+    fields.find(f => f.key === k)?.value as number ?? null);
+
+  const ytdKey = `returns.ytd${year}`;
+  const yKey = `returns.y${year}`;
+  const ytd = (fields.find(f => f.key === ytdKey || f.key === yKey)?.value as number) ?? null;
+
+  if (ytd === null) return fields;
+
+  const nonNull = monthValues.filter((v): v is number => v !== null);
+  if (nonNull.length < 6) return fields; // שנה קצרה מדי לבדיקה
+
+  // חשב כפל נוכחי
+  const currentCompound = nonNull.reduce((acc, v) => acc * (1 + v), 1) - 1;
+  const currentGap = Math.abs(currentCompound - ytd);
+
+  if (currentGap < 0.005) return fields; // כבר תקין
+
+  // נסה להזיז ימינה (הסר ינואר, הוסף null בסוף = דצמבר null)
+  const shifted: (number | null)[] = [null, ...monthValues.slice(0, 11)];
+  const shiftedNonNull = shifted.filter((v): v is number => v !== null);
+  const shiftedCompound = shiftedNonNull.reduce((acc, v) => acc * (1 + v), 1) - 1;
+  const shiftedGap = Math.abs(shiftedCompound - ytd);
+
+  // אם ההזזה משפרת משמעותית
+  if (shiftedGap < currentGap * 0.5 && shiftedGap < 0.02) {
+    const corrected = fields.filter(f => !monthKeys.includes(f.key));
+    shifted.forEach((val, i) => {
+      if (val !== null) {
+        corrected.push({
+          key: monthKeys[i],
+          value: val,
+          confidence: 0.9
+        });
+      }
+    });
+    corrected.push({
+      key: 'corrections',
+      value: `${year}:month_shift_right`,
+      confidence: 1
+    });
+    return corrected;
+  }
+
+  return fields;
 }
 
 /** Parse Claude response JSON → structured result */
@@ -2705,6 +2756,23 @@ export async function POST(req: NextRequest) {
                 const pass2Corrections: string[] = [];
                 for (const entry of mappedEntries) {
                   fixAnnualJanSwapPerYear(entry.fields, pass2Corrections, entry.returnBasis || "");
+                  // Per-year month-shift correction
+                  const years = [...new Set(
+                    entry.fields.flatMap(f => {
+                      const m = f.key.match(/^monthlyReturns\.(\d{4})-/);
+                      return m ? [m[1]] : [];
+                    })
+                  )];
+                  for (const year of years) {
+                    const fixed = fixMonthShiftError(entry.fields, year);
+                    const corrField = fixed.find(f => f.key === 'corrections');
+                    if (corrField) {
+                      pass2Corrections.push(String(corrField.value));
+                      entry.fields = fixed.filter(f => f.key !== 'corrections');
+                    } else {
+                      entry.fields = fixed;
+                    }
+                  }
                 }
                 if (pass2Corrections.length > 0) {
                   result.corrections = [...(result.corrections || []), ...pass2Corrections];
@@ -2796,7 +2864,7 @@ export async function POST(req: NextRequest) {
         resultObj.validation = result.validation;
         resultObj.validationStatus = result.validationStatus;
       }
-      resultObj._cacheVersion = 43;
+      resultObj._cacheVersion = 44;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
