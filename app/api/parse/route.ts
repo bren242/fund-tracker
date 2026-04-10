@@ -164,7 +164,7 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v23: reverse month order in template to match visual LTR reading of RTL table
   // v24: remove pre-fill, fixed year range 2019-2026, all X cells
   // v27: single-pass only (removed buildDynamicStructuredPrompt second API call)
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 42) return null;
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 43) return null;
 
   return cached.result;
 }
@@ -1054,7 +1054,7 @@ CRITICAL — partial rows (ANY year, including historical years when fund starte
 STEP 5 — IDENTIFY COLUMN TYPES:
 - Month columns: named after months (ינו׳, פבר׳, jan, feb, etc.) → monthly return values
 - Annual column: named שנתי, סה"כ, annual, yearly, total → yearly return (NOT a month)
-- ITD column: named ITD, מהקמה, מצטבר → cumulative since inception, extract separately
+- ITD column: named ITD, מהקמה, מצטבר → IGNORE completely. Do not extract, do not map to any field. Skip entirely.
 - Benchmark rows: rows labeled מדד, ת"א 125, אג"ח, benchmark, index → IGNORE entirely
 
 STEP 6 — NEGATIVE NUMBERS:
@@ -2796,7 +2796,7 @@ export async function POST(req: NextRequest) {
         resultObj.validation = result.validation;
         resultObj.validationStatus = result.validationStatus;
       }
-      resultObj._cacheVersion = 42;
+      resultObj._cacheVersion = 43;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
