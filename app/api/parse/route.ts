@@ -2264,6 +2264,15 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Fund not found" }, { status: 404 });
       }
 
+      // Update top-level lastUpdated so the main report header reflects the latest apply
+      {
+        const fd = fundsData as Record<string, unknown>;
+        const reportDate = isValidReportMonth(reportMonth)
+          ? new Date(`${reportMonth}-01`).toISOString()
+          : new Date().toISOString();
+        fd.lastUpdated = reportDate;
+      }
+
       // Save funds data
       await storageWrite(`funds:${clientKey}`, fundsData);
 

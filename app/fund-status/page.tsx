@@ -65,8 +65,10 @@ interface FundRow {
   name: string;
   category: string;
   currency: string;
-  latestMonth: string | null;   // "03/2026"
-  latestKey: string | null;     // "2026-03"
+  latestMonth: string | null;      // "03/2026" — from monthlyReturns
+  latestKey: string | null;        // "2026-03"
+  reportDateKey: string | null;    // "2026-03" — from lastReportDate
+  mismatch: boolean;               // lastReportDate !== latestKey
   status: StatusKey;
 }
 
@@ -100,6 +102,8 @@ function FundStatusContent() {
       for (const fund of cat.funds) {
         if (fund.active === false) continue;
         const lk = getLatestKey(fund);
+        const rdk = fund.lastReportDate ?? null; // "YYYY-MM" or null
+        const mismatch = !!lk && !!rdk && lk !== rdk;
         out.push({
           id: fund.id,
           name: fund.name,
@@ -107,6 +111,8 @@ function FundStatusContent() {
           currency: fund.currency ?? "—",
           latestMonth: lk ? fmtKey(lk) : null,
           latestKey: lk,
+          reportDateKey: rdk,
+          mismatch,
           status: computeStatus(fund, expected),
         });
       }
@@ -282,11 +288,21 @@ function FundStatusContent() {
                     ) : <span style={{ color: "var(--text-muted)", fontSize: 12 }}>—</span>}
                   </div>
 
-                  {/* חודש אחרון */}
-                  <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{row.latestMonth ?? <span style={{ color: "var(--text-muted)" }}>—</span>}</div>
+                  {/* חודש אחרון (לפי monthlyReturns) */}
+                  <div style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 5 }}>
+                    {row.latestMonth ?? <span style={{ color: "var(--text-muted)" }}>—</span>}
+                    {row.mismatch && (
+                      <span
+                        title={`תאריך הדוח (${row.reportDateKey ? fmtKey(row.reportDateKey) : "—"}) לא תואם לנתונים (${row.latestMonth ?? "—"})`}
+                        style={{ fontSize: 13, cursor: "help", opacity: 0.85 }}
+                      >⚠️</span>
+                    )}
+                  </div>
 
-                  {/* תאריך עדכון */}
-                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{row.latestKey ?? "—"}</div>
+                  {/* תאריך עדכון (לפי lastReportDate) */}
+                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                    {row.reportDateKey ? fmtKey(row.reportDateKey) : "—"}
+                  </div>
 
                   {/* סטטוס */}
                   <div>
