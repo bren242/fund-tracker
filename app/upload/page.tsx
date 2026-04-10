@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useClientKey } from "@/lib/useClientKey";
 import { useBrand } from "@/lib/useBrand";
 import ClientGate from "@/components/ClientGate";
@@ -115,6 +116,9 @@ function getDisplayFields(file: FileResult): ParsedField[] {
 function UploadContent() {
   const clientKey = useClientKey();
   const brand = useBrand(clientKey);
+  const searchParams = useSearchParams();
+  const preselectedFundId   = searchParams.get("fundId")   || null;
+  const preselectedFundName = searchParams.get("fundName") || null;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<FileResult[]>([]);
@@ -201,7 +205,9 @@ function UploadContent() {
                   fundName: data.fundName,
                   fundNameConfidence: data.fundNameConfidence,
                   fields: data.fields,
-                  match: data.match,
+                  match: preselectedFundId
+                    ? { fundId: preselectedFundId, fundName: preselectedFundName, similarity: 1, categoryId: data.match?.categoryId ?? null }
+                    : data.match,
                   sourceType: data.sourceType,
                   reportMonth: data.reportMonth || null,
                   reportMonthConfidence: data.reportMonthConfidence || "low",
@@ -291,6 +297,20 @@ function UploadContent() {
       </div>
 
       <div style={{ padding: "16px", maxWidth: 600, margin: "0 auto" }}>
+        {/* Pre-selected fund banner */}
+        {preselectedFundName && (
+          <div style={{
+            marginBottom: 14, padding: "10px 16px", borderRadius: 10,
+            backgroundColor: "#D1FAE5", border: "1px solid #6EE7B7",
+            display: "flex", alignItems: "center", gap: 10, direction: "rtl",
+          }}>
+            <span style={{ fontSize: 18 }}>📌</span>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#065F46" }}>קרן נבחרת מראש</div>
+              <div style={{ fontSize: 13, color: "#047857", fontWeight: 500 }}>{preselectedFundName}</div>
+            </div>
+          </div>
+        )}
         {/* Upload zone */}
         <div
           onClick={() => fileInputRef.current?.click()}

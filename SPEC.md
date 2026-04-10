@@ -1,5 +1,5 @@
 # Fund Tracker — SPEC.md
-> מצב נכון ל: 2026-04-10 | Cache v40
+> מצב נכון ל: 2026-04-10 | Cache v40 | גרסה אחרונה: מסך סטטוס קרנות
 
 ---
 
@@ -127,7 +127,32 @@
 
 ---
 
-## עדכון אחרון (2026-04-10 — סשן חמישי)
+## עדכון אחרון (2026-04-10 — סשן שישי)
+
+### מסך סטטוס קרנות ✅
+
+**מה נוסף:**
+- `app/fund-status/page.tsx` — מסך חדש: סטטוס עדכון לכל הקרנות
+- Feature flag `fundStatus` ב-`config/brand.ts` + toggle באדמין (Branding → Features)
+- טאב "סטטוס" בניווט הראשי (מופיע רק כשהפיצ'ר מופעל)
+- `middleware.ts` עודכן לכלול `/fund-status`
+- `upload/page.tsx` — תמיכה ב-`?fundId=`/`?fundName=` לבחירת קרן מראש + באנר ירוק
+
+**לוגיקת סטטוס:**
+- חודש צפוי = החודש הקלנדרי הקודם (computed dynamically)
+- ✅ עודכן — latestKey ≥ expected
+- ⚠️ חסר חודש — latestKey = expected - 1
+- ❌ לא עודכן — latestKey ≤ expected - 2 או ללא monthlyReturns
+
+**ממשק:**
+- Header: 3 כרטיסי סטטיסטיקה (סה"כ / עודכנו / ממתינות)
+- פילטר מהיר: הכל / עודכנו ✅ / ממתינות ⚠️ / ישנות ❌
+- טבלה RTL: שם קרן | קטגוריה | מטבע | חודש אחרון | תאריך עדכון | סטטוס | פעולה
+- "העלה דוח" → `/upload?fundId=...&fundName=...`
+
+---
+
+## עדכון קודם (2026-04-10 — סשן חמישי)
 
 ### fixAnnualJanSwapPerYear on Pass-2 fields + YTD_ALIASES cleanup (v40) ✅
 

@@ -1559,6 +1559,15 @@ function BrandingTab({ password, clientKey, onStatus }: { password: string; clie
               setForm((prev) => prev ? { ...prev, features: feat } : prev);
             }}
           />
+          <FeatureToggle
+            label="📋 סטטוס קרנות"
+            description="הצג מסך סטטוס — אילו קרנות עודכנו לחודש הנוכחי ואילו ממתינות"
+            checked={form.features?.fundStatus ?? false}
+            onChange={(v) => {
+              const feat = { ...(form.features || { comparison: true, chartPage: true }), fundStatus: v };
+              setForm((prev) => prev ? { ...prev, features: feat } : prev);
+            }}
+          />
         </div>
       </SectionCard>
 
