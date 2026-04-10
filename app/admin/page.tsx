@@ -3580,7 +3580,11 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
 
           {/* Validation table — Pass-3 */}
           {parseResult.validation && parseResult.validation.length > 0 && (() => {
-            const allRows = parseResult.validation!.flatMap(v => v.rows);
+            // Keep currency info per-row: validation[i] maps to dualCurrencyData[i]
+            const allRows = parseResult.validation!.flatMap((v, vi) => {
+              const currency = parseResult.dualCurrencyData?.[vi]?.returnBasis ?? null;
+              return v.rows.map(row => ({ row, currency }));
+            });
             const statusIcon = (s: string) => s === 'valid' ? '✅' : s === 'warning' ? '⚠️' : s === 'error' ? '❌' : '—';
             const fmtPct = (v: number | null) => v === null ? '—' : `${(v * 100).toFixed(2)}%`;
             const monthNames = ['ינו׳','פבר׳','מרץ','אפר׳','מאי','יונ׳','יול׳','אוג׳','ספט׳','אוק׳','נוב׳','דצמ׳'];
@@ -3610,13 +3614,15 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
                     </tr>
                   </thead>
                   <tbody>
-                    {allRows.map((row, idx) => {
+                    {allRows.map(({ row, currency }, idx) => {
                       const nonNull = row.months.filter(m => m !== null).length;
                       const isExpanded = expandedYear === row.year;
-                      const rowBg = row.status === 'error' ? '#FEE2E210' : idx % 2 === 0 ? 'var(--bg-surface)' : 'var(--bg-surface-alt)';
+                      // Currency tint: USD = subtle blue, ILS = subtle green
+                      const currencyBg = currency === 'USD' ? '#3b82f610' : currency === 'ILS' ? '#22c55e10' : null;
+                      const rowBg = row.status === 'error' ? '#FEE2E210' : currencyBg ?? (idx % 2 === 0 ? 'var(--bg-surface)' : 'var(--bg-surface-alt)');
                       return (
                         <>
-                          <tr key={row.year} style={{ borderBottom: '1px solid var(--border-table)', backgroundColor: rowBg, cursor: 'pointer' }}
+                          <tr key={`${row.year}-${currency ?? idx}`} style={{ borderBottom: '1px solid var(--border-table)', backgroundColor: rowBg, cursor: 'pointer' }}
                             onClick={() => setExpandedYear(isExpanded ? null : row.year)}>
                             <td style={{ padding: '6px 10px', fontWeight: 600 }}>{row.year} {isExpanded ? '▲' : '▼'}</td>
                             <td style={{ padding: '6px 10px', textAlign: 'center', color: nonNull < 12 ? '#f59e0b' : 'inherit' }}>{nonNull}/12</td>

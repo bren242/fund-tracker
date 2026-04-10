@@ -1095,10 +1095,11 @@ function validateParsedEntry(entry: MappedEntry): ValidationSummary {
   const annualByYear: Record<string, number> = {};
 
   for (const field of entry.fields) {
-    const monthMatch = field.key.match(/^monthlyReturns\.(\d{4})-(\d{2})$/);
+    // Count ONLY monthlyReturns.YYYY-MM (valid months 01-12) — never returns.ytdYYYY or returns.yYYYY
+    const monthMatch = field.key.match(/^monthlyReturns\.(\d{4})-(0[1-9]|1[0-2])$/);
     if (monthMatch) {
       const year = monthMatch[1];
-      const month = parseInt(monthMatch[2]) - 1;
+      const month = parseInt(monthMatch[2]) - 1; // 0-based index (0=Jan, 11=Dec)
       if (!byYear[year]) byYear[year] = Array(12).fill(null);
       byYear[year][month] = field.value as number;
     }
