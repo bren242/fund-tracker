@@ -2288,9 +2288,12 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
     fields: { key: string; value: string | number | null; confidence: number }[];
     match: { fundId: string | null; fundName: string | null; similarity: number; categoryId: string | null } | null;
     dualCurrencyData?: { returnBasis: "ILS" | "USD"; fields: { key: string; value: string | number | null; confidence: number }[] }[];
+    validation?: { overallStatus: 'valid' | 'warning' | 'error'; rows: { year: string; reportedAnnual: number | null; computedAnnual: number | null; gap: number | null; months: (number | null)[]; status: 'valid' | 'warning' | 'error' | 'no-annual' }[] }[];
+    validationStatus?: 'valid' | 'warning' | 'error';
   } | null>(null);
   // Track which dual currency drafts have been saved
   const [dualSaved, setDualSaved] = useState<Set<string>>(new Set());
+  const [expandedYear, setExpandedYear] = useState<string | null>(null);
   const [approvedFields, setApprovedFields] = useState<Set<string>>(new Set());
   const [drafts, setDrafts] = useState<{
     id: string; createdAt: string; status: string;
@@ -3575,8 +3578,80 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
             </div>
           )}
 
-          {/* Fields table — dual or single */}
-          {(() => {
+          {/* Validation table — Pass-3 */}
+          {parseResult.validation && parseResult.validation.length > 0 && (() => {
+            const allRows = parseResult.validation!.flatMap(v => v.rows);
+            const statusIcon = (s: string) => s === 'valid' ? '✅' : s === 'warning' ? '⚠️' : s === 'error' ? '❌' : '—';
+            const fmtPct = (v: number | null) => v === null ? '—' : `${(v * 100).toFixed(2)}%`;
+            const monthNames = ['ינו׳','פבר׳','מרץ','אפר׳','מאי','יונ׳','יול׳','אוג׳','ספט׳','אוק׳','נוב׳','דצמ׳'];
+            const overallStatus = parseResult.validationStatus;
+
+            return (
+              <div style={{ marginBottom: 16 }}>
+                {/* Status header */}
+                <div style={{ padding: "8px 12px", borderRadius: 8, marginBottom: 10, backgroundColor: overallStatus === 'error' ? '#FEE2E215' : overallStatus === 'warning' ? '#FEF3C715' : '#DCFCE715', border: `1px solid ${overallStatus === 'error' ? '#ef444440' : overallStatus === 'warning' ? '#f59e0b40' : '#16a34a40'}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 14 }}>{statusIcon(overallStatus || 'valid')}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: overallStatus === 'error' ? '#ef4444' : overallStatus === 'warning' ? '#f59e0b' : '#16a34a' }}>
+                    {overallStatus === 'error' ? 'שגיאת ולידציה — הנתונים אינם עקביים' : overallStatus === 'warning' ? 'אזהרת ולידציה — בדוק לפני שמירה' : 'ולידציה עברה — הנתונים עקביים'}
+                  </span>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)', marginRight: 'auto' }}>פאס-3: מחושב vs מדווח</span>
+                </div>
+
+                {/* Year-by-year table */}
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, marginBottom: 8 }}>
+                  <thead>
+                    <tr style={{ backgroundColor: 'var(--bg-surface-alt)' }}>
+                      <th style={{ padding: '6px 10px', textAlign: 'right' }}>שנה</th>
+                      <th style={{ padding: '6px 10px', textAlign: 'center' }}>חודשים</th>
+                      <th style={{ padding: '6px 10px', textAlign: 'center' }}>שנתי מדווח</th>
+                      <th style={{ padding: '6px 10px', textAlign: 'center' }}>שנתי מחושב</th>
+                      <th style={{ padding: '6px 10px', textAlign: 'center' }}>פער</th>
+                      <th style={{ padding: '6px 10px', textAlign: 'center' }}>סטטוס</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allRows.map((row, idx) => {
+                      const nonNull = row.months.filter(m => m !== null).length;
+                      const isExpanded = expandedYear === row.year;
+                      const rowBg = row.status === 'error' ? '#FEE2E210' : idx % 2 === 0 ? 'var(--bg-surface)' : 'var(--bg-surface-alt)';
+                      return (
+                        <>
+                          <tr key={row.year} style={{ borderBottom: '1px solid var(--border-table)', backgroundColor: rowBg, cursor: 'pointer' }}
+                            onClick={() => setExpandedYear(isExpanded ? null : row.year)}>
+                            <td style={{ padding: '6px 10px', fontWeight: 600 }}>{row.year} {isExpanded ? '▲' : '▼'}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'center', color: nonNull < 12 ? '#f59e0b' : 'inherit' }}>{nonNull}/12</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'center', direction: 'ltr' }}>{fmtPct(row.reportedAnnual)}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'center', direction: 'ltr' }}>{fmtPct(row.computedAnnual)}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'center', direction: 'ltr', color: row.status === 'error' ? '#ef4444' : row.status === 'warning' ? '#f59e0b' : 'inherit', fontWeight: row.status !== 'valid' && row.status !== 'no-annual' ? 700 : 400 }}>
+                              {row.gap !== null ? fmtPct(row.gap) : '—'}
+                            </td>
+                            <td style={{ padding: '6px 10px', textAlign: 'center' }}>{statusIcon(row.status)}</td>
+                          </tr>
+                          {isExpanded && (
+                            <tr key={`${row.year}-detail`} style={{ backgroundColor: 'var(--bg-input)' }}>
+                              <td colSpan={6} style={{ padding: '8px 14px' }}>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, direction: 'ltr' }}>
+                                  {row.months.map((val, mIdx) => (
+                                    <div key={mIdx} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, backgroundColor: val === null ? 'var(--bg-surface-alt)' : 'var(--bg-surface)', border: '1px solid var(--border)', color: val === null ? 'var(--text-muted)' : val < 0 ? '#ef4444' : '#16a34a', minWidth: 60, textAlign: 'center' }}>
+                                      <div style={{ fontWeight: 600, fontSize: 10, color: 'var(--text-muted)' }}>{monthNames[mIdx]}</div>
+                                      <div>{val !== null ? `${(val * 100).toFixed(2)}%` : '—'}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
+
+          {/* Fields table — dual or single (shown only when NO validation OR as detail) */}
+          {(!parseResult.validation || parseResult.validation.length === 0) && (() => {
             const isDual = parseResult.dualCurrencyData?.length === 2;
             const usdEntry = isDual ? parseResult.dualCurrencyData!.find((e) => e.returnBasis === "USD") : null;
             const ilsEntry = isDual ? parseResult.dualCurrencyData!.find((e) => e.returnBasis === "ILS") : null;
@@ -3677,20 +3752,32 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
               </button>
             </div>
           ) : (
-            <div style={{ display: "flex", gap: 10, justifyContent: "flex-start" }}>
-              <button onClick={() => handleSaveDraft()}
-                disabled={approvedFields.size === 0}
-                style={{
-                  backgroundColor: approvedFields.size === 0 ? "var(--text-muted)" : "#059669",
-                  color: "#fff", fontWeight: 700, padding: "8px 20px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12,
-                  opacity: approvedFields.size === 0 ? 0.4 : 1,
-                }}>
-                💾 שמור טיוטה ({approvedFields.size} שדות)
-              </button>
-              <button onClick={() => { setView("input"); setParseResult(null); }}
-                style={{ backgroundColor: "var(--bg-surface-alt)", color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: 6, padding: "8px 20px", cursor: "pointer", fontSize: 12 }}>
-                ← חזרה
-              </button>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-start", flexDirection: "column", alignItems: "flex-start" }}>
+              {parseResult.validationStatus === 'error' && (
+                <div style={{ fontSize: 11, color: "#ef4444", padding: "6px 10px", backgroundColor: "#FEE2E215", borderRadius: 6, border: "1px solid #ef444440" }}>
+                  ❌ לא ניתן לשמור — נמצאו שגיאות ולידציה. הנתונים אינם עקביים (מחושב ≠ מדווח).
+                </div>
+              )}
+              {parseResult.validationStatus === 'warning' && (
+                <div style={{ fontSize: 11, color: "#f59e0b", padding: "6px 10px", backgroundColor: "#FEF3C715", borderRadius: 6, border: "1px solid #f59e0b40" }}>
+                  ⚠️ אזהרה: פערים קטנים זוהו. ניתן לשמור, אך מומלץ לבדוק.
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => handleSaveDraft()}
+                  disabled={approvedFields.size === 0 || parseResult.validationStatus === 'error'}
+                  style={{
+                    backgroundColor: approvedFields.size === 0 || parseResult.validationStatus === 'error' ? "var(--text-muted)" : "#059669",
+                    color: "#fff", fontWeight: 700, padding: "8px 20px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12,
+                    opacity: approvedFields.size === 0 || parseResult.validationStatus === 'error' ? 0.4 : 1,
+                  }}>
+                  {parseResult.validationStatus === 'warning' ? '⚠️ אשר ושמור בכל זאת' : '💾 שמור טיוטה'} ({approvedFields.size} שדות)
+                </button>
+                <button onClick={() => { setView("input"); setParseResult(null); }}
+                  style={{ backgroundColor: "var(--bg-surface-alt)", color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: 6, padding: "8px 20px", cursor: "pointer", fontSize: 12 }}>
+                  ← חזרה
+                </button>
+              </div>
             </div>
           )}
         </div>

@@ -963,41 +963,141 @@ Find ALL performance tables in this document.
 
 For each table return:
 {
-  "currency_label": "the exact currency text you see near this table — e.g. ($), (₪), דולרי, שקלי, $ or null if not found",
-  "table_label": "the name or label of the fund/entity this table belongs to — e.g. 'נוקד אג\"ח', 'Class A', or null if not found. If the table belongs to a market index or benchmark, write the index name here.",
+  "currency_label": "the exact currency text near this table — e.g. ($), (₪), דולרי, שקלי, $ or null",
+  "table_label": "the name/label of the fund this table belongs to, or null",
   "headers": ["every column header exactly as written, from RIGHT to LEFT"],
   "rows": [
     {
-      "year": "the year value in this row",
-      "cells": ["cell values from RIGHT to LEFT, matching headers order — empty cell = null, dash = null"]
+      "year": "the 4-digit year for this row",
+      "cells": ["cell values from RIGHT to LEFT, matching headers order"]
     }
   ]
 }
 
-Return JSON:
-{ "tables": [...] }
+Return JSON: { "tables": [...] }
+
+STEP 1 — IDENTIFY THE YEAR COLUMN:
+Before reading headers, scan ALL columns and find the one where every non-empty cell contains a 4-digit number between 1990 and 2040. That is the year column.
+- This column may be labeled "**", "*", empty, "שנה", "year", or anything else.
+- Use its values as the "year" field for each row.
+- Do NOT include this column in headers[] or cells[].
+- If no such column exists, infer year from row context.
+
+STEP 2 — DETERMINE TABLE DIRECTION:
+- If the year column is on the RIGHT side → table is RTL. Read headers and cells right to left.
+- If the year column is on the LEFT side → table is LTR. Read headers and cells left to right.
+- Apply this direction consistently for ALL rows in this table.
+
+STEP 3 — READ HEADERS:
+- Copy every column header exactly as written (excluding year column).
+- Preserve Hebrew, English, symbols exactly.
+- Common header types: month names (ינו׳/jan), שנתי/annual/yearly, ITD/מהקמה, **.
+
+STEP 4 — READ CELLS:
+CRITICAL — partial rows (current/incomplete year):
+- A partial row has values only in some month columns.
+- Each cell position MUST match its header position EXACTLY.
+- Missing months → null. NEVER shift values to fill gaps.
+- Example: if headers are [שנתי, דצמ, נוב, אוק, ספט, אוג, יול, יון, מאי, אפר, מרץ, פבר, ינו]
+  and only ינו/פבר/מרץ have values:
+  cells = [ytd_value, null, null, null, null, null, null, null, null, null, mar, feb, jan]
+  NEVER: cells = [ytd_value, mar, feb, jan, null, null, ...]
+
+STEP 5 — IDENTIFY COLUMN TYPES:
+- Month columns: named after months (ינו׳, פבר׳, jan, feb, etc.) → monthly return values
+- Annual column: named שנתי, סה"כ, annual, yearly, total → yearly return (NOT a month)
+- ITD column: named ITD, מהקמה, מצטבר → cumulative since inception, extract separately
+- Benchmark rows: rows labeled מדד, ת"א 125, אג"ח, benchmark, index → IGNORE entirely
+
+STEP 6 — NEGATIVE NUMBERS:
+- "-5.3%" → "-5.3"
+- "(5.3%)" → "-5.3" (parentheses = negative)
+- Empty cell or dash → null
 
 RULES:
-- Copy headers and values EXACTLY as written. No translation. No interpretation.
-- Right to left always — start from the rightmost column.
-- Numbers without % sign: 3.28% → "3.28"
-- Negative numbers keep minus: -5.94% → "-5.94"
-- Empty cell or dash → null
-- CRITICAL — Partial rows (current year with only some months filled):
-  Each cell position must match its header position EXACTLY.
-  If headers are [שנתי, דצמ, נוב, אוק, ספט, אוג, יול, יונ, מאי, אפר, מרץ, פבר, ינו, שנה]
-  And only ינו/פבר/מרץ have values, the cells must be:
-  [ytd_value, null, null, null, null, null, null, null, null, null, mar_value, feb_value, jan_value, year]
-  NEVER shift values left to fill empty positions.
-  The YTD column (שנתי/סה"כ) is NEVER a monthly value — always map it to ytd.
-- Cells with colored background, bold text, or any visual highlighting are still regular monthly values — extract the numeric value inside them exactly as you would any other cell. Do NOT treat highlighted cells as YTD or special — they are just styled cells.
+- Extract ONLY the fund's own rows. IGNORE benchmark/index rows completely.
+- Copy values EXACTLY. No translation. No interpretation.
+- Numbers without % sign: write as-is (e.g. "3.28" not "3.28%")
 - Return ONLY valid JSON. No explanation.
 
-CRITICAL — FUND ROWS ONLY:
-- Extract ONLY rows belonging to the fund itself.
-- IGNORE rows that are benchmarks, indices, or comparison series.
-- Examples of rows to IGNORE: "מדד קונצרני כללי", "מדד ת\"א 125", "מדד אג\"ח כללי", "benchmark", "index", "מדד", or any row whose label is clearly a market index rather than the fund.
-- If a table has multiple data rows per year, take ONLY the first row (the fund's own row).`;
+EXAMPLE — RTL table with ** year column:
+Headers row visible: | ** | ינו׳ | פבר׳ | מרץ | ... | דצמ׳ | שנתי |
+Year column = ** (rightmost, contains 2019/2020/2021...)
+Direction = RTL
+headers: ["ינו׳", "פבר׳", "מרץ", ..., "דצמ׳", "שנתי"]
+Row 2021 (full): cells: ["11.48", "-5.42", "4.19", ..., "0.98", "28.88"]
+Row 2026 (partial, only jan/feb/mar): cells: ["2.03", "2.30", "4.91", null, null, null, null, null, null, null, null, null, "9.51"]`;
+}
+
+interface MonthlyValidation {
+  year: string;
+  reportedAnnual: number | null;
+  computedAnnual: number | null;
+  gap: number | null;
+  months: (number | null)[];
+  status: 'valid' | 'warning' | 'error' | 'no-annual';
+}
+
+interface ValidationSummary {
+  overallStatus: 'valid' | 'warning' | 'error';
+  rows: MonthlyValidation[];
+}
+
+function validateParsedEntry(entry: MappedEntry): ValidationSummary {
+  const rows: MonthlyValidation[] = [];
+
+  // קבץ חודשים לפי שנה
+  const byYear: Record<string, (number | null)[]> = {};
+  const annualByYear: Record<string, number> = {};
+
+  for (const field of entry.fields) {
+    const monthMatch = field.key.match(/^monthlyReturns\.(\d{4})-(\d{2})$/);
+    if (monthMatch) {
+      const year = monthMatch[1];
+      const month = parseInt(monthMatch[2]) - 1;
+      if (!byYear[year]) byYear[year] = Array(12).fill(null);
+      byYear[year][month] = field.value as number;
+    }
+
+    const annualMatch = field.key.match(/^returns\.(y|ytd)(\d{4})$/);
+    if (annualMatch) {
+      annualByYear[annualMatch[2]] = field.value as number;
+    }
+  }
+
+  // בדוק כל שנה
+  for (const year of Object.keys(byYear).sort()) {
+    const months = byYear[year];
+    const reportedAnnual = annualByYear[year] ?? null;
+
+    // חשב שנתי גיאומטרי מהחודשים הקיימים
+    const nonNullMonths = months.filter((m): m is number => m !== null);
+    let computedAnnual: number | null = null;
+
+    if (nonNullMonths.length > 0) {
+      computedAnnual = nonNullMonths.reduce((acc, m) => acc * (1 + m), 1) - 1;
+      computedAnnual = Math.round(computedAnnual * 1e6) / 1e6;
+    }
+
+    // חשב פער
+    let gap: number | null = null;
+    let status: MonthlyValidation['status'] = 'no-annual';
+
+    if (reportedAnnual !== null && computedAnnual !== null) {
+      gap = Math.abs(computedAnnual - reportedAnnual);
+      if (gap < 0.005) status = 'valid';        // פחות מ-0.5%
+      else if (gap < 0.02) status = 'warning';  // 0.5%-2%
+      else status = 'error';                     // מעל 2%
+    }
+
+    rows.push({ year, reportedAnnual, computedAnnual, gap, months, status });
+  }
+
+  const overallStatus = rows.some(r => r.status === 'error') ? 'error'
+    : rows.some(r => r.status === 'warning') ? 'warning'
+    : 'valid';
+
+  return { overallStatus, rows };
 }
 
 /** Month name → "MM" mapping for structured dual-currency response */
@@ -1107,6 +1207,8 @@ function parseCloudeResponse(
   match: { fundId: string; fundName: string; similarity: number; categoryId: string | null } | null;
   dualCurrencyData?: DualCurrencyEntry[];
   corrections?: string[];
+  validation?: ValidationSummary[];
+  validationStatus?: 'valid' | 'warning' | 'error';
 } | { error: string } {
   const jsonMatch = content.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
@@ -2548,6 +2650,12 @@ export async function POST(req: NextRequest) {
                 if (mappedEntries.length === 1) {
                   result.fields = mappedEntries[0].fields;
                 }
+                // Pass-3 — ולידציה פנימית: מחושב vs מדווח
+                const validations = mappedEntries.map(entry => validateParsedEntry(entry));
+                result.validation = validations;
+                result.validationStatus = validations.some(v => v.overallStatus === 'error') ? 'error'
+                  : validations.some(v => v.overallStatus === 'warning') ? 'warning'
+                  : 'valid';
               }
             }
             // Fallback ל-Pass-1: רץ אם Pass-2 לא הצליח לבנות dualCurrencyData
@@ -2616,7 +2724,11 @@ export async function POST(req: NextRequest) {
       if (result.corrections) {
         resultObj.corrections = result.corrections;
       }
-      resultObj._cacheVersion = 33;
+      if (result.validation) {
+        resultObj.validation = result.validation;
+        resultObj.validationStatus = result.validationStatus;
+      }
+      resultObj._cacheVersion = 34;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
