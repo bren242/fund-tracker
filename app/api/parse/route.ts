@@ -1085,10 +1085,12 @@ interface MonthlyValidation {
 interface ValidationSummary {
   overallStatus: 'valid' | 'warning' | 'error';
   rows: MonthlyValidation[];
+  suspiciousMonths?: string[]; // months later than reportMonth — excluded from count
 }
 
-function validateParsedEntry(entry: MappedEntry): ValidationSummary {
+function validateParsedEntry(entry: MappedEntry, reportMonth: string | null): ValidationSummary {
   const rows: MonthlyValidation[] = [];
+  const suspiciousMonths: string[] = [];
 
   // קבץ חודשים לפי שנה
   const byYear: Record<string, (number | null)[]> = {};
@@ -1098,6 +1100,12 @@ function validateParsedEntry(entry: MappedEntry): ValidationSummary {
     // Count ONLY monthlyReturns.YYYY-MM (valid months 01-12) — never returns.ytdYYYY or returns.yYYYY
     const monthMatch = field.key.match(/^monthlyReturns\.(\d{4})-(0[1-9]|1[0-2])$/);
     if (monthMatch) {
+      const monthKey = `${monthMatch[1]}-${monthMatch[2]}`; // YYYY-MM
+      // Skip months later than reportMonth — they are suspicious (likely YTD leaked into a future-month column)
+      if (reportMonth && monthKey > reportMonth) {
+        suspiciousMonths.push(monthKey);
+        continue;
+      }
       const year = monthMatch[1];
       const month = parseInt(monthMatch[2]) - 1; // 0-based index (0=Jan, 11=Dec)
       if (!byYear[year]) byYear[year] = Array(12).fill(null);
@@ -1142,7 +1150,7 @@ function validateParsedEntry(entry: MappedEntry): ValidationSummary {
     : rows.some(r => r.status === 'warning') ? 'warning'
     : 'valid';
 
-  return { overallStatus, rows };
+  return { overallStatus, rows, ...(suspiciousMonths.length > 0 ? { suspiciousMonths } : {}) };
 }
 
 /** Month name → "MM" mapping for structured dual-currency response */
@@ -2692,7 +2700,7 @@ export async function POST(req: NextRequest) {
                   result.fields = mappedEntries[0].fields;
                 }
                 // Pass-3 — ולידציה פנימית: מחושב vs מדווח
-                const validations = mappedEntries.map(entry => validateParsedEntry(entry));
+                const validations = mappedEntries.map(entry => validateParsedEntry(entry, result.reportMonth ?? null));
                 result.validation = validations;
                 result.validationStatus = validations.some(v => v.overallStatus === 'error') ? 'error'
                   : validations.some(v => v.overallStatus === 'warning') ? 'warning'

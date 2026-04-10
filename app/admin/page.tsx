@@ -2288,7 +2288,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
     fields: { key: string; value: string | number | null; confidence: number }[];
     match: { fundId: string | null; fundName: string | null; similarity: number; categoryId: string | null } | null;
     dualCurrencyData?: { returnBasis: "ILS" | "USD"; fields: { key: string; value: string | number | null; confidence: number }[] }[];
-    validation?: { overallStatus: 'valid' | 'warning' | 'error'; rows: { year: string; reportedAnnual: number | null; computedAnnual: number | null; gap: number | null; months: (number | null)[]; status: 'valid' | 'warning' | 'error' | 'no-annual' }[] }[];
+    validation?: { overallStatus: 'valid' | 'warning' | 'error'; rows: { year: string; reportedAnnual: number | null; computedAnnual: number | null; gap: number | null; months: (number | null)[]; status: 'valid' | 'warning' | 'error' | 'no-annual' }[]; suspiciousMonths?: string[] }[];
     validationStatus?: 'valid' | 'warning' | 'error';
   } | null>(null);
   // Track which dual currency drafts have been saved
@@ -3585,6 +3585,10 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
               const currency = parseResult.dualCurrencyData?.[vi]?.returnBasis ?? null;
               return v.rows.map(row => ({ row, currency }));
             });
+            // Collect all suspicious months across all validations (deduplicated)
+            const allSuspicious = [...new Set(
+              parseResult.validation!.flatMap(v => v.suspiciousMonths ?? [])
+            )].sort();
             const statusIcon = (s: string) => s === 'valid' ? '✅' : s === 'warning' ? '⚠️' : s === 'error' ? '❌' : '—';
             const fmtPct = (v: number | null) => v === null ? '—' : `${(v * 100).toFixed(2)}%`;
             const monthNames = ['ינו׳','פבר׳','מרץ','אפר׳','מאי','יונ׳','יול׳','אוג׳','ספט׳','אוק׳','נוב׳','דצמ׳'];
@@ -3593,13 +3597,20 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
             return (
               <div style={{ marginBottom: 16 }}>
                 {/* Status header */}
-                <div style={{ padding: "8px 12px", borderRadius: 8, marginBottom: 10, backgroundColor: overallStatus === 'error' ? '#FEE2E215' : overallStatus === 'warning' ? '#FEF3C715' : '#DCFCE715', border: `1px solid ${overallStatus === 'error' ? '#ef444440' : overallStatus === 'warning' ? '#f59e0b40' : '#16a34a40'}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ padding: "8px 12px", borderRadius: 8, marginBottom: allSuspicious.length > 0 ? 6 : 10, backgroundColor: overallStatus === 'error' ? '#FEE2E215' : overallStatus === 'warning' ? '#FEF3C715' : '#DCFCE715', border: `1px solid ${overallStatus === 'error' ? '#ef444440' : overallStatus === 'warning' ? '#f59e0b40' : '#16a34a40'}`, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 14 }}>{statusIcon(overallStatus || 'valid')}</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: overallStatus === 'error' ? '#ef4444' : overallStatus === 'warning' ? '#f59e0b' : '#16a34a' }}>
                     {overallStatus === 'error' ? 'שגיאת ולידציה — הנתונים אינם עקביים' : overallStatus === 'warning' ? 'אזהרת ולידציה — בדוק לפני שמירה' : 'ולידציה עברה — הנתונים עקביים'}
                   </span>
                   <span style={{ fontSize: 11, color: 'var(--text-muted)', marginRight: 'auto' }}>פאס-3: מחושב vs מדווח</span>
                 </div>
+                {/* Suspicious months warning */}
+                {allSuspicious.length > 0 && (
+                  <div style={{ padding: "6px 12px", borderRadius: 6, marginBottom: 10, backgroundColor: '#f59e0b10', border: '1px solid #f59e0b40', fontSize: 11, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>⚠️</span>
+                    <span>נמצאו {allSuspicious.length} חודשים מאוחרים מחודש הדיווח — לא נספרו: {allSuspicious.map(m => { const [y,mo] = m.split('-'); return `${mo}/${y}`; }).join(', ')}</span>
+                  </div>
+                )}
 
                 {/* Year-by-year table */}
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, marginBottom: 8 }}>
