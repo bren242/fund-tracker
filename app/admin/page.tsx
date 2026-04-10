@@ -3104,6 +3104,47 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
 
   const pendingDrafts = drafts.filter((d) => d.status === "pending");
 
+  // Re-run validation client-side when reportMonth changes (mirrors server validateParsedEntry logic)
+  const recomputeValidation = (
+    entries: { returnBasis?: string; fields: { key: string; value: string | number | null; confidence: number }[] }[],
+    rm: string
+  ) => {
+    return entries.map(entry => {
+      const suspiciousMonths: string[] = [];
+      const byYear: Record<string, (number | null)[]> = {};
+      const annualByYear: Record<string, number> = {};
+      for (const field of entry.fields) {
+        const mm = field.key.match(/^monthlyReturns\.(\d{4})-(0[1-9]|1[0-2])$/);
+        if (mm) {
+          const monthKey = `${mm[1]}-${mm[2]}`;
+          if (monthKey > rm) { suspiciousMonths.push(monthKey); continue; }
+          const yr = mm[1]; const mo = parseInt(mm[2]) - 1;
+          if (!byYear[yr]) byYear[yr] = Array(12).fill(null);
+          byYear[yr][mo] = field.value as number;
+        }
+        const am = field.key.match(/^returns\.(ytd|y)(\d{4})$/);
+        if (am) annualByYear[am[2]] = field.value as number;
+      }
+      const rows = Object.keys(byYear).sort().map(yr => {
+        const months = byYear[yr];
+        const reportedAnnual = annualByYear[yr] ?? null;
+        const nonNull = months.filter((m): m is number => m !== null);
+        let computedAnnual: number | null = null;
+        if (nonNull.length > 0) computedAnnual = Math.round((nonNull.reduce((a, m) => a * (1 + m), 1) - 1) * 1e6) / 1e6;
+        let gap: number | null = null;
+        let status: 'valid' | 'warning' | 'error' | 'no-annual' = 'no-annual';
+        if (reportedAnnual !== null && computedAnnual !== null) {
+          gap = Math.abs(computedAnnual - reportedAnnual);
+          status = gap < 0.005 ? 'valid' : gap < 0.02 ? 'warning' : 'error';
+        }
+        return { year: yr, reportedAnnual, computedAnnual, gap, months, status };
+      });
+      const overallStatus: 'valid' | 'warning' | 'error' = rows.some(r => r.status === 'error') ? 'error'
+        : rows.some(r => r.status === 'warning') ? 'warning' : 'valid';
+      return { overallStatus, rows, ...(suspiciousMonths.length > 0 ? { suspiciousMonths } : {}) };
+    });
+  };
+
   return (
     <div style={{ maxWidth: 800 }}>
       {/* Sub-navigation */}
@@ -3508,7 +3549,20 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
             <input
               type="month"
               value={reportMonth}
-              onChange={(e) => setReportMonth(e.target.value)}
+              onChange={(e) => {
+                const newMonth = e.target.value;
+                setReportMonth(newMonth);
+                // Re-run validation immediately with the new reportMonth
+                if (parseResult && newMonth && parseResult.validation) {
+                  const entries = parseResult.dualCurrencyData && parseResult.dualCurrencyData.length > 0
+                    ? parseResult.dualCurrencyData
+                    : [{ fields: parseResult.fields }];
+                  const newValidation = recomputeValidation(entries, newMonth);
+                  const newStatus: 'valid' | 'warning' | 'error' = newValidation.some(v => v.overallStatus === 'error') ? 'error'
+                    : newValidation.some(v => v.overallStatus === 'warning') ? 'warning' : 'valid';
+                  setParseResult({ ...parseResult, validation: newValidation, validationStatus: newStatus });
+                }
+              }}
               style={{
                 border: `1px solid ${!reportMonth ? "#f59e0b" : "var(--border)"}`,
                 borderRadius: 6,
