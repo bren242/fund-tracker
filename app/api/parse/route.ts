@@ -164,7 +164,7 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v23: reverse month order in template to match visual LTR reading of RTL table
   // v24: remove pre-fill, fixed year range 2019-2026, all X cells
   // v27: single-pass only (removed buildDynamicStructuredPrompt second API call)
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 40) return null;
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 41) return null;
 
   return cached.result;
 }
@@ -1033,7 +1033,7 @@ STEP 3 — READ HEADERS:
 - Common header types: month names (ינו׳/jan), שנתי/annual/yearly, ITD/מהקמה, **.
 
 STEP 4 — READ CELLS:
-CRITICAL — partial rows (current/incomplete year):
+CRITICAL — partial rows (ANY year, including historical years when fund started mid-year):
 - A partial row has values only in some month columns.
 - Each cell position MUST match its header position EXACTLY.
 - Missing months → null. NEVER shift values to fill gaps.
@@ -1041,6 +1041,9 @@ CRITICAL — partial rows (current/incomplete year):
   and only ינו/פבר/מרץ have values:
   cells = [ytd_value, null, null, null, null, null, null, null, null, null, mar, feb, jan]
   NEVER: cells = [ytd_value, mar, feb, jan, null, null, ...]
+- This applies to ALL years, not just the current year.
+  Example: a fund starting in February 2017 will have January 2017 = null.
+  Do NOT shift February's value into January's position.
 
 STEP 5 — IDENTIFY COLUMN TYPES:
 - Month columns: named after months (ינו׳, פבר׳, jan, feb, etc.) → monthly return values
@@ -2787,7 +2790,7 @@ export async function POST(req: NextRequest) {
         resultObj.validation = result.validation;
         resultObj.validationStatus = result.validationStatus;
       }
-      resultObj._cacheVersion = 40;
+      resultObj._cacheVersion = 41;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
