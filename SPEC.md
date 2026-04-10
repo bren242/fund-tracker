@@ -1,5 +1,5 @@
 # Fund Tracker — SPEC.md
-> מצב נכון ל: 2026-04-10 | Cache v39
+> מצב נכון ל: 2026-04-10 | Cache v40
 
 ---
 
@@ -67,7 +67,7 @@
 
 **Fallback:** אם Pass-2 לא מצא טבלאות (למשל כרטיס חודשי יחיד) — בונה `dualCurrencyData` מנתוני Pass-1 כולל חישוב YTD מצטבר מחודשים.
 
-**Cache:** תוצאות נשמרות לפי hash של הקובץ. גרסה נוכחית: **v39**. כל cache ישן ממנה בטל.
+**Cache:** תוצאות נשמרות לפי hash של הקובץ. גרסה נוכחית: **v40**. כל cache ישן ממנה בטל.
 
 **מה מחולץ בהצלחה (קבצים שנבדקו):**
 | קובץ | סטטוס | הערות |
@@ -129,7 +129,22 @@
 
 ## עדכון אחרון (2026-04-10 — סשן חמישי)
 
-### Parser bug fixes + Admin UI year chips (סשן נוכחי)
+### fixAnnualJanSwapPerYear on Pass-2 fields + YTD_ALIASES cleanup (v40) ✅
+
+**הבאג:** `fixAnnualJanSwapPerYear` הוגדרה כ-closure בתוך `parseCloudeResponse` ורצה על Pass-1 fields. Pass-2 דרס את `result.fields` עם `mappedEntries[0].fields` — fields חדשות שלא עברו תיקון swap.
+
+**הפתרון (v40):**
+- הוצאת `fixAnnualJanSwapPerYear` לפונקציה עצמאית ברמת מודול עם `corrections` כפרמטר
+- הוספת Pass-2.5: קריאה לפונקציה על כל `mappedEntries[i].fields` לאחר Pass-2, לפני Pass-3
+- הסרת `'dec','december','דצמבר',"דצמ'"` מ-`YTD_ALIASES` (December הוא חודש, לא YTD)
+- החזרת סדר `headerMap` לקדמותו (YTD ראשון — תקין עכשיו שדצמבר לא ב-YTD_ALIASES)
+- **Cache v40** — מבטל v39 ומטה
+
+**אומת ב-API:**
+- **Alpha Opportunities (מרץ 2026):** 12/12 לכל שנות 2011–2025, 3/12 ל-2026, validationStatus: valid ✅
+- **Creative Value (מרץ 2026):** 2019: 6 חודשים + y2019=3.42% (שנה חלקית) ✅; 2020–2025: 12/12 + yearly_swap תוקן לכל השנים ✅; y2021=28.88% (תוקן מ-11.48%)
+
+### Parser bug fixes + Admin UI year chips (סשן קודם)
 
 **באג קריטי תוקן — Dec header mapped to YTD (v39):**
 - **שורש הבעיה:** `YTD_ALIASES` הכיל `'dec'` ו-`'december'`. `headerMap()` בדק YTD_ALIASES לפני MONTH_ALIASES. תוצאה: כל PDF עם "Dec" כ-header של עמודה חודשית איבד את דצמבר — 11/12 לכל השנים
@@ -337,7 +352,7 @@ fund-tracker/
 
 | קבוע | ערך | מיקום |
 |------|-----|--------|
-| Cache version | `39` | `route.ts` L167, L2731 |
+| Cache version | `40` | `route.ts` L167, L2774 |
 | Monthly token limit | `500,000` input tokens (default) | `route.ts` L34 |
 | GREEN token limit | `2,000,000` input tokens | KV `brand:green.tokenLimits` |
 | Monthly call limit | `100` calls (default) | `route.ts` L35 |
