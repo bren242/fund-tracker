@@ -1,5 +1,5 @@
 # Fund Tracker — SPEC.md
-> מצב נכון ל: 2026-04-10 | Cache v35
+> מצב נכון ל: 2026-04-10 | Cache v39
 
 ---
 
@@ -67,7 +67,7 @@
 
 **Fallback:** אם Pass-2 לא מצא טבלאות (למשל כרטיס חודשי יחיד) — בונה `dualCurrencyData` מנתוני Pass-1 כולל חישוב YTD מצטבר מחודשים.
 
-**Cache:** תוצאות נשמרות לפי hash של הקובץ. גרסה נוכחית: **v35**. כל cache ישן ממנה בטל.
+**Cache:** תוצאות נשמרות לפי hash של הקובץ. גרסה נוכחית: **v39**. כל cache ישן ממנה בטל.
 
 **מה מחולץ בהצלחה (קבצים שנבדקו):**
 | קובץ | סטטוס | הערות |
@@ -127,9 +127,36 @@
 
 ---
 
-## עדכון אחרון (2026-04-10 — סשן רביעי)
+## עדכון אחרון (2026-04-10 — סשן חמישי)
 
-### Pass-3 Validation + Parser improvements (סשן נוכחי)
+### Parser bug fixes + Admin UI year chips (סשן נוכחי)
+
+**באג קריטי תוקן — Dec header mapped to YTD (v39):**
+- **שורש הבעיה:** `YTD_ALIASES` הכיל `'dec'` ו-`'december'`. `headerMap()` בדק YTD_ALIASES לפני MONTH_ALIASES. תוצאה: כל PDF עם "Dec" כ-header של עמודה חודשית איבד את דצמבר — 11/12 לכל השנים
+- **פתרון:** הזזת בדיקת `MONTH_ALIASES` לפני `YTD_ALIASES` ב-`mapRawTablesToFields()`. עכשיו "Dec" → 12, לא 'ytd'
+- **Cache v39** — כל cache ישן מ-v38 ומטה בטל
+- **אומת:** Alpha Opportunities 2011–2025 — כל השנים 12/12 ✅
+
+**fixDecemberYtdSwap (v36 → v38 — disabled):**
+- נוסף (v36) לטיפול בקרנות שה-YTD שלהן הוצב בחריץ דצמבר
+- הגבלת scope נוספה (v37): מופעל רק אם `nonDecMonths.length < 6`
+- בוטל (v38): false positives גרמו לבלבול. הבאג האמיתי היה header priority (v39)
+
+**STEP 7 בפרומפט Pass-2 (v38):**
+- נוסף כלל: "אם שורה מכילה מספרי עמודות (0-11 או 1-12), התעלם ממנה"
+- מונע חילוץ שורות index כ-נתוני תשואה
+
+**Admin UI — year chips במקום monthly tags:**
+- במקום עשרות תגיות `monthlyReturns.YYYY-MM` — שורה אחת לכל שנה
+- כל chip מציג: `שנה | N/12 (ירוק=12, צהוב=10-11, אדום<10) | שנתי%`
+- שאר השדות (returns.yXXXX, manager וכו') ממשיכים להופיע כתגיות רגילות
+- **אומת בדפדפן:** Alpha Opportunities archive — כל שנות 2011–2025 מוצגות כ-12/12 ✅
+
+**Call limit issue אובחן ותוקן (v35 era):**
+- שגיאת "API error" לאחר deploy v35 הייתה `callCount: 100 >= limit: 100` (429)
+- תוקן: GREEN call limit הועלה ל-500 ב-KV (`brand:green.tokenLimits`)
+
+### Pass-3 Validation + Parser improvements (סשן קודם)
 - **`validateParsedEntry()`** — פונקציה חדשה: compound גיאומטרי מחודשים vs שנתי מדווח. valid<0.5%, warning<2%, error≥2%
 - **`buildRawExtractionPrompt()` שוכתב** — 6 שלבים מפורשים (זיהוי כיוון, null preservation, דוגמה RTL)
 - **Admin UI — שכבת ולידציה** — טבלת `שנה | חודשים | שנתי מדווח | שנתי מחושב | פער | סטטוס` עם color coding + monthly chips בהרחבה
@@ -310,7 +337,7 @@ fund-tracker/
 
 | קבוע | ערך | מיקום |
 |------|-----|--------|
-| Cache version | `35` | `route.ts` L167, L2731 |
+| Cache version | `39` | `route.ts` L167, L2731 |
 | Monthly token limit | `500,000` input tokens (default) | `route.ts` L34 |
 | GREEN token limit | `2,000,000` input tokens | KV `brand:green.tokenLimits` |
 | Monthly call limit | `100` calls (default) | `route.ts` L35 |
