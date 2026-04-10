@@ -3624,7 +3624,14 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
                         <>
                           <tr key={`${row.year}-${currency ?? idx}`} style={{ borderBottom: '1px solid var(--border-table)', backgroundColor: rowBg, cursor: 'pointer' }}
                             onClick={() => setExpandedYear(isExpanded ? null : row.year)}>
-                            <td style={{ padding: '6px 10px', fontWeight: 600 }}>{row.year} {isExpanded ? '▲' : '▼'}</td>
+                            <td style={{ padding: '6px 10px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                              {row.year} {isExpanded ? '▲' : '▼'}
+                              {currency && (
+                                <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, fontWeight: 700, backgroundColor: currency === 'USD' ? '#3b82f620' : '#22c55e20', color: currency === 'USD' ? '#3b82f6' : '#16a34a', border: `1px solid ${currency === 'USD' ? '#3b82f640' : '#22c55e40'}` }}>
+                                  {currency}
+                                </span>
+                              )}
+                            </td>
                             <td style={{ padding: '6px 10px', textAlign: 'center', color: nonNull < 12 ? '#f59e0b' : 'inherit' }}>{nonNull}/12</td>
                             <td style={{ padding: '6px 10px', textAlign: 'center', direction: 'ltr' }}>{fmtPct(row.reportedAnnual)}</td>
                             <td style={{ padding: '6px 10px', textAlign: 'center', direction: 'ltr' }}>{fmtPct(row.computedAnnual)}</td>
