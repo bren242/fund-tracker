@@ -164,7 +164,7 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v23: reverse month order in template to match visual LTR reading of RTL table
   // v24: remove pre-fill, fixed year range 2019-2026, all X cells
   // v27: single-pass only (removed buildDynamicStructuredPrompt second API call)
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 44) return null;
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 45) return null;
 
   return cached.result;
 }
@@ -1050,6 +1050,35 @@ CRITICAL — partial rows (ANY year, including historical years when fund starte
   cells = [ytd_value, dec, nov, oct, sep, aug, jul, jun, may, apr, mar, feb, null]
   NEVER: cells = [ytd_value, dec, nov, oct, sep, aug, jul, jun, may, apr, mar, feb_shifted_to_jan]
   The empty January cell must remain null — do not shift February into January's position.
+
+WHAT TO DO — three-dimensional cross-reference:
+For every cell in the table:
+1. Identify the COLUMN header → this gives you the MONTH
+2. Identify the ROW year value → this gives you the YEAR
+3. Read the cell value → this gives you the RETURN
+4. Only if the cell is non-empty → record as monthlyReturns.YYYY-MM = value
+5. If the cell is empty → record null for that YYYY-MM position
+
+This means every value is anchored to an exact year + month coordinate.
+Never move a value from its coordinate. Never infer a coordinate from neighbors.
+
+WHAT NOT TO DO:
+- Do NOT shift values left or right to fill empty positions
+- Do NOT assume a value belongs to a different month than its column header
+- Do NOT assume a value belongs to a different year than its row
+
+EXAMPLES of correct three-dimensional reading:
+Row=2017, Col=January → empty → monthlyReturns.2017-01 = null
+Row=2017, Col=February → 1.49% → monthlyReturns.2017-02 = 1.49%
+Row=2017, Col=March → 0.69% → monthlyReturns.2017-03 = 0.69%
+
+Row=2026, Col=January → 0.66% → monthlyReturns.2026-01 = 0.66%
+Row=2026, Col=February → 0.60% → monthlyReturns.2026-02 = 0.60%
+Row=2026, Col=March → empty → monthlyReturns.2026-03 = null
+
+WRONG (never do this):
+Row=2017, Col=January → 1.49% ← shifted from February
+Row=2026, Col=January → 0.60% ← shifted from February
 
 STEP 5 — IDENTIFY COLUMN TYPES:
 - Month columns: named after months (ינו׳, פבר׳, jan, feb, etc.) → monthly return values
@@ -2864,7 +2893,7 @@ export async function POST(req: NextRequest) {
         resultObj.validation = result.validation;
         resultObj.validationStatus = result.validationStatus;
       }
-      resultObj._cacheVersion = 44;
+      resultObj._cacheVersion = 45;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
