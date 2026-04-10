@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getClientKeyFromRequest } from "@/lib/clientKey";
 import { storageRead, storageWrite } from "@/lib/storage";
 
-export const DEFAULT_CONSISTENCY_CONFIG = {
+const DEFAULT_CONSISTENCY_CONFIG = {
   benchmarkWeights: {
     "equity-hedged":  { "bm-ta125": 1.00, "bm-telbond-maagar": 0.00 },
     "bond-hedged":    { "bm-ta125": 0.15, "bm-telbond-maagar": 0.85 },
