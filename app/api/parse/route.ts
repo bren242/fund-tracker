@@ -164,7 +164,7 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v23: reverse month order in template to match visual LTR reading of RTL table
   // v24: remove pre-fill, fixed year range 2019-2026, all X cells
   // v27: single-pass only (removed buildDynamicStructuredPrompt second API call)
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 39) return null;
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 40) return null;
 
   return cached.result;
 }
@@ -860,7 +860,8 @@ const MONTH_ALIASES: Record<string, number> = {
   '09': 9, '10': 10, '11': 11, '12': 12,
 };
 
-const YTD_ALIASES = ['ytd','שנתי','שנתית','מצטבר','מתחילת השנה','מה״ש','annual','סה"כ שנתי','סה"כ','דצמבר',"דצמ'",'dec','december'];
+const YTD_ALIASES = ['ytd','שנתי','שנתית','מצטבר','מתחילת השנה','מה״ש','annual','סה"כ שנתי','סה"כ'];
+// Note: 'dec','december','דצמבר',"דצמ'" removed — December is a month, not YTD
 const ITD_ALIASES = ['itd','מהקמה','מאז הקמה','since inception','inception','מהקמה:'];
 const USD_ALIASES = ['$','($)','דולר','דולרי','דולרית','usd','dollar'];
 const ILS_ALIASES = ['₪','(₪)','שקל','שקלי','שקלית','ils'];
@@ -905,11 +906,11 @@ function mapRawTablesToFields(tables: RawTable[]): MappedEntry[] {
 
     const headerMap: ('ytd' | 'itd' | number | 'year' | null)[] = table.headers.map(h => {
       const norm = normalizeHeader(h);
-      const monthNum = MONTH_ALIASES[norm] ?? MONTH_ALIASES[h.trim()] ?? MONTH_ALIASES[h.trim().toLowerCase()];
-      if (monthNum) return monthNum;
       if (YTD_ALIASES.some(a => norm === a.toLowerCase())) return 'ytd';
       if (ITD_ALIASES.some(a => norm === a.toLowerCase())) return 'itd';
       if (/^\d{4}$/.test(norm)) return 'year';
+      const monthNum = MONTH_ALIASES[norm] ?? MONTH_ALIASES[h.trim()] ?? MONTH_ALIASES[h.trim().toLowerCase()];
+      if (monthNum) return monthNum;
       return null;
     });
 
@@ -1235,6 +1236,76 @@ interface DualCurrencyEntry {
   fields: ParsedField[];
 }
 
+/**
+ * Detect and fix annual↔January column swap per year (module-level, callable after Pass-2).
+ * Mutates fields in place. Pushes correction flags to the provided corrections array.
+ */
+function fixAnnualJanSwapPerYear(fields: ParsedField[], corrections: string[], label = ""): void {
+  const years: string[] = [];
+  for (const f of fields) {
+    const m = f.key.match(/^returns\.y(\d{4})$/);
+    if (m && typeof f.value === "number") years.push(m[1]);
+  }
+
+  for (const year of years) {
+    const yField = fields.find((f) => f.key === `returns.y${year}` && typeof f.value === "number");
+    const janField = fields.find((f) => f.key === `monthlyReturns.${year}-01` && typeof f.value === "number");
+    if (!yField || !janField) continue;
+
+    const yVal = Math.abs(yField.value as number);
+    const janVal = Math.abs(janField.value as number);
+
+    const isSwapped = (janVal > yVal * 2 && janVal > 0.08) || (yVal < 0.03 && janVal > 0.10);
+    const isDuplicate = Math.abs((yField.value as number) - (janField.value as number)) < 0.0001
+      && yVal > 0.08;
+    if (!isSwapped && !isDuplicate) continue;
+
+    const rule = isDuplicate && !isSwapped ? "duplicate" : "swap";
+    const prefix = label ? `${label}:` : "";
+
+    const monthFields: (ParsedField | undefined)[] = [];
+    for (let m = 1; m <= 12; m++) {
+      monthFields.push(fields.find((f) => f.key === `monthlyReturns.${year}-${String(m).padStart(2, "0")}` && typeof f.value === "number"));
+    }
+
+    const origYearly = yField.value as number;
+    const origMonths = monthFields.map((mf) => mf ? mf.value as number : null);
+
+    if (isDuplicate && !isSwapped) {
+      const realMonth: (number | null)[] = new Array(12).fill(null);
+      realMonth[0] = null;
+      realMonth[1] = origMonths[11];
+      for (let m = 2; m < 12; m++) {
+        realMonth[m] = origMonths[m - 1];
+      }
+      const janIdx = fields.findIndex((f) => f.key === `monthlyReturns.${year}-01`);
+      if (janIdx >= 0) fields.splice(janIdx, 1);
+      for (let m = 1; m < 12; m++) {
+        if (monthFields[m] && realMonth[m] !== null) {
+          monthFields[m]!.value = realMonth[m]!;
+        }
+      }
+    } else {
+      yField.value = origMonths[0] !== null ? origMonths[0] : yField.value;
+      const realMonth: (number | null)[] = new Array(12).fill(null);
+      realMonth[0] = origYearly;
+      realMonth[1] = origMonths[11];
+      for (let m = 2; m < 12; m++) {
+        realMonth[m] = origMonths[m - 1];
+      }
+      for (let m = 0; m < 12; m++) {
+        if (monthFields[m] && realMonth[m] !== null) {
+          monthFields[m]!.value = realMonth[m]!;
+        }
+      }
+    }
+
+    corrections.push(`${prefix}${year}:yearly_${rule}`);
+    corrections.push(`${prefix}${year}:monthly_uncertain`);
+    console.log(`[parse] ${prefix}${year}: ${rule} corrected (yearly fixed, monthly order uncertain)`);
+  }
+}
+
 /** Parse Claude response JSON → structured result */
 function parseCloudeResponse(
   content: string,
@@ -1415,94 +1486,12 @@ function parseCloudeResponse(
     }
   }
 
-  // Detect and fix annual↔January column swap PER YEAR.
-  // Common pattern in RTL Hebrew PDFs: AI misreads column order, putting the annual
-  // value in January's slot and January's value in the annual slot.
-  // We check each year independently — the AI may get some years right and some wrong.
-  //
-  // Detection per year: if |January| > |annual| * 2 AND |January| > 8%, the values
-  // are likely swapped (annual returns are typically larger than single-month returns).
-  //
-  // When swap is detected for a year, we also rotate months 2-12 since the column
-  // offset affects the entire row: Feb holds Mar's value, Mar holds Apr's, etc.
+  // Apply Jan↔Annual swap fix on Pass-1 fields
   const corrections: string[] = [];
-
-  const fixAnnualJanSwapPerYear = (fields: ParsedField[], label = "") => {
-    const years: string[] = [];
-    for (const f of fields) {
-      const m = f.key.match(/^returns\.y(\d{4})$/);
-      if (m && typeof f.value === "number") years.push(m[1]);
-    }
-
-    for (const year of years) {
-      const yField = fields.find((f) => f.key === `returns.y${year}` && typeof f.value === "number");
-      const janField = fields.find((f) => f.key === `monthlyReturns.${year}-01` && typeof f.value === "number");
-      if (!yField || !janField) continue;
-
-      const yVal = Math.abs(yField.value as number);
-      const janVal = Math.abs(janField.value as number);
-
-      // Check if this year's values are swapped or duplicated
-      const isSwapped = (janVal > yVal * 2 && janVal > 0.08) || (yVal < 0.03 && janVal > 0.10);
-      // Also detect: Jan is a duplicate of yearly (AI put the same annual value in both)
-      // while months 2-12 appear shifted by 1 position
-      const isDuplicate = Math.abs((yField.value as number) - (janField.value as number)) < 0.0001
-        && yVal > 0.08; // only if both are large (annual-sized), not if both are zero
-      if (!isSwapped && !isDuplicate) continue;
-
-      const rule = isDuplicate && !isSwapped ? "duplicate" : "swap";
-      const prefix = label ? `${label}:` : "";
-
-      // Collect all month fields for this year
-      const monthFields: (ParsedField | undefined)[] = [];
-      for (let m = 1; m <= 12; m++) {
-        monthFields.push(fields.find((f) => f.key === `monthlyReturns.${year}-${String(m).padStart(2, "0")}` && typeof f.value === "number"));
-      }
-
-      // Capture original values before mutation
-      const origYearly = yField.value as number;
-      const origMonths = monthFields.map((mf) => mf ? mf.value as number : null);
-
-      if (isDuplicate && !isSwapped) {
-        const realMonth: (number | null)[] = new Array(12).fill(null);
-        realMonth[0] = null;
-        realMonth[1] = origMonths[11];
-        for (let m = 2; m < 12; m++) {
-          realMonth[m] = origMonths[m - 1];
-        }
-        const janIdx = fields.findIndex((f) => f.key === `monthlyReturns.${year}-01`);
-        if (janIdx >= 0) fields.splice(janIdx, 1);
-        for (let m = 1; m < 12; m++) {
-          if (monthFields[m] && realMonth[m] !== null) {
-            monthFields[m]!.value = realMonth[m]!;
-          }
-        }
-      } else {
-        yField.value = origMonths[0] !== null ? origMonths[0] : yField.value;
-
-        const realMonth: (number | null)[] = new Array(12).fill(null);
-        realMonth[0] = origYearly;
-        realMonth[1] = origMonths[11];
-        for (let m = 2; m < 12; m++) {
-          realMonth[m] = origMonths[m - 1];
-        }
-
-        for (let m = 0; m < 12; m++) {
-          if (monthFields[m] && realMonth[m] !== null) {
-            monthFields[m]!.value = realMonth[m]!;
-          }
-        }
-      }
-
-      corrections.push(`${prefix}${year}:yearly_${rule}`);
-      corrections.push(`${prefix}${year}:monthly_uncertain`);
-      console.log(`[parse] ${prefix}${year}: ${rule} corrected (yearly fixed, monthly order uncertain)`);
-    }
-  };
-  fixAnnualJanSwapPerYear(sanitizedFields);
+  fixAnnualJanSwapPerYear(sanitizedFields, corrections);
   if (dualCurrencyData) {
     for (const entry of dualCurrencyData) {
-      fixAnnualJanSwapPerYear(entry.fields, entry.returnBasis || "");
+      fixAnnualJanSwapPerYear(entry.fields, corrections, entry.returnBasis || "");
     }
   }
 
@@ -2684,6 +2673,14 @@ export async function POST(req: NextRequest) {
               }
               const mappedEntries = mapRawTablesToFields(rawData.tables as RawTable[]);
               if (mappedEntries.length > 0) {
+                // Pass-2.5 — Jan↔Annual swap fix on mapped fields (Pass-1 fix runs on different fields)
+                const pass2Corrections: string[] = [];
+                for (const entry of mappedEntries) {
+                  fixAnnualJanSwapPerYear(entry.fields, pass2Corrections, entry.returnBasis || "");
+                }
+                if (pass2Corrections.length > 0) {
+                  result.corrections = [...(result.corrections || []), ...pass2Corrections];
+                }
                 result.dualCurrencyData = mappedEntries.map(e => ({
                   returnBasis: e.returnBasis ?? 'ILS',
                   fields: e.fields,
@@ -2771,7 +2768,7 @@ export async function POST(req: NextRequest) {
         resultObj.validation = result.validation;
         resultObj.validationStatus = result.validationStatus;
       }
-      resultObj._cacheVersion = 39;
+      resultObj._cacheVersion = 40;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
