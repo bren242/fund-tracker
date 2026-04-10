@@ -146,7 +146,7 @@ function FundRow({ fund, even, comparisonEnabled, isSelected, onToggle, activeYe
   return (
     <tr style={{ backgroundColor: bg, borderInlineStart: selectedBorder }}>
       <td style={{ padding: "5px 10px", borderBottom: "1px solid var(--border-table)", fontWeight: 600, textAlign: "right", fontSize: "10.5px" }}>
-        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 6, width: "100%" }}>
           {comparisonEnabled && (
             <input
               type="checkbox"
@@ -158,7 +158,7 @@ function FundRow({ fund, even, comparisonEnabled, isSelected, onToggle, activeYe
               title={selectionDisabled && !isSelected ? "מקסימום 4 קרנות להשוואה" : "בחר להשוואה"}
             />
           )}
-          {fund.name}
+          <span style={{ flex: 1 }}>{fund.name}</span>
           {fund.currency && (
             <span style={{
               fontSize: 8,

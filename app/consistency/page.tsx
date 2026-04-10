@@ -7,6 +7,7 @@ import {
 } from "recharts";
 import { useClientKey, withClient } from "@/lib/useClientKey";
 import { useBrand } from "@/lib/useBrand";
+import { useTheme } from "@/components/ThemeProvider";
 import { FundsData, Benchmark } from "@/lib/types";
 import ClientGate from "@/components/ClientGate";
 import BrandLogo from "@/components/BrandLogo";
@@ -45,6 +46,14 @@ const CALENDAR_RANGES = [
   { id: "all",  label: "מ-2020" },
 ];
 
+const COL_TOOLTIPS: Record<string, string> = {
+  months:   "מספר החודשים המשותפים בין הקרן לבנצ'מרק בטווח הנבחר",
+  consist:  "כמה פעמים הקרן הניבה תשואה גבוהה מהבנצ'מרק.\nמעל 60% טוב ✅  |  מתחת ל-40% חלש 🔴",
+  avgGap:   "הפער הממוצע החודשי מול הבנצ'מרק.\nמראה כמה אלפא מייצר המנהל בממוצע",
+  ir:       "Information Ratio — משלב כמה הקרן הכתה את המדד וכמה היתה עקבית.\nמעל 0.5 טוב ✅  |  מעל 1.0 מצוין ⭐  |  שלילי = הפסידה למדד 🔴",
+  score:    "ממוצע עקביות vs בנצ'מרק ועקביות vs קטגוריה.\nכרגע מבוסס על בנצ'מרק בלבד עד שיצטברו נתוני קטגוריה",
+};
+
 /* ══════════════════════════════════════════════════════════════════════════ */
 /*  Types                                                                     */
 /* ══════════════════════════════════════════════════════════════════════════ */
@@ -60,7 +69,50 @@ interface TableRow {
   sharedMonths: number;
   result: ConsistencyResult | null;
   tags: string[];
-  filteredMR: Record<string, number>;   // fund monthly returns (filtered, for chart)
+  filteredMR: Record<string, number>;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  Column tooltip component (top-level — no nested components)              */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+function ColTooltip({ text }: { text: string }) {
+  const [show, setShow] = useState(false);
+  return (
+    <span style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+      <button
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}
+        style={{
+          background: "none",
+          border: "1px solid var(--border)",
+          borderRadius: "50%",
+          width: 13, height: 13,
+          fontSize: 8, cursor: "help",
+          color: "var(--text-muted)",
+          padding: 0, lineHeight: 1,
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >?</button>
+      {show && (
+        <div style={{
+          position: "absolute", zIndex: 200,
+          top: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)",
+          backgroundColor: "var(--bg-surface)",
+          border: "1px solid var(--border)",
+          borderRadius: 7, padding: "9px 12px",
+          fontSize: 11, color: "var(--text-primary)",
+          width: 230, boxShadow: "0 6px 20px rgba(0,0,0,0.16)",
+          whiteSpace: "pre-wrap", lineHeight: 1.6,
+          textAlign: "right", fontWeight: 400,
+          direction: "rtl",
+        }}>
+          {text}
+        </div>
+      )}
+    </span>
+  );
 }
 
 /* ══════════════════════════════════════════════════════════════════════════ */
@@ -85,7 +137,7 @@ function filterByTimeRange(
 }
 
 /* ══════════════════════════════════════════════════════════════════════════ */
-/*  Effective blend (respects config override)                                */
+/*  Effective blend                                                           */
 /* ══════════════════════════════════════════════════════════════════════════ */
 
 function effectiveBlend(
@@ -137,9 +189,9 @@ function buildBmLabel(
   benchmarks: Benchmark[],
   config: ConsistencyConfig | null,
   timeRange: string
-): { label: string; months: number } {
+): { label: string; months: number; weightsText: string } {
   const blend = effectiveBlend(categoryId, config);
-  if (!blend) return { label: "—", months: 0 };
+  if (!blend) return { label: "—", months: 0, weightsText: "" };
 
   const parts = Object.entries(blend).map(([id, w]) => {
     const bm = benchmarks.find((b) => b.id === id);
@@ -147,13 +199,14 @@ function buildBmLabel(
     return bm ? `${pct}% ${bm.name}` : id;
   });
 
-  const rawMR    = blendBenchmarkReturns(blend, benchmarks);
-  const filtered = filterByTimeRange(rawMR, timeRange);
-  return { label: parts.join(" + "), months: Object.keys(filtered).length };
+  const weightsText = parts.join("\n");
+  const rawMR       = blendBenchmarkReturns(blend, benchmarks);
+  const filtered    = filterByTimeRange(rawMR, timeRange);
+  return { label: parts.join(" + "), months: Object.keys(filtered).length, weightsText };
 }
 
 /* ══════════════════════════════════════════════════════════════════════════ */
-/*  Chart data builder                                                        */
+/*  Chart helpers                                                             */
 /* ══════════════════════════════════════════════════════════════════════════ */
 
 function buildChartData(
@@ -179,24 +232,83 @@ function fmtMonth(m: string): string {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════ */
-/*  Chart tooltip                                                             */
+/*  Chart tooltip (top-level)                                                 */
 /* ══════════════════════════════════════════════════════════════════════════ */
 
-function ChartTooltip({ active, payload, label }: {
+function ChartTooltip({ active, payload, label, isDark }: {
   active?: boolean;
   payload?: { value: number; color: string; name: string }[];
   label?: string;
+  isDark?: boolean;
 }) {
   if (!active || !payload?.length) return null;
   return (
     <div style={{
-      backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
+      backgroundColor: isDark ? "#1e2d2d" : "#ffffff",
+      border: `1px solid ${isDark ? "#3a4a4a" : "#e5e7eb"}`,
       borderRadius: 6, padding: "8px 12px", fontSize: 11,
     }}>
-      <div style={{ fontWeight: 600, marginBottom: 4, color: "var(--text-secondary)" }}>{label}</div>
+      <div style={{ fontWeight: 600, marginBottom: 4, color: isDark ? "#94a3b8" : "#64748b" }}>{label}</div>
       {payload.map((p) => (
         <div key={p.name} style={{ color: p.color, fontWeight: 500 }}>
           {p.name}: {p.value >= 0 ? "+" : ""}{p.value.toFixed(2)}%
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  Category summary card (top-level)                                         */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+function SummaryCard({
+  avgIR, pctAbove50, topFund, primaryColor,
+}: {
+  avgIR: number | null;
+  pctAbove50: number;
+  topFund: string;
+  primaryColor: string;
+}) {
+  const stats = [
+    {
+      label: "IR ממוצע קטגוריה",
+      value: avgIR !== null ? avgIR.toFixed(3) : "—",
+      color: avgIR !== null ? (avgIR > 0.5 ? "#059669" : avgIR < 0 ? "#dc2626" : "var(--text-primary)") : "var(--text-muted)",
+    },
+    {
+      label: "קרנות מעל 50% עקביות",
+      value: `${pctAbove50.toFixed(0)}%`,
+      color: pctAbove50 >= 50 ? "#059669" : pctAbove50 >= 30 ? "#d97706" : "#dc2626",
+    },
+    {
+      label: "קרן מובילה",
+      value: topFund || "—",
+      color: primaryColor,
+      small: true,
+    },
+  ];
+
+  return (
+    <div style={{
+      display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
+      gap: 12, marginBottom: 16,
+    }}>
+      {stats.map((s) => (
+        <div
+          key={s.label}
+          style={{
+            backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
+            borderRadius: 10, padding: "14px 18px",
+          }}
+        >
+          <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6 }}>{s.label}</div>
+          <div style={{
+            fontSize: s.small ? 13 : 22, fontWeight: 700, color: s.color,
+            lineHeight: 1.2, wordBreak: "break-word",
+          }}>
+            {s.value}
+          </div>
         </div>
       ))}
     </div>
@@ -208,8 +320,10 @@ function ChartTooltip({ active, payload, label }: {
 /* ══════════════════════════════════════════════════════════════════════════ */
 
 function ConsistencyContent() {
-  const clientKey = useClientKey();
-  const brand     = useBrand(clientKey);
+  const clientKey      = useClientKey();
+  const brand          = useBrand(clientKey);
+  const { theme }      = useTheme();
+  const isDark         = theme === "dark";
 
   const [fundsData,   setFundsData]   = useState<FundsData | null>(null);
   const [benchmarks,  setBenchmarks]  = useState<Benchmark[]>([]);
@@ -227,28 +341,29 @@ function ConsistencyContent() {
       .then((r) => r.json()).then(setConfig);
   }, [clientKey]);
 
-  /* ── compute table rows ─────────────────────────────────────────────── */
-  const { rows, bmInfo, bmMRFiltered, fundsWithData, totalFunds } = useMemo(() => {
+  /* ── compute rows + summary ─────────────────────────────────────────── */
+  const { rows, bmInfo, bmMRFiltered, fundsWithData, totalFunds, summary } = useMemo(() => {
     const empty = {
       rows: [] as TableRow[],
-      bmInfo: { label: "—", months: 0 },
+      bmInfo: { label: "—", months: 0, weightsText: "" },
       bmMRFiltered: {} as Record<string, number>,
       fundsWithData: 0,
       totalFunds: 0,
+      summary: { avgIR: null as number | null, pctAbove50: 0, topFund: "" },
     };
     if (!fundsData || !benchmarks.length) return empty;
 
     const category = fundsData.categories.find((c) => c.id === selectedCat);
     if (!category) return empty;
 
-    const thresholds = config?.thresholds ?? { redScore: 40, starIR: 0.5 };
-    const blend      = effectiveBlend(selectedCat, config);
-    const rawBmMR    = blend ? blendBenchmarkReturns(blend, benchmarks) : {};
+    const thresholds   = config?.thresholds ?? { redScore: 40, starIR: 0.5 };
+    const blend        = effectiveBlend(selectedCat, config);
+    const rawBmMR      = blend ? blendBenchmarkReturns(blend, benchmarks) : {};
     const bmMRFiltered = filterByTimeRange(rawBmMR, timeRange);
     const bmInfo       = buildBmLabel(selectedCat, benchmarks, config, timeRange);
 
     const rows: TableRow[] = category.funds.map((fund) => {
-      const rawMR     = fund.monthlyReturns ?? {};
+      const rawMR      = fund.monthlyReturns ?? {};
       const filteredMR = filterByTimeRange(rawMR, timeRange);
 
       if (!blend || !Object.keys(bmMRFiltered).length) {
@@ -273,12 +388,32 @@ function ConsistencyContent() {
       return a.name.localeCompare(b.name);
     });
 
-    const fundsWithData = rows.filter((r) => r.result).length;
-    return { rows, bmInfo, bmMRFiltered, fundsWithData, totalFunds: category.funds.length };
+    const withResult = rows.filter((r) => r.result);
+    const fundsWithData = withResult.length;
+
+    // Summary stats
+    const irValues = withResult.map((r) => r.result!.ir).filter((v): v is number => v !== null);
+    const avgIR    = irValues.length ? irValues.reduce((a, b) => a + b, 0) / irValues.length : null;
+    const above50  = withResult.filter((r) => r.result!.score > 50).length;
+    const pctAbove50 = fundsWithData > 0 ? (above50 / fundsWithData) * 100 : 0;
+    const topFund    = withResult[0]?.name ?? "";
+
+    return {
+      rows, bmInfo, bmMRFiltered,
+      fundsWithData, totalFunds: category.funds.length,
+      summary: { avgIR, pctAbove50, topFund },
+    };
   }, [fundsData, benchmarks, config, selectedCat, timeRange]);
 
-  const loading = !fundsData || !benchmarks.length || !config;
-  const accentGold = brand.accentColor || "#c8a96b";
+  const loading    = !fundsData || !benchmarks.length || !config;
+
+  // Chart colors per theme
+  const fundColor = isDark ? "#4ade80" : "#1B3A2F";
+  const bmColor   = "#B8975A";
+
+  // Recharts grid/axis colors (must be hex, not CSS vars — per LESSONS.md)
+  const gridColor  = isDark ? "#2d3a3a" : "#e5e7eb";
+  const axisColor  = isDark ? "#6b7280" : "#9ca3af";
 
   return (
     <ClientGate clientKey={clientKey}>
@@ -392,10 +527,15 @@ function ConsistencyContent() {
               borderRadius: 8, padding: "9px 16px", marginBottom: 16, fontSize: 12, gap: 0,
             }}>
               <span style={{ color: "var(--text-muted)", paddingLeft: 6 }}>בנצ'מרק:</span>
-              <span style={{ fontWeight: 600, color: "var(--text-primary)", paddingLeft: 16 }}>{bmInfo.label}</span>
-              <span style={{ color: "var(--border)", paddingLeft: 16 }}>|</span>
-              <span style={{ color: "var(--text-secondary)", paddingLeft: 16 }}>{bmInfo.months} חודשים זמינים</span>
-              <span style={{ color: "var(--border)", paddingLeft: 16 }}>|</span>
+              <span style={{ fontWeight: 600, color: "var(--text-primary)", paddingLeft: 8 }}>{bmInfo.label}</span>
+              {bmInfo.weightsText && (
+                <span style={{ paddingLeft: 4 }}>
+                  <ColTooltip text={`משקולות:\n${bmInfo.weightsText}`} />
+                </span>
+              )}
+              <span style={{ color: "var(--border)", paddingLeft: 12 }}>|</span>
+              <span style={{ color: "var(--text-secondary)", paddingLeft: 12 }}>{bmInfo.months} חודשים זמינים</span>
+              <span style={{ color: "var(--border)", paddingLeft: 12 }}>|</span>
               <span style={{ color: "var(--text-secondary)" }}>מינימום 12 חודשים משותפים לחישוב</span>
             </div>
           )}
@@ -407,6 +547,16 @@ function ConsistencyContent() {
             </div>
           )}
 
+          {/* ── Summary card ─────────────────────────────────────────────── */}
+          {!loading && fundsWithData > 0 && (
+            <SummaryCard
+              avgIR={summary.avgIR}
+              pctAbove50={summary.pctAbove50}
+              topFund={summary.topFund}
+              primaryColor={brand.primaryColor}
+            />
+          )}
+
           {/* Table */}
           {!loading && rows.length > 0 && (
             <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
@@ -414,12 +564,32 @@ function ConsistencyContent() {
                 <thead>
                   <tr style={{ backgroundColor: "var(--bg-input)", borderBottom: "1px solid var(--border)" }}>
                     <th style={thStyle("right")}>שם קרן</th>
-                    <th style={thStyle("center")}>חודשים</th>
-                    <th style={thStyle("center")}>עקביות vs בנצ'מרק</th>
-                    <th style={thStyle("center")}>avgGap / חודש</th>
-                    <th style={thStyle("center")}>IR</th>
+                    <th style={thStyle("center")}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        חודשים <ColTooltip text={COL_TOOLTIPS.months} />
+                      </span>
+                    </th>
+                    <th style={thStyle("center")}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        עקביות vs בנצ'מרק <ColTooltip text={COL_TOOLTIPS.consist} />
+                      </span>
+                    </th>
+                    <th style={thStyle("center")}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        avgGap / חודש <ColTooltip text={COL_TOOLTIPS.avgGap} />
+                      </span>
+                    </th>
+                    <th style={thStyle("center")}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        IR <ColTooltip text={COL_TOOLTIPS.ir} />
+                      </span>
+                    </th>
                     <th style={thStyle("center")}>תגיות</th>
-                    <th style={thStyle("center")}>ציון כולל</th>
+                    <th style={thStyle("center")}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        ציון כולל <ColTooltip text={COL_TOOLTIPS.score} />
+                      </span>
+                    </th>
                     <th style={thStyle("center")}></th>
                   </tr>
                 </thead>
@@ -437,7 +607,6 @@ function ConsistencyContent() {
                           key={row.id}
                           style={{ borderBottom, backgroundColor: isExpanded ? "var(--bg-input)" : "transparent", opacity: isNA ? 0.4 : 1 }}
                         >
-                          {/* שם קרן */}
                           <td style={{ padding: "11px 16px", fontWeight: 500, color: "var(--text-primary)", textAlign: "right" }}>
                             {row.name}
                           </td>
@@ -494,7 +663,7 @@ function ConsistencyContent() {
                                     background: "none", border: "1px solid var(--border)",
                                     borderRadius: 5, cursor: "pointer", fontSize: 14, padding: "3px 7px",
                                     color: isExpanded ? brand.primaryColor : "var(--text-secondary)",
-                                    backgroundColor: isExpanded ? "var(--bg-surface)" : "transparent",
+                                    backgroundColor: isExpanded ? (isDark ? "#1e2d2d" : "#f0fdf4") : "transparent",
                                     transition: "all 0.15s",
                                   }}
                                 >
@@ -508,42 +677,62 @@ function ConsistencyContent() {
                         {/* Expanded chart row */}
                         {isExpanded && chartData && (
                           <tr key={`${row.id}-chart`} style={{ borderBottom: i < rows.length - 1 ? "1px solid var(--border)" : "none" }}>
-                            <td colSpan={8} style={{ padding: "16px 24px 20px", backgroundColor: "var(--bg-surface)" }}>
+                            <td colSpan={8} style={{
+                              padding: "16px 24px 20px",
+                              backgroundColor: isDark ? "#111b1b" : "#f9fafb",
+                            }}>
                               <div style={{ marginBottom: 10, fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>
                                 {row.name}
                                 <span style={{ fontWeight: 400, color: "var(--text-muted)", marginRight: 8 }}>vs {bmInfo.label}</span>
                                 <span style={{ fontWeight: 400, color: "var(--text-muted)", marginRight: 8 }}>— תשואה מצטברת</span>
                               </div>
-                              <ResponsiveContainer width="100%" height={200}>
-                                <LineChart data={chartData} margin={{ top: 4, right: 20, left: 0, bottom: 0 }}>
-                                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                                  <XAxis
-                                    dataKey="month"
-                                    tickFormatter={fmtMonth}
-                                    interval={tickInterval}
-                                    tick={{ fontSize: 10, fill: "var(--text-muted)" }}
-                                  />
-                                  <YAxis
-                                    tickFormatter={(v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(0)}%`}
-                                    tick={{ fontSize: 10, fill: "var(--text-muted)" }}
-                                    width={52}
-                                  />
-                                  <Tooltip content={<ChartTooltip />} />
-                                  <Legend
-                                    formatter={(value) => (
-                                      <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{value}</span>
-                                    )}
-                                  />
-                                  <Line
-                                    type="monotone" dataKey="fund" name={row.name}
-                                    stroke="#059669" strokeWidth={2} dot={false}
-                                  />
-                                  <Line
-                                    type="monotone" dataKey="bm" name={bmInfo.label}
-                                    stroke={accentGold} strokeWidth={2} dot={false} strokeDasharray="5 3"
-                                  />
-                                </LineChart>
-                              </ResponsiveContainer>
+                              {chartData.length >= 2 ? (
+                                <ResponsiveContainer width="100%" height={200}>
+                                  <LineChart data={chartData} margin={{ top: 4, right: 20, left: 0, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                                    <XAxis
+                                      dataKey="month"
+                                      tickFormatter={fmtMonth}
+                                      interval={tickInterval}
+                                      tick={{ fontSize: 10, fill: axisColor }}
+                                      stroke={gridColor}
+                                    />
+                                    <YAxis
+                                      tickFormatter={(v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(0)}%`}
+                                      tick={{ fontSize: 10, fill: axisColor }}
+                                      width={52}
+                                      stroke={gridColor}
+                                    />
+                                    <Tooltip
+                                      content={(props) => (
+                                        <ChartTooltip
+                                          active={props.active}
+                                          payload={props.payload as unknown as { value: number; color: string; name: string }[]}
+                                          label={props.label as string}
+                                          isDark={isDark}
+                                        />
+                                      )}
+                                    />
+                                    <Legend
+                                      formatter={(value) => (
+                                        <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{value}</span>
+                                      )}
+                                    />
+                                    <Line
+                                      type="monotone" dataKey="fund" name={row.name}
+                                      stroke={fundColor} strokeWidth={2} dot={false}
+                                    />
+                                    <Line
+                                      type="monotone" dataKey="bm" name={bmInfo.label}
+                                      stroke={bmColor} strokeWidth={2} dot={false} strokeDasharray="5 3"
+                                    />
+                                  </LineChart>
+                                </ResponsiveContainer>
+                              ) : (
+                                <div style={{ fontSize: 12, color: "var(--text-muted)", padding: "20px 0" }}>
+                                  אין מספיק נתונים לגרף
+                                </div>
+                              )}
                             </td>
                           </tr>
                         )}
