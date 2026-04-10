@@ -9,12 +9,6 @@ import { useClientKey, withClient } from "@/lib/useClientKey";
 import { BrandConfig, AppFeatures } from "@/config/brand";
 import BrandLogo from "@/components/BrandLogo";
 import PasswordInput from "@/components/PasswordInput";
-import {
-  getBenchmarkForCategory,
-  blendBenchmarkReturns,
-  calcConsistencyVsBenchmark,
-  ConsistencyResult,
-} from "@/lib/consistency";
 
 /* ================================================================== */
 /*  Admin Page                                                         */
@@ -467,7 +461,7 @@ function AdminContent() {
           <BenchmarkTab password={passwordRef.current} clientKey={clientKey} onStatus={showStatus} />
         )}
         {activeTab === "consistency" && brand.features?.consistencyAnalysis && (
-          <ConsistencyAdminTab clientKey={clientKey} />
+          <ConsistencyAdminTab clientKey={clientKey} password={password} />
         )}
         {activeTab === "indications" && (
           <IndicationsAdminTab password={passwordRef.current} clientKey={clientKey} onStatus={showStatus} brand={brand} onBrandRefresh={() => invalidateBrandCache(clientKey)} />
@@ -2039,142 +2033,192 @@ function FundModal({ title, categories, selectedCategory, existingFund, onCatego
 
 const CONSISTENCY_CATS = [
   { id: "equity-hedged",  label: "חשיפה גבוהה למניות" },
-  { id: "bond-hedged",    label: "אג\"ח - חשיפה נמוכה" },
+  { id: "bond-hedged",    label: 'אג"ח - חשיפה נמוכה' },
   { id: "multi-strategy", label: "Multi Strategy" },
 ];
 
-function consistencyScoreColor(score: number) {
-  if (score >= 55) return "#059669";
-  if (score >= 45) return "#d97706";
-  return "#dc2626";
-}
+type CatKey = "equity-hedged" | "bond-hedged" | "multi-strategy";
+interface WeightRow { ta125: number; telbond: number }
 
-function consistencyGetTags(r: ConsistencyResult): string[] {
-  const tags: string[] = [];
-  if (r.ir !== null && r.ir > 0.5)  tags.push("⭐");
-  if (r.ir !== null && r.ir < 0)    tags.push("⚠️");
-  if (r.score < 40)                  tags.push("🔴");
-  return tags;
-}
+const DEFAULT_WEIGHTS: Record<CatKey, WeightRow> = {
+  "equity-hedged":  { ta125: 100, telbond: 0  },
+  "bond-hedged":    { ta125: 15,  telbond: 85 },
+  "multi-strategy": { ta125: 30,  telbond: 70 },
+};
 
-function ConsistencyAdminTab({ clientKey }: { clientKey: string }) {
-  const [fundsData,  setFundsData]  = useState<FundsData | null>(null);
-  const [benchmarks, setBenchmarks] = useState<Benchmark[]>([]);
-  const [selCat,     setSelCat]     = useState("equity-hedged");
+function ConsistencyAdminTab({ clientKey, password }: { clientKey: string; password: string }) {
+  const [weights,     setWeights]     = useState<Record<CatKey, WeightRow>>(DEFAULT_WEIGHTS);
+  const [thresholds,  setThresholds]  = useState({ redScore: 40, starIR: 0.5 });
+  const [saving,      setSaving]      = useState(false);
+  const [status,      setStatus]      = useState("");
+  const [loaded,      setLoaded]      = useState(false);
 
   useEffect(() => {
-    fetch(`/api/funds?client=${encodeURIComponent(clientKey)}`)
-      .then((r) => r.json()).then(setFundsData);
-    fetch(`/api/benchmarks?admin=true&client=${encodeURIComponent(clientKey)}`)
-      .then((r) => r.json()).then(setBenchmarks);
+    fetch(`/api/consistency-config?client=${encodeURIComponent(clientKey)}`)
+      .then((r) => r.json())
+      .then((cfg) => {
+        const bw = cfg.benchmarkWeights ?? {};
+        setWeights({
+          "equity-hedged":  {
+            ta125:   Math.round(((bw["equity-hedged"]  ?? {})["bm-ta125"]           ?? 1.00) * 100),
+            telbond: Math.round(((bw["equity-hedged"]  ?? {})["bm-telbond-maagar"] ?? 0.00) * 100),
+          },
+          "bond-hedged":    {
+            ta125:   Math.round(((bw["bond-hedged"]    ?? {})["bm-ta125"]           ?? 0.15) * 100),
+            telbond: Math.round(((bw["bond-hedged"]    ?? {})["bm-telbond-maagar"] ?? 0.85) * 100),
+          },
+          "multi-strategy": {
+            ta125:   Math.round(((bw["multi-strategy"] ?? {})["bm-ta125"]           ?? 0.30) * 100),
+            telbond: Math.round(((bw["multi-strategy"] ?? {})["bm-telbond-maagar"] ?? 0.70) * 100),
+          },
+        });
+        setThresholds({
+          redScore: cfg.thresholds?.redScore ?? 40,
+          starIR:   cfg.thresholds?.starIR   ?? 0.5,
+        });
+        setLoaded(true);
+      });
   }, [clientKey]);
 
-  const { rows, bmLabel, bmMonths, fundsWithData, totalFunds } = (() => {
-    const empty = { rows: [] as { name: string; monthCount: number; result: ConsistencyResult | null; tags: string[] }[], bmLabel: "—", bmMonths: 0, fundsWithData: 0, totalFunds: 0 };
-    if (!fundsData || !benchmarks.length) return empty;
-    const category = fundsData.categories.find((c) => c.id === selCat);
-    if (!category) return empty;
-    const blend = getBenchmarkForCategory(selCat);
-    const bmMR  = blend ? blendBenchmarkReturns(blend, benchmarks) : {};
-    const bmLabelParts = blend ? Object.entries(blend).map(([id, w]) => {
-      const bm = benchmarks.find((b) => b.id === id);
-      return bm ? `${Math.round(w * 100)}% ${bm.name}` : id;
-    }) : [];
-    const rows = category.funds.map((fund) => {
-      const mr         = fund.monthlyReturns ?? {};
-      const monthCount = Object.keys(mr).length;
-      if (!monthCount || !blend || !Object.keys(bmMR).length) return { name: fund.name, monthCount, result: null as ConsistencyResult | null, tags: [] as string[] };
-      const result = calcConsistencyVsBenchmark(mr, bmMR, 12);
-      return { name: fund.name, monthCount, result, tags: result ? consistencyGetTags(result) : [] };
-    }).sort((a, b) => {
-      if (a.result && b.result) return b.result.score - a.result.score;
-      return a.result ? -1 : 1;
-    });
-    return { rows, bmLabel: bmLabelParts.join(" + "), bmMonths: Object.keys(bmMR).length, fundsWithData: rows.filter((r) => r.result).length, totalFunds: category.funds.length };
-  })();
+  const save = async () => {
+    setSaving(true);
+    setStatus("");
+    const body = {
+      benchmarkWeights: {
+        "equity-hedged":  { "bm-ta125": weights["equity-hedged"].ta125  / 100, "bm-telbond-maagar": weights["equity-hedged"].telbond  / 100 },
+        "bond-hedged":    { "bm-ta125": weights["bond-hedged"].ta125    / 100, "bm-telbond-maagar": weights["bond-hedged"].telbond    / 100 },
+        "multi-strategy": { "bm-ta125": weights["multi-strategy"].ta125 / 100, "bm-telbond-maagar": weights["multi-strategy"].telbond / 100 },
+      },
+      thresholds,
+    };
+    try {
+      const r = await fetch(`/api/consistency-config?client=${encodeURIComponent(clientKey)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-password": password },
+        body: JSON.stringify(body),
+      });
+      setStatus(r.ok ? "✓ נשמר" : "שגיאה בשמירה");
+    } catch {
+      setStatus("שגיאה בשמירה");
+    }
+    setSaving(false);
+  };
 
-  if (!fundsData) return <div style={{ padding: 20, color: "var(--text-muted)" }}>טוען...</div>;
+  const setWeight = (cat: CatKey, field: keyof WeightRow, val: number) => {
+    setWeights((prev) => ({ ...prev, [cat]: { ...prev[cat], [field]: val } }));
+    setStatus("");
+  };
+
+  if (!loaded) return <div style={{ padding: 20, color: "var(--text-muted)", fontSize: 13 }}>טוען...</div>;
+
+  const sectionHead: React.CSSProperties = { fontSize: 13, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 12px" };
+  const labelStyle: React.CSSProperties  = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
+  const inputStyle: React.CSSProperties  = {
+    width: 64, padding: "5px 8px", borderRadius: 5, border: "1px solid var(--border)",
+    backgroundColor: "var(--bg-input)", color: "var(--text-primary)", fontSize: 12, textAlign: "center",
+  };
 
   return (
-    <div style={{ maxWidth: 900 }}>
-      <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
-        📈 ניתוח עקביות קרנות
+    <div style={{ maxWidth: 580 }}>
+      <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 24, marginTop: 0 }}>
+        הגדרות עקביות
       </h3>
 
-      {/* Category filter */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
-        {CONSISTENCY_CATS.map((cat) => (
-          <button key={cat.id} onClick={() => setSelCat(cat.id)} style={{
-            padding: "5px 14px", borderRadius: 6, fontSize: 11, cursor: "pointer",
-            fontWeight: selCat === cat.id ? 700 : 400,
-            backgroundColor: selCat === cat.id ? "var(--accent)" : "var(--bg-surface)",
-            color:           selCat === cat.id ? "#fff"          : "var(--text-secondary)",
-            border: `1px solid ${selCat === cat.id ? "var(--accent)" : "var(--border)"}`,
-          }}>{cat.label}</button>
-        ))}
-      </div>
-
-      {/* BM info */}
-      <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 12 }}>
-        בנצ'מרק: <strong>{bmLabel}</strong> | {bmMonths} חודשים זמינים
-      </div>
-
-      {/* Table */}
-      <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-          <thead>
-            <tr style={{ backgroundColor: "var(--bg-input)", borderBottom: "1px solid var(--border)" }}>
-              {["שם קרן", "חודשים", "עקביות", "avgGap", "IR", "תגיות", "ציון"].map((h) => (
-                <th key={h} style={{ padding: "8px 12px", textAlign: "right", fontWeight: 600, color: "var(--text-muted)", fontSize: 10 }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, i) => (
-              <tr key={i} style={{ borderBottom: i < rows.length - 1 ? "1px solid var(--border)" : "none" }}>
-                <td style={{ padding: "9px 12px", color: "var(--text-primary)", fontWeight: 500 }}>{row.name}</td>
-                <td style={{ padding: "9px 12px", textAlign: "center", color: "var(--text-secondary)" }}>{row.monthCount || "—"}</td>
-                <td style={{ padding: "9px 12px", textAlign: "center" }}>
-                  {row.result ? (
-                    <span style={{ fontWeight: 700, color: consistencyScoreColor(row.result.score) }}>
-                      {row.result.score.toFixed(1)}%
-                      <span style={{ fontSize: 9, color: "var(--text-muted)", marginRight: 3 }}>({row.result.wins}/{row.result.total})</span>
-                    </span>
-                  ) : <span style={{ color: "var(--text-muted)" }}>N/A</span>}
-                </td>
-                <td style={{ padding: "9px 12px", textAlign: "center" }}>
-                  {row.result ? (
-                    <span style={{ color: row.result.avgGap >= 0 ? "#059669" : "#dc2626" }}>
-                      {row.result.avgGap >= 0 ? "+" : ""}{(row.result.avgGap * 100).toFixed(3)}%
-                    </span>
-                  ) : <span style={{ color: "var(--text-muted)" }}>—</span>}
-                </td>
-                <td style={{ padding: "9px 12px", textAlign: "center" }}>
-                  {row.result?.ir != null ? (
-                    <span style={{ fontWeight: 600, color: row.result.ir > 0.5 ? "#059669" : row.result.ir < 0 ? "#dc2626" : "var(--text-secondary)" }}>
-                      {row.result.ir.toFixed(3)}
-                    </span>
-                  ) : <span style={{ color: "var(--text-muted)" }}>—</span>}
-                </td>
-                <td style={{ padding: "9px 12px", textAlign: "center", fontSize: 13 }}>{row.tags.join(" ") || "—"}</td>
-                <td style={{ padding: "9px 12px", textAlign: "center" }}>
-                  {row.result ? (
-                    <span style={{
-                      display: "inline-block", padding: "2px 8px", borderRadius: 5, fontSize: 11, fontWeight: 700,
-                      backgroundColor: row.result.score >= 55 ? "#dcfce7" : row.result.score >= 45 ? "#fef9c3" : "#fee2e2",
-                      color:           row.result.score >= 55 ? "#166534" : row.result.score >= 45 ? "#92400e" : "#991b1b",
-                    }}>{row.result.score.toFixed(1)}</span>
-                  ) : <span style={{ color: "var(--text-muted)" }}>—</span>}
-                </td>
+      {/* ── Benchmark weights ─────────────────────────────────────────── */}
+      <div style={{ marginBottom: 28 }}>
+        <p style={sectionHead}>משקולות בנצ'מרק</p>
+        <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+            <thead>
+              <tr style={{ backgroundColor: "var(--bg-input)", borderBottom: "1px solid var(--border)" }}>
+                {['קטגוריה', 'ת"א 125 (%)', 'תל בונד מאגר (%)', 'סה"כ'].map((h, i) => (
+                  <th key={h} style={{ padding: "8px 14px", textAlign: i === 0 ? "right" : "center", fontWeight: 600, color: "var(--text-muted)", fontSize: 10, whiteSpace: "nowrap" }}>{h}</th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {CONSISTENCY_CATS.map((cat, i) => {
+                const w     = weights[cat.id as CatKey];
+                const total = w.ta125 + w.telbond;
+                const valid = total === 100;
+                return (
+                  <tr key={cat.id} style={{ borderBottom: i < 2 ? "1px solid var(--border)" : "none" }}>
+                    <td style={{ padding: "10px 14px", color: "var(--text-primary)", fontWeight: 500 }}>{cat.label}</td>
+                    <td style={{ padding: "10px 14px", textAlign: "center" }}>
+                      <input
+                        type="number" min={0} max={100} step={5}
+                        value={w.ta125}
+                        onChange={(e) => setWeight(cat.id as CatKey, "ta125", Number(e.target.value))}
+                        style={inputStyle}
+                      />
+                    </td>
+                    <td style={{ padding: "10px 14px", textAlign: "center" }}>
+                      <input
+                        type="number" min={0} max={100} step={5}
+                        value={w.telbond}
+                        onChange={(e) => setWeight(cat.id as CatKey, "telbond", Number(e.target.value))}
+                        style={inputStyle}
+                      />
+                    </td>
+                    <td style={{ padding: "10px 14px", textAlign: "center", fontWeight: 700, color: valid ? "#059669" : "#dc2626", fontSize: 12 }}>
+                      {total}%
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 6 }}>* סך כל המשקולות בכל קטגוריה חייב להיות 100%</p>
       </div>
 
-      <p style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 8 }}>
-        נתונים חודשיים זמינים: {fundsWithData} קרנות מתוך {totalFunds} בקטגוריה זו
-      </p>
+      {/* ── Tag thresholds ────────────────────────────────────────────── */}
+      <div style={{ marginBottom: 28 }}>
+        <p style={sectionHead}>סף תגיות</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 16 }}>🔴</span>
+            <span style={labelStyle}>עקביות מתחת ל-</span>
+            <input
+              type="number" min={0} max={100} step={5}
+              value={thresholds.redScore}
+              onChange={(e) => { setThresholds((p) => ({ ...p, redScore: Number(e.target.value) })); setStatus(""); }}
+              style={{ ...inputStyle, width: 56 }}
+            />
+            <span style={labelStyle}>%</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 16 }}>⭐</span>
+            <span style={labelStyle}>IR מעל</span>
+            <input
+              type="number" min={0} max={5} step={0.1}
+              value={thresholds.starIR}
+              onChange={(e) => { setThresholds((p) => ({ ...p, starIR: Number(e.target.value) })); setStatus(""); }}
+              style={{ ...inputStyle, width: 72 }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Save ──────────────────────────────────────────────────────── */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <button
+          onClick={save}
+          disabled={saving || CONSISTENCY_CATS.some((c) => weights[c.id as CatKey].ta125 + weights[c.id as CatKey].telbond !== 100)}
+          style={{
+            padding: "8px 22px", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer",
+            backgroundColor: "var(--accent)", color: "#fff", border: "none",
+            opacity: saving ? 0.6 : 1,
+          }}
+        >
+          {saving ? "שומר..." : "שמור הגדרות"}
+        </button>
+        {status && (
+          <span style={{ fontSize: 12, color: status.startsWith("✓") ? "#059669" : "#dc2626", fontWeight: 600 }}>
+            {status}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
