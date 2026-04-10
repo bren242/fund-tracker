@@ -3104,6 +3104,22 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
 
   const pendingDrafts = drafts.filter((d) => d.status === "pending");
 
+  // Watch reportMonth — re-run validation whenever it changes
+  useEffect(() => {
+    if (!reportMonth || !reportMonth.match(/^\d{4}-(0[1-9]|1[0-2])$/)) return;
+    setParseResult(prev => {
+      if (!prev || !prev.validation) return prev;
+      const entries = (prev.dualCurrencyData && prev.dualCurrencyData.length > 0)
+        ? prev.dualCurrencyData
+        : [{ fields: prev.fields }];
+      const newValidation = recomputeValidation(entries, reportMonth);
+      const newStatus = newValidation.some(v => v.overallStatus === 'error') ? 'error'
+        : newValidation.some(v => v.overallStatus === 'warning') ? 'warning' : 'valid';
+      return { ...prev, validation: newValidation, validationStatus: newStatus };
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportMonth]);
+
   // Re-run validation client-side when reportMonth changes (mirrors server validateParsedEntry logic)
   const recomputeValidation = (
     entries: { returnBasis?: string; fields: { key: string; value: string | number | null; confidence: number }[] }[],
@@ -3549,25 +3565,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
             <input
               type="month"
               value={reportMonth}
-              onChange={(e) => {
-                const newMonth = e.target.value;
-                setReportMonth(newMonth);
-                // Re-run validation immediately with the new reportMonth
-                console.log('[revalidate] onChange fired', { newMonth, hasParseResult: !!parseResult, hasValidation: !!(parseResult?.validation) });
-                if (parseResult && newMonth && parseResult.validation) {
-                  const entries = parseResult.dualCurrencyData && parseResult.dualCurrencyData.length > 0
-                    ? parseResult.dualCurrencyData
-                    : [{ fields: parseResult.fields }];
-                  const newValidation = recomputeValidation(entries, newMonth);
-                  console.log('[revalidate] newValidation computed', newValidation.map(v => ({ status: v.overallStatus, suspicious: v.suspiciousMonths, rowCount: v.rows.length })));
-                  const newStatus: 'valid' | 'warning' | 'error' = newValidation.some(v => v.overallStatus === 'error') ? 'error'
-                    : newValidation.some(v => v.overallStatus === 'warning') ? 'warning' : 'valid';
-                  setParseResult({ ...parseResult, validation: newValidation, validationStatus: newStatus });
-                  console.log('[revalidate] setParseResult called');
-                } else {
-                  console.log('[revalidate] SKIPPED — condition failed', { parseResult: !!parseResult, newMonth, validation: parseResult?.validation });
-                }
-              }}
+              onChange={(e) => setReportMonth(e.target.value)}
               style={{
                 border: `1px solid ${!reportMonth ? "#f59e0b" : "var(--border)"}`,
                 borderRadius: 6,
