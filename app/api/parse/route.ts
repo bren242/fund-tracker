@@ -164,7 +164,7 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v23: reverse month order in template to match visual LTR reading of RTL table
   // v24: remove pre-fill, fixed year range 2019-2026, all X cells
   // v27: single-pass only (removed buildDynamicStructuredPrompt second API call)
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 37) return null;
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 38) return null;
 
   return cached.result;
 }
@@ -952,20 +952,11 @@ function mapRawTablesToFields(tables: RawTable[]): MappedEntry[] {
       fields.push({ key: 'monthlyReturn', value: allMonthlyReturns[latestMonth], confidence: 0.95 });
     }
 
-    let mutableFields = fields;
-    const years = [...new Set(
-      mutableFields
-        .filter(f => f.key.startsWith('monthlyReturns.'))
-        .map(f => f.key.split('.')[1].split('-')[0])
-    )];
-    for (const year of years) {
-      mutableFields = fixDecemberYtdSwap(mutableFields, year);
-    }
-
-    return { returnBasis: currency, fields: mutableFields, allMonthlyReturns };
+    return { returnBasis: currency, fields, allMonthlyReturns };
   }).filter(entry => entry.fields.length > 0);
 }
 
+// disabled — causes false positives on full years
 function fixDecemberYtdSwap(fields: ParsedField[], year: string): ParsedField[] {
   const decKey = `monthlyReturns.${year}-12`;
   const annualKey = `returns.y${year}`;
@@ -1060,6 +1051,11 @@ STEP 6 — NEGATIVE NUMBERS:
 - "-5.3%" → "-5.3"
 - "(5.3%)" → "-5.3" (parentheses = negative)
 - Empty cell or dash → null
+
+STEP 7 — COLUMN INDEX ROWS:
+Some tables have a numeric row above the headers (e.g. "1 2 3 4 5 6 7 8 9 10 11 12").
+This is a column index row, NOT a data row and NOT a header row.
+IGNORE it completely. Read headers from the actual text row (Jan, Feb, Mar... or ינו׳, פבר׳...).
 
 RULES:
 - Extract ONLY the fund's own rows. IGNORE benchmark/index rows completely.
@@ -2775,7 +2771,7 @@ export async function POST(req: NextRequest) {
         resultObj.validation = result.validation;
         resultObj.validationStatus = result.validationStatus;
       }
-      resultObj._cacheVersion = 37;
+      resultObj._cacheVersion = 38;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
