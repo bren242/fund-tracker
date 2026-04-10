@@ -164,7 +164,7 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v23: reverse month order in template to match visual LTR reading of RTL table
   // v24: remove pre-fill, fixed year range 2019-2026, all X cells
   // v27: single-pass only (removed buildDynamicStructuredPrompt second API call)
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 36) return null;
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 37) return null;
 
   return cached.result;
 }
@@ -985,7 +985,7 @@ function fixDecemberYtdSwap(fields: ParsedField[], year: string): ParsedField[] 
     .filter(f => f.key.startsWith(`monthlyReturns.${year}-`) && f.key !== decKey)
     .map(f => f.value as number);
 
-  if (nonDecMonths.length === 0) return fields;
+  if (nonDecMonths.length === 0 || nonDecMonths.length >= 6) return fields;
 
   const compound = nonDecMonths.reduce((acc, m) => acc * (1 + m), 1) - 1;
   const decVal = fields.find(f => f.key === decKey)!.value as number;
@@ -2775,7 +2775,7 @@ export async function POST(req: NextRequest) {
         resultObj.validation = result.validation;
         resultObj.validationStatus = result.validationStatus;
       }
-      resultObj._cacheVersion = 36;
+      resultObj._cacheVersion = 37;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
