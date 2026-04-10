@@ -2573,6 +2573,31 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
       return;
     }
 
+    // Strip suspicious months (later than reportMonth) before saving
+    const allSuspiciousMonths = new Set<string>(
+      (parseResult.validation || []).flatMap((v) => v.suspiciousMonths || [])
+    );
+    let fieldsToSave = approvedFieldsList;
+    if (allSuspiciousMonths.size > 0) {
+      // Remove suspicious monthlyReturns fields
+      fieldsToSave = approvedFieldsList.filter((f) => {
+        const mm = f.key.match(/^monthlyReturns\.(\d{4})-(0[1-9]|1[0-2])$/);
+        return mm ? !allSuspiciousMonths.has(`${mm[1]}-${mm[2]}`) : true;
+      });
+      // Update monthlyReturn to value of the last valid month
+      if (fieldsToSave.some((f) => f.key === "monthlyReturn")) {
+        const validMonthFields = fieldsToSave
+          .filter((f) => /^monthlyReturns\.\d{4}-(0[1-9]|1[0-2])$/.test(f.key))
+          .sort((a, b) => b.key.localeCompare(a.key));
+        if (validMonthFields.length > 0) {
+          const lastValidValue = validMonthFields[0].value;
+          fieldsToSave = fieldsToSave.map((f) =>
+            f.key === "monthlyReturn" ? { ...f, value: lastValidValue } : f
+          );
+        }
+      }
+    }
+
     const match = selectedMatchFundId ? {
       fundId: selectedMatchFundId,
       fundName: allFunds.find((f) => f.id === selectedMatchFundId)?.name || null,
@@ -2590,7 +2615,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
             ? `${parseResult.fundName} - ${saveBasis === "ILS" ? "שקלי" : "דולרי"}`
             : parseResult.fundName,
           fundNameConfidence: parseResult.fundNameConfidence,
-          fields: approvedFieldsList,
+          fields: fieldsToSave,
           match,
           reportMonth: reportMonth || null,
           reportMonthConfidence: parseResult.reportMonthConfidence,
