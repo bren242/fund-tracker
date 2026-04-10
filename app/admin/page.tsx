@@ -2312,6 +2312,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
   const [selectedMatchFundId, setSelectedMatchFundId] = useState<string>("");
   const [selectedMatchCatId, setSelectedMatchCatId] = useState<string>("");
   const [reportMonth, setReportMonth] = useState<string>("");
+  const reportMonthInputRef = useRef<HTMLInputElement>(null);
   const [returnBasis, setReturnBasis] = useState<"ILS" | "USD" | null>(null);
   const [diffResult, setDiffResult] = useState<{ diff: { field: string; existingValue: string | number | null; newValue: string | number | null; status: "new" | "changed" | "same" | "missing_in_pdf"; monthlyProtected?: boolean; historyMismatch?: boolean; historyDiff?: number }[]; diffComputedAt: string; fundLastUpdated: string | null; draftId: string; hasMonthlyUncertain?: boolean; draftCorrections?: string[]; monthlyValidation?: { year: number; compounded: number; yearly: number; diff: number; status: "pass" | "fail" }[]; fundMonthlyDirection?: "LTR" | "RTL" | null } | null>(null);
   const [fieldDecisions, setFieldDecisions] = useState<Record<string, "replace" | "keep" | "clear">>({});
@@ -2348,6 +2349,24 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
   }, [clientKey]);
 
   useEffect(() => { loadDrafts(); loadTokenUsage(); }, [loadDrafts, loadTokenUsage]);
+
+  // Native event listener for reportMonth input — bypasses React synthetic events (type="month" quirk in Chrome)
+  // Depends on `view` because the input only renders when view === "review"
+  useEffect(() => {
+    if (view !== "review") return;
+    const el = reportMonthInputRef.current;
+    if (!el) return;
+    const handler = () => {
+      const val = el.value;
+      if (val) setReportMonth(val);
+    };
+    el.addEventListener('input', handler);
+    el.addEventListener('change', handler);
+    return () => {
+      el.removeEventListener('input', handler);
+      el.removeEventListener('change', handler);
+    };
+  }, [view]);
 
   // All funds flat list for matching dropdown — sorted alphabetically (active only)
   const allFunds: { id: string; name: string; catId: string; catName: string }[] = [];
@@ -3563,6 +3582,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
               )}
             </label>
             <input
+              ref={reportMonthInputRef}
               type="month"
               value={reportMonth}
               onChange={(e) => setReportMonth(e.target.value)}
