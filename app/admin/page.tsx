@@ -3985,7 +3985,39 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
 
                 {/* Fields summary with inline editing + confidence badges */}
                 <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8, display: "flex", flexWrap: "wrap", gap: "4px 12px", alignItems: "center" }}>
-                  {draft.extracted.fields.map((f) => {
+                  {/* Year summary chips — replaces individual monthlyReturns tags */}
+                  {(() => {
+                    const byYear: Record<string, number> = {};
+                    const annualByYear: Record<string, number> = {};
+                    draft.extracted.fields.forEach((f: { key: string; value: unknown }) => {
+                      const mMonth = f.key.match(/^monthlyReturns\.(\d{4})-\d{2}$/);
+                      if (mMonth) byYear[mMonth[1]] = (byYear[mMonth[1]] || 0) + 1;
+                      const mAnnual = f.key.match(/^returns\.(ytd|y)(\d{4})$/);
+                      if (mAnnual && typeof f.value === "number") annualByYear[mAnnual[2]] = f.value;
+                    });
+                    return Object.keys(byYear).sort().map(year => {
+                      const count = byYear[year];
+                      const annual = annualByYear[year];
+                      const countColor = count === 12 ? "#22c55e" : count >= 10 ? "#f59e0b" : "#ef4444";
+                      return (
+                        <span key={`yr-${year}`} style={{
+                          display: "inline-flex", alignItems: "center", gap: 4,
+                          backgroundColor: "var(--bg-input)", borderRadius: 5,
+                          padding: "2px 8px", fontSize: 10, border: "1px solid var(--border)"
+                        }}>
+                          <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{year}</span>
+                          <span style={{ color: countColor }}>{count}/12</span>
+                          {annual !== undefined && (
+                            <span style={{ color: annual >= 0 ? "#22c55e" : "#ef4444", fontWeight: 500 }}>
+                              {annual >= 0 ? "+" : ""}{(annual * 100).toFixed(1)}%
+                            </span>
+                          )}
+                        </span>
+                      );
+                    });
+                  })()}
+                  {/* Non-monthly fields: existing editable tags */}
+                  {draft.extracted.fields.filter((f: { key: string }) => !f.key.startsWith("monthlyReturns.")).map((f) => {
                     const isEditable = draft.status === "pending" && typeof f.value === "number" && (["monthlyReturn", "sharpe", "stdDev"].includes(f.key) || f.key.startsWith("returns."));
                     const editedVal = editedFields[draft.id]?.[f.key];
                     const hasEdit = editedVal !== undefined;
