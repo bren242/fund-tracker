@@ -1,5 +1,5 @@
 # Fund Tracker — SPEC.md
-> מצב נכון ל: 2026-04-08 | Cache v30
+> מצב נכון ל: 2026-04-10 | Cache v35
 
 ---
 
@@ -52,12 +52,14 @@
 - **Dark/Light mode** — toggle גלובלי
 - **White-label** — כל לקוח מקבל brand נפרד (צבעים, לוגו, כותרת, disclaimer)
 
-### AI Parser — Two-Pass Architecture
+### AI Parser — Three-Pass Architecture
 מנגנון הלב של הפרויקט. מקבל PDF או PNG של דוח קרן ומחזיר נתוני תשואה מובנים.
 
 **Pass-1 (Holistic):** Claude רואה את המסמך כולו → מחזיר JSON עם `fundName`, `reportMonth`, `returnBasis`, ורשימת `fields` (מפתחות מובנים + ערכים).
 
-**Pass-2 (Raw Table Extraction):** Claude מחלץ טבלאות גולמיות (headers + שורות + `table_label`) → `mapRawTablesToFields()` ממפה דטרמיניסטית לפי headers.
+**Pass-2 (Raw Table Extraction):** Claude מחלץ טבלאות גולמיות (headers + שורות + `table_label`) → `mapRawTablesToFields()` ממפה דטרמיניסטית לפי headers. הפרומפט מכיל 6 שלבים מפורשים: זיהוי עמודת שנה, כיוון RTL/LTR, שמירת null בשורות חלקיות, זיהוי סוג עמודה, מספרים שליליים, ודוגמה RTL קונקרטית.
+
+**Pass-3 (Validation):** `validateParsedEntry()` — מחשב compound גיאומטרי של החודשים ומשווה לשנתי המדווח. סף valid<0.5%, warning<2%, error≥2%. תוצאות ב-`validation[]` + `validationStatus` ב-response.
 
 **Benchmark Filter:** `isBenchmarkTable()` מסנן טבלאות שה-`table_label` שלהן מכיל מדד/benchmark/index/כללי — לפני `mapRawTablesToFields`.
 
@@ -65,7 +67,7 @@
 
 **Fallback:** אם Pass-2 לא מצא טבלאות (למשל כרטיס חודשי יחיד) — בונה `dualCurrencyData` מנתוני Pass-1 כולל חישוב YTD מצטבר מחודשים.
 
-**Cache:** תוצאות נשמרות לפי hash של הקובץ. גרסה נוכחית: **v30**. כל cache ישן ממנה בטל.
+**Cache:** תוצאות נשמרות לפי hash של הקובץ. גרסה נוכחית: **v35**. כל cache ישן ממנה בטל.
 
 **מה מחולץ בהצלחה (קבצים שנבדקו):**
 | קובץ | סטטוס | הערות |
@@ -125,7 +127,16 @@
 
 ---
 
-## עדכון אחרון (2026-04-08 — סשן שלישי)
+## עדכון אחרון (2026-04-10 — סשן רביעי)
+
+### Pass-3 Validation + Parser improvements (סשן נוכחי)
+- **`validateParsedEntry()`** — פונקציה חדשה: compound גיאומטרי מחודשים vs שנתי מדווח. valid<0.5%, warning<2%, error≥2%
+- **`buildRawExtractionPrompt()` שוכתב** — 6 שלבים מפורשים (זיהוי כיוון, null preservation, דוגמה RTL)
+- **Admin UI — שכבת ולידציה** — טבלת `שנה | חודשים | שנתי מדווח | שנתי מחושב | פער | סטטוס` עם color coding + monthly chips בהרחבה
+- **regex תוקן** — `(y|ytd)` → `(ytd|y)` כדי ש-`returns.ytd2019` יכנס ל-`annualByYear`
+- **Cache v35** — כל cache ישן בטל
+- **Call limit מוגדל** — GREEN: 100 → 500 קריאות/חודש (ב-KV)
+- **Creative Value אובחן** — KV ישן היה שגוי (swap bug v33). דרפט חדש מרץ 2026 תקין לחלוטין (validation: all valid, gaps ≤ 0.01%)
 
 ### Scatter Chart — שדרוג מלא
 - **Premium UI redesign:** טיפוגרפיה משודרגת, hero title, unified filter area (קטגוריה/תקופה/מטבע), SharpeBadge component, rank cards עם עיגולי מיקום
@@ -299,9 +310,11 @@ fund-tracker/
 
 | קבוע | ערך | מיקום |
 |------|-----|--------|
-| Cache version | `30` | `route.ts` L167, L2590 |
-| Monthly token limit | `500,000` input tokens | `route.ts` L34 |
-| Monthly call limit | `100` calls | `route.ts` L35 |
+| Cache version | `35` | `route.ts` L167, L2731 |
+| Monthly token limit | `500,000` input tokens (default) | `route.ts` L34 |
+| GREEN token limit | `2,000,000` input tokens | KV `brand:green.tokenLimits` |
+| Monthly call limit | `100` calls (default) | `route.ts` L35 |
+| GREEN call limit | `500` calls | KV `brand:green.tokenLimits` |
 | Risk-free rate (Sharpe) | `0.3% / month (~3.6% annual)` | `route.ts` L226 |
 | Min observations (Sharpe) | `12 months` | `route.ts` L227 |
 | Sharpe cap | `|sharpe| > 5 → null` | `route.ts`, `data-completion/page.tsx` |
