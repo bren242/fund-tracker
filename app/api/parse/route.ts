@@ -164,7 +164,7 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v23: reverse month order in template to match visual LTR reading of RTL table
   // v24: remove pre-fill, fixed year range 2019-2026, all X cells
   // v27: single-pass only (removed buildDynamicStructuredPrompt second API call)
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 38) return null;
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 39) return null;
 
   return cached.result;
 }
@@ -905,11 +905,11 @@ function mapRawTablesToFields(tables: RawTable[]): MappedEntry[] {
 
     const headerMap: ('ytd' | 'itd' | number | 'year' | null)[] = table.headers.map(h => {
       const norm = normalizeHeader(h);
+      const monthNum = MONTH_ALIASES[norm] ?? MONTH_ALIASES[h.trim()] ?? MONTH_ALIASES[h.trim().toLowerCase()];
+      if (monthNum) return monthNum;
       if (YTD_ALIASES.some(a => norm === a.toLowerCase())) return 'ytd';
       if (ITD_ALIASES.some(a => norm === a.toLowerCase())) return 'itd';
       if (/^\d{4}$/.test(norm)) return 'year';
-      const monthNum = MONTH_ALIASES[norm] ?? MONTH_ALIASES[h.trim()] ?? MONTH_ALIASES[h.trim().toLowerCase()];
-      if (monthNum) return monthNum;
       return null;
     });
 
@@ -2771,7 +2771,7 @@ export async function POST(req: NextRequest) {
         resultObj.validation = result.validation;
         resultObj.validationStatus = result.validationStatus;
       }
-      resultObj._cacheVersion = 38;
+      resultObj._cacheVersion = 39;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
