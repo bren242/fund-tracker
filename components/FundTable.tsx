@@ -296,11 +296,27 @@ export default function FundTable({ categories, comparisonEnabled, selectedFundI
         hedgeGroupStarted = true;
         const isCollapsed = collapsedGroups.has(SUPER_HEADER_BEFORE);
         rows.push(
-          <tr key="super-header" onClick={() => toggleGroup(SUPER_HEADER_BEFORE)} style={{ cursor: "pointer", userSelect: "none" }}>
-            <td colSpan={colCount + 1}
-              style={{ backgroundColor: "transparent", borderTop: "2px solid var(--bg-section)", borderBottom: "none", color: "var(--bg-section)", padding: "12px 16px 4px 16px", fontWeight: 700, fontSize: "13px", letterSpacing: "0.3px" }}>
+          <tr key="super-header" onClick={() => toggleGroup(SUPER_HEADER_BEFORE)}
+              style={{ cursor: "pointer", userSelect: "none" }}>
+            <td colSpan={colCount + 1} style={{
+              backgroundColor: "transparent",
+              borderTop: "2px solid var(--bg-section)",
+              borderBottom: "none",
+              color: "var(--bg-section)",
+              padding: "14px 16px 6px 16px",
+              fontWeight: 700,
+              fontSize: "13px",
+              letterSpacing: "0.3px",
+              textAlign: "right",
+            }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: "10px", opacity: 0.5, display: "inline-block", transition: "transform 0.2s ease", transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)" }}>▼</span>
+                <span style={{
+                  fontSize: "10px",
+                  opacity: 0.5,
+                  display: "inline-block",
+                  transition: "transform 0.2s ease",
+                  transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)",
+                }}>▼</span>
                 <span>קרנות גידור ישראל</span>
               </div>
             </td>
@@ -308,15 +324,25 @@ export default function FundTable({ categories, comparisonEnabled, selectedFundI
         );
       }
       if (cat.funds.length === 0) continue;
+      if (hedgeGroupStarted && collapsedGroups.has(SUPER_HEADER_BEFORE)) continue;
       rows.push(
         <tr key={`cat-${cat.id}`}>
-          <td colSpan={colCount + 1}
-            style={{ backgroundColor: "transparent", borderTop: "2px solid var(--bg-section)", borderBottom: "none", color: "var(--bg-section)", padding: "12px 16px 4px 16px", fontWeight: 700, fontSize: "13px", textAlign: "right", letterSpacing: "0.3px" }}>
+          <td colSpan={colCount + 1} style={{
+            backgroundColor: "transparent",
+            borderTop: "1px solid rgba(6,78,59,0.25)",
+            borderBottom: "none",
+            color: "var(--text-secondary)",
+            padding: "8px 16px 4px 16px",
+            fontWeight: 600,
+            fontSize: "11px",
+            textAlign: "right",
+            letterSpacing: "0.2px",
+            fontStyle: "italic",
+          }}>
             {cat.name}
           </td>
         </tr>
       );
-      if (hedgeGroupStarted && collapsedGroups.has(SUPER_HEADER_BEFORE)) continue;
       for (let i = 0; i < cat.funds.length; i++) {
         rows.push(
           <FundRow key={cat.funds[i].id} fund={cat.funds[i]} even={i % 2 === 0}
