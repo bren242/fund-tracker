@@ -122,7 +122,7 @@ function SortableHeader({ label, col, sortCol, sortDir, onSort, onReset, style }
 function ReturnCell({ value }: { value: number | null }) {
   return (
     <td style={{
-      padding: "5px 6px",
+      padding: "8px 10px",
       textAlign: "center",
       borderBottom: "1px solid var(--border-table)",
       color: returnColorInline(value),
@@ -145,7 +145,7 @@ function FundRow({ fund, even, comparisonEnabled, isSelected, onToggle, activeYe
 
   return (
     <tr style={{ backgroundColor: bg, borderInlineStart: selectedBorder }}>
-      <td style={{ padding: "5px 10px", borderBottom: "1px solid var(--border-table)", fontWeight: 600, textAlign: "right", fontSize: "10.5px" }}>
+      <td style={{ padding: "5px 10px", borderBottom: "1px solid var(--border-table)", fontWeight: 600, textAlign: "right", fontSize: "12px" }}>
         <span style={{ display: "flex", alignItems: "center", gap: 6, width: "100%" }}>
           {comparisonEnabled && (
             <input
@@ -175,17 +175,17 @@ function FundRow({ fund, even, comparisonEnabled, isSelected, onToggle, activeYe
           )}
         </span>
       </td>
-      <td style={{ padding: "5px 6px", borderBottom: "1px solid var(--border-table)", color: "var(--text-secondary)", textAlign: "right", fontSize: "9.5px" }}>
+      <td style={{ padding: "8px 10px", borderBottom: "1px solid var(--border-table)", color: "var(--text-secondary)", textAlign: "right", fontSize: "11px" }}>
         {fund.classification}
       </td>
-      <td style={{ padding: "5px 6px", borderBottom: "1px solid var(--border-table)", color: "var(--text-muted)", textAlign: "center", fontSize: "9.5px" }}>
+      <td style={{ padding: "8px 10px", borderBottom: "1px solid var(--border-table)", color: "var(--text-muted)", textAlign: "center", fontSize: "11px" }}>
         {fund.manager}
       </td>
-      <td style={{ padding: "5px 6px", borderBottom: "1px solid var(--border-table)", color: "var(--text-muted)", textAlign: "center", fontSize: "9px", fontVariantNumeric: "tabular-nums" }}>
+      <td style={{ padding: "8px 10px", borderBottom: "1px solid var(--border-table)", color: "var(--text-muted)", textAlign: "center", fontSize: "10px", fontVariantNumeric: "tabular-nums" }}>
         {formatReportDate(fund.lastReportDate)}
       </td>
       <td style={{
-        padding: "5px 6px",
+        padding: "8px 10px",
         borderBottom: "1px solid var(--border-table)",
         textAlign: "center",
         fontWeight: 600,
@@ -199,11 +199,11 @@ function FundRow({ fund, even, comparisonEnabled, isSelected, onToggle, activeYe
         <ReturnCell key={y.key} value={fund.returns[y.key]} />
       ))}
       <ReturnCell value={fund.avgAnnualReturn} />
-      <td style={{ padding: "5px 6px", textAlign: "center", borderBottom: "1px solid var(--border-table)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
+      <td style={{ padding: "8px 10px", textAlign: "center", borderBottom: "1px solid var(--border-table)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
         {num(fund.sharpe)}
       </td>
       <ReturnCell value={fund.stdDev} />
-      <td style={{ padding: "5px 6px", textAlign: "center", borderBottom: "1px solid var(--border-table)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
+      <td style={{ padding: "8px 10px", textAlign: "center", borderBottom: "1px solid var(--border-table)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
         {fund.aumMillions != null ? fund.aumMillions.toLocaleString() : "—"}
       </td>
     </tr>
@@ -318,12 +318,12 @@ export default function FundTable({ categories, comparisonEnabled, selectedFundI
   }
 
   const thBase: React.CSSProperties = {
-    padding: "7px 6px",
+    padding: "9px 10px",
     fontWeight: 600,
     textAlign: "center",
     whiteSpace: "nowrap",
     borderBottom: "2px solid rgba(255,255,255,0.15)",
-    fontSize: "9px",
+    fontSize: "10px",
     letterSpacing: 0.2,
   };
 
