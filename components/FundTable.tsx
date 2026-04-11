@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Category, Fund } from "@/lib/types";
 import { pct, num, returnColorInline, formatReportDate } from "@/lib/format";
 
-const SUPER_HEADER_BEFORE = "bond-hedged";
 
 type ReturnKey = "ytd2026" | "y2025" | "y2024" | "y2023" | "y2022" | "y2021" | "y2020" | "y2019";
 
@@ -289,71 +288,84 @@ export default function FundTable({ categories, comparisonEnabled, selectedFundI
       );
     });
   } else {
-    /* ── Default mode: grouped by category ── */
-    let hedgeGroupStarted = false;
+    /* ── Default mode: grouped by parentSection ── */
+    const sectionOrder: string[] = [];
+    const sectionMap = new Map<string, Category[]>();
     for (const cat of categories) {
-      if (cat.id === SUPER_HEADER_BEFORE) {
-        hedgeGroupStarted = true;
-        const isCollapsed = collapsedGroups.has(SUPER_HEADER_BEFORE);
-        rows.push(
-          <tr key="super-header" onClick={() => toggleGroup(SUPER_HEADER_BEFORE)}
-              style={{ cursor: "pointer", userSelect: "none" }}>
-            <td colSpan={colCount + 1} style={{
-              backgroundColor: "transparent",
-              borderTop: "2px solid var(--bg-section)",
-              borderBottom: "none",
-              color: "var(--bg-section)",
-              padding: "14px 16px 6px 16px",
-              fontWeight: 700,
-              fontSize: "13px",
-              letterSpacing: "0.3px",
-              textAlign: "right",
-            }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{
-                  fontSize: "10px",
-                  opacity: 0.5,
-                  display: "inline-block",
-                  transition: "transform 0.2s ease",
-                  transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)",
-                }}>▼</span>
-                <span>קרנות גידור ישראל</span>
-              </div>
-            </td>
-          </tr>
-        );
+      if (!sectionMap.has(cat.parentSection)) {
+        sectionMap.set(cat.parentSection, []);
+        sectionOrder.push(cat.parentSection);
       }
-      if (cat.funds.length === 0) continue;
-      if (hedgeGroupStarted && collapsedGroups.has(SUPER_HEADER_BEFORE)) continue;
+      sectionMap.get(cat.parentSection)!.push(cat);
+    }
+
+    for (const section of sectionOrder) {
+      const sectionCats = sectionMap.get(section)!;
+      const isCollapsed = collapsedGroups.has(section);
+      if (!sectionCats.some(c => c.funds.length > 0)) continue;
+
       rows.push(
-        <tr key={`cat-${cat.id}`}>
+        <tr key={`section-${section}`} onClick={() => toggleGroup(section)} style={{ cursor: "pointer", userSelect: "none" }}>
           <td colSpan={colCount + 1} style={{
             backgroundColor: "transparent",
-            borderTop: "1px solid rgba(6,78,59,0.25)",
+            borderTop: "2px solid var(--bg-section)",
             borderBottom: "none",
-            color: "var(--text-secondary)",
-            padding: "8px 16px 4px 16px",
-            fontWeight: 600,
-            fontSize: "11px",
+            color: "var(--bg-section)",
+            padding: "14px 16px 6px 16px",
+            fontWeight: 700,
+            fontSize: "13px",
+            letterSpacing: "0.3px",
             textAlign: "right",
-            letterSpacing: "0.2px",
-            fontStyle: "italic",
           }}>
-            {cat.name}
+            <span style={{
+              float: "left",
+              fontSize: "10px",
+              opacity: 0.5,
+              display: "inline-block",
+              transition: "transform 0.2s ease",
+              transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)",
+            }}>▼</span>
+            {section}
           </td>
         </tr>
       );
-      for (let i = 0; i < cat.funds.length; i++) {
-        rows.push(
-          <FundRow key={cat.funds[i].id} fund={cat.funds[i]} even={i % 2 === 0}
-            comparisonEnabled={comparisonEnabled}
-            isSelected={selectedFundIds?.has(cat.funds[i].id)}
-            onToggle={onToggleFund}
-            activeYears={activeYears}
-            selectionDisabled={selectionDisabled}
-            accentColor={accentColor}
-          />
-        );
+      if (isCollapsed) continue;
+
+      for (const cat of sectionCats) {
+        if (cat.funds.length === 0) continue;
+        const showSubHeader = sectionCats.length > 1 || cat.name !== section;
+        if (showSubHeader) {
+          rows.push(
+            <tr key={`cat-${cat.id}`}>
+              <td colSpan={colCount + 1} style={{
+                backgroundColor: "transparent",
+                borderTop: "1px solid rgba(6,78,59,0.25)",
+                borderBottom: "none",
+                color: "var(--text-secondary)",
+                padding: "8px 16px 4px 16px",
+                fontWeight: 600,
+                fontSize: "11px",
+                textAlign: "right",
+                letterSpacing: "0.2px",
+                fontStyle: "italic",
+              }}>
+                {cat.name}
+              </td>
+            </tr>
+          );
+        }
+        for (let i = 0; i < cat.funds.length; i++) {
+          rows.push(
+            <FundRow key={cat.funds[i].id} fund={cat.funds[i]} even={i % 2 === 0}
+              comparisonEnabled={comparisonEnabled}
+              isSelected={selectedFundIds?.has(cat.funds[i].id)}
+              onToggle={onToggleFund}
+              activeYears={activeYears}
+              selectionDisabled={selectionDisabled}
+              accentColor={accentColor}
+            />
+          );
+        }
       }
     }
   }
