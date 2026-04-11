@@ -1,5 +1,5 @@
 # Fund Tracker — SPEC.md
-> מצב נכון ל: 2026-04-11 | Cache v45 | גרסה אחרונה: פרסינג תלת-ממדי
+> מצב נכון ל: 2026-04-11 (ריצת לילה) | Cache v45 | גרסה אחרונה: עקביות v2 + ריצת לילה
 
 ---
 
@@ -261,6 +261,23 @@
 - Scatter: תוויות ריבועים, בלוק הסבר, הצללת ריבועים
 - בדיקת רגרסיה: תוצאות 04-07 אושרו
 </details>
+
+## ריצת לילה 2026-04-11 — מה בוצע
+
+### מסך עקביות (app/consistency/page.tsx)
+- **צבעי גרף לפי מוד:** dark=`#4ade80`/`#B8975A`, light=`#1B3A2F`/`#B8975A`. Recharts props בhex (לא CSS vars).
+- **ColTooltip component:** ? ליד כותרות עמודות (חודשים, עקביות, avgGap, IR, ציון כולל) + משקולות בנצ'מרק בשורת המידע.
+- **SummaryCard:** 3 קלפים מעל הטבלה — IR ממוצע, % מעל 50% עקביות, קרן מובילה.
+- **Consistency config API:** `/api/consistency-config` + טאב הגדרות באדמין (משקולות ו-thresholds).
+- **Time range filters:** rolling (12M/24M/36M/60M) + calendar (2020-2024/מ-2020).
+
+### FundTable
+- **תגית ILS/USD:** מודחקת לסוף השורה (flex:1 על שם הקרן) — מיושרת אנכית בעמודה.
+
+### API חדש
+- `app/api/consistency-config/route.ts` — GET/POST, שומר ל-KV `consistency-config:{client}`
+
+---
 
 ## הצעד הבא
 
