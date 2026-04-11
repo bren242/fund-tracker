@@ -745,6 +745,44 @@ function ConsistencyContent() {
                                   אין מספיק נתונים לגרף
                                 </div>
                               )}
+                              {/* ── Dynamic insight ── */}
+                              {chartData.length >= 2 && row.result && (() => {
+                                const last   = chartData[chartData.length - 1];
+                                const fundC  = last.fund;
+                                const bmC    = last.bm;
+                                const score  = row.result.score;   // 0–100
+                                const wins   = row.result.wins;
+                                const total  = row.result.total;
+                                if (fundC > bmC && score < 50) {
+                                  return (
+                                    <div style={{
+                                      marginTop: 10, padding: "9px 14px",
+                                      backgroundColor: isDark ? "#0f2318" : "#f0fdf4",
+                                      border: "1px solid #86efac",
+                                      borderRadius: 8, fontSize: 12,
+                                      color: isDark ? "#86efac" : "#166534",
+                                      direction: "rtl", lineHeight: 1.6,
+                                    }}>
+                                      💡 הקרן הניבה תשואה מצטברת גבוהה מהבנצ׳מרק, אך עשתה זאת בצורה לא עקבית — ניצחה ב-{wins} מתוך {total} חודשים בלבד.
+                                    </div>
+                                  );
+                                }
+                                if (fundC < bmC && score > 50) {
+                                  return (
+                                    <div style={{
+                                      marginTop: 10, padding: "9px 14px",
+                                      backgroundColor: isDark ? "#1c1a08" : "#fefce8",
+                                      border: "1px solid #fbbf24",
+                                      borderRadius: 8, fontSize: 12,
+                                      color: isDark ? "#fbbf24" : "#92400e",
+                                      direction: "rtl", lineHeight: 1.6,
+                                    }}>
+                                      💡 הקרן ניצחה את הבנצ׳מרק ב-{wins} מתוך {total} חודשים, אך התשואה המצטברת שלה נמוכה יותר — הפסדים בחודשים בודדים גדולים גררו את הממוצע למטה.
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })()}
                             </td>
                           </tr>
                         )}
