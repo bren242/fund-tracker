@@ -323,9 +323,13 @@ body {
   display: flex;
   align-items: center;
   gap: 2px;
-  background: var(--bg-input);
+  background: rgba(0, 0, 0, 0.06);
   border-radius: 12px;
   padding: 3px;
+}
+
+.dark .nav-tabs {
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .nav-tab {
