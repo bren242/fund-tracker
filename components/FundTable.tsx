@@ -25,7 +25,7 @@ const COL_COUNT = 16;
 /* Column widths as CSS for print table-layout:fixed */
 const COL_WIDTHS = [
   "11%",   /* שם קרן */
-  "7%",    /* סיווג */
+  "9%",    /* סיווג */
   "6%",    /* מנהל */
   "5%",    /* מועד עדכון */
   "5%",    /* חודשי */
@@ -318,13 +318,19 @@ export default function FundTable({ categories, comparisonEnabled, selectedFundI
   }
 
   const thBase: React.CSSProperties = {
-    padding: "9px 10px",
-    fontWeight: 500,
+    backgroundColor: "transparent",
+    color: "var(--text-secondary)",
+    fontWeight: 600,
     textAlign: "center",
     whiteSpace: "nowrap",
-    borderBottom: "1px solid var(--border-table)",
-    fontSize: "11px",
-    letterSpacing: 0.3,
+    borderBottom: "2px solid var(--border-table)",
+    fontSize: "10px",
+    letterSpacing: "0.8px",
+    textTransform: "uppercase",
+    paddingTop: "12px",
+    paddingBottom: "12px",
+    paddingLeft: "10px",
+    paddingRight: "10px",
   };
 
   function handleReset() { setSortCol(null); }
@@ -337,7 +343,7 @@ export default function FundTable({ categories, comparisonEnabled, selectedFundI
         <col />
       </colgroup>
       <thead>
-        <tr style={{ backgroundColor: "var(--bg-surface-alt)", color: "var(--text-secondary)" }}>
+        <tr style={{ backgroundColor: "transparent", borderBottom: "none" }}>
           <SortableHeader label="שם קרן"     col="name"           style={{ ...thBase, textAlign: "right", paddingRight: 10 }} {...sortProps} />
           <SortableHeader label="סיווג"       col="classification" style={{ ...thBase, textAlign: "right" }}                   {...sortProps} />
           <SortableHeader label="מנהל"        col="manager"        style={thBase}                                               {...sortProps} />
