@@ -152,7 +152,7 @@ function getBestIdx(funds: Fund[], metric: MetricRow): number | null {
   return bestIdx;
 }
 
-const BM_HEADER_COLOR = "#6366f1";
+const BM_HEADER_COLOR = "#6b4fa0";
 
 export default function CompareTable({ funds, accentColor, compact, selectedYears, benchmarks = [] }: CompareTableProps) {
   if (funds.length < 2) return null;

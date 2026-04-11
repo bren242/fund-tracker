@@ -16,7 +16,7 @@ interface CompareChartsProps {
 /* Fixed palette for up to 4 funds */
 const PALETTE = ["#1B3A2F", "#B8975A", "#3a5fa0", "#6b4fa0"];
 /* Benchmark palette — distinct from fund colors */
-const BM_PALETTE = ["#6366f1", "#ec4899"];
+const BM_PALETTE = ["#6b4fa0", "#9b6fc0"];
 
 type YearEntry = { key: keyof Fund["returns"]; label: string };
 
