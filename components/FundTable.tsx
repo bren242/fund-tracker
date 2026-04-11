@@ -294,11 +294,11 @@ export default function FundTable({ categories, comparisonEnabled, selectedFundI
     for (const cat of categories) {
       if (cat.id === SUPER_HEADER_BEFORE) {
         hedgeGroupStarted = true;
-        const isCollapsed = collapsedGroups.has("hedge");
+        const isCollapsed = collapsedGroups.has(SUPER_HEADER_BEFORE);
         rows.push(
-          <tr key="super-header" onClick={() => toggleGroup("hedge")} style={{ cursor: "pointer", userSelect: "none" }}>
+          <tr key="super-header" onClick={() => toggleGroup(SUPER_HEADER_BEFORE)} style={{ cursor: "pointer", userSelect: "none" }}>
             <td colSpan={colCount}
-              style={{ backgroundColor: "transparent", borderTop: "2px solid var(--bg-section)", borderBottom: "none", color: "var(--bg-section)", padding: "12px 16px 4px 16px", fontWeight: 700, fontSize: "13px", textAlign: "right", letterSpacing: "0.3px", boxShadow: "inset 0 2px 0 0 var(--bg-section)" }}>
+              style={{ backgroundColor: "transparent", borderTop: "2px solid var(--bg-section)", borderBottom: "none", color: "var(--bg-section)", padding: "12px 16px 4px 16px", fontWeight: 700, fontSize: "13px", textAlign: "right", letterSpacing: "0.3px" }}>
               <span style={{
                 float: "left",
                 fontSize: "10px",
@@ -316,12 +316,12 @@ export default function FundTable({ categories, comparisonEnabled, selectedFundI
       rows.push(
         <tr key={`cat-${cat.id}`}>
           <td colSpan={colCount}
-            style={{ backgroundColor: "transparent", borderTop: "2px solid var(--bg-section)", borderBottom: "none", color: "var(--bg-section)", padding: "12px 16px 4px 16px", fontWeight: 700, fontSize: "13px", textAlign: "right", letterSpacing: "0.3px", boxShadow: "inset 0 2px 0 0 var(--bg-section)" }}>
+            style={{ backgroundColor: "transparent", borderTop: "2px solid var(--bg-section)", borderBottom: "none", color: "var(--bg-section)", padding: "12px 16px 4px 16px", fontWeight: 700, fontSize: "13px", textAlign: "right", letterSpacing: "0.3px" }}>
             {cat.name}
           </td>
         </tr>
       );
-      if (hedgeGroupStarted && collapsedGroups.has("hedge")) continue;
+      if (hedgeGroupStarted && collapsedGroups.has(SUPER_HEADER_BEFORE)) continue;
       for (let i = 0; i < cat.funds.length; i++) {
         rows.push(
           <FundRow key={cat.funds[i].id} fund={cat.funds[i]} even={i % 2 === 0}
@@ -357,7 +357,7 @@ export default function FundTable({ categories, comparisonEnabled, selectedFundI
   const sortProps = { sortCol, sortDir, onSort: handleSort, onReset: handleReset };
 
   return (
-    <table className="fund-data-table" style={{ borderCollapse: "collapse", fontSize: "10.5px", lineHeight: 1.45 }}>
+    <table className="fund-data-table" style={{ borderCollapse: "separate", borderSpacing: 0, fontSize: "10.5px", lineHeight: 1.45 }}>
       <colgroup>
         {COL_WIDTHS.map((w, i) => <col key={i} style={{ width: w }} />)}
         <col />
