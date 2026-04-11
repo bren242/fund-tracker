@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "fund-tracker",
-      "runtimeExecutable": "npx.cmd",
-      "runtimeArgs": ["next", "dev"],
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
       "port": 3000
     }
   ]
