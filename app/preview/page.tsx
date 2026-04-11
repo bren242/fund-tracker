@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { FundsData } from "@/lib/types";
 import { useBrand } from "@/lib/useBrand";
 import { brandCssVars } from "@/lib/colors";
@@ -13,6 +14,7 @@ function PreviewContent() {
   const brand = useBrand(CLIENT);
   const [data, setData] = useState<FundsData | null>(null);
   const [selectedFundIds, setSelectedFundIds] = useState<Set<string>>(new Set());
+  const router = useRouter();
 
   useEffect(() => {
     fetch(`/api/funds?client=${encodeURIComponent(CLIENT)}`)
@@ -30,6 +32,12 @@ function PreviewContent() {
   };
 
   const clearSelection = () => setSelectedFundIds(new Set());
+
+  const navigateToCompare = useCallback(() => {
+    if (selectedFundIds.size < 2) return;
+    const ids = Array.from(selectedFundIds).join(",");
+    router.push(`/compare?funds=${encodeURIComponent(ids)}&client=${encodeURIComponent(CLIENT)}`);
+  }, [selectedFundIds, router]);
 
   return (
     <div
@@ -89,16 +97,20 @@ function PreviewContent() {
 
       {/* Floating Action Bar */}
       {selectedFundIds.size > 0 && (
-        <div className="floating-action-bar">
+        <div className="floating-action-bar no-print">
           <span className="floating-action-bar__count">
             {selectedFundIds.size} קרנות נבחרות
           </span>
           <div className="floating-action-bar__actions">
-            <button className="floating-action-bar__clear" onClick={clearSelection}>
+            <button
+              className="floating-action-bar__clear"
+              onClick={clearSelection}
+            >
               נקה
             </button>
             <button
               className="floating-action-bar__compare"
+              onClick={navigateToCompare}
               disabled={selectedFundIds.size < 2}
             >
               השווה →
