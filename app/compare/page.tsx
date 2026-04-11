@@ -237,6 +237,7 @@ function CompareContent() {
   };
 
   useEffect(() => {
+    console.log("[compare] benchmarksEnabled:", benchmarksEnabled, "| clientKey:", clientKey);
     fetch(`/api/funds?client=${encodeURIComponent(clientKey)}`)
       .then((r) => r.json())
       .then(setData);
@@ -244,6 +245,7 @@ function CompareContent() {
       fetch(`/api/benchmarks?client=${encodeURIComponent(clientKey)}`)
         .then((r) => r.json())
         .then((bms: Benchmark[]) => {
+          console.log("[compare] benchmarks response:", JSON.stringify(bms));
           setAllBenchmarks(bms);
           if (benchmarkIds.length > 0)
             setSelectedBmIds(benchmarkIds.filter((id) => bms.some((b) => b.id === id)).slice(0, 2));
