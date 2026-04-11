@@ -68,8 +68,6 @@ const yearSelectStyle: React.CSSProperties = {
 function ReportContent() {
   const clientKey = useClientKey();
   const [data, setData] = useState<FundsData | null>(null);
-  const [printYears, setPrintYears] = useState<Set<string>>(ALL_YEARS_SET);
-  const [showYearPicker, setShowYearPicker] = useState(false);
   const brand = useBrand(clientKey);
 
   // Screen year filter (separate from print years)
@@ -119,16 +117,10 @@ function ReportContent() {
   // Chart page feature flag
   const chartPageEnabled = brand.features?.chartPage ?? true;
 
-  const toggleYear = (year: string) => {
-    setPrintYears((prev) => {
-      const next = new Set(prev);
-      if (next.has(year)) next.delete(year); else next.add(year);
-      return next.size === 0 ? new Set(PRINT_YEAR_OPTIONS) : next; // prevent empty
-    });
-  };
-  const allSelected = printYears.size === PRINT_YEAR_OPTIONS.length;
-  const toggleAll = () => setPrintYears(allSelected ? new Set(["2026"]) : new Set(PRINT_YEAR_OPTIONS));
-  const printYearsArray = PRINT_YEAR_OPTIONS.filter((y) => printYears.has(y));
+  // Print years now derived from screen filter (same source, no separate print picker)
+  const printYearsArray = screenVisibleYears
+    ? screenVisibleYears.filter((y) => PRINT_YEAR_OPTIONS.includes(y))
+    : PRINT_YEAR_OPTIONS;
 
   useEffect(() => {
     fetch(`/api/funds?client=${encodeURIComponent(clientKey)}`)
@@ -167,31 +159,9 @@ function ReportContent() {
                   v{brand.version}
                 </span>
               )}
-              <div style={{ display: "flex", alignItems: "center", gap: 6, position: "relative" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <button
-                  onClick={() => setShowYearPicker((v) => !v)}
-                  style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid var(--border)", fontSize: 11, color: "var(--text-primary)", backgroundColor: "var(--bg-input)", cursor: "pointer" }}
-                  title="בחר שנים להדפסה"
-                >
-                  שנים ({allSelected ? "הכל" : printYears.size}) ▾
-                </button>
-                {showYearPicker && (
-                  <div style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 10px", zIndex: 100, boxShadow: "0 4px 16px rgba(0,0,0,0.12)", minWidth: 140 }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--text-primary)", cursor: "pointer", padding: "3px 0", fontWeight: 600 }}>
-                      <input type="checkbox" checked={allSelected} onChange={toggleAll} style={{ cursor: "pointer" }} />
-                      הכל
-                    </label>
-                    <div style={{ borderTop: "1px solid var(--border)", margin: "4px 0" }} />
-                    {PRINT_YEAR_OPTIONS.map((y) => (
-                      <label key={y} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--text-primary)", cursor: "pointer", padding: "2px 0" }}>
-                        <input type="checkbox" checked={printYears.has(y)} onChange={() => toggleYear(y)} style={{ cursor: "pointer" }} />
-                        {y}
-                      </label>
-                    ))}
-                  </div>
-                )}
-                <button
-                  onClick={() => { setShowYearPicker(false); window.print(); }}
+                  onClick={() => window.print()}
                   style={{ backgroundColor: brand.primaryColor, color: "#fff", fontWeight: 700, padding: "6px 18px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, letterSpacing: 0.3, transition: "opacity 0.15s" }}
                   onMouseOver={(e) => (e.currentTarget.style.opacity = "0.85")}
                   onMouseOut={(e) => (e.currentTarget.style.opacity = "1")}
