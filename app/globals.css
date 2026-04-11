@@ -318,6 +318,50 @@ body {
 .scatter-label { opacity: 0; }
 @media print { .scatter-label { opacity: 1 !important; } }
 
+/* ── Navigation — Pill Style ──────────────────────────────────────────── */
+.nav-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg-input);
+  border-radius: 12px;
+  padding: 3px;
+}
+
+.nav-tab {
+  padding: 6px 14px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+}
+
+.nav-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-surface);
+}
+
+.nav-tab--active {
+  background: var(--bg-section);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.nav-tab--locked {
+  opacity: 0.4;
+  cursor: default;
+  font-size: 13px;
+  padding: 6px 14px;
+  color: var(--text-muted);
+}
+
 /* Admin input focus */
 input:focus, select:focus {
   outline: 2px solid var(--accent);

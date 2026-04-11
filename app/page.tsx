@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, Suspense, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { FundsData } from "@/lib/types";
 import FundTable from "@/components/FundTable";
 import PrintReport from "@/components/PrintReport";
@@ -18,42 +19,24 @@ import { brandCssVars } from "@/lib/colors";
 const PRINT_YEAR_OPTIONS = ["2026", "2025", "2024", "2023", "2022", "2021", "2020"];
 const ALL_YEARS_SET = new Set(PRINT_YEAR_OPTIONS);
 
-/* ── NavTab: shows enabled tabs normally, disabled tabs with lock ─────── */
-function NavTab({ href, enabled, children }: { href: string; enabled: boolean; children: React.ReactNode }) {
-  const [showTip, setShowTip] = useState(false);
-  const baseStyle: React.CSSProperties = {
-    fontSize: 12, textDecoration: "none", padding: "5px 10px",
-    borderRadius: 6, border: "1px solid var(--border)", transition: "all 0.15s",
-    display: "inline-flex", alignItems: "center", gap: 4,
-    position: "relative",
-  };
-  if (enabled) {
+/* ── NavTab: Pill style ───────────────────────────────────────────────── */
+function NavTab({ href, enabled, children, active }: {
+  href: string;
+  enabled: boolean;
+  children: React.ReactNode;
+  active?: boolean;
+}) {
+  if (!enabled) {
     return (
-      <a href={href} style={{ ...baseStyle, color: "var(--text-secondary)" }}>
-        {children}
-      </a>
+      <span className="nav-tab nav-tab--locked" title="פיצ'ר זה אינו פעיל עבורך">
+        {children} 🔒
+      </span>
     );
   }
   return (
-    <span
-      style={{ ...baseStyle, opacity: 0.5, cursor: "not-allowed", color: "var(--text-muted)", userSelect: "none" }}
-      onMouseEnter={() => setShowTip(true)}
-      onMouseLeave={() => setShowTip(false)}
-    >
+    <Link href={href} className={`nav-tab${active ? " nav-tab--active" : ""}`}>
       {children}
-      <span style={{ fontSize: 8, lineHeight: 1, marginTop: -6 }}>🔒</span>
-      {showTip && (
-        <span style={{
-          position: "absolute", top: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)",
-          backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
-          borderRadius: 5, padding: "5px 8px", fontSize: 10, color: "var(--text-secondary)",
-          whiteSpace: "nowrap", zIndex: 200, boxShadow: "0 4px 10px rgba(0,0,0,0.12)",
-          pointerEvents: "none",
-        }}>
-          פיצ'ר זה אינו פעיל עבורך
-        </span>
-      )}
-    </span>
+    </Link>
   );
 }
 
@@ -197,13 +180,15 @@ function ReportContent() {
                   </button>
                 </div>
               )}
-              <NavTab href={withClient("/charts", clientKey)} enabled={chartPageEnabled}>גרפים</NavTab>
-              <NavTab href={withClient("/analysis", clientKey)} enabled={true}>ניתוח</NavTab>
-              <NavTab href={withClient("/data-completion", clientKey)} enabled={brand.features?.dataCompletion ?? false}>השלמת נתונים</NavTab>
-              <NavTab href={withClient("/indications", clientKey)} enabled={brand.features?.indications ?? false}>⚡ אינדיקציה</NavTab>
-              <NavTab href={withClient("/fund-status", clientKey)} enabled={brand.features?.fundStatus ?? false}>סטטוס</NavTab>
-              <NavTab href={withClient("/consistency", clientKey)} enabled={brand.features?.consistencyAnalysis ?? false}>עקביות</NavTab>
-              <NavTab href={withClient("/admin", clientKey)} enabled={true}>ניהול</NavTab>
+              <div className="nav-tabs">
+                <NavTab href={withClient("/", clientKey)} enabled={true} active={true}>קרנות</NavTab>
+                <NavTab href={withClient("/analysis", clientKey)} enabled={true}>ניתוח</NavTab>
+                <NavTab href={withClient("/charts", clientKey)} enabled={chartPageEnabled}>גרפים</NavTab>
+                <NavTab href={withClient("/consistency", clientKey)} enabled={brand.features?.consistencyAnalysis ?? false}>עקביות</NavTab>
+                <NavTab href={withClient("/indications", clientKey)} enabled={brand.features?.indications ?? false}>⚡ אינדיקציה</NavTab>
+                <NavTab href={withClient("/fund-status", clientKey)} enabled={brand.features?.fundStatus ?? false}>סטטוס</NavTab>
+                <NavTab href={withClient("/admin", clientKey)} enabled={true}>ניהול</NavTab>
+              </div>
               <ThemeToggle />
             </div>
           </div>
