@@ -3,61 +3,238 @@
 import { useEffect, useState, useMemo, Suspense } from "react";
 import dynamic from "next/dynamic";
 import { FundsData, Fund, Benchmark } from "@/lib/types";
-import { formatDate } from "@/lib/format";
+import { pct, num, formatDate } from "@/lib/format";
 import { useBrand } from "@/lib/useBrand";
 import { useClientKey, withClient } from "@/lib/useClientKey";
 import { useSearchParams } from "next/navigation";
 import { BrandConfig } from "@/config/brand";
 import BrandLogo from "@/components/BrandLogo";
 import ClientGate from "@/components/ClientGate";
-import CompareSummary from "@/components/CompareSummary";
+import CompareSummary from "@/components/CompareSummary"; // print only
 import CompareTable from "@/components/CompareTable";
 import { brandCssVars } from "@/lib/colors";
 
-/* Dynamic import — only loaded in advanced mode */
 const CompareCharts = dynamic(() => import("@/components/CompareCharts"), { ssr: false });
 
-/* ================================================================== */
-/*  Compare Page                                                        */
-/* ================================================================== */
-function CompareContent() {
-  const clientKey = useClientKey();
-  const brand = useBrand(clientKey);
-  const searchParams = useSearchParams();
-  const fundsParam = searchParams.get("funds") || "";
-  const fundIds = useMemo(() => fundsParam.split(",").filter(Boolean), [fundsParam]);
+// ── Palette ──────────────────────────────────────────────────────────────────
+const FUND_COLORS = ["#1B3A2F", "#B8975A", "#3a5fa0", "#6b4fa0"];
 
-  const [data, setData] = useState<FundsData | null>(null);
-  const [allBenchmarks, setAllBenchmarks] = useState<Benchmark[]>([]);
-  const benchmarksParam = searchParams.get("benchmarks") || "";
-  const benchmarkIds = useMemo(() => benchmarksParam.split(",").filter(Boolean), [benchmarksParam]);
-  const [selectedBmIds, setSelectedBmIds] = useState<string[]>([]);
-  const mode = brand.features?.comparisonMode ?? "basic";
-  const benchmarksEnabled = brand.features?.benchmarks ?? false;
+// ── Time range ───────────────────────────────────────────────────────────────
+type TimeRange = "ytd" | "12m" | "3y" | "5y" | "max" | "custom";
 
-  // Available year keys and their labels
-  const YEAR_OPTIONS = [
-    { key: "ytd2026", label: "מצטבר 2026" },
-    { key: "y2025", label: "2025" },
-    { key: "y2024", label: "2024" },
-    { key: "y2023", label: "2023" },
-    { key: "y2022", label: "2022" },
-    { key: "y2021", label: "2021" },
-    { key: "y2020", label: "2020" },
-    { key: "y2019", label: "2019" },
+const ALL_YEAR_KEYS = ["ytd2026", "y2025", "y2024", "y2023", "y2022", "y2021", "y2020", "y2019"];
+
+const YEAR_KEY_TO_NUM: Record<string, number> = {
+  ytd2026: 2026, y2025: 2025, y2024: 2024, y2023: 2023,
+  y2022: 2022,   y2021: 2021, y2020: 2020, y2019: 2019,
+};
+
+function rangeToYearKeys(range: TimeRange, from?: string, to?: string): string[] {
+  switch (range) {
+    case "ytd":  return ["ytd2026"];
+    case "12m":  return ["ytd2026", "y2025"];
+    case "3y":   return ["ytd2026", "y2025", "y2024", "y2023"];
+    case "5y":   return ["ytd2026", "y2025", "y2024", "y2023", "y2022", "y2021"];
+    case "max":  return [...ALL_YEAR_KEYS];
+    case "custom": {
+      if (!from || !to) return [...ALL_YEAR_KEYS];
+      const f = parseInt(from.slice(0, 4));
+      const t = parseInt(to.slice(0, 4));
+      return ALL_YEAR_KEYS.filter((k) => { const y = YEAR_KEY_TO_NUM[k]; return y >= f && y <= t; });
+    }
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function computeCumulative(fund: Fund, selectedYears: string[]): number | null {
+  const vals: number[] = [];
+  for (const k of selectedYears) {
+    const v = (fund.returns as Record<string, number | null>)[k];
+    if (v != null) vals.push(v);
+  }
+  if (vals.length === 0) return null;
+  return vals.reduce((acc, v) => acc * (1 + v), 1) - 1;
+}
+
+function computeWinnerIdx(funds: Fund[], selectedYears: string[]): number {
+  if (funds.length < 2) return 0;
+  const scores = new Array(funds.length).fill(0);
+  const metrics: Array<{ get: (f: Fund) => number | null; low?: boolean }> = [
+    { get: (f) => f.monthlyReturn },
+    { get: (f) => f.avgAnnualReturn },
+    { get: (f) => f.sharpe },
+    { get: (f) => f.stdDev, low: true },
+    { get: (f) => computeCumulative(f, selectedYears) },
+  ];
+  for (const m of metrics) {
+    let bestIdx = -1;
+    let bestVal = m.low ? Infinity : -Infinity;
+    for (let i = 0; i < funds.length; i++) {
+      const v = m.get(funds[i]);
+      if (v == null) continue;
+      if (m.low ? v < bestVal : v > bestVal) { bestVal = v; bestIdx = i; }
+    }
+    if (bestIdx >= 0) scores[bestIdx]++;
+  }
+  return scores.indexOf(Math.max(...scores));
+}
+
+function retColor(v: number | null): string {
+  if (v == null) return "var(--text-muted)";
+  if (v > 0) return "#059669";
+  if (v < 0) return "#dc2626";
+  return "var(--text-secondary)";
+}
+
+function sharpeColor(s: number | null): string {
+  if (s == null) return "var(--text-muted)";
+  if (s >= 1)    return "#059669";
+  if (s >= 0.5)  return "#B8975A";
+  return "#dc2626";
+}
+
+// ── Month options for custom range ───────────────────────────────────────────
+const _today = new Date();
+const _toYM = `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, "0")}`;
+const MONTH_HE_FULL: Record<string, string> = {
+  "01": "ינואר",  "02": "פברואר", "03": "מרץ",    "04": "אפריל",
+  "05": "מאי",    "06": "יוני",   "07": "יולי",   "08": "אוגוסט",
+  "09": "ספטמבר", "10": "אוקטובר","11": "נובמבר", "12": "דצמבר",
+};
+const MONTH_OPTIONS = (() => {
+  const opts: { value: string; label: string }[] = [];
+  let year = 2019, month = 1;
+  while (year < _today.getFullYear() || (year === _today.getFullYear() && month <= _today.getMonth() + 1)) {
+    const mm = String(month).padStart(2, "0");
+    opts.push({ value: `${year}-${mm}`, label: `${MONTH_HE_FULL[mm]} ${year}` });
+    if (++month > 12) { month = 1; year++; }
+  }
+  return opts;
+})();
+
+// ── Segmented Control ─────────────────────────────────────────────────────────
+const RANGE_OPTIONS: { key: TimeRange; label: string }[] = [
+  { key: "ytd",    label: "מתחילת שנה" },
+  { key: "12m",    label: "12 חודשים" },
+  { key: "3y",     label: "3Y" },
+  { key: "5y",     label: "5Y" },
+  { key: "max",    label: "MAX" },
+  { key: "custom", label: "Custom" },
+];
+
+function SegmentedControl({ value, onChange, accentColor }: {
+  value: TimeRange; onChange: (v: TimeRange) => void; accentColor: string;
+}) {
+  return (
+    <div style={{ display: "inline-flex", borderRadius: 8, border: "1px solid var(--border)", overflow: "hidden" }}>
+      {RANGE_OPTIONS.map((o, i) => {
+        const active = value === o.key;
+        return (
+          <button key={o.key} onClick={() => onChange(o.key)} style={{
+            padding: "6px 13px", fontSize: 12, fontWeight: active ? 700 : 400,
+            border: "none",
+            borderRight: i < RANGE_OPTIONS.length - 1 ? "1px solid var(--border)" : "none",
+            cursor: "pointer",
+            backgroundColor: active ? accentColor : "var(--bg-surface)",
+            color: active ? "#fff" : "var(--text-secondary)",
+            transition: "all 0.12s", whiteSpace: "nowrap",
+          }}>
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Fund Card ─────────────────────────────────────────────────────────────────
+function FundCompareCard({ fund, color, isWinner, selectedYears }: {
+  fund: Fund; color: string; isWinner: boolean; selectedYears: string[];
+}) {
+  const cumulative = computeCumulative(fund, selectedYears);
+  const metrics = [
+    { label: "ממוצע שנתי", value: pct(fund.avgAnnualReturn),  color: retColor(fund.avgAnnualReturn) },
+    { label: "שארפ",        value: num(fund.sharpe),           color: sharpeColor(fund.sharpe) },
+    { label: "מצטבר",       value: pct(cumulative),            color: retColor(cumulative) },
   ];
 
-  // Default: show all years
-  const [selectedYears, setSelectedYears] = useState<string[]>(YEAR_OPTIONS.map((y) => y.key));
+  return (
+    <div style={{
+      backgroundColor: "var(--bg-surface)", borderRadius: 10,
+      border: "1px solid var(--border)", borderTop: `3px solid ${color}`,
+      padding: "16px 18px", boxShadow: "var(--shadow-card)",
+    }}>
+      {/* Winner badge or spacer */}
+      <div style={{ height: 20, marginBottom: 6, display: "flex", alignItems: "center" }}>
+        {isWinner
+          ? <span style={{ fontSize: 11, fontWeight: 700, color, letterSpacing: 0.3 }}>↑ מובילה</span>
+          : <span style={{ visibility: "hidden", fontSize: 11 }}>_</span>}
+      </div>
 
-  const toggleYear = (key: string) => {
-    setSelectedYears((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
-    );
+      {/* Name + classification */}
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", lineHeight: 1.35, marginBottom: 3 }}>
+          {fund.name}
+        </div>
+        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+          {fund.classification || "—"}
+        </div>
+      </div>
+
+      {/* 3 metrics */}
+      <div style={{ display: "flex", borderTop: "1px solid var(--border)", paddingTop: 10 }}>
+        {metrics.map((m, i) => (
+          <div key={m.label} style={{
+            flex: 1, textAlign: "center",
+            borderRight: i < 2 ? "1px solid var(--border)" : "none",
+            padding: "0 6px",
+          }}>
+            <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>{m.label}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: m.color, fontVariantNumeric: "tabular-nums" }}>
+              {m.value}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Compare Content ───────────────────────────────────────────────────────────
+function CompareContent() {
+  const clientKey   = useClientKey();
+  const brand       = useBrand(clientKey);
+  const searchParams = useSearchParams();
+  const fundsParam  = searchParams.get("funds") || "";
+  const fundIds     = useMemo(() => fundsParam.split(",").filter(Boolean), [fundsParam]);
+
+  const [data, setData]                   = useState<FundsData | null>(null);
+  const [allBenchmarks, setAllBenchmarks] = useState<Benchmark[]>([]);
+  const benchmarksParam = searchParams.get("benchmarks") || "";
+  const benchmarkIds    = useMemo(() => benchmarksParam.split(",").filter(Boolean), [benchmarksParam]);
+  const [selectedBmIds, setSelectedBmIds] = useState<string[]>([]);
+
+  const mode              = brand.features?.comparisonMode ?? "basic";
+  const benchmarksEnabled = brand.features?.benchmarks ?? false;
+  const comparisonEnabled = brand.features?.comparison ?? true;
+
+  // Time range
+  const [timeRange,     setTimeRange]     = useState<TimeRange>("3y");
+  const [customFrom,    setCustomFrom]    = useState("2022-01");
+  const [customTo,      setCustomTo]      = useState(_toYM);
+  const [committedFrom, setCommittedFrom] = useState("2022-01");
+  const [committedTo,   setCommittedTo]   = useState(_toYM);
+
+  const selectedYears = useMemo(
+    () => rangeToYearKeys(timeRange, committedFrom, committedTo),
+    [timeRange, committedFrom, committedTo],
+  );
+
+  const selectStyle: React.CSSProperties = {
+    padding: "4px 8px", borderRadius: 5, fontSize: 11,
+    border: "1px solid var(--border)", cursor: "pointer",
+    backgroundColor: "var(--bg-input)", color: "var(--text-primary)",
   };
-
-  const selectAllYears = () => setSelectedYears(YEAR_OPTIONS.map((y) => y.key));
-  const clearAllYears = () => setSelectedYears([]);
 
   useEffect(() => {
     fetch(`/api/funds?client=${encodeURIComponent(clientKey)}`)
@@ -68,10 +245,8 @@ function CompareContent() {
         .then((r) => r.json())
         .then((bms: Benchmark[]) => {
           setAllBenchmarks(bms);
-          // If URL has benchmark params, select them
-          if (benchmarkIds.length > 0) {
+          if (benchmarkIds.length > 0)
             setSelectedBmIds(benchmarkIds.filter((id) => bms.some((b) => b.id === id)).slice(0, 2));
-          }
         });
     }
   }, [clientKey, benchmarksEnabled]);
@@ -79,12 +254,9 @@ function CompareContent() {
   const funds: Fund[] = useMemo(() => {
     if (!data || fundIds.length === 0) return [];
     const all: Fund[] = [];
-    for (const cat of data.categories) {
-      for (const f of cat.funds) {
+    for (const cat of data.categories)
+      for (const f of cat.funds)
         if (fundIds.includes(f.id)) all.push(f);
-      }
-    }
-    // Preserve original selection order
     return fundIds.map((id) => all.find((f) => f.id === id)).filter(Boolean) as Fund[];
   }, [data, fundIds]);
 
@@ -92,49 +264,45 @@ function CompareContent() {
     selectedBmIds.map((id) => allBenchmarks.find((b) => b.id === id)).filter(Boolean) as Benchmark[],
   [selectedBmIds, allBenchmarks]);
 
-  const toggleBenchmark = (id: string) => {
-    setSelectedBmIds((prev) => {
-      if (prev.includes(id)) return prev.filter((x) => x !== id);
-      if (prev.length >= 2) return prev; // max 2
-      return [...prev, id];
-    });
-  };
+  const toggleBenchmark = (id: string) => setSelectedBmIds((prev) => {
+    if (prev.includes(id)) return prev.filter((x) => x !== id);
+    if (prev.length >= 2) return prev;
+    return [...prev, id];
+  });
 
-  // Feature gate
-  const comparisonEnabled = brand.features?.comparison ?? true;
+  const winnerIdx = useMemo(() => computeWinnerIdx(funds, selectedYears), [funds, selectedYears]);
 
-  if (!data) {
+  if (!data)
     return <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>טוען נתונים...</div>;
-  }
 
-  if (!comparisonEnabled) {
+  if (!comparisonEnabled)
     return (
       <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>
         <p>תכונת ההשוואה אינה פעילה עבור לקוח זה.</p>
         <a href={withClient("/", clientKey)} style={{ color: "var(--accent)" }}>חזור לדוח</a>
       </div>
     );
-  }
 
-  if (funds.length < 2) {
+  if (funds.length < 2)
     return (
       <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>
         <p>יש לבחור לפחות 2 קרנות להשוואה.</p>
         <a href={withClient("/", clientKey)} style={{ color: "var(--accent)" }}>חזור לדוח</a>
       </div>
     );
-  }
 
   return (
     <ClientGate clientKey={clientKey}>
-      {/* Override print to portrait for compare page */}
       <style>{`@media print { @page { size: A4 portrait; margin: 8mm 10mm 14mm 10mm; } }`}</style>
       <div style={{ minHeight: "100vh", ...brandCssVars(brand.primaryColor, brand.accentColor) } as React.CSSProperties}>
+
         {/* ============ SCREEN VERSION ============ */}
         <div className="no-print">
+
+          {/* 1. Topbar */}
           <div style={{ height: 4, backgroundColor: brand.primaryColor }} />
           <div style={{ backgroundColor: "var(--bg-surface)", borderBottom: "1px solid var(--border)" }}>
-            <div style={{ maxWidth: 960, margin: "0 auto", padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ maxWidth: 1200, margin: "0 auto", padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                 <BrandLogo brand={brand} height={28} variant="light" />
                 <span style={{ fontSize: 14, color: "var(--text-primary)", fontWeight: 600 }}>השוואת קרנות</span>
@@ -145,139 +313,116 @@ function CompareContent() {
                 )}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <button
-                  onClick={() => window.print()}
-                  style={{ backgroundColor: brand.primaryColor, color: "#fff", fontWeight: 700, padding: "6px 18px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12 }}
-                >
+                <button onClick={() => window.print()} style={{
+                  backgroundColor: brand.primaryColor, color: "#fff", fontWeight: 700,
+                  padding: "6px 18px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12,
+                }}>
                   הדפסה / PDF
                 </button>
-                <a href={withClient("/", clientKey)} style={{ fontSize: 12, color: "var(--text-secondary)", textDecoration: "none", padding: "5px 10px", borderRadius: 6, border: "1px solid var(--border)" }}>
-                  ← חזור לדוח
-                </a>
-              </div>
-            </div>
-          </div>
-
-          {/* ── VIEW TOGGLE ── */}
-          <div style={{ backgroundColor: "var(--bg-surface-alt)", borderBottom: "1px solid var(--border)", padding: "14px 24px" }}>
-            <div style={{ maxWidth: 960, margin: "0 auto", display: "flex", justifyContent: "center" }}>
-              <div style={{ display: "inline-flex", borderRadius: 12, border: `2px solid ${brand.primaryColor}`, overflow: "hidden" }}>
-                <a href={withClient("/analysis", clientKey)} style={{
-                  display: "inline-block", padding: "10px 32px", fontSize: 14, fontWeight: 600,
-                  backgroundColor: "transparent", color: brand.primaryColor,
-                  textDecoration: "none", transition: "background 0.15s",
-                }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.backgroundColor = "color-mix(in srgb, var(--bg-surface) 80%, transparent)"; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.backgroundColor = "transparent"; }}
-                >
-                  תצוגת קרנות
-                </a>
-                <span style={{
-                  display: "inline-block", padding: "10px 32px", fontSize: 14, fontWeight: 700,
-                  backgroundColor: brand.primaryColor, color: "#fff",
-                  cursor: "default", userSelect: "none",
+                <a href={withClient("/", clientKey)} style={{
+                  fontSize: 12, color: "var(--text-secondary)", textDecoration: "none",
+                  padding: "5px 10px", borderRadius: 6, border: "1px solid var(--border)",
                 }}>
-                  השוואה בין קרנות
-                </span>
+                  ← חזור לרשימה
+                </a>
               </div>
             </div>
           </div>
 
-          <div style={{ maxWidth: 960, margin: "0 auto", padding: "24px 24px 20px" }}>
-            {/* Year selector */}
-            <div style={{
-              backgroundColor: "var(--bg-surface)",
-              border: "1px solid var(--border)",
-              borderRadius: 10,
-              padding: "12px 16px",
-              marginBottom: 20,
-            }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
-                  📅 בחר שנים להשוואה
+          {/* 2. Hero — chart + segmented control */}
+          <div style={{ backgroundColor: "var(--bg-surface)", borderBottom: "1px solid var(--border)" }}>
+            <div style={{ maxWidth: 1200, margin: "0 auto", padding: "20px 24px 16px" }}>
+
+              {/* Title + Segmented Control */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 10 }} dir="rtl">
+                <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>
+                  תשואות שנתיות לאורך זמן
                 </span>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <button onClick={selectAllYears}
-                    style={{ fontSize: 10, padding: "3px 10px", borderRadius: 4, border: "1px solid var(--border)", backgroundColor: "var(--bg-surface-alt)", color: "var(--text-secondary)", cursor: "pointer" }}>
-                    בחר הכל
-                  </button>
-                  <button onClick={clearAllYears}
-                    style={{ fontSize: 10, padding: "3px 10px", borderRadius: 4, border: "1px solid var(--border)", backgroundColor: "var(--bg-surface-alt)", color: "var(--text-secondary)", cursor: "pointer" }}>
-                    נקה
+                <SegmentedControl value={timeRange} onChange={setTimeRange} accentColor={brand.primaryColor} />
+              </div>
+
+              {/* Custom range row */}
+              {timeRange === "custom" && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" }} dir="rtl">
+                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>מ-</span>
+                  <select value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} style={selectStyle}>
+                    {MONTH_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>עד</span>
+                  <select value={customTo} onChange={(e) => setCustomTo(e.target.value)} style={selectStyle}>
+                    {MONTH_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                  <button
+                    onClick={() => { setCommittedFrom(customFrom); setCommittedTo(customTo); }}
+                    style={{
+                      padding: "5px 16px", borderRadius: 6, fontSize: 12, cursor: "pointer",
+                      backgroundColor: brand.primaryColor, color: "#fff", border: "none", fontWeight: 600,
+                    }}
+                  >
+                    הצג
                   </button>
                 </div>
-              </div>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {YEAR_OPTIONS.map((y) => {
-                  const active = selectedYears.includes(y.key);
-                  return (
-                    <button
-                      key={y.key}
-                      onClick={() => toggleYear(y.key)}
-                      style={{
-                        padding: "5px 14px",
-                        borderRadius: 6,
-                        border: `1px solid ${active ? brand.primaryColor : "var(--border)"}`,
-                        backgroundColor: active ? `${brand.primaryColor}15` : "var(--bg-surface)",
-                        color: active ? brand.primaryColor : "var(--text-secondary)",
-                        fontWeight: active ? 700 : 400,
-                        fontSize: 12,
-                        cursor: "pointer",
-                        transition: "all 0.15s",
-                      }}>
-                      {y.label}
-                    </button>
-                  );
-                })}
-              </div>
-              {selectedYears.length === 0 && (
-                <p style={{ fontSize: 11, color: "#f59e0b", margin: "8px 0 0", fontWeight: 500 }}>
-                  ⚠️ לא נבחרו שנים — הטבלה תציג רק נתונים כלליים
-                </p>
               )}
+
+              {/* Chart */}
+              <CompareCharts
+                funds={funds}
+                accentColor={brand.primaryColor}
+                selectedYears={selectedYears}
+                benchmarks={selectedBenchmarks}
+              />
+            </div>
+          </div>
+
+          <div style={{ maxWidth: 1200, margin: "0 auto", padding: "20px 24px 0" }}>
+
+            {/* 3. Fund cards */}
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: `repeat(${Math.min(funds.length, 4)}, 1fr)`,
+              gap: 16,
+              marginBottom: 24,
+            }}>
+              {funds.map((fund, i) => (
+                <FundCompareCard
+                  key={fund.id}
+                  fund={fund}
+                  color={FUND_COLORS[i % FUND_COLORS.length]}
+                  isWinner={i === winnerIdx}
+                  selectedYears={selectedYears}
+                />
+              ))}
             </div>
 
             {/* Benchmark selector */}
             {benchmarksEnabled && allBenchmarks.length > 0 && (
               <div style={{
-                backgroundColor: "var(--bg-surface)",
-                border: "1px solid var(--border)",
-                borderRadius: 10,
-                padding: "12px 16px",
-                marginBottom: 20,
+                backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
+                borderRadius: 10, padding: "12px 16px", marginBottom: 20,
               }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
-                    📊 מדדי ייחוס (עד 2)
-                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>📊 מדדי ייחוס (עד 2)</span>
                   {selectedBmIds.length > 0 && (
-                    <button onClick={() => setSelectedBmIds([])}
-                      style={{ fontSize: 10, padding: "3px 10px", borderRadius: 4, border: "1px solid var(--border)", backgroundColor: "var(--bg-surface-alt)", color: "var(--text-secondary)", cursor: "pointer" }}>
-                      נקה
-                    </button>
+                    <button onClick={() => setSelectedBmIds([])} style={{
+                      fontSize: 10, padding: "3px 10px", borderRadius: 4,
+                      border: "1px solid var(--border)", backgroundColor: "var(--bg-surface-alt)",
+                      color: "var(--text-secondary)", cursor: "pointer",
+                    }}>נקה</button>
                   )}
                 </div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   {allBenchmarks.map((bm) => {
                     const active = selectedBmIds.includes(bm.id);
-                    const atMax = selectedBmIds.length >= 2 && !active;
+                    const atMax  = selectedBmIds.length >= 2 && !active;
                     return (
-                      <button
-                        key={bm.id}
-                        onClick={() => toggleBenchmark(bm.id)}
-                        disabled={atMax}
-                        style={{
-                          padding: "5px 14px",
-                          borderRadius: 6,
-                          border: `1px solid ${active ? "#6366f1" : "var(--border)"}`,
-                          backgroundColor: active ? "#6366f115" : "var(--bg-surface)",
-                          color: active ? "#6366f1" : atMax ? "var(--text-muted)" : "var(--text-secondary)",
-                          fontWeight: active ? 700 : 400,
-                          fontSize: 12,
-                          cursor: atMax ? "default" : "pointer",
-                          opacity: atMax ? 0.4 : 1,
-                          transition: "all 0.15s",
-                        }}>
+                      <button key={bm.id} onClick={() => toggleBenchmark(bm.id)} disabled={atMax} style={{
+                        padding: "5px 14px", borderRadius: 6, fontSize: 12,
+                        cursor: atMax ? "default" : "pointer",
+                        border: `1px solid ${active ? "#6366f1" : "var(--border)"}`,
+                        backgroundColor: active ? "#6366f115" : "var(--bg-surface)",
+                        color: active ? "#6366f1" : atMax ? "var(--text-muted)" : "var(--text-secondary)",
+                        fontWeight: active ? 700 : 400, opacity: atMax ? 0.4 : 1, transition: "all 0.15s",
+                      }}>
                         {bm.currency === "USD" ? "$" : "₪"} {bm.name}
                       </button>
                     );
@@ -286,22 +431,30 @@ function CompareContent() {
               </div>
             )}
 
-            <CompareSummary funds={funds} accentColor={brand.primaryColor} selectedYears={selectedYears} />
-            <CompareTable funds={funds} accentColor={brand.primaryColor} selectedYears={selectedYears} benchmarks={selectedBenchmarks} />
-            {mode === "advanced" && <CompareCharts funds={funds} accentColor={brand.primaryColor} benchmarks={selectedBenchmarks} selectedYears={selectedYears} />}
-          </div>
+            {/* 4. Compare table */}
+            <CompareTable
+              funds={funds}
+              accentColor={brand.primaryColor}
+              selectedYears={selectedYears}
+              benchmarks={selectedBenchmarks}
+            />
 
-          {/* Screen disclaimer */}
-          {brand.footerDisclaimer && (
-            <div style={{ maxWidth: 960, margin: "0 auto", padding: "0 24px 20px" }}>
-              <div style={{ backgroundColor: "var(--bg-surface-alt)", borderRadius: 8, padding: "12px 18px", fontSize: 10, color: "var(--text-muted)", lineHeight: 1.6, border: "1px solid var(--border)", whiteSpace: "pre-line" }}>
-                {brand.footerDisclaimer}
+            {/* Disclaimer */}
+            {brand.footerDisclaimer && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{
+                  backgroundColor: "var(--bg-surface-alt)", borderRadius: 8, padding: "12px 18px",
+                  fontSize: 10, color: "var(--text-muted)", lineHeight: 1.6,
+                  border: "1px solid var(--border)", whiteSpace: "pre-line",
+                }}>
+                  {brand.footerDisclaimer}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <div style={{ textAlign: "center", padding: "8px 0 20px", fontSize: 10, color: "var(--text-muted)" }}>
-            {brand.showCredit && brand.creditText ? `All rights reserved — ${brand.creditText}` : brand.fullName ? `© ${brand.fullName}` : ""}
+            <div style={{ textAlign: "center", padding: "8px 0 20px", fontSize: 10, color: "var(--text-muted)" }}>
+              {brand.showCredit && brand.creditText ? `All rights reserved — ${brand.creditText}` : brand.fullName ? `© ${brand.fullName}` : ""}
+            </div>
           </div>
         </div>
 
@@ -313,7 +466,7 @@ function CompareContent() {
 }
 
 /* ================================================================== */
-/*  Print-only comparison report                                        */
+/*  Print-only comparison report — UNTOUCHED                           */
 /* ================================================================== */
 function ComparePrint({ funds, brand, lastUpdated, mode, selectedYears, benchmarks }: {
   funds: Fund[];

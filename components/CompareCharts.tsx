@@ -2,7 +2,7 @@
 
 import { Fund, Benchmark } from "@/lib/types";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
 
 interface CompareChartsProps {
@@ -14,7 +14,7 @@ interface CompareChartsProps {
 }
 
 /* Fixed palette for up to 4 funds */
-const PALETTE = ["#1a365d", "#059669", "#c42b2b", "#7c3aed"];
+const PALETTE = ["#1B3A2F", "#B8975A", "#3a5fa0", "#6b4fa0"];
 /* Benchmark palette — distinct from fund colors */
 const BM_PALETTE = ["#6366f1", "#ec4899"];
 
@@ -90,45 +90,35 @@ export default function CompareCharts({ funds, accentColor, compact, benchmarks 
     );
   }
 
-  /* Full screen version */
+  /* Full screen version — full width, 280px */
   return (
-    <div style={{ marginBottom: 24 }}>
-      <div style={{
-        backgroundColor: "white", borderRadius: 10, padding: "20px 16px",
-        border: "1px solid #dfe3e8",
-      }}>
-        <h4 style={{ fontSize: 14, fontWeight: 600, color: "#1a1f2b", margin: "0 0 16px", textAlign: "right" }}>
-          השוואת תשואות שנתיות (%)
-        </h4>
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <LineChart width={660} height={360} data={lineData}
-            margin={{ top: 10, right: 20, left: 10, bottom: 5 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="#e8eaed" />
-            <XAxis dataKey="year" tick={{ fontSize: 11, fill: "#5a6577" }} />
-            <YAxis tick={{ fontSize: 10, fill: "#8893a4" }} unit="%" width={45} />
-            <Tooltip
-              contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #dfe3e8" }}
-              formatter={(value: unknown) => [`${Number(value)?.toFixed(2)}%`]}
+    <div style={{ marginBottom: 8 }}>
+      <ResponsiveContainer width="100%" height={280}>
+        <LineChart data={lineData} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e8eaed" />
+          <XAxis dataKey="year" tick={{ fontSize: 11, fill: "#5a6577" }} />
+          <YAxis tick={{ fontSize: 10, fill: "#8893a4" }} unit="%" width={45} />
+          <Tooltip
+            contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #dfe3e8" }}
+            formatter={(value: unknown) => [`${Number(value)?.toFixed(2)}%`]}
+          />
+          <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
+          {funds.map((f, i) => (
+            <Line key={f.id} type="monotone" dataKey={f.name}
+              stroke={fundColors[i]} strokeWidth={2.5}
+              dot={{ r: 4, fill: fundColors[i], strokeWidth: 0 }}
+              activeDot={{ r: 6 }} connectNulls={false}
             />
-            <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
-            {funds.map((f, i) => (
-              <Line key={f.id} type="monotone" dataKey={f.name}
-                stroke={fundColors[i]} strokeWidth={2.5}
-                dot={{ r: 4, fill: fundColors[i], strokeWidth: 0 }}
-                activeDot={{ r: 6 }} connectNulls={false}
-              />
-            ))}
-            {benchmarks.map((bm, i) => (
-              <Line key={bm.id} type="monotone" dataKey={bm.name}
-                stroke={bmColors[i]} strokeWidth={2} strokeDasharray="8 4"
-                dot={{ r: 3, fill: bmColors[i], strokeWidth: 0 }}
-                activeDot={{ r: 5 }} connectNulls={false}
-              />
-            ))}
-          </LineChart>
-        </div>
-      </div>
+          ))}
+          {benchmarks.map((bm, i) => (
+            <Line key={bm.id} type="monotone" dataKey={bm.name}
+              stroke={bmColors[i]} strokeWidth={2} strokeDasharray="8 4"
+              dot={{ r: 3, fill: bmColors[i], strokeWidth: 0 }}
+              activeDot={{ r: 5 }} connectNulls={false}
+            />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
     </div>
   );
 }
