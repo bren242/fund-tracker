@@ -381,23 +381,23 @@ body {
   align-items: center;
   gap: 16px;
   padding: 12px 24px;
-  background: rgba(0,0,0,0.06);
+  background: #e0e0e0;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(0,0,0,0.08);
+  border: 1px solid #cccccc;
   border-radius: 100px;
   box-shadow: 0 4px 24px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.10);
   z-index: 1000;
   animation: floatUp 0.2s ease;
   white-space: nowrap;
-  color: var(--text-primary);
+  color: #1a1a1a;
 }
 
 .dark .floating-action-bar {
-  background: rgba(255,255,255,0.12);
-  border: 1px solid rgba(255,255,255,0.10);
+  background: #e0e0e0;
+  border: 1px solid #cccccc;
   box-shadow: 0 4px 24px rgba(0,0,0,0.5), 0 1px 4px rgba(0,0,0,0.3);
-  color: var(--text-primary);
+  color: #1a1a1a;
 }
 
 @keyframes floatUp {
