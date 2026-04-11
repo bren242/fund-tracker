@@ -322,16 +322,16 @@ body {
 .nav-tabs {
   display: flex;
   align-items: center;
-  gap: 2px;
-  background: rgba(0,0,0,0.12);
-  border-radius: 12px;
-  padding: 3px;
-  border: 1px solid rgba(0,0,0,0.08);
+  gap: 0px;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  border: none;
 }
 
 .dark .nav-tabs {
-  background: rgba(255,255,255,0.10);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: transparent;
+  border: none;
 }
 
 .nav-tab {
