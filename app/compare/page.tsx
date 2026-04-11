@@ -367,22 +367,13 @@ function CompareContent() {
           {/* 3. Content — chart + cards + table, all same padding */}
           <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}>
 
-            {/* Chart — card wrapper gives it clear visual bounds matching the fund cards */}
-            <div style={{
-              marginTop: 20, marginBottom: 4,
-              backgroundColor: "var(--bg-surface)",
-              border: "1px solid var(--border)",
-              borderRadius: 10,
-              padding: "16px 4px 8px",
-              boxShadow: "var(--shadow-card)",
-            }}>
-              <CompareCharts
-                funds={funds}
-                accentColor={brand.primaryColor}
-                selectedYears={selectedYears}
-                benchmarks={selectedBenchmarks}
-              />
-            </div>
+            {/* Chart */}
+            <CompareCharts
+              funds={funds}
+              accentColor={brand.primaryColor}
+              selectedYears={selectedYears}
+              benchmarks={selectedBenchmarks}
+            />
 
             {/* Fund cards */}
             <div style={{

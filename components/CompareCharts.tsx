@@ -92,7 +92,7 @@ export default function CompareCharts({ funds, accentColor, compact, benchmarks 
 
   /* Full screen version — full width, 280px */
   return (
-    <div style={{ marginBottom: 8 }}>
+    <div style={{ margin: "0 24px 8px" }}>
       <ResponsiveContainer width="100%" height={280}>
         <LineChart data={lineData} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e8eaed" />

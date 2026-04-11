@@ -152,7 +152,8 @@ function getBestIdx(funds: Fund[], metric: MetricRow): number | null {
   return bestIdx;
 }
 
-const BM_HEADER_COLOR = "#6b4fa0";
+const BM_COLORS    = ["#6b4fa0", "#0891b2"];
+const BM_BG_COLORS = ["rgba(107, 79, 160, 0.08)", "rgba(8, 145, 178, 0.08)"];
 
 export default function CompareTable({ funds, accentColor, compact, selectedYears, benchmarks = [] }: CompareTableProps) {
   if (funds.length < 2) return null;
@@ -207,7 +208,7 @@ export default function CompareTable({ funds, accentColor, compact, selectedYear
                 padding: fs.padH, textAlign: "center", fontWeight: 700,
                 color: "white", fontSize: fs.thName,
                 borderBottom: "2px solid #dfe3e8",
-                backgroundColor: BM_HEADER_COLOR,
+                backgroundColor: BM_COLORS[i % BM_COLORS.length],
                 minWidth: fs.minCol,
                 borderRadius: !compact && i === benchmarks.length - 1 ? "0 8px 0 0" : 0,
                 borderRight: i === 0 ? "2px solid #e8eaed" : undefined,
@@ -263,7 +264,7 @@ export default function CompareTable({ funds, accentColor, compact, selectedYear
                         color: "#a0a8b8", fontSize: fs.td,
                         borderBottom: "1px solid #e8eaed",
                         borderRight: i === 0 ? "2px solid #e8eaed" : undefined,
-                        backgroundColor: "rgba(107, 79, 160, 0.08)",
+                        backgroundColor: BM_BG_COLORS[i % BM_BG_COLORS.length],
                       }}>
                         —
                       </td>
@@ -306,8 +307,9 @@ export default function CompareTable({ funds, accentColor, compact, selectedYear
       {!compact && (
         <div style={{ marginTop: 8, fontSize: fs.legend, color: "#8893a4", display: "flex", alignItems: "center", gap: 8 }}>
           <span><span style={{ color: accentColor }}>★</span> ערך מוביל בקטגוריה</span>
-          {hasBm && <span style={{ color: BM_HEADER_COLOR }}>■</span>}
-          {hasBm && <span>מדד ייחוס</span>}
+          {hasBm && benchmarks.map((bm, i) => (
+            <span key={bm.id} style={{ color: BM_COLORS[i % BM_COLORS.length] }}>■ {bm.name}</span>
+          ))}
         </div>
       )}
     </div>
