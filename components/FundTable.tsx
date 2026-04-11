@@ -88,7 +88,7 @@ function SortableHeader({ label, col, sortCol, sortDir, onSort, onReset, style }
         {label}
         <span style={{
           fontSize: isActive ? 18 : 16,
-          color: "#FFFFFF",
+          color: "var(--text-muted)",
           opacity: isActive ? 1 : 0.4,
           transition: "opacity 0.15s, font-size 0.1s",
           lineHeight: 1,
@@ -319,12 +319,12 @@ export default function FundTable({ categories, comparisonEnabled, selectedFundI
 
   const thBase: React.CSSProperties = {
     padding: "9px 10px",
-    fontWeight: 600,
+    fontWeight: 500,
     textAlign: "center",
     whiteSpace: "nowrap",
-    borderBottom: "2px solid rgba(255,255,255,0.15)",
-    fontSize: "10px",
-    letterSpacing: 0.2,
+    borderBottom: "1px solid var(--border-table)",
+    fontSize: "11px",
+    letterSpacing: 0.3,
   };
 
   function handleReset() { setSortCol(null); }
@@ -337,7 +337,7 @@ export default function FundTable({ categories, comparisonEnabled, selectedFundI
         <col />
       </colgroup>
       <thead>
-        <tr style={{ backgroundColor: "var(--bg-section)", color: "#fff" }}>
+        <tr style={{ backgroundColor: "var(--bg-surface-alt)", color: "var(--text-secondary)" }}>
           <SortableHeader label="שם קרן"     col="name"           style={{ ...thBase, textAlign: "right", paddingRight: 10 }} {...sortProps} />
           <SortableHeader label="סיווג"       col="classification" style={{ ...thBase, textAlign: "right" }}                   {...sortProps} />
           <SortableHeader label="מנהל"        col="manager"        style={thBase}                                               {...sortProps} />
