@@ -297,17 +297,12 @@ export default function FundTable({ categories, comparisonEnabled, selectedFundI
         const isCollapsed = collapsedGroups.has(SUPER_HEADER_BEFORE);
         rows.push(
           <tr key="super-header" onClick={() => toggleGroup(SUPER_HEADER_BEFORE)} style={{ cursor: "pointer", userSelect: "none" }}>
-            <td colSpan={colCount}
-              style={{ backgroundColor: "transparent", borderTop: "2px solid var(--bg-section)", borderBottom: "none", color: "var(--bg-section)", padding: "12px 16px 4px 16px", fontWeight: 700, fontSize: "13px", textAlign: "right", letterSpacing: "0.3px" }}>
-              <span style={{
-                float: "left",
-                fontSize: "10px",
-                opacity: 0.6,
-                transition: "transform 0.2s ease",
-                display: "inline-block",
-                transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)",
-              }}>▼</span>
-              קרנות גידור ישראל
+            <td colSpan={colCount + 1}
+              style={{ backgroundColor: "transparent", borderTop: "2px solid var(--bg-section)", borderBottom: "none", color: "var(--bg-section)", padding: "12px 16px 4px 16px", fontWeight: 700, fontSize: "13px", letterSpacing: "0.3px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: "10px", opacity: 0.5, display: "inline-block", transition: "transform 0.2s ease", transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)" }}>▼</span>
+                <span>קרנות גידור ישראל</span>
+              </div>
             </td>
           </tr>
         );
@@ -315,7 +310,7 @@ export default function FundTable({ categories, comparisonEnabled, selectedFundI
       if (cat.funds.length === 0) continue;
       rows.push(
         <tr key={`cat-${cat.id}`}>
-          <td colSpan={colCount}
+          <td colSpan={colCount + 1}
             style={{ backgroundColor: "transparent", borderTop: "2px solid var(--bg-section)", borderBottom: "none", color: "var(--bg-section)", padding: "12px 16px 4px 16px", fontWeight: 700, fontSize: "13px", textAlign: "right", letterSpacing: "0.3px" }}>
             {cat.name}
           </td>
