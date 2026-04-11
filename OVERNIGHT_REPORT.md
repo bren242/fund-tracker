@@ -1,86 +1,88 @@
-# OVERNIGHT_REPORT.md — ריצת לילה 2026-04-11
+# OVERNIGHT_REPORT.md — ריצה 2026-04-11 (סשן 2)
 
-## סיכום כללי
-כל 4 משימות בוצעו בהצלחה. בילד Vercel עבר — Ready.
-
----
-
-## משימה 1 — צבעי גרף עקביות ✅
-
-**מה בוצע:**
-- `useTheme` מיובא מ-ThemeProvider
-- Dark mode: קרן = `#4ade80` (ירוק בהיר), בנצ'מרק = `#B8975A` (זהב מקווקו)
-- Light mode: קרן = `#1B3A2F` (ירוק כהה), בנצ'מרק = `#B8975A`
-- CartesianGrid stroke, XAxis/YAxis tick/stroke: ערכי hex ישירים (לא CSS vars — per LESSONS.md)
-- ChartTooltip: רקע hex לפי מוד (`#1e2d2d` dark / `#ffffff` light), גבול hex ישיר
-
-**הערה לבוקר:** בדוק גרף בשני המודים. הצבעים הם ערכים קבועים — אם צבע המותג צריך להשפיע על קו הקרן, זה שינוי נוסף.
+## סיכום — 6 משימות
 
 ---
 
-## משימה 2 — טולטיפים ✅
-
-**מה בוצע:**
-- `ColTooltip` component ברמה עליונה (top-level — per LESSONS.md: אסור קומפוננטות nested)
-- מוצב ליד כותרות: חודשים, עקביות, avgGap, IR, ציון כולל
-- ליד שם הבנצ'מרק בשורת המידע: tooltip עם המשקולות לפי קטגוריה
-- Tooltip מיוצב `position: absolute` עם `zIndex: 200`
-- `direction: rtl`, `textAlign: right` — עברית תקינה
-
-**הערה לבוקר:** כרגע הטולטיפ מוצג בhover (onMouseEnter/Leave). אין state גלובלי — כל `?` מנהל את עצמו. בדוק שאין חפיפה עם שורות אחרות בטבלה צפופה.
+## Task 1 ✅ — Feature Lock על טאבים מושבתים
+**קובץ:** `app/page.tsx`
+- קומפוננטה `NavTab` ברמה עליונה (top-level — per LESSONS.md)
+- טאבים מושבתים: opacity 0.5, cursor not-allowed, אייקון 🔒
+- Tooltip: "פיצ'ר זה אינו פעיל עבורך" ב-hover (absolute positioned, zIndex 200)
+- **טאבים שהוחלו:** גרפים, השלמת נתונים, ⚡ אינדיקציה, סטטוס, עקביות
+- ניתוח + ניהול תמיד enabled
 
 ---
 
-## משימה 3 — כרטיס תקציר קטגוריה ✅
-
-**מה בוצע:**
-- `SummaryCard` component ברמה עליונה
-- 3 קלפים: IR ממוצע קטגוריה | % קרנות מעל 50% | קרן מובילה
-- מחושב ב-`useMemo` (בסוף חישוב הרשימה), רק על `rows` עם `result !== null`
-- IR ממוצע: ממוצע אריתמטי של כל ה-ir values שאינם null
-- % מעל 50%: `result.score > 50` (לא 50% מול כל הקרנות, רק מול אלה עם נתונים)
-- קרן מובילה: `withResult[0].name` (כבר ממוין לפי score desc)
-- מוצג רק כש-`fundsWithData > 0`
-
-**הערה לבוקר:** בדוק שהמספרים הגיוניים עם הנתונים האמיתיים. בקטגוריות עם מעט קרנות עם נתונים הקלפים עלולים להיות מטעים.
+## Task 2 ✅ — Year Filter על הטבלה הראשית
+**קובץ:** `app/page.tsx`
+- Toggle קטן: הכל | שנה בודדת | טווח
+- **הכל:** כל השנים מ-FundTable (ברירת מחדל)
+- **שנה בודדת:** dropdown יחיד → עמודה אחת בטבלה
+- **טווח:** from (שנה+חודש) ו-to (שנה+חודש) → כל השנים בטווח
+- `screenVisibleYears: string[] | null` מחושב ומועבר ל-`FundTable` כ-`visibleYears`
+- Print לא נפגע — `printYearsArray` נשאר נפרד לחלוטין
 
 ---
 
-## משימה 4 — יישור תגיות ILS ✅
-
-**מה בוצע:**
-- `FundTable.tsx`: שם הקרן עטוף ב-`<span style={{ flex: 1 }}>`
-- הflex container מקבל `width: "100%"`
-- תגית המטבע (ILS/USD) מודחקת לסוף השורה (inline-end)
-- בטבלה עם `dir="rtl"` (html), ה-flex items זורמים ימין-לשמאל → תגית בצד שמאל
-
-**הערה לבוקר:** שורות עם checkbox השוואה: checkbox → שם (flex:1) → תגית. ודא שאין עיוות בהדפסה (PrintReport). שינוי ב-FundTable משפיע על כל הסקרינים.
-
----
-
-## מה עבד בצורה חלקה
-- TypeScript: שגיאה אחת בלבד (Recharts readonly payload cast) — תוקנה מיד
-- Build Vercel: Ready תוך 39 שניות
-- כל 4 משימות ב-commit אחד (לאחר checkpoint)
-
-## מה דורש תשומת לב בבוקר
-
-1. **גרף dark/light** — בדוק ויזואלית בשני המודים. קו הבנצ'מרק מקווקו עם `strokeDasharray="5 3"`.
-
-2. **Tooltip overflow** — ה-`ColTooltip` ממוצב עם `left: 50%; transform: translateX(-50%)`. בעמודות בצד הטבלה עשוי לחרוג מהמסך. בדוק עמודות קצה (שם קרן בימין, 📈 בשמאל).
-
-3. **כרטיס תקציר עם מעט נתונים** — במצב בו רק 3/26 קרנות יש להן נתונים חודשיים, ה-% מעל 50% ו-IR ממוצע מבוססים על מדגם קטן. שקול להוסיף הערה "מבוסס על X קרנות".
-
-4. **FundTable בהדפסה** — PrintReport משתמש בקומפוננטות נפרדות. שינוי ב-FundTable משפיע רק על screen view, לא על print (בדוק שה-print לא השתנה).
-
-5. **ביצועים** — `buildChartData` רץ בכל render כשהשורה מורחבת. בטבלה עם 30+ קרנות זה בסדר, אבל אם יש האטות — אפשר להעביר ל-useMemo.
+## Task 3 ✅ — איחוד ניתוח + השוואה (View Toggle)
+**קבצים:** `app/analysis/page.tsx`, `app/compare/page.tsx`
+- הוסרה "השוואה" מה-nav של דף הניתוח
+- **View Toggle Strip** — מוצג בשני הדפים מתחת ל-filter bar:
+  ```
+  [ תצוגת קרנות ]    [ השוואה בין קרנות ]
+  ```
+- הטאב הפעיל: backgroundColor = brand.primaryColor, color="#fff"
+- הטאב הלא-פעיל: ghost + brand color + hover effect (color-mix)
+- Navigation: לחיצה ב-analysis → `/compare` | לחיצה ב-compare → `/analysis`
 
 ---
 
-## Commits
-- `916cfad` — checkpoint: before overnight run
-- `80944da` — overnight: 4 tasks — chart colors, tooltips, summary card, ILS alignment
+## Task 4 ✅ — ILS/USD Tag Alignment (בוצע בריצה קודמת)
+**קובץ:** `components/FundTable.tsx`
+- `flex: 1` על span שם הקרן → תגית מטבע נדחפת לקצה
+- FundCard.tsx לא צריך שינוי (layout שונה)
 
 ---
 
-*נוצר אוטומטית בסיום ריצת לילה*
+## Task 5 ✅ — Scatter Tooltip (קיים מריצה קודמת)
+**קובץ:** `app/charts/page.tsx`
+- `CustomTooltip` כבר קיים — מציג: שם קרן, תשואה שנתית, סטיית תקן, שארפ, AUM, מטבע
+- לא נדרש שינוי
+
+---
+
+## Task 6 ✅ — Consistency Summary Card Warning
+**קובץ:** `app/consistency/page.tsx`
+- `SummaryCard` מקבל `fundsWithData` prop
+- כשפחות מ-5 קרנות: opacity 0.75 + מספרים ב-`var(--text-muted)`
+- טקסט: `⚠️ מבוסס על X קרנות בלבד — נתונים חלקיים`
+
+---
+
+## Commits (סשן זה)
+
+| Commit | Task | תיאור |
+|--------|------|--------|
+| `3f4d02d` | 1+2 | nav lock icon + year filter on main table |
+| `1ac3709` | 3 | merge analysis+compare — unified view toggle |
+| `1a4b570` | 6 | consistency summary card low-data warning |
+
+---
+
+## בעיות שנתקלנו
+- `npx tsc` לא עבד דרך bash shell → נפתר עם `node ./node_modules/typescript/bin/tsc`
+- String match ב-compare page לא תפס → נפתר עם context שורות מדויק יותר
+
+---
+
+## לבדיקה בבוקר
+
+1. **Year Filter** — האם עמודות הטבלה מסתנות כצפוי בכל 3 המצבים?
+2. **View Toggle** — האם ה-navigation בין analysis ↔ compare עובד תקין?
+3. **Lock Tooltip** — האם ה-tooltip מוצג כראוי ולא נחתך מהמסך?
+4. **Consistency Warning** — להפעיל עם קטגוריה שיש בה מעט קרנות עם נתונים
+
+---
+
+*נוצר אוטומטית בסיום ריצה*

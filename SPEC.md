@@ -127,7 +127,23 @@
 
 ---
 
-## עדכון אחרון (2026-04-11 — סשן שביעי)
+## עדכון אחרון (2026-04-11 — סשן שמיני)
+
+### UX — 6 משימות ✅
+
+**מה בוצע:**
+- **Task 1 — Feature Lock:** `NavTab` component ברמה עליונה. טאבים מושבתים: 🔒 + opacity 0.5 + tooltip
+- **Task 2 — Year Filter:** Toggle הכל/שנה בודדת/טווח על טבלת הקרנות הראשית. `screenVisibleYears` → `FundTable.visibleYears`
+- **Task 3 — View Toggle:** הוסרה "השוואה" מ-nav. נוסף View Toggle strip לדפי analysis+compare. Navigation דו-כיווני
+- **Task 4 — ILS Tag:** בוצע בריצה קודמת (flex:1 על span שם קרן)
+- **Task 5 — Scatter Tooltip:** קיים מריצה קודמת (CustomTooltip)
+- **Task 6 — Consistency Warning:** SummaryCard מדעיך ומוסיף אזהרה כשפחות מ-5 קרנות עם נתונים
+
+**Commits:** `3f4d02d`, `1ac3709`, `1a4b570`
+
+---
+
+## עדכון קודם (2026-04-11 — סשן שביעי)
 
 ### פרסינג תלת-ממדי + v45 ✅
 
