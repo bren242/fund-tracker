@@ -381,21 +381,22 @@ body {
   align-items: center;
   gap: 16px;
   padding: 12px 24px;
-  background: rgba(245,245,247,0.92);
+  background: #ffffff;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(0,0,0,0.10);
+  border: 1px solid rgba(0,0,0,0.15);
   border-radius: 100px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.08);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.10);
   z-index: 1000;
   animation: floatUp 0.2s ease;
   white-space: nowrap;
+  color: #1a1a1a;
 }
 
 .dark .floating-action-bar {
-  background: rgba(100,110,125,0.92);
-  border: 1px solid rgba(255,255,255,0.20);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
+  background: #2c3444;
+  border: 1px solid rgba(255,255,255,0.15);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5), 0 1px 4px rgba(0,0,0,0.3);
   color: #ffffff;
 }
 
