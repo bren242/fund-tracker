@@ -220,6 +220,15 @@ export default function FundTable({ categories, comparisonEnabled, selectedFundI
 }) {
   const [sortCol, setSortCol] = useState<SortCol | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
+  const toggleGroup = (groupId: string) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      next.has(groupId) ? next.delete(groupId) : next.add(groupId);
+      return next;
+    });
+  };
 
   function handleSort(col: SortCol) {
     if (sortCol === col) {
@@ -281,22 +290,34 @@ export default function FundTable({ categories, comparisonEnabled, selectedFundI
     });
   } else {
     /* ── Default mode: grouped by category ── */
+    let hedgeGroupStarted = false;
     for (const cat of categories) {
       if (cat.id === SUPER_HEADER_BEFORE) {
+        hedgeGroupStarted = true;
+        const isCollapsed = collapsedGroups.has("hedge");
         rows.push(
-          <tr key="super-header">
+          <tr key="super-header" onClick={() => toggleGroup("hedge")} style={{ cursor: "pointer", userSelect: "none" }}>
             <td colSpan={colCount}
               style={{ backgroundColor: "transparent", borderTop: "2px solid var(--bg-section)", borderBottom: "none", color: "var(--bg-section)", padding: "14px 16px 6px 16px", fontWeight: 700, fontSize: "13px", textAlign: "right", letterSpacing: "0.3px" }}>
+              <span style={{
+                float: "left",
+                fontSize: "10px",
+                opacity: 0.6,
+                transition: "transform 0.2s ease",
+                display: "inline-block",
+                transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)",
+              }}>▼</span>
               קרנות גידור ישראל
             </td>
           </tr>
         );
       }
+      if (hedgeGroupStarted && collapsedGroups.has("hedge")) continue;
       if (cat.funds.length === 0) continue;
       rows.push(
         <tr key={`cat-${cat.id}`}>
           <td colSpan={colCount}
-            style={{ backgroundColor: "transparent", borderTop: "none", borderBottom: "1px solid var(--border-table)", color: "var(--text-secondary)", padding: "2px 16px 10px 16px", fontWeight: 500, fontSize: "11px", textAlign: "right", letterSpacing: "0.3px", fontStyle: "italic" }}>
+            style={{ backgroundColor: "transparent", borderTop: "1px solid var(--bg-section)", borderBottom: "1px solid var(--border-table)", color: "var(--text-secondary)", padding: "6px 16px 8px 16px", fontWeight: 500, fontSize: "11px", textAlign: "right", letterSpacing: "0.3px", fontStyle: "italic" }}>
             {cat.name}
           </td>
         </tr>
