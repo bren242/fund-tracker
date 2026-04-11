@@ -140,7 +140,7 @@ function FundRow({ fund, even, comparisonEnabled, isSelected, onToggle, activeYe
   activeYears: { key: ReturnKey; label: string }[];
   selectionDisabled?: boolean; accentColor?: string;
 }) {
-  const bg = even ? "var(--bg-surface)" : "var(--bg-surface-alt)";
+  const bg = even ? "var(--bg-surface)" : "var(--bg-row-alt)";
   const selectedBorder = comparisonEnabled && isSelected ? `2px solid ${accentColor || "var(--accent)"}` : "none";
 
   return (
