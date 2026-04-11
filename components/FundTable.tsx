@@ -286,7 +286,7 @@ export default function FundTable({ categories, comparisonEnabled, selectedFundI
         rows.push(
           <tr key="super-header">
             <td colSpan={colCount}
-              style={{ backgroundColor: "transparent", borderTop: "2px solid var(--bg-section)", borderBottom: "none", color: "var(--text-primary)", padding: "16px 14px 8px 14px", fontWeight: 700, fontSize: "13px", textAlign: "right", letterSpacing: "0.5px" }}>
+              style={{ backgroundColor: "transparent", borderTop: "2px solid var(--bg-section)", borderBottom: "none", color: "var(--bg-section)", padding: "14px 16px 6px 16px", fontWeight: 700, fontSize: "13px", textAlign: "right", letterSpacing: "0.3px" }}>
               קרנות גידור ישראל
             </td>
           </tr>
@@ -296,7 +296,7 @@ export default function FundTable({ categories, comparisonEnabled, selectedFundI
       rows.push(
         <tr key={`cat-${cat.id}`}>
           <td colSpan={colCount}
-            style={{ backgroundColor: "transparent", borderTop: "none", borderBottom: "2px solid var(--border-table)", color: "var(--text-secondary)", padding: "4px 14px 10px 14px", fontWeight: 500, fontSize: "11px", textAlign: "right", letterSpacing: "0.8px", fontStyle: "italic" }}>
+            style={{ backgroundColor: "transparent", borderTop: "none", borderBottom: "1px solid var(--border-table)", color: "var(--text-secondary)", padding: "2px 16px 10px 16px", fontWeight: 500, fontSize: "11px", textAlign: "right", letterSpacing: "0.3px", fontStyle: "italic" }}>
             {cat.name}
           </td>
         </tr>
