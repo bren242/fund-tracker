@@ -212,7 +212,10 @@ export default function CompareTable({ funds, accentColor, compact, selectedYear
                 borderRadius: !compact && i === benchmarks.length - 1 ? "0 8px 0 0" : 0,
                 borderRight: i === 0 ? "2px solid #e8eaed" : undefined,
               }}>
-                {bm.currency === "USD" ? "$" : "₪"} {bm.name}
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 4, direction: "ltr" }}>
+                  <span>{bm.currency === "USD" ? "$" : "₪"}</span>
+                  <span>{bm.name}</span>
+                </span>
               </th>
             ))}
           </tr>
@@ -260,7 +263,7 @@ export default function CompareTable({ funds, accentColor, compact, selectedYear
                         color: "#a0a8b8", fontSize: fs.td,
                         borderBottom: "1px solid #e8eaed",
                         borderRight: i === 0 ? "2px solid #e8eaed" : undefined,
-                        backgroundColor: `${BM_HEADER_COLOR}05`,
+                        backgroundColor: "rgba(107, 79, 160, 0.08)",
                       }}>
                         —
                       </td>
@@ -289,7 +292,7 @@ export default function CompareTable({ funds, accentColor, compact, selectedYear
                       borderBottom: "1px solid #e8eaed",
                       fontVariantNumeric: "tabular-nums",
                       borderRight: i === 0 ? "2px solid #e8eaed" : undefined,
-                      backgroundColor: `${BM_HEADER_COLOR}05`,
+                      backgroundColor: "rgba(107, 79, 160, 0.08)",
                     }}>
                       {val}
                     </td>

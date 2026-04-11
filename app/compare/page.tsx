@@ -164,11 +164,9 @@ function FundCompareCard({ fund, color, isWinner, selectedYears }: {
       border: "1px solid var(--border)", borderTop: `3px solid ${color}`,
       padding: "16px 18px", boxShadow: "var(--shadow-card)",
     }}>
-      {/* Winner badge or spacer */}
-      <div style={{ height: 20, marginBottom: 6, display: "flex", alignItems: "center" }}>
-        {isWinner
-          ? <span style={{ fontSize: 11, fontWeight: 700, color, letterSpacing: 0.3 }}>↑ מובילה</span>
-          : <span style={{ visibility: "hidden", fontSize: 11 }}>_</span>}
+      {/* Winner badge or spacer — fixed height so all cards align */}
+      <div style={{ height: 22, marginBottom: 6 }}>
+        {isWinner && <span style={{ fontSize: 11, fontWeight: 700, color, letterSpacing: 0.3 }}>↑ מובילה</span>}
       </div>
 
       {/* Name + classification */}
@@ -237,7 +235,6 @@ function CompareContent() {
   };
 
   useEffect(() => {
-    console.log("[compare] benchmarksEnabled:", benchmarksEnabled, "| clientKey:", clientKey);
     fetch(`/api/funds?client=${encodeURIComponent(clientKey)}`)
       .then((r) => r.json())
       .then(setData);
@@ -245,7 +242,6 @@ function CompareContent() {
       fetch(`/api/benchmarks?client=${encodeURIComponent(clientKey)}`)
         .then((r) => r.json())
         .then((bms: Benchmark[]) => {
-          console.log("[compare] benchmarks response:", JSON.stringify(bms));
           setAllBenchmarks(bms);
           if (benchmarkIds.length > 0)
             setSelectedBmIds(benchmarkIds.filter((id) => bms.some((b) => b.id === id)).slice(0, 2));
@@ -331,12 +327,12 @@ function CompareContent() {
             </div>
           </div>
 
-          {/* 2. Hero — chart + segmented control */}
+          {/* 2. Hero — segmented control only */}
           <div style={{ backgroundColor: "var(--bg-surface)", borderBottom: "1px solid var(--border)" }}>
-            <div style={{ maxWidth: 1200, margin: "0 auto", padding: "20px 24px 16px" }}>
+            <div style={{ maxWidth: 1200, margin: "0 auto", padding: "16px 24px 14px" }}>
 
               {/* Title + Segmented Control */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 10 }} dir="rtl">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }} dir="rtl">
                 <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>
                   תשואות שנתיות לאורך זמן
                 </span>
@@ -345,7 +341,7 @@ function CompareContent() {
 
               {/* Custom range row */}
               {timeRange === "custom" && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" }} dir="rtl">
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, flexWrap: "wrap" }} dir="rtl">
                   <span style={{ fontSize: 11, color: "var(--text-muted)" }}>מ-</span>
                   <select value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} style={selectStyle}>
                     {MONTH_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -365,8 +361,14 @@ function CompareContent() {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
 
-              {/* Chart */}
+          {/* 3. Content — chart + cards + table, all same padding */}
+          <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}>
+
+            {/* Chart */}
+            <div style={{ paddingTop: 20, paddingBottom: 4 }}>
               <CompareCharts
                 funds={funds}
                 accentColor={brand.primaryColor}
@@ -374,15 +376,13 @@ function CompareContent() {
                 benchmarks={selectedBenchmarks}
               />
             </div>
-          </div>
 
-          <div style={{ maxWidth: 1200, margin: "0 auto", padding: "20px 24px 0" }}>
-
-            {/* 3. Fund cards */}
+            {/* Fund cards */}
             <div style={{
               display: "grid",
               gridTemplateColumns: `repeat(${Math.min(funds.length, 4)}, 1fr)`,
               gap: 16,
+              marginTop: 20,
               marginBottom: 24,
             }}>
               {funds.map((fund, i) => (
@@ -425,7 +425,10 @@ function CompareContent() {
                         color: active ? "#6366f1" : atMax ? "var(--text-muted)" : "var(--text-secondary)",
                         fontWeight: active ? 700 : 400, opacity: atMax ? 0.4 : 1, transition: "all 0.15s",
                       }}>
-                        {bm.currency === "USD" ? "$" : "₪"} {bm.name}
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, direction: "ltr" }}>
+                          <span>{bm.currency === "USD" ? "$" : "₪"}</span>
+                          <span>{bm.name}</span>
+                        </span>
                       </button>
                     );
                   })}
