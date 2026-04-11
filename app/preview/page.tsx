@@ -29,6 +29,8 @@ function PreviewContent() {
     });
   };
 
+  const clearSelection = () => setSelectedFundIds(new Set());
+
   return (
     <div
       style={{ minHeight: "100vh", ...brandCssVars(brand.primaryColor, brand.accentColor) } as React.CSSProperties}
@@ -84,6 +86,26 @@ function PreviewContent() {
           </div>
         )}
       </div>
+
+      {/* Floating Action Bar */}
+      {selectedFundIds.size > 0 && (
+        <div className="floating-action-bar">
+          <span className="floating-action-bar__count">
+            {selectedFundIds.size} קרנות נבחרות
+          </span>
+          <div className="floating-action-bar__actions">
+            <button className="floating-action-bar__clear" onClick={clearSelection}>
+              נקה
+            </button>
+            <button
+              className="floating-action-bar__compare"
+              disabled={selectedFundIds.size < 2}
+            >
+              השווה →
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
