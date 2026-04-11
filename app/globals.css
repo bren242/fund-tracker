@@ -376,6 +376,9 @@ body {
 }
 
 /* ── Floating Action Bar ─────────────────────────────────────────────── */
+/* LOCKED v1.0 — Floating Action Bar */
+/* Light + Dark mode מאושר ועובד */
+/* לא לשנות ללא אישור מפורש */
 .floating-action-bar {
   position: fixed;
   bottom: 32px;
