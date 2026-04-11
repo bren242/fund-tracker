@@ -312,16 +312,16 @@ export default function FundTable({ categories, comparisonEnabled, selectedFundI
           </tr>
         );
       }
-      if (hedgeGroupStarted && collapsedGroups.has("hedge")) continue;
       if (cat.funds.length === 0) continue;
       rows.push(
         <tr key={`cat-${cat.id}`}>
           <td colSpan={colCount}
-            style={{ backgroundColor: "transparent", borderTop: "1px solid var(--bg-section)", borderBottom: "1px solid var(--border-table)", color: "var(--text-secondary)", padding: "6px 16px 8px 16px", fontWeight: 500, fontSize: "11px", textAlign: "right", letterSpacing: "0.3px", fontStyle: "italic" }}>
+            style={{ backgroundColor: "transparent", borderTop: "1px solid var(--bg-section)", borderBottom: "none", color: "var(--bg-section)", padding: "10px 16px 4px 16px", fontWeight: 600, fontSize: "12px", textAlign: "right", letterSpacing: "0.3px" }}>
             {cat.name}
           </td>
         </tr>
       );
+      if (hedgeGroupStarted && collapsedGroups.has("hedge")) continue;
       for (let i = 0; i < cat.funds.length; i++) {
         rows.push(
           <FundRow key={cat.funds[i].id} fund={cat.funds[i]} even={i % 2 === 0}
