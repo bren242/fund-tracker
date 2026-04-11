@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Category, Fund } from "@/lib/types";
 import { pct, num, returnColorInline, formatReportDate } from "@/lib/format";
-import { SECTION_COLORS } from "@/lib/constants";
 
 const SUPER_HEADER_BEFORE = "bond-hedged";
 
@@ -287,7 +286,7 @@ export default function FundTable({ categories, comparisonEnabled, selectedFundI
         rows.push(
           <tr key="super-header">
             <td colSpan={colCount}
-              style={{ backgroundColor: "var(--bg-super)", color: "var(--text-on-dark)", padding: "7px 14px", fontWeight: 700, fontSize: "11.5px", textAlign: "right", letterSpacing: 0.3 }}>
+              style={{ backgroundColor: "var(--bg-surface)", borderRight: "4px solid var(--bg-section)", borderBottom: "1px solid var(--border-table)", color: "var(--text-primary)", padding: "10px 14px", fontWeight: 700, fontSize: "12px", textAlign: "right", letterSpacing: "0.3px" }}>
               קרנות גידור ישראל
             </td>
           </tr>
@@ -297,7 +296,7 @@ export default function FundTable({ categories, comparisonEnabled, selectedFundI
       rows.push(
         <tr key={`cat-${cat.id}`}>
           <td colSpan={colCount}
-            style={{ backgroundColor: SECTION_COLORS[cat.id] || "#374151", color: "#fff", padding: "5px 14px", fontWeight: 600, fontSize: "10.5px", textAlign: "right" }}>
+            style={{ backgroundColor: "var(--bg-surface-alt)", borderRight: "3px solid var(--bg-section)", borderBottom: "1px solid var(--border-table)", color: "var(--text-secondary)", padding: "7px 14px", fontWeight: 600, fontSize: "11px", textAlign: "right", letterSpacing: "0.2px" }}>
             {cat.name}
           </td>
         </tr>
