@@ -48,7 +48,7 @@
   --text-on-dark: #e2e6ea;
   --accent: #d4b06e;
   --accent-hover: #e0c080;
-  --section-header-color: #4ade80;
+  --section-header-color: rgba(255,255,255,0.85);
   --positive: #34d399;
   --negative: #f87171;
   --ring: rgba(100, 140, 200, 0.25);
