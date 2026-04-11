@@ -345,6 +345,7 @@ body {
   white-space: nowrap;
   cursor: pointer;
   border: none;
+  border-bottom: 2px solid transparent;
   background: transparent;
 }
 
@@ -354,10 +355,12 @@ body {
 }
 
 .nav-tab--active {
-  background: var(--bg-section);
-  color: #ffffff;
+  background: transparent;
+  color: var(--bg-section);
   font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  box-shadow: none;
+  border-bottom: 2px solid var(--bg-section);
+  border-radius: 0;
 }
 
 .nav-tab--locked {
