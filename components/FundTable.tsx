@@ -298,7 +298,7 @@ export default function FundTable({ categories, comparisonEnabled, selectedFundI
         rows.push(
           <tr key="super-header" onClick={() => toggleGroup("hedge")} style={{ cursor: "pointer", userSelect: "none" }}>
             <td colSpan={colCount}
-              style={{ backgroundColor: "transparent", borderTop: "2px solid var(--bg-section)", borderBottom: "none", color: "var(--bg-section)", padding: "14px 16px 6px 16px", fontWeight: 700, fontSize: "13px", textAlign: "right", letterSpacing: "0.3px" }}>
+              style={{ backgroundColor: "transparent", borderTop: "2px solid var(--bg-section)", borderBottom: "none", color: "var(--bg-section)", padding: "12px 16px 4px 16px", fontWeight: 700, fontSize: "13px", textAlign: "right", letterSpacing: "0.3px" }}>
               <span style={{
                 float: "left",
                 fontSize: "10px",
@@ -316,7 +316,7 @@ export default function FundTable({ categories, comparisonEnabled, selectedFundI
       rows.push(
         <tr key={`cat-${cat.id}`}>
           <td colSpan={colCount}
-            style={{ backgroundColor: "transparent", borderTop: "1px solid var(--bg-section)", borderBottom: "none", color: "var(--bg-section)", padding: "10px 16px 4px 16px", fontWeight: 600, fontSize: "12px", textAlign: "right", letterSpacing: "0.3px" }}>
+            style={{ backgroundColor: "transparent", borderTop: "2px solid var(--bg-section)", borderBottom: "none", color: "var(--bg-section)", padding: "12px 16px 4px 16px", fontWeight: 700, fontSize: "13px", textAlign: "right", letterSpacing: "0.3px" }}>
             {cat.name}
           </td>
         </tr>
