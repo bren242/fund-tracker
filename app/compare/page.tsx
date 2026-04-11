@@ -29,20 +29,34 @@ const YEAR_KEY_TO_NUM: Record<string, number> = {
   y2022: 2022,   y2021: 2021, y2020: 2020, y2019: 2019,
 };
 
-function rangeToYearKeys(range: TimeRange, from?: string, to?: string): string[] {
+/** Returns a date n months offset from base — safe across month-length differences */
+function addMonths(base: Date, n: number): string {
+  const d = new Date(base.getFullYear(), base.getMonth() + n, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/** Converts selected time range to an exact YYYY-MM from/to pair */
+function rangeToDateRange(range: TimeRange, from?: string, to?: string): { from: string; to: string } {
+  const today = new Date();
+  const cur = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   switch (range) {
-    case "ytd":  return ["ytd2026"];
-    case "12m":  return ["ytd2026", "y2025"];
-    case "3y":   return ["ytd2026", "y2025", "y2024", "y2023"];
-    case "5y":   return ["ytd2026", "y2025", "y2024", "y2023", "y2022", "y2021"];
-    case "max":  return [...ALL_YEAR_KEYS];
-    case "custom": {
-      if (!from || !to) return [...ALL_YEAR_KEYS];
-      const f = parseInt(from.slice(0, 4));
-      const t = parseInt(to.slice(0, 4));
-      return ALL_YEAR_KEYS.filter((k) => { const y = YEAR_KEY_TO_NUM[k]; return y >= f && y <= t; });
-    }
+    case "ytd":    return { from: `${today.getFullYear()}-01`, to: cur };
+    case "12m":   return { from: addMonths(today, -11), to: cur };
+    case "3y":    return { from: addMonths(today, -35), to: cur };
+    case "5y":    return { from: addMonths(today, -59), to: cur };
+    case "max":   return { from: "2019-01", to: cur };
+    case "custom": return { from: from || "2022-01", to: to || cur };
   }
+}
+
+/** Maps a YYYY-MM date range to the annual year keys needed by CompareTable */
+function dateRangeToYearKeys(from: string, to: string): string[] {
+  const fromYear = parseInt(from.slice(0, 4));
+  const toYear   = parseInt(to.slice(0, 4));
+  return ALL_YEAR_KEYS.filter((k) => {
+    const y = YEAR_KEY_TO_NUM[k];
+    return y >= fromYear && y <= toYear;
+  });
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -223,9 +237,16 @@ function CompareContent() {
   const [committedFrom, setCommittedFrom] = useState("2022-01");
   const [committedTo,   setCommittedTo]   = useState(_toYM);
 
-  const selectedYears = useMemo(
-    () => rangeToYearKeys(timeRange, committedFrom, committedTo),
+  // Exact YYYY-MM range for chart (monthly data)
+  const chartRange = useMemo(
+    () => rangeToDateRange(timeRange, committedFrom, committedTo),
     [timeRange, committedFrom, committedTo],
+  );
+
+  // Annual year keys derived from chart range — for CompareTable row filtering
+  const selectedYears = useMemo(
+    () => dateRangeToYearKeys(chartRange.from, chartRange.to),
+    [chartRange],
   );
 
   const selectStyle: React.CSSProperties = {
@@ -367,11 +388,12 @@ function CompareContent() {
           {/* 3. Content — chart + cards + table, all same padding */}
           <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}>
 
-            {/* Chart */}
+            {/* Chart — monthly data when available, annual fallback */}
             <CompareCharts
               funds={funds}
               accentColor={brand.primaryColor}
-              selectedYears={selectedYears}
+              from={chartRange.from}
+              to={chartRange.to}
               benchmarks={selectedBenchmarks}
             />
 
@@ -462,7 +484,7 @@ function CompareContent() {
         </div>
 
         {/* ============ PRINT VERSION ============ */}
-        <ComparePrint funds={funds} brand={brand} lastUpdated={data.lastUpdated} mode={mode} selectedYears={selectedYears} benchmarks={selectedBenchmarks} />
+        <ComparePrint funds={funds} brand={brand} lastUpdated={data.lastUpdated} mode={mode} selectedYears={selectedYears} chartFrom={chartRange.from} chartTo={chartRange.to} benchmarks={selectedBenchmarks} />
       </div>
     </ClientGate>
   );
@@ -471,12 +493,14 @@ function CompareContent() {
 /* ================================================================== */
 /*  Print-only comparison report — UNTOUCHED                           */
 /* ================================================================== */
-function ComparePrint({ funds, brand, lastUpdated, mode, selectedYears, benchmarks }: {
+function ComparePrint({ funds, brand, lastUpdated, mode, selectedYears, chartFrom, chartTo, benchmarks }: {
   funds: Fund[];
   brand: BrandConfig;
   lastUpdated: string;
   mode: "basic" | "advanced";
   selectedYears?: string[];
+  chartFrom?: string;
+  chartTo?: string;
   benchmarks?: Benchmark[];
 }) {
   const currentYear = new Date().getFullYear();
@@ -525,7 +549,7 @@ function ComparePrint({ funds, brand, lastUpdated, mode, selectedYears, benchmar
               {mode === "advanced" && (
                 <>
                   <div style={{ borderTop: "1px solid #dfe3e8", margin: "10px 0" }} />
-                  <CompareCharts funds={funds} accentColor={brand.primaryColor} compact benchmarks={benchmarks} selectedYears={selectedYears} />
+                  <CompareCharts funds={funds} accentColor={brand.primaryColor} compact benchmarks={benchmarks} from={chartFrom} to={chartTo} />
                 </>
               )}
             </td>
