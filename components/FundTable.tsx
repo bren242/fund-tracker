@@ -308,9 +308,9 @@ export default function FundTable({ categories, comparisonEnabled, selectedFundI
         <tr key={`section-${section}`} onClick={() => toggleGroup(section)} style={{ cursor: "pointer", userSelect: "none" }}>
           <td colSpan={colCount + 1} style={{
             backgroundColor: "transparent",
-            borderTop: "2px solid var(--bg-section)",
+            borderTop: "2px solid var(--section-header-color)",
             borderBottom: "none",
-            color: "var(--bg-section)",
+            color: "var(--section-header-color)",
             padding: "14px 16px 6px 16px",
             fontWeight: 700,
             fontSize: "13px",
