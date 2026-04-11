@@ -263,54 +263,65 @@ function ChartTooltip({ active, payload, label, isDark }: {
 /* ══════════════════════════════════════════════════════════════════════════ */
 
 function SummaryCard({
-  avgIR, pctAbove50, topFund, primaryColor,
+  avgIR, pctAbove50, topFund, primaryColor, fundsWithData,
 }: {
   avgIR: number | null;
   pctAbove50: number;
   topFund: string;
   primaryColor: string;
+  fundsWithData: number;
 }) {
+  const lowData = fundsWithData < 5;
+  const dimColor = (c: string) => lowData ? "var(--text-muted)" : c;
+
   const stats = [
     {
       label: "IR ממוצע קטגוריה",
       value: avgIR !== null ? avgIR.toFixed(3) : "—",
-      color: avgIR !== null ? (avgIR > 0.5 ? "#059669" : avgIR < 0 ? "#dc2626" : "var(--text-primary)") : "var(--text-muted)",
+      color: dimColor(avgIR !== null ? (avgIR > 0.5 ? "#059669" : avgIR < 0 ? "#dc2626" : "var(--text-primary)") : "var(--text-muted)"),
     },
     {
       label: "קרנות מעל 50% עקביות",
       value: `${pctAbove50.toFixed(0)}%`,
-      color: pctAbove50 >= 50 ? "#059669" : pctAbove50 >= 30 ? "#d97706" : "#dc2626",
+      color: dimColor(pctAbove50 >= 50 ? "#059669" : pctAbove50 >= 30 ? "#d97706" : "#dc2626"),
     },
     {
       label: "קרן מובילה",
       value: topFund || "—",
-      color: primaryColor,
+      color: dimColor(primaryColor),
       small: true,
     },
   ];
 
   return (
-    <div style={{
-      display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
-      gap: 12, marginBottom: 16,
-    }}>
-      {stats.map((s) => (
-        <div
-          key={s.label}
-          style={{
-            backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
-            borderRadius: 10, padding: "14px 18px",
-          }}
-        >
-          <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6 }}>{s.label}</div>
-          <div style={{
-            fontSize: s.small ? 13 : 22, fontWeight: 700, color: s.color,
-            lineHeight: 1.2, wordBreak: "break-word",
-          }}>
-            {s.value}
+    <div style={{ marginBottom: 16 }}>
+      <div style={{
+        display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12,
+      }}>
+        {stats.map((s) => (
+          <div
+            key={s.label}
+            style={{
+              backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
+              borderRadius: 10, padding: "14px 18px",
+              opacity: lowData ? 0.75 : 1,
+            }}
+          >
+            <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6 }}>{s.label}</div>
+            <div style={{
+              fontSize: s.small ? 13 : 22, fontWeight: 700, color: s.color,
+              lineHeight: 1.2, wordBreak: "break-word",
+            }}>
+              {s.value}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
+      {lowData && (
+        <p style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 6, textAlign: "right" }}>
+          ⚠️ מבוסס על {fundsWithData} קרנות בלבד — נתונים חלקיים
+        </p>
+      )}
     </div>
   );
 }
@@ -554,6 +565,7 @@ function ConsistencyContent() {
               pctAbove50={summary.pctAbove50}
               topFund={summary.topFund}
               primaryColor={brand.primaryColor}
+              fundsWithData={fundsWithData}
             />
           )}
 
