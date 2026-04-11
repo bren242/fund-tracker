@@ -217,12 +217,8 @@ function MonthlyPills({ monthlyReturns }: { monthlyReturns?: Record<string, numb
 function AccordionPanel({ fund }: { fund: Fund }) {
   const cumulative = calcCumulative(fund);
 
-  const labelStyle: React.CSSProperties = {
-    fontSize: 10, color: "var(--text-muted)", marginBottom: 3, whiteSpace: "nowrap",
-  };
-  const valStyle: React.CSSProperties = {
-    fontSize: 13, fontWeight: 600, color: "var(--text-primary)", fontVariantNumeric: "tabular-nums",
-  };
+  const sep = <span style={{ color: "var(--text-muted)", margin: "0 5px" }}>·</span>;
+  const lbl = (t: string) => <span style={{ color: "var(--text-muted)", marginLeft: 3 }}>{t}</span>;
 
   return (
     <tr>
@@ -231,50 +227,33 @@ function AccordionPanel({ fund }: { fund: Fund }) {
           backgroundColor: "var(--bg-surface-alt)",
           borderTop: "1px solid var(--border-table)",
           borderBottom: "1px solid var(--border-table)",
-          padding: "16px 24px",
+          padding: "12px 24px",
           direction: "rtl",
         }}>
-          {/* Row 1: meta */}
-          <div style={{ display: "flex", gap: 28, marginBottom: 14, flexWrap: "wrap" }}>
-            <div>
-              <div style={labelStyle}>מנהל</div>
-              <div style={valStyle}>{fund.manager || "—"}</div>
-            </div>
-            <div>
-              <div style={labelStyle}>סיווג</div>
-              <div style={valStyle}>{fund.classification || "—"}</div>
-            </div>
-            <div>
-              <div style={labelStyle}>תאריך הקמה</div>
-              <div style={valStyle}>{fund.startDate ? fund.startDate.slice(0, 7) : "—"}</div>
-            </div>
-            <div>
-              <div style={labelStyle}>AUM (מ׳ ₪)</div>
-              <div style={valStyle}>{fund.aumMillions != null ? fund.aumMillions.toLocaleString() : "—"}</div>
-            </div>
-          </div>
-
-          {/* Row 2: stats */}
-          <div style={{ display: "flex", gap: 28, marginBottom: 14, flexWrap: "wrap" }}>
-            <div>
-              <div style={labelStyle}>תשואה מצטברת</div>
-              <div style={{ ...valStyle, color: returnColorInline(cumulative) }}>{pct(cumulative)}</div>
-            </div>
-            <div>
-              <div style={labelStyle}>סטיית תקן</div>
-              <div style={valStyle}>{fund.stdDev != null ? `${(fund.stdDev * 100).toFixed(2)}%` : "—"}</div>
-            </div>
-            <div>
-              <div style={labelStyle}>שארפ</div>
-              <div style={{ ...valStyle, color: sharpeColor(fund.sharpe) }}>
-                {fund.sharpe != null ? num(fund.sharpe) : "—"}
-              </div>
-            </div>
+          {/* Single info line */}
+          <div style={{
+            display: "flex", flexWrap: "wrap", alignItems: "center",
+            marginBottom: 12, fontSize: 12, color: "var(--text-secondary)",
+            lineHeight: 1.8, fontVariantNumeric: "tabular-nums",
+          }}>
+            <span>{lbl("מנהל")}{fund.manager || "—"}</span>
+            {sep}
+            <span>{lbl("סיווג")}{fund.classification || "—"}</span>
+            {sep}
+            <span>{lbl("הקמה")}{fund.startDate ? fund.startDate.slice(0, 7) : "—"}</span>
+            {sep}
+            <span>{lbl("AUM")}{fund.aumMillions != null ? `${fund.aumMillions.toLocaleString()} מ׳` : "—"}</span>
+            {sep}
+            <span>{lbl("מצטבר")}<span style={{ color: returnColorInline(cumulative) }}>{pct(cumulative)}</span></span>
+            {sep}
+            <span>{lbl("סטיית תקן")}{fund.stdDev != null ? `${(fund.stdDev * 100).toFixed(2)}%` : "—"}</span>
+            {sep}
+            <span>{lbl("שארפ")}<span style={{ color: "#B8975A" }}>{fund.sharpe != null ? num(fund.sharpe) : "—"}</span></span>
           </div>
 
           {/* Monthly pills */}
           <div>
-            <div style={{ ...labelStyle, marginBottom: 8 }}>12 חודשים אחרונים</div>
+            <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 8 }}>12 חודשים אחרונים</div>
             <MonthlyPills monthlyReturns={fund.monthlyReturns} />
           </div>
         </div>
@@ -324,7 +303,7 @@ function FundRowV2({
     >
       {/* Name */}
       <td style={{ ...cell, textAlign: "right", fontSize: 12, fontWeight: 600, paddingRight: 12, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           {comparisonEnabled && (
             <input
               type="checkbox"
