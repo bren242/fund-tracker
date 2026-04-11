@@ -240,9 +240,9 @@ function AccordionPanel({ fund }: { fund: Fund }) {
             {sep}
             <span>{lbl("סיווג")}{fund.classification || "—"}</span>
             {sep}
-            <span>{lbl("הקמה")}{fund.startDate ? fund.startDate.slice(0, 7) : "—"}</span>
+            <span>{lbl("הקמה")}{fund.startDate ? `${fund.startDate.slice(5, 7)}/${fund.startDate.slice(0, 4)}` : "—"}</span>
             {sep}
-            <span>{lbl("AUM")}{fund.aumMillions != null ? `${fund.aumMillions.toLocaleString()} מ׳` : "—"}</span>
+            <span>{lbl("AUM")}{fund.aumMillions != null ? ` ${fund.aumMillions.toLocaleString()} מ׳` : "—"}</span>
             {sep}
             <span>{lbl("מצטבר")}<span style={{ color: returnColorInline(cumulative) }}>{pct(cumulative)}</span></span>
             {sep}
