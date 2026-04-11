@@ -18,12 +18,80 @@ import { brandCssVars } from "@/lib/colors";
 const PRINT_YEAR_OPTIONS = ["2026", "2025", "2024", "2023", "2022", "2021", "2020"];
 const ALL_YEARS_SET = new Set(PRINT_YEAR_OPTIONS);
 
+/* ── NavTab: shows enabled tabs normally, disabled tabs with lock ─────── */
+function NavTab({ href, enabled, children }: { href: string; enabled: boolean; children: React.ReactNode }) {
+  const [showTip, setShowTip] = useState(false);
+  const baseStyle: React.CSSProperties = {
+    fontSize: 12, textDecoration: "none", padding: "5px 10px",
+    borderRadius: 6, border: "1px solid var(--border)", transition: "all 0.15s",
+    display: "inline-flex", alignItems: "center", gap: 4,
+    position: "relative",
+  };
+  if (enabled) {
+    return (
+      <a href={href} style={{ ...baseStyle, color: "var(--text-secondary)" }}>
+        {children}
+      </a>
+    );
+  }
+  return (
+    <span
+      style={{ ...baseStyle, opacity: 0.5, cursor: "not-allowed", color: "var(--text-muted)", userSelect: "none" }}
+      onMouseEnter={() => setShowTip(true)}
+      onMouseLeave={() => setShowTip(false)}
+    >
+      {children}
+      <span style={{ fontSize: 8, lineHeight: 1, marginTop: -6 }}>🔒</span>
+      {showTip && (
+        <span style={{
+          position: "absolute", top: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)",
+          backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
+          borderRadius: 5, padding: "5px 8px", fontSize: 10, color: "var(--text-secondary)",
+          whiteSpace: "nowrap", zIndex: 200, boxShadow: "0 4px 10px rgba(0,0,0,0.12)",
+          pointerEvents: "none",
+        }}>
+          פיצ'ר זה אינו פעיל עבורך
+        </span>
+      )}
+    </span>
+  );
+}
+
+const SCREEN_YEAR_OPTIONS = ["2026", "2025", "2024", "2023", "2022", "2021", "2020", "2019"];
+const MONTHS_HE = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
+const yearSelectStyle: React.CSSProperties = {
+  padding: "3px 8px", borderRadius: 5, fontSize: 11, cursor: "pointer",
+  border: "1px solid var(--border)", backgroundColor: "var(--bg-input)",
+  color: "var(--text-primary)",
+};
+
 function ReportContent() {
   const clientKey = useClientKey();
   const [data, setData] = useState<FundsData | null>(null);
   const [printYears, setPrintYears] = useState<Set<string>>(ALL_YEARS_SET);
   const [showYearPicker, setShowYearPicker] = useState(false);
   const brand = useBrand(clientKey);
+
+  // Screen year filter (separate from print years)
+  const [yearFilterMode, setYearFilterMode] = useState<"all" | "single" | "range">("all");
+  const [filterSingleYear, setFilterSingleYear] = useState("2025");
+  const [filterFromYear,   setFilterFromYear]   = useState("2020");
+  const [filterFromMonth,  setFilterFromMonth]  = useState("0");  // 0-indexed
+  const [filterToYear,     setFilterToYear]     = useState("2025");
+  const [filterToMonth,    setFilterToMonth]    = useState("11"); // 0-indexed
+
+  // Compute which years to show on screen
+  const screenVisibleYears: string[] | null = (() => {
+    if (yearFilterMode === "all") return null; // null = show all (FundTable default)
+    if (yearFilterMode === "single") return [filterSingleYear];
+    // range mode: show years from filterFromYear to filterToYear
+    const from = parseInt(filterFromYear);
+    const to   = parseInt(filterToYear);
+    if (from > to) return [filterFromYear];
+    const years: string[] = [];
+    for (let y = to; y >= from; y--) years.push(String(y)); // desc order
+    return years;
+  })();
 
   const router = useRouter();
 
@@ -159,26 +227,13 @@ function ReportContent() {
                   </button>
                 </div>
               )}
-              {chartPageEnabled && (
-                <a href={withClient("/charts", clientKey)} style={{ fontSize: 12, color: "var(--text-secondary)", textDecoration: "none", padding: "5px 10px", borderRadius: 6, border: "1px solid var(--border)", transition: "border-color 0.15s" }}>גרפים</a>
-              )}
-              <a href={withClient("/analysis", clientKey)} style={{ fontSize: 12, color: "var(--text-secondary)", textDecoration: "none", padding: "5px 10px", borderRadius: 6, border: "1px solid var(--border)", transition: "border-color 0.15s" }}>ניתוח</a>
-              {brand.features?.dataCompletion && (
-                <a href={withClient("/data-completion", clientKey)} style={{ fontSize: 12, color: "var(--text-secondary)", textDecoration: "none", padding: "5px 10px", borderRadius: 6, border: "1px solid var(--border)", transition: "border-color 0.15s" }}>השלמת נתונים</a>
-              )}
-              {brand.features?.indications && (
-                <a href={withClient("/indications", clientKey)} style={{ fontSize: 12, color: "#fff", textDecoration: "none", padding: "5px 12px", borderRadius: 6, border: "none", backgroundColor: brand.primaryColor, fontWeight: 600, transition: "opacity 0.15s" }}
-                  onMouseOver={(e) => (e.currentTarget.style.opacity = "0.85")}
-                  onMouseOut={(e) => (e.currentTarget.style.opacity = "1")}
-                >⚡ אינדיקציה</a>
-              )}
-              {brand.features?.fundStatus && (
-                <a href={withClient("/fund-status", clientKey)} style={{ fontSize: 12, color: "var(--text-secondary)", textDecoration: "none", padding: "5px 10px", borderRadius: 6, border: "1px solid var(--border)", transition: "border-color 0.15s" }}>סטטוס</a>
-              )}
-              {brand.features?.consistencyAnalysis && (
-                <a href={withClient("/consistency", clientKey)} style={{ fontSize: 12, color: "var(--text-secondary)", textDecoration: "none", padding: "5px 10px", borderRadius: 6, border: "1px solid var(--border)", transition: "border-color 0.15s" }}>עקביות</a>
-              )}
-              <a href={withClient("/admin", clientKey)} style={{ fontSize: 12, color: "var(--text-secondary)", textDecoration: "none", padding: "5px 10px", borderRadius: 6, border: "1px solid var(--border)", transition: "border-color 0.15s" }}>ניהול</a>
+              <NavTab href={withClient("/charts", clientKey)} enabled={chartPageEnabled}>גרפים</NavTab>
+              <NavTab href={withClient("/analysis", clientKey)} enabled={true}>ניתוח</NavTab>
+              <NavTab href={withClient("/data-completion", clientKey)} enabled={brand.features?.dataCompletion ?? false}>השלמת נתונים</NavTab>
+              <NavTab href={withClient("/indications", clientKey)} enabled={brand.features?.indications ?? false}>⚡ אינדיקציה</NavTab>
+              <NavTab href={withClient("/fund-status", clientKey)} enabled={brand.features?.fundStatus ?? false}>סטטוס</NavTab>
+              <NavTab href={withClient("/consistency", clientKey)} enabled={brand.features?.consistencyAnalysis ?? false}>עקביות</NavTab>
+              <NavTab href={withClient("/admin", clientKey)} enabled={true}>ניהול</NavTab>
               <ThemeToggle />
             </div>
           </div>
@@ -200,6 +255,61 @@ function ReportContent() {
           accentColor={brand.primaryColor}
         />
 
+        {/* Year filter strip */}
+        <div className="no-print" style={{ maxWidth: 1600, margin: "0 auto", padding: "6px 16px 0" }}>
+          <div style={{
+            display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+            backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
+            borderRadius: 8, padding: "8px 14px", fontSize: 12,
+          }} dir="rtl">
+            {/* Label */}
+            <span style={{ color: "var(--text-muted)", fontSize: 11 }}>תקופה:</span>
+
+            {/* Mode toggle */}
+            {(["all", "single", "range"] as const).map((m) => {
+              const label = m === "all" ? "הכל" : m === "single" ? "שנה בודדת" : "טווח";
+              const active = yearFilterMode === m;
+              return (
+                <button key={m} onClick={() => setYearFilterMode(m)} style={{
+                  padding: "3px 12px", borderRadius: 5, fontSize: 11, cursor: "pointer",
+                  fontWeight: active ? 700 : 400, transition: "all 0.12s",
+                  backgroundColor: active ? brand.primaryColor : "var(--bg-input)",
+                  color: active ? "#fff" : "var(--text-secondary)",
+                  border: active ? `1px solid ${brand.primaryColor}` : "1px solid var(--border)",
+                }}>
+                  {label}
+                </button>
+              );
+            })}
+
+            {/* Single year dropdown */}
+            {yearFilterMode === "single" && (
+              <select value={filterSingleYear} onChange={(e) => setFilterSingleYear(e.target.value)} style={yearSelectStyle}>
+                {SCREEN_YEAR_OPTIONS.map((y) => <option key={y} value={y}>{y}</option>)}
+              </select>
+            )}
+
+            {/* Range dropdowns */}
+            {yearFilterMode === "range" && (
+              <>
+                <select value={filterFromYear} onChange={(e) => setFilterFromYear(e.target.value)} style={yearSelectStyle}>
+                  {SCREEN_YEAR_OPTIONS.slice().reverse().map((y) => <option key={y} value={y}>{y}</option>)}
+                </select>
+                <select value={filterFromMonth} onChange={(e) => setFilterFromMonth(e.target.value)} style={yearSelectStyle}>
+                  {MONTHS_HE.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                </select>
+                <span style={{ color: "var(--text-muted)", fontSize: 11 }}>—</span>
+                <select value={filterToYear} onChange={(e) => setFilterToYear(e.target.value)} style={yearSelectStyle}>
+                  {SCREEN_YEAR_OPTIONS.map((y) => <option key={y} value={y}>{y}</option>)}
+                </select>
+                <select value={filterToMonth} onChange={(e) => setFilterToMonth(e.target.value)} style={yearSelectStyle}>
+                  {MONTHS_HE.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                </select>
+              </>
+            )}
+          </div>
+        </div>
+
         {/* Screen table */}
         <div className="screen-fund-table-wrap" style={{ maxWidth: 1600, margin: "0 auto", padding: "10px 16px 20px", overflowX: "auto" }}>
           <div className="screen-fund-table" style={{ backgroundColor: "var(--bg-surface)", borderRadius: 10, overflow: "hidden", boxShadow: "var(--shadow-card)" }}>
@@ -208,7 +318,7 @@ function ReportContent() {
               comparisonEnabled={comparisonEnabled}
               selectedFundIds={selectedFundIds}
               onToggleFund={toggleFundSelection}
-              visibleYears={printYearsArray}
+              visibleYears={screenVisibleYears ?? printYearsArray}
               accentColor={brand.primaryColor}
             />
           </div>
