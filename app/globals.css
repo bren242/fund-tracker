@@ -26,6 +26,15 @@
   --ring: rgba(26, 54, 93, 0.3);
   --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.03);
   --overlay: rgba(0,0,0,0.4);
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+  --font-size-data: 13px;
+  --font-size-label: 11px;
+  --font-weight-data: 500;
+  --spacing-cell: 10px 14px;
 }
 
 .dark {
