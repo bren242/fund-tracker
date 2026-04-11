@@ -6,31 +6,19 @@ import { pct, num, returnColorInline, formatReportDate } from "@/lib/format";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type TimeRange = "ytd" | "12m" | "3y" | "5y" | "max" | "custom";
-type ReturnKey = "ytd2026" | "y2025" | "y2024" | "y2023" | "y2022" | "y2021" | "y2020" | "y2019";
 
 // ── Constants ──────────────────────────────────────────────────────────────
-const ALL_YEAR_KEYS: ReturnKey[] = [
-  "y2019", "y2020", "y2021", "y2022", "y2023", "y2024", "y2025", "ytd2026",
-];
-
-const YEAR_LABELS: Record<ReturnKey, string> = {
-  ytd2026: "מצטבר 2026",
-  y2025: "2025", y2024: "2024", y2023: "2023",
-  y2022: "2022", y2021: "2021", y2020: "2020", y2019: "2019",
-};
-
-const YEAR_NUM: Record<ReturnKey, number> = {
-  ytd2026: 2026, y2025: 2025, y2024: 2024, y2023: 2023,
-  y2022: 2022, y2021: 2021, y2020: 2020, y2019: 2019,
-};
-
 const MONTH_HE: Record<string, string> = {
   "01": "ינו", "02": "פבר", "03": "מרץ", "04": "אפר",
   "05": "מאי", "06": "יוני", "07": "יול", "08": "אוג",
   "09": "ספט", "10": "אוק", "11": "נוב", "12": "דצמ",
 };
 
-const CUSTOM_YEARS = ["2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"];
+const MONTH_HE_FULL: Record<string, string> = {
+  "01": "ינואר", "02": "פברואר", "03": "מרץ", "04": "אפריל",
+  "05": "מאי", "06": "יוני", "07": "יולי", "08": "אוגוסט",
+  "09": "ספטמבר", "10": "אוקטובר", "11": "נובמבר", "12": "דצמבר",
+};
 
 const TIME_RANGE_OPTIONS: { key: TimeRange; label: string }[] = [
   { key: "ytd",    label: "מתחילת שנה" },
@@ -38,36 +26,69 @@ const TIME_RANGE_OPTIONS: { key: TimeRange; label: string }[] = [
   { key: "3y",    label: "3Y" },
   { key: "5y",    label: "5Y" },
   { key: "max",   label: "MAX" },
-  { key: "custom",label: "Custom" },
+  { key: "custom", label: "Custom" },
 ];
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-function getActiveKeys(range: TimeRange, from: string, to: string): ReturnKey[] {
-  switch (range) {
-    case "ytd":    return ["ytd2026"];
-    case "12m":    return ["ytd2026"];
-    case "3y":     return ["y2023", "y2024", "y2025", "ytd2026"];
-    case "5y":     return ["y2021", "y2022", "y2023", "y2024", "y2025", "ytd2026"];
-    case "max":    return [...ALL_YEAR_KEYS];
-    case "custom": {
-      const f = parseInt(from), t = parseInt(to);
-      return ALL_YEAR_KEYS.filter(k => { const y = YEAR_NUM[k]; return y >= f && y <= t; });
-    }
-  }
+const TOTAL_COLS = 6; // name | date | monthly | period | avg | sharpe
+
+// ── Date helpers (module-level, evaluated once) ────────────────────────────
+const _today = new Date();
+const _toYM = `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, "0")}`;
+
+function subtractMonths(ym: string, months: number): string {
+  const [y, m] = ym.split("-").map(Number);
+  const d = new Date(y, m - 1 - months, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function calc12m(monthlyReturns?: Record<string, number>): number | null {
+const RANGES: Record<Exclude<TimeRange, "custom">, { from: string | null; to: string }> = {
+  ytd:  { from: `${_today.getFullYear()}-01`, to: _toYM },
+  "12m": { from: subtractMonths(_toYM, 12),   to: _toYM },
+  "3y":  { from: subtractMonths(_toYM, 36),   to: _toYM },
+  "5y":  { from: subtractMonths(_toYM, 60),   to: _toYM },
+  max:   { from: null,                         to: _toYM },
+};
+
+// Month options: 2019-01 → current month
+const MONTH_OPTIONS: { value: string; label: string }[] = (() => {
+  const opts: { value: string; label: string }[] = [];
+  let year = 2019, month = 1;
+  while (
+    year < _today.getFullYear() ||
+    (year === _today.getFullYear() && month <= _today.getMonth() + 1)
+  ) {
+    const mm = String(month).padStart(2, "0");
+    opts.push({ value: `${year}-${mm}`, label: `${MONTH_HE_FULL[mm]} ${year}` });
+    if (++month > 12) { month = 1; year++; }
+  }
+  return opts;
+})();
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function calcRangeReturn(
+  monthlyReturns: Record<string, number> | undefined,
+  fromYearMonth: string | null,
+  toYearMonth: string
+): number | null {
   if (!monthlyReturns) return null;
-  const entries = Object.entries(monthlyReturns)
-    .filter(([, v]) => typeof v === "number")
-    .sort((a, b) => b[0].localeCompare(a[0]))
-    .slice(0, 12);
-  if (entries.length < 12) return null;
-  return entries.reduce((acc, [, v]) => acc * (1 + v), 1) - 1;
+  const keys = Object.keys(monthlyReturns)
+    .filter(k => (fromYearMonth === null || k >= fromYearMonth) && k <= toYearMonth)
+    .sort();
+  if (keys.length === 0) return null;
+  return keys.reduce((acc, k) => acc * (1 + monthlyReturns[k]), 1) - 1;
 }
 
 function calcCumulative(fund: Fund): number | null {
-  const vals = ALL_YEAR_KEYS.map(k => fund.returns[k]).filter((v): v is number => v !== null);
+  if (fund.monthlyReturns) {
+    const keys = Object.keys(fund.monthlyReturns)
+      .filter(k => typeof fund.monthlyReturns![k] === "number")
+      .sort();
+    if (keys.length > 0)
+      return keys.reduce((acc, k) => acc * (1 + fund.monthlyReturns![k]), 1) - 1;
+  }
+  // Fallback: yearly returns
+  const yearly = ["y2019","y2020","y2021","y2022","y2023","y2024","y2025","ytd2026"] as const;
+  const vals = yearly.map(k => (fund.returns as Record<string, number | null>)[k]).filter((v): v is number => v !== null);
   if (vals.length === 0) return null;
   return vals.reduce((acc, v) => acc * (1 + v), 1) - 1;
 }
@@ -167,9 +188,9 @@ function MonthlyPills({ monthlyReturns }: { monthlyReturns?: Record<string, numb
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
       {entries.map(([key, val]) => {
-        const m = key.match(/^(\d{4})-(\d{2})$/);
-        const monthLabel = m ? (MONTH_HE[m[2]] || m[2]) : key;
-        const yearLabel  = m ? `'${m[1].slice(2)}` : "";
+        const match = key.match(/^(\d{4})-(\d{2})$/);
+        const monthLabel = match ? (MONTH_HE[match[2]] || match[2]) : key;
+        const yearLabel  = match ? `'${match[1].slice(2)}` : "";
         const isPos = val > 0.00005;
         const isNeg = val < -0.00005;
         return (
@@ -193,7 +214,7 @@ function MonthlyPills({ monthlyReturns }: { monthlyReturns?: Record<string, numb
 }
 
 // ── Accordion Panel ────────────────────────────────────────────────────────
-function AccordionPanel({ fund, totalCols }: { fund: Fund; totalCols: number }) {
+function AccordionPanel({ fund }: { fund: Fund }) {
   const cumulative = calcCumulative(fund);
 
   const labelStyle: React.CSSProperties = {
@@ -205,7 +226,7 @@ function AccordionPanel({ fund, totalCols }: { fund: Fund; totalCols: number }) 
 
   return (
     <tr>
-      <td colSpan={totalCols} style={{ padding: 0 }}>
+      <td colSpan={TOTAL_COLS} style={{ padding: 0 }}>
         <div style={{
           backgroundColor: "var(--bg-surface-alt)",
           borderTop: "1px solid var(--border-table)",
@@ -213,7 +234,7 @@ function AccordionPanel({ fund, totalCols }: { fund: Fund; totalCols: number }) 
           padding: "16px 24px",
           direction: "rtl",
         }}>
-          {/* Row 1: meta info */}
+          {/* Row 1: meta */}
           <div style={{ display: "flex", gap: 28, marginBottom: 14, flexWrap: "wrap" }}>
             <div>
               <div style={labelStyle}>מנהל</div>
@@ -265,7 +286,7 @@ function AccordionPanel({ fund, totalCols }: { fund: Fund; totalCols: number }) 
 // ── Fund Row ───────────────────────────────────────────────────────────────
 function FundRowV2({
   fund, even, comparisonEnabled, isSelected, onToggle, selectionDisabled,
-  accentColor, activeKeys, is12m, isOpen, onToggleAccordion,
+  accentColor, periodReturn, isOpen, onToggleAccordion,
 }: {
   fund: Fund;
   even: boolean;
@@ -274,15 +295,13 @@ function FundRowV2({
   onToggle?: (id: string) => void;
   selectionDisabled?: boolean;
   accentColor?: string;
-  activeKeys: ReturnKey[];
-  is12m: boolean;
+  periodReturn: number | null;
   isOpen: boolean;
   onToggleAccordion: () => void;
 }) {
   const bg = even ? "var(--bg-surface)" : "var(--bg-row-alt)";
   const classBadge = getClassBadge(fund.classification || "");
   const shColor = sharpeColor(fund.sharpe);
-  const m12val = is12m ? calc12m(fund.monthlyReturns) : null;
 
   const cell: React.CSSProperties = {
     padding: "8px 10px",
@@ -349,18 +368,13 @@ function FundRowV2({
         {formatReportDate(fund.lastReportDate)}
       </td>
 
-      {/* Monthly */}
+      {/* Monthly return */}
       <td style={{ ...cell, color: returnColorInline(fund.monthlyReturn) }}>{pct(fund.monthlyReturn)}</td>
 
-      {/* Dynamic columns */}
-      {is12m
-        ? <td style={{ ...cell, color: returnColorInline(m12val) }}>{pct(m12val)}</td>
-        : activeKeys.map(k => (
-            <td key={k} style={{ ...cell, color: returnColorInline(fund.returns[k]) }}>
-              {pct(fund.returns[k])}
-            </td>
-          ))
-      }
+      {/* Period return (computed from monthlyReturns) */}
+      <td style={{ ...cell, fontWeight: 600, color: returnColorInline(periodReturn) }}>
+        {pct(periodReturn)}
+      </td>
 
       {/* Avg annual */}
       <td style={{ ...cell, color: returnColorInline(fund.avgAnnualReturn) }}>{pct(fund.avgAnnualReturn)}</td>
@@ -383,7 +397,7 @@ function FundRowV2({
   );
 }
 
-// ── Main ───────────────────────────────────────────────────────────────────
+// ── Main Component ─────────────────────────────────────────────────────────
 export default function FundTableV2({
   categories,
   comparisonEnabled,
@@ -397,16 +411,23 @@ export default function FundTableV2({
   onToggleFund?: (id: string) => void;
   accentColor?: string;
 }) {
-  const [timeRange, setTimeRange]         = useState<TimeRange>("3y");
-  const [customFrom, setCustomFrom]       = useState("2023");
-  const [customTo, setCustomTo]           = useState("2025");
-  const [activeFilter, setActiveFilter]   = useState("הכל");
+  const [timeRange, setTimeRange]       = useState<TimeRange>("3y");
+  const [customFrom, setCustomFrom]     = useState("2022-01");
+  const [customTo, setCustomTo]         = useState(_toYM);
+  const [activeFilter, setActiveFilter] = useState("הכל");
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [openAccordions, setOpenAccordions]   = useState<Set<string>>(new Set());
 
   const selectionDisabled = (selectedFundIds?.size ?? 0) >= 4;
 
-  // Unique section labels (preserve order)
+  // Range bounds for period calculation
+  const { rangeFrom, rangeTo } = useMemo(() => {
+    if (timeRange === "custom") return { rangeFrom: customFrom, rangeTo: customTo };
+    const r = RANGES[timeRange];
+    return { rangeFrom: r.from, rangeTo: r.to };
+  }, [timeRange, customFrom, customTo]);
+
+  // Unique section labels
   const sectionLabels = useMemo(() => {
     const seen = new Set<string>();
     const out: string[] = [];
@@ -422,15 +443,9 @@ export default function FundTableV2({
     return categories.filter(c => c.parentSection === activeFilter || c.name === activeFilter);
   }, [categories, activeFilter]);
 
-  // Columns
-  const activeKeys = useMemo(() => getActiveKeys(timeRange, customFrom, customTo), [timeRange, customFrom, customTo]);
-  const is12m = timeRange === "12m";
-  const dynamicCols = is12m ? 1 : activeKeys.length;
-  const totalCols = 3 + dynamicCols + 2; // name + date + monthly + dynamic + avg + sharpe
-
   // Grouped by section
   const { sectionMap, sectionOrder } = useMemo(() => {
-    const map = new Map<string, Category[]>();
+    const map = new Map<string, typeof filteredCats>();
     const order: string[] = [];
     for (const cat of filteredCats) {
       if (!map.has(cat.parentSection)) { map.set(cat.parentSection, []); order.push(cat.parentSection); }
@@ -448,6 +463,20 @@ export default function FundTableV2({
   const resetAccordions = () => setOpenAccordions(new Set());
 
   const totalFunds = filteredCats.reduce((s, c) => s + c.funds.length, 0);
+
+  // Column header label for period column
+  const periodLabel = useMemo(() => {
+    if (timeRange === "custom") {
+      const fOpt = MONTH_OPTIONS.find(o => o.value === customFrom);
+      const tOpt = MONTH_OPTIONS.find(o => o.value === customTo);
+      return `${fOpt?.label || customFrom} — ${tOpt?.label || customTo}`;
+    }
+    const labels: Record<TimeRange, string> = {
+      ytd: "מתחילת שנה", "12m": "12 חודשים",
+      "3y": "3 שנים", "5y": "5 שנים", max: "מקס", custom: "",
+    };
+    return labels[timeRange];
+  }, [timeRange, customFrom, customTo]);
 
   const thBase: React.CSSProperties = {
     backgroundColor: "transparent",
@@ -484,16 +513,16 @@ export default function FundTableV2({
           <SegmentedControl value={timeRange} onChange={(v) => { setTimeRange(v); resetAccordions(); }} />
         </div>
 
-        {/* Custom pickers */}
+        {/* Custom YYYY-MM pickers */}
         {timeRange === "custom" && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span style={{ fontSize: 11, color: "var(--text-muted)" }}>מ-</span>
             <select value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={selectStyle}>
-              {CUSTOM_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+              {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
             <span style={{ fontSize: 11, color: "var(--text-muted)" }}>עד</span>
             <select value={customTo} onChange={e => setCustomTo(e.target.value)} style={selectStyle}>
-              {CUSTOM_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+              {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
         )}
@@ -519,10 +548,12 @@ export default function FundTableV2({
                 <th style={{ ...thBase, textAlign: "right", paddingRight: 12, maxWidth: 200 }}>שם קרן</th>
                 <th style={{ ...thBase, minWidth: 64 }}>עדכון</th>
                 <th style={thBase}>חודשי</th>
-                {is12m
-                  ? <th style={thBase}>12 חודשים</th>
-                  : activeKeys.map(k => <th key={k} style={thBase}>{YEAR_LABELS[k]}</th>)
-                }
+                <th style={{ ...thBase, color: "var(--text-primary)", fontWeight: 700 }}>
+                  תשואה לתקופה
+                  <div style={{ fontSize: 9, fontWeight: 400, letterSpacing: 0, color: "var(--text-muted)", textTransform: "none", marginTop: 2 }}>
+                    {periodLabel}
+                  </div>
+                </th>
                 <th style={thBase}>ממוצע שנתי</th>
                 <th style={thBase}>שארפ</th>
               </tr>
@@ -537,27 +568,22 @@ export default function FundTableV2({
                 return [
                   /* Group header */
                   <tr key={`sec-${section}`} onClick={() => toggleGroup(section)} style={{ cursor: "pointer", userSelect: "none" }}>
-                    <td colSpan={totalCols} style={{
+                    <td colSpan={TOTAL_COLS} style={{
                       backgroundColor: "transparent",
                       borderTop: "2px solid var(--section-header-color)",
                       borderBottom: "none",
                       borderRight: `3px solid ${accentColor || "var(--bg-section)"}`,
                       color: "var(--section-header-color)",
                       padding: "12px 16px 6px",
-                      fontWeight: 700,
-                      fontSize: 13,
-                      textAlign: "right",
+                      fontWeight: 700, fontSize: 13, textAlign: "right",
                     }}>
                       <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                         <span>
                           {section}
-                          <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.55, marginRight: 7 }}>
-                            ({fundCount})
-                          </span>
+                          <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.55, marginRight: 7 }}>({fundCount})</span>
                         </span>
                         <span style={{
-                          fontSize: 10, opacity: 0.5,
-                          display: "inline-block",
+                          fontSize: 10, opacity: 0.5, display: "inline-block",
                           transition: "transform 0.2s ease",
                           transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)",
                         }}>▼</span>
@@ -574,7 +600,7 @@ export default function FundTableV2({
                     if (showSub) {
                       rows.push(
                         <tr key={`cat-${cat.id}`}>
-                          <td colSpan={totalCols} style={{
+                          <td colSpan={TOTAL_COLS} style={{
                             backgroundColor: "transparent",
                             borderTop: "1px solid rgba(6,78,59,0.15)",
                             borderBottom: "none",
@@ -589,6 +615,8 @@ export default function FundTableV2({
 
                     cat.funds.forEach((fund, fi) => {
                       const isOpen = openAccordions.has(fund.id);
+                      const periodReturn = calcRangeReturn(fund.monthlyReturns, rangeFrom, rangeTo);
+
                       rows.push(
                         <FundRowV2
                           key={fund.id}
@@ -599,16 +627,13 @@ export default function FundTableV2({
                           onToggle={onToggleFund}
                           selectionDisabled={selectionDisabled}
                           accentColor={accentColor}
-                          activeKeys={activeKeys}
-                          is12m={is12m}
+                          periodReturn={periodReturn}
                           isOpen={isOpen}
                           onToggleAccordion={() => toggleAccordion(fund.id)}
                         />
                       );
                       if (isOpen) {
-                        rows.push(
-                          <AccordionPanel key={`${fund.id}-panel`} fund={fund} totalCols={totalCols} />
-                        );
+                        rows.push(<AccordionPanel key={`${fund.id}-panel`} fund={fund} />);
                       }
                     });
 
