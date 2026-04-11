@@ -191,7 +191,6 @@ function AnalysisContent() {
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <a href={withClient("/", clientKey)} style={navLink}>דף הבית</a>
-                <a href={withClient("/compare", clientKey)} style={navLink}>השוואה</a>
                 <a href={withClient("/charts", clientKey)} style={navLink}>גרפים</a>
                 <span style={{ ...navLink, backgroundColor: brand.primaryColor, color: "#fff", fontWeight: 700, border: "none" }}>ניתוח</span>
                 <a href={withClient("/admin", clientKey)} style={navLink}>ניהול</a>
@@ -270,6 +269,31 @@ function AnalysisContent() {
               <span style={{ fontSize: 11, color: "var(--text-muted)", marginRight: "auto" }}>
                 {filteredFunds.length} קרנות · {fundsWithMonthly} עם נתונים חודשיים לחישוב drawdown
               </span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── VIEW TOGGLE ── */}
+        <div className="no-print" style={{ backgroundColor: "var(--bg-surface-alt)", borderBottom: "1px solid var(--border)", padding: "14px 24px" }}>
+          <div style={{ maxWidth: 1600, margin: "0 auto", display: "flex", justifyContent: "center" }}>
+            <div style={{ display: "inline-flex", borderRadius: 12, border: `2px solid ${brand.primaryColor}`, overflow: "hidden" }}>
+              <span style={{
+                display: "inline-block", padding: "10px 32px", fontSize: 14, fontWeight: 700,
+                backgroundColor: brand.primaryColor, color: "#fff",
+                cursor: "default", userSelect: "none",
+              }}>
+                תצוגת קרנות
+              </span>
+              <a href={withClient("/compare", clientKey)} style={{
+                display: "inline-block", padding: "10px 32px", fontSize: 14, fontWeight: 600,
+                backgroundColor: "transparent", color: brand.primaryColor,
+                textDecoration: "none", transition: "background 0.15s",
+              }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.backgroundColor = "color-mix(in srgb, var(--bg-surface) 80%, transparent)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.backgroundColor = "transparent"; }}
+              >
+                השוואה בין קרנות
+              </a>
             </div>
           </div>
         </div>

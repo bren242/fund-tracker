@@ -158,6 +158,31 @@ function CompareContent() {
             </div>
           </div>
 
+          {/* ── VIEW TOGGLE ── */}
+          <div style={{ backgroundColor: "var(--bg-surface-alt)", borderBottom: "1px solid var(--border)", padding: "14px 24px" }}>
+            <div style={{ maxWidth: 960, margin: "0 auto", display: "flex", justifyContent: "center" }}>
+              <div style={{ display: "inline-flex", borderRadius: 12, border: `2px solid ${brand.primaryColor}`, overflow: "hidden" }}>
+                <a href={withClient("/analysis", clientKey)} style={{
+                  display: "inline-block", padding: "10px 32px", fontSize: 14, fontWeight: 600,
+                  backgroundColor: "transparent", color: brand.primaryColor,
+                  textDecoration: "none", transition: "background 0.15s",
+                }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.backgroundColor = "color-mix(in srgb, var(--bg-surface) 80%, transparent)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.backgroundColor = "transparent"; }}
+                >
+                  תצוגת קרנות
+                </a>
+                <span style={{
+                  display: "inline-block", padding: "10px 32px", fontSize: 14, fontWeight: 700,
+                  backgroundColor: brand.primaryColor, color: "#fff",
+                  cursor: "default", userSelect: "none",
+                }}>
+                  השוואה בין קרנות
+                </span>
+              </div>
+            </div>
+          </div>
+
           <div style={{ maxWidth: 960, margin: "0 auto", padding: "24px 24px 20px" }}>
             {/* Year selector */}
             <div style={{
