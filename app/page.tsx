@@ -152,34 +152,6 @@ function ReportContent() {
                   הדפסה / PDF
                 </button>
               </div>
-              {comparisonEnabled && selectedFundIds.size > 0 && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <button
-                    onClick={navigateToCompare}
-                    disabled={selectedFundIds.size < 2}
-                    style={{
-                      backgroundColor: selectedFundIds.size >= 2 ? brand.primaryColor : "var(--text-muted)",
-                      color: "#fff", fontWeight: 700, padding: "5px 14px", borderRadius: 6,
-                      border: "none", cursor: selectedFundIds.size >= 2 ? "pointer" : "default",
-                      fontSize: 12, opacity: selectedFundIds.size >= 2 ? 1 : 0.5,
-                      transition: "opacity 0.15s", display: "flex", alignItems: "center", gap: 4,
-                    }}
-                  >
-                    השווה ({selectedFundIds.size})
-                  </button>
-                  <button
-                    onClick={clearSelection}
-                    style={{
-                      backgroundColor: "transparent", color: "var(--text-muted)",
-                      border: "1px solid var(--border)", borderRadius: 6,
-                      padding: "5px 10px", cursor: "pointer", fontSize: 11,
-                    }}
-                    title="נקה בחירה"
-                  >
-                    ✕
-                  </button>
-                </div>
-              )}
               <div className="nav-tabs">
                 <NavTab href={withClient("/", clientKey)} enabled={true} active={true}>קרנות</NavTab>
                 <NavTab href={withClient("/analysis", clientKey)} enabled={true}>ניתוח</NavTab>
@@ -297,6 +269,30 @@ function ReportContent() {
       <PrintReport categories={filtered} lastUpdated={data.lastUpdated} brand={brand} printYears={printYearsArray} />
 
     </div>
+
+      {/* ============ FLOATING ACTION BAR ============ */}
+      {comparisonEnabled && selectedFundIds.size > 0 && (
+        <div className="floating-action-bar no-print">
+          <span className="floating-action-bar__count">
+            {selectedFundIds.size} קרנות נבחרות
+          </span>
+          <div className="floating-action-bar__actions">
+            <button
+              className="floating-action-bar__clear"
+              onClick={clearSelection}
+            >
+              נקה
+            </button>
+            <button
+              className="floating-action-bar__compare"
+              onClick={navigateToCompare}
+              disabled={selectedFundIds.size < 2}
+            >
+              השווה →
+            </button>
+          </div>
+        </div>
+      )}
     </ClientGate>
   );
 }

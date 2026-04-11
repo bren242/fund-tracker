@@ -371,6 +371,84 @@ body {
   color: var(--text-muted);
 }
 
+/* ── Floating Action Bar ─────────────────────────────────────────────── */
+.floating-action-bar {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 24px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08);
+  z-index: 1000;
+  animation: floatUp 0.2s ease;
+  white-space: nowrap;
+}
+
+.dark .floating-action-bar {
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.3);
+}
+
+@keyframes floatUp {
+  from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.floating-action-bar__count {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.floating-action-bar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.floating-action-bar__clear {
+  padding: 6px 14px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.floating-action-bar__clear:hover {
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.floating-action-bar__compare {
+  padding: 6px 18px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--bg-section);
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.floating-action-bar__compare:hover {
+  opacity: 0.85;
+}
+
+.floating-action-bar__compare:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 /* Admin input focus */
 input:focus, select:focus {
   outline: 2px solid var(--accent);
