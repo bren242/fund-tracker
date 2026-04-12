@@ -64,7 +64,7 @@ function buildLineData(
   to: string,
 ) {
   // Use monthly mode only if ALL funds have monthly data — otherwise one fund goes invisible
-  const hasMonthly = funds.every(
+  const hasMonthly = funds.some(
     (f) => f.monthlyReturns && Object.keys(f.monthlyReturns).length > 0,
   );
 
