@@ -134,54 +134,44 @@ export default function CompareCharts({
   /* ── Print / compact ── */
   if (compact) {
     return (
-      <div style={{ pageBreakInside: "avoid", breakInside: "avoid", width: "100%", direction: "ltr" }}>
-        <div style={{ width: "500px", margin: "0 auto" }}>
-          <LineChart width={500} height={300} data={lineData} margin={{ top: 5, right: 10, left: 0, bottom: 10 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e8eaed" />
-            <XAxis dataKey="year" tick={{ fontSize: 7, fill: "#5a6577" }} interval={xInterval} tickFormatter={formatXLabel} />
-            <YAxis tick={{ fontSize: 7, fill: "#8893a4" }} unit="%" width={30} />
-            {funds.map((f, i) => (
-              <Line key={f.id} type="monotone" dataKey={`fund_${f.id}`} name={f.name}
-                stroke={fundColors[i]} strokeWidth={2}
-                strokeDasharray={fundIsEstimated[i] ? "5 3" : undefined}
-                dot={showDots ? { r: 2, fill: fundColors[i] } : false}
-                connectNulls={true} />
-            ))}
-            {benchmarks.map((bm, i) => (
-              <Line key={bm.id} type="monotone" dataKey={`bm_${bm.id}`} name={bm.name}
-                stroke={bmColors[i]} strokeWidth={1.5} strokeDasharray="6 3"
-                dot={false} connectNulls={false} />
-            ))}
-          </LineChart>
-          {/* Manual legend */}
-          <div style={{
-            display: "flex",
-            flexDirection: "row",
-            justifyContent: "center",
-            alignItems: "center",
-            gap: "24px",
-            flexWrap: "wrap",
-            marginTop: "10px",
-            fontSize: "8px",
-            fontFamily: "Assistant, sans-serif",
-            width: "500px",
-            direction: "ltr",
-            unicodeBidi: "isolate",
-          }}>
-            {funds.map((f, i) => (
-              <div key={f.id} style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "6px", unicodeBidi: "isolate" }}>
-                <div style={{ width: "24px", height: "2px", backgroundColor: fundColors[i], flexShrink: 0 }} />
-                <span style={{ color: "#1a1f2b", whiteSpace: "nowrap" }}>{f.name}</span>
-              </div>
-            ))}
-            {benchmarks.map((bm, i) => (
-              <div key={bm.id} style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "6px", unicodeBidi: "isolate" }}>
-                <div style={{ width: "24px", height: "2px", backgroundColor: bmColors[i], flexShrink: 0 }} />
-                <span style={{ color: "#1a1f2b", whiteSpace: "nowrap" }}>{bm.name}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+      <div style={{ pageBreakInside: "avoid", breakInside: "avoid", width: "500px", margin: "0 auto" }}>
+        <LineChart width={500} height={300} data={lineData} margin={{ top: 5, right: 20, left: 0, bottom: 10 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e8eaed" />
+          <XAxis dataKey="year" tick={{ fontSize: 7, fill: "#5a6577" }} interval={xInterval} tickFormatter={formatXLabel} />
+          <YAxis tick={{ fontSize: 7, fill: "#8893a4" }} unit="%" width={30} />
+          {funds.map((f, i) => (
+            <Line key={f.id} type="monotone" dataKey={`fund_${f.id}`} name={f.name}
+              stroke={fundColors[i]} strokeWidth={2}
+              strokeDasharray={fundIsEstimated[i] ? "5 3" : undefined}
+              dot={showDots ? { r: 2, fill: fundColors[i] } : false}
+              connectNulls={true} />
+          ))}
+          {benchmarks.map((bm, i) => (
+            <Line key={bm.id} type="monotone" dataKey={`bm_${bm.id}`} name={bm.name}
+              stroke={bmColors[i]} strokeWidth={1.5} strokeDasharray="6 3"
+              dot={false} connectNulls={false} />
+          ))}
+        </LineChart>
+
+        {/* Print-only legend — table based, not flex */}
+        <table className="print-legend-table" style={{ margin: "10px auto 0", borderCollapse: "collapse", direction: "ltr", width: "500px" }}>
+          <tbody>
+            <tr>
+              {funds.map((f, i) => (
+                <td key={f.id} style={{ padding: "0 10px", whiteSpace: "nowrap", textAlign: "center", verticalAlign: "middle" }}>
+                  <span style={{ display: "inline-block", width: "20px", height: "2px", backgroundColor: fundColors[i], marginInlineEnd: "5px", verticalAlign: "middle" }} />
+                  <span style={{ fontSize: "8px", color: "#1a1f2b", fontFamily: "Assistant, sans-serif", verticalAlign: "middle" }}>{f.name}</span>
+                </td>
+              ))}
+              {benchmarks.map((bm, i) => (
+                <td key={bm.id} style={{ padding: "0 10px", whiteSpace: "nowrap", textAlign: "center", verticalAlign: "middle" }}>
+                  <span style={{ display: "inline-block", width: "20px", height: "2px", backgroundColor: bmColors[i], marginInlineEnd: "5px", verticalAlign: "middle" }} />
+                  <span style={{ fontSize: "8px", color: "#1a1f2b", fontFamily: "Assistant, sans-serif", verticalAlign: "middle" }}>{bm.name}</span>
+                </td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
       </div>
     );
   }

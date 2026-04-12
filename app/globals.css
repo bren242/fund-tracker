@@ -314,6 +314,12 @@ body {
     break-inside: avoid;
   }
 
+  /* Compare chart legend — table layout */
+  .print-legend-table {
+    display: table !important;
+    table-layout: fixed;
+  }
+
   /* Force light return colors */
   .return-positive { color: #0d7c4a !important; }
   .return-negative { color: #c42b2b !important; }
