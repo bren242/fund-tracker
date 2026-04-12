@@ -120,7 +120,6 @@ export default function CompareCharts({
 
   const lineData   = buildLineData(funds, benchmarks, effectiveFrom, effectiveTo);
   const fundColors = funds.map((_, i) => PALETTE[i % PALETTE.length]);
-  fundColors[0]    = accentColor;
   const bmColors   = benchmarks.map((_, i) => BM_PALETTE[i % BM_PALETTE.length]);
 
   const xInterval = Math.max(0, Math.ceil(lineData.length / 8) - 1);
