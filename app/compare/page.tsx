@@ -489,9 +489,6 @@ function CompareContent() {
   );
 }
 
-/* ================================================================== */
-/*  Print-only comparison report — UNTOUCHED                           */
-/* ================================================================== */
 function ComparePrint({ funds, brand, lastUpdated, mode, selectedYears, chartFrom, chartTo, benchmarks }: {
   funds: Fund[];
   brand: BrandConfig;
@@ -503,105 +500,120 @@ function ComparePrint({ funds, brand, lastUpdated, mode, selectedYears, chartFro
   benchmarks?: Benchmark[];
 }) {
   const currentYear = new Date().getFullYear();
+  const winnerIdx = computeWinnerIdx(funds, selectedYears || []);
 
   return (
-    <div className="print-only" style={{ width: "100%", background: "white", color: "#1a1f2b" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "8pt", lineHeight: 1.4 }}>
-        <thead>
-          {/* === HEADER ROW 1: Logo + Date === */}
-          <tr>
-            <td style={{ padding: "6px 8px 4px", background: "white" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}><tbody><tr>
-                <td style={{ textAlign: "right", verticalAlign: "middle" }}>
-                  <span style={{ fontSize: "7pt", color: "#8893a4", whiteSpace: "nowrap" }}>מעודכן ל: {formatDate(lastUpdated)}</span>
-                </td>
-                <td style={{ textAlign: "left", verticalAlign: "middle", width: "120px" }}>
-                  {(brand.logoLight || brand.logo) && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={brand.logoLight || brand.logo} alt={brand.name || ""} style={{ maxHeight: 30, width: "auto", objectFit: "contain" }} />
-                  )}
-                </td>
-              </tr></tbody></table>
-            </td>
-          </tr>
-          {/* === HEADER ROW 2: Title === */}
-          <tr>
-            <td style={{ padding: "2px 0 8px", borderBottom: `2px solid ${brand.secondaryColor}`, background: "white", textAlign: "center" }}>
-              <span style={{ fontSize: "14pt", color: brand.primaryColor, fontWeight: 700, letterSpacing: "0.5px" }}>
-                השוואת קרנות
-              </span>
-            </td>
-          </tr>
-          {/* Spacer */}
-          <tr><td style={{ height: 8, padding: 0, border: "none", background: "white", lineHeight: 0, fontSize: 0 }} /></tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td style={{ padding: 0 }}>
-              {/* Fund cards — one row */}
-              <div style={{ display: "grid", gridTemplateColumns: `repeat(${funds.length}, 1fr)`, gap: 8, marginBottom: 12 }}>
-                {funds.map((fund, i) => (
-                  <div key={fund.id} style={{
-                    padding: "8px 10px",
-                    backgroundColor: "#fafafa",
-                    borderRadius: 6,
-                    border: `1px solid #e5e7eb`,
-                    borderRightWidth: 3,
-                    borderRightColor: FUND_COLORS[i % FUND_COLORS.length],
-                  }}>
-                    <div style={{ fontSize: "8pt", fontWeight: 700, color: "#1a1f2b", marginBottom: 2 }}>{fund.name}</div>
-                    <div style={{ fontSize: "7pt", color: "#8893a4", marginBottom: 6 }}>{fund.classification || "—"}</div>
-                    <div style={{ display: "flex", gap: 8, justifyContent: "space-between" }}>
-                      <div style={{ textAlign: "center" }}>
-                        <div style={{ fontSize: "6pt", color: "#8893a4" }}>ממוצע שנתי</div>
-                        <div style={{ fontSize: "9pt", fontWeight: 700, color: (fund.avgAnnualReturn ?? 0) > 0 ? "#059669" : "#dc2626" }}>
-                          {fund.avgAnnualReturn != null ? `${(fund.avgAnnualReturn * 100).toFixed(2)}%` : "—"}
-                        </div>
-                      </div>
-                      <div style={{ textAlign: "center" }}>
-                        <div style={{ fontSize: "6pt", color: "#8893a4" }}>שארפ</div>
-                        <div style={{ fontSize: "9pt", fontWeight: 700, color: "#1a1f2b" }}>
-                          {fund.sharpe != null ? fund.sharpe.toFixed(2) : "—"}
-                        </div>
-                      </div>
-                      <div style={{ textAlign: "center" }}>
-                        <div style={{ fontSize: "6pt", color: "#8893a4" }}>מצטבר</div>
-                        <div style={{ fontSize: "9pt", fontWeight: 700, color: "#059669" }}>
-                          {(() => { const c = computeCumulative(fund, selectedYears || []); return c != null ? `${(c * 100).toFixed(2)}%` : "—"; })()}
-                        </div>
-                      </div>
-                    </div>
+    <div className="print-only" style={{ width: "100%", background: "white", color: "#1a1f2b", fontFamily: "Assistant, Arial, sans-serif" }}>
+
+      {/* ── Header ── */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, paddingBottom: 8, borderBottom: `2px solid ${brand.primaryColor}` }}>
+        <span style={{ fontSize: "7pt", color: "#8893a4" }}>מעודכן ל: {formatDate(lastUpdated)}</span>
+        {(brand.logoLight || brand.logo) && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={brand.logoLight || brand.logo} alt={brand.name || ""} style={{ maxHeight: 28, width: "auto", objectFit: "contain" }} />
+        )}
+      </div>
+
+      {/* ── Title ── */}
+      <div style={{ textAlign: "center", marginBottom: 14 }}>
+        <span style={{ fontSize: "16pt", color: brand.primaryColor, fontWeight: 700, letterSpacing: "0.5px" }}>
+          השוואת קרנות
+        </span>
+      </div>
+
+      {/* ── Fund Cards ── */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 14, direction: "rtl" }}>
+        {funds.map((fund, i) => {
+          const cumulative = computeCumulative(fund, selectedYears || []);
+          const isWinner = i === winnerIdx;
+          const color = FUND_COLORS[i % FUND_COLORS.length];
+          return (
+            <div key={fund.id} style={{
+              flex: 1,
+              padding: "8px 10px",
+              backgroundColor: isWinner ? `${color}08` : "#fafafa",
+              borderRadius: 6,
+              border: `1px solid #e5e7eb`,
+              borderRightWidth: 3,
+              borderRightStyle: "solid",
+              borderRightColor: color,
+            }}>
+              {isWinner && (
+                <div style={{ fontSize: "6pt", fontWeight: 700, color, marginBottom: 3 }}>↑ מובילה</div>
+              )}
+              <div style={{ fontSize: "8pt", fontWeight: 700, color: "#1a1f2b", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {fund.name}
+              </div>
+              <div style={{ fontSize: "6.5pt", color: "#8893a4", marginBottom: 6 }}>
+                {fund.classification || "—"}
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid #e5e7eb", paddingTop: 5 }}>
+                <div style={{ textAlign: "center", flex: 1 }}>
+                  <div style={{ fontSize: "5.5pt", color: "#8893a4", marginBottom: 2 }}>ממוצע שנתי</div>
+                  <div style={{ fontSize: "8.5pt", fontWeight: 700, color: (fund.avgAnnualReturn ?? 0) > 0 ? "#059669" : "#dc2626" }}>
+                    {fund.avgAnnualReturn != null ? `${(fund.avgAnnualReturn * 100).toFixed(2)}%` : "—"}
                   </div>
-                ))}
+                </div>
+                <div style={{ textAlign: "center", flex: 1, borderRight: "1px solid #e5e7eb", borderLeft: "1px solid #e5e7eb" }}>
+                  <div style={{ fontSize: "5.5pt", color: "#8893a4", marginBottom: 2 }}>שארפ</div>
+                  <div style={{ fontSize: "8.5pt", fontWeight: 700, color: "#1a1f2b" }}>
+                    {fund.sharpe != null ? fund.sharpe.toFixed(2) : "—"}
+                  </div>
+                </div>
+                <div style={{ textAlign: "center", flex: 1 }}>
+                  <div style={{ fontSize: "5.5pt", color: "#8893a4", marginBottom: 2 }}>מצטבר</div>
+                  <div style={{ fontSize: "8.5pt", fontWeight: 700, color: cumulative != null ? ((cumulative > 0) ? "#059669" : "#dc2626") : "#8893a4" }}>
+                    {cumulative != null ? `${(cumulative * 100).toFixed(2)}%` : "—"}
+                  </div>
+                </div>
               </div>
+            </div>
+          );
+        })}
+      </div>
 
-              {/* Chart */}
-              <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
-                <CompareCharts funds={funds} accentColor={brand.primaryColor} compact
-                  benchmarks={benchmarks} from={chartFrom} to={chartTo} />
-              </div>
+      {/* ── Chart ── */}
+      {mode === "advanced" && (
+        <div style={{ marginBottom: 14, pageBreakInside: "avoid" }}>
+          <div style={{ fontSize: "9pt", fontWeight: 600, color: "#1a1f2b", marginBottom: 6, textAlign: "right" }}>
+            השוואת תשואות (%)
+          </div>
+          <CompareCharts
+            funds={funds}
+            accentColor={brand.primaryColor}
+            compact
+            benchmarks={benchmarks}
+            from={chartFrom}
+            to={chartTo}
+          />
+        </div>
+      )}
 
-              {/* Table */}
-              <CompareTable funds={funds} accentColor={brand.primaryColor} compact
-                selectedYears={selectedYears} benchmarks={benchmarks} />
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      {/* ── Table ── */}
+      <div style={{ pageBreakInside: "avoid" }}>
+        <CompareTable
+          funds={funds}
+          accentColor={brand.primaryColor}
+          compact
+          selectedYears={selectedYears}
+          benchmarks={benchmarks}
+        />
+      </div>
 
-      {/* Fixed print footer */}
-      <div className="print-footer" style={{ borderTop: "1px solid #ccc" }}>
+      {/* ── Footer ── */}
+      <div style={{ borderTop: "1px solid #e5e7eb", marginTop: 10, paddingTop: 6 }}>
         {brand.footerDisclaimer && (
-          <div style={{ padding: "3px 8px", fontSize: "4.5pt", color: "#666", lineHeight: 1.3, background: "white" }}>
+          <div style={{ fontSize: "4.5pt", color: "#666", lineHeight: 1.4, marginBottom: 4 }}>
             {brand.footerDisclaimer}
           </div>
         )}
-        <div style={{ padding: "2px 8px 3px", fontSize: "5pt", color: "#999", textAlign: "center", background: "white", borderTop: brand.footerDisclaimer ? "1px solid #e5e5e5" : "none" }}>
+        <div style={{ fontSize: "5pt", color: "#999", textAlign: "center" }}>
           {brand.fullName ? `© ${currentYear} ${brand.fullName}. כל הזכויות שמורות` : `© ${currentYear}`}
           {brand.version ? ` | גרסה ${brand.version}` : ""}
           {brand.showCredit && brand.creditText ? ` | ${brand.creditText}` : ""}
         </div>
       </div>
+
     </div>
   );
 }
