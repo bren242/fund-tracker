@@ -135,26 +135,24 @@ export default function CompareCharts({
   if (compact) {
     return (
       <div style={{ pageBreakInside: "avoid", breakInside: "avoid", width: "100%", direction: "ltr" }}>
-        <div style={{ width: "100%" }}>
-          <ResponsiveContainer width="100%" height={320}>
-            <LineChart data={lineData} margin={{ top: 5, right: 20, left: 0, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e8eaed" />
-              <XAxis dataKey="year" tick={{ fontSize: 7, fill: "#5a6577" }} interval={xInterval} tickFormatter={formatXLabel} />
-              <YAxis tick={{ fontSize: 7, fill: "#8893a4" }} unit="%" width={30} />
-              {funds.map((f, i) => (
-                <Line key={f.id} type="monotone" dataKey={`fund_${f.id}`} name={f.name}
-                  stroke={fundColors[i]} strokeWidth={2}
-                  strokeDasharray={fundIsEstimated[i] ? "5 3" : undefined}
-                  dot={showDots ? { r: 2, fill: fundColors[i] } : false}
-                  connectNulls={true} />
-              ))}
-              {benchmarks.map((bm, i) => (
-                <Line key={bm.id} type="monotone" dataKey={`bm_${bm.id}`} name={bm.name}
-                  stroke={bmColors[i]} strokeWidth={1.5} strokeDasharray="6 3"
-                  dot={false} connectNulls={false} />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
+        <div style={{ width: "500px", margin: "0 auto" }}>
+          <LineChart width={500} height={300} data={lineData} margin={{ top: 5, right: 10, left: 0, bottom: 10 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e8eaed" />
+            <XAxis dataKey="year" tick={{ fontSize: 7, fill: "#5a6577" }} interval={xInterval} tickFormatter={formatXLabel} />
+            <YAxis tick={{ fontSize: 7, fill: "#8893a4" }} unit="%" width={30} />
+            {funds.map((f, i) => (
+              <Line key={f.id} type="monotone" dataKey={`fund_${f.id}`} name={f.name}
+                stroke={fundColors[i]} strokeWidth={2}
+                strokeDasharray={fundIsEstimated[i] ? "5 3" : undefined}
+                dot={showDots ? { r: 2, fill: fundColors[i] } : false}
+                connectNulls={true} />
+            ))}
+            {benchmarks.map((bm, i) => (
+              <Line key={bm.id} type="monotone" dataKey={`bm_${bm.id}`} name={bm.name}
+                stroke={bmColors[i]} strokeWidth={1.5} strokeDasharray="6 3"
+                dot={false} connectNulls={false} />
+            ))}
+          </LineChart>
           {/* Manual legend */}
           <div style={{
             display: "flex",
@@ -166,7 +164,7 @@ export default function CompareCharts({
             marginTop: "10px",
             fontSize: "8px",
             fontFamily: "Assistant, sans-serif",
-            width: "100%",
+            width: "500px",
             direction: "ltr",
             unicodeBidi: "isolate",
           }}>
