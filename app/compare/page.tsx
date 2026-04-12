@@ -521,16 +521,16 @@ function ComparePrint({ funds, brand, lastUpdated, mode, selectedYears, chartFro
         </span>
       </div>
 
-      {/* ── Chart ── */}
-      <div style={{ marginBottom: 12, pageBreakInside: "avoid" }}>
-        <CompareCharts funds={funds} accentColor={brand.primaryColor} compact
-          benchmarks={benchmarks} from={chartFrom} to={chartTo} />
-      </div>
-
       {/* ── Table ── */}
       <CompareTable funds={funds} accentColor={brand.primaryColor} compact
         selectedYears={selectedYears} benchmarks={benchmarks}
         winnerIdx={winnerIdx} />
+
+      {/* ── Chart ── */}
+      <div style={{ display: "flex", justifyContent: "center", marginTop: 16 }}>
+        <CompareCharts funds={funds} accentColor={brand.primaryColor} compact
+          benchmarks={benchmarks} from={chartFrom} to={chartTo} />
+      </div>
 
       {/* ── Footer ── */}
       <div style={{ borderTop: "1px solid #e5e7eb", marginTop: 10, paddingTop: 6 }}>
