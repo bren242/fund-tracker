@@ -70,18 +70,25 @@ function buildLineData(
 
   if (hasMonthly) {
     const months = getAllMonths(from, to);
+    const now = new Date();
+    const currentYear = String(now.getFullYear());
+    const currentYM   = `${currentYear}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
     return months.map((ym) => {
       const entry: Record<string, string | number | null> = { year: ym };
-      const yearStr = ym.slice(0, 4);
-      const annualKey = (yearStr === "2026" ? "ytd2026" : `y${yearStr}`) as keyof Fund["returns"];
+      const yearStr  = ym.slice(0, 4);
+      const isCurYr  = yearStr === currentYear;
+      // For funds without monthly data: single dot at Dec (or current month for YTD)
+      const dotYM    = isCurYr ? currentYM : `${yearStr}-12`;
+      const annualKey = (isCurYr ? `ytd${yearStr}` : `y${yearStr}`) as keyof Fund["returns"];
+
       funds.forEach((f) => {
         let v: number | null;
         if (f.monthlyReturns && Object.keys(f.monthlyReturns).length > 0) {
           v = f.monthlyReturns[ym] ?? null;
         } else {
-          // No monthly data — approximate with annual / 12
-          const annual = f.returns[annualKey] ?? null;
-          v = annual !== null ? annual / 12 : null;
+          // No monthly data — one annual dot per year, rest null
+          v = ym === dotYM ? (f.returns[annualKey] ?? null) : null;
         }
         entry[`fund_${f.id}`] = v !== null ? Math.round(v * 10000) / 100 : null;
       });
@@ -171,11 +178,11 @@ export default function CompareCharts({
   return (
     <div style={{ margin: "0 auto", maxWidth: "100%" }}>
       <ResponsiveContainer width="100%" height={280}>
-        <LineChart data={lineData} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
+        <LineChart data={lineData} margin={{ top: 10, right: 55, left: 5, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e8eaed" />
           <XAxis dataKey="year" tick={{ fontSize: 11, fill: "#5a6577" }}
             interval={xInterval} tickFormatter={formatXLabel} />
-          <YAxis tick={{ fontSize: 10, fill: "#8893a4" }} unit="%" width={45} />
+          <YAxis tick={{ fontSize: 10, fill: "#8893a4" }} unit="%" width={45} orientation="right" />
           <Tooltip
             contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #dfe3e8" }}
             formatter={(value: unknown) => [`${Number(value)?.toFixed(2)}%`]}
