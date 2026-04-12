@@ -522,54 +522,53 @@ function ComparePrint({ funds, brand, lastUpdated, mode, selectedYears, chartFro
       </div>
 
       {/* ── Fund Cards ── */}
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(${funds.length}, 1fr)`, gap: 8, marginBottom: 14, direction: "rtl" }}>
-        {funds.map((fund, i) => {
-          const cumulative = computeCumulative(fund, selectedYears || []);
-          const isWinner = i === winnerIdx;
-          const color = FUND_COLORS[i % FUND_COLORS.length];
-          return (
-            <div key={fund.id} style={{
-              flex: 1,
-              padding: "8px 10px",
-              backgroundColor: isWinner ? `${color}08` : "#fafafa",
-              borderRadius: 6,
-              border: `1px solid #e5e7eb`,
-              borderRightWidth: 3,
-              borderRightStyle: "solid",
-              borderRightColor: color,
-            }}>
-              {isWinner && (
-                <div style={{ fontSize: "6pt", fontWeight: 700, color, marginBottom: 3 }}>↑ מובילה</div>
-              )}
-              <div style={{ fontSize: "8pt", fontWeight: 700, color: "#1a1f2b", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {fund.name}
-              </div>
-              <div style={{ fontSize: "6.5pt", color: "#8893a4", marginBottom: 6 }}>
-                {fund.classification || "—"}
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid #e5e7eb", paddingTop: 5 }}>
-                <div style={{ textAlign: "center", flex: 1 }}>
-                  <div style={{ fontSize: "5.5pt", color: "#8893a4", marginBottom: 2 }}>ממוצע שנתי</div>
-                  <div style={{ fontSize: "8.5pt", fontWeight: 700, color: (fund.avgAnnualReturn ?? 0) > 0 ? "#059669" : "#dc2626" }}>
-                    {fund.avgAnnualReturn != null ? `${(fund.avgAnnualReturn * 100).toFixed(2)}%` : "—"}
+      <div style={{ display: "table", width: "100%", tableLayout: "fixed", marginBottom: 12, direction: "rtl" }}>
+        <div style={{ display: "table-row" }}>
+          {funds.map((fund, i) => {
+            const cumulative = computeCumulative(fund, selectedYears || []);
+            const isWinner = i === winnerIdx;
+            const color = FUND_COLORS[i % FUND_COLORS.length];
+            return (
+              <div key={fund.id} style={{
+                display: "table-cell",
+                padding: "8px 10px",
+                backgroundColor: isWinner ? `${color}08` : "#fafafa",
+                borderRadius: 6,
+                border: "1px solid #e5e7eb",
+                borderRight: `3px solid ${color}`,
+                verticalAlign: "top",
+              }}>
+                {isWinner && (
+                  <div style={{ fontSize: "6pt", fontWeight: 700, color, marginBottom: 3 }}>↑ מובילה</div>
+                )}
+                <div style={{ fontSize: "7.5pt", fontWeight: 700, color: "#1a1f2b", marginBottom: 2 }}>{fund.name}</div>
+                <div style={{ fontSize: "6pt", color: "#8893a4", marginBottom: 6 }}>{fund.classification || "—"}</div>
+                <div style={{ display: "table", width: "100%", borderTop: "1px solid #e5e7eb", paddingTop: 5 }}>
+                  <div style={{ display: "table-row" }}>
+                    <div style={{ display: "table-cell", textAlign: "center" }}>
+                      <div style={{ fontSize: "5pt", color: "#8893a4", marginBottom: 2 }}>ממוצע שנתי</div>
+                      <div style={{ fontSize: "8pt", fontWeight: 700, color: (fund.avgAnnualReturn ?? 0) > 0 ? "#059669" : "#dc2626" }}>
+                        {fund.avgAnnualReturn != null ? `${(fund.avgAnnualReturn * 100).toFixed(2)}%` : "—"}
+                      </div>
+                    </div>
+                    <div style={{ display: "table-cell", textAlign: "center", borderRight: "1px solid #e5e7eb", borderLeft: "1px solid #e5e7eb" }}>
+                      <div style={{ fontSize: "5pt", color: "#8893a4", marginBottom: 2 }}>שארפ</div>
+                      <div style={{ fontSize: "8pt", fontWeight: 700, color: "#1a1f2b" }}>
+                        {fund.sharpe != null ? fund.sharpe.toFixed(2) : "—"}
+                      </div>
+                    </div>
+                    <div style={{ display: "table-cell", textAlign: "center" }}>
+                      <div style={{ fontSize: "5pt", color: "#8893a4", marginBottom: 2 }}>מצטבר</div>
+                      <div style={{ fontSize: "8pt", fontWeight: 700, color: cumulative != null ? (cumulative > 0 ? "#059669" : "#dc2626") : "#8893a4" }}>
+                        {cumulative != null ? `${(cumulative * 100).toFixed(2)}%` : "—"}
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div style={{ textAlign: "center", flex: 1, borderRight: "1px solid #e5e7eb", borderLeft: "1px solid #e5e7eb" }}>
-                  <div style={{ fontSize: "5.5pt", color: "#8893a4", marginBottom: 2 }}>שארפ</div>
-                  <div style={{ fontSize: "8.5pt", fontWeight: 700, color: "#1a1f2b" }}>
-                    {fund.sharpe != null ? fund.sharpe.toFixed(2) : "—"}
-                  </div>
-                </div>
-                <div style={{ textAlign: "center", flex: 1 }}>
-                  <div style={{ fontSize: "5.5pt", color: "#8893a4", marginBottom: 2 }}>מצטבר</div>
-                  <div style={{ fontSize: "8.5pt", fontWeight: 700, color: cumulative != null ? ((cumulative > 0) ? "#059669" : "#dc2626") : "#8893a4" }}>
-                    {cumulative != null ? `${(cumulative * 100).toFixed(2)}%` : "—"}
-                  </div>
-                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
       {/* ── Chart ── */}
