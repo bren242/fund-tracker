@@ -136,7 +136,7 @@ export default function CompareCharts({
     return (
       <div style={{ pageBreakInside: "avoid", breakInside: "avoid" }}>
         <div style={{ display: "flex", justifyContent: "center" }}>
-          <LineChart width={500} height={220} data={lineData} margin={{ top: 8, right: 16, left: 6, bottom: 4 }}>
+          <LineChart width={520} height={260} data={lineData} margin={{ top: 8, right: 16, left: 6, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e8eaed" />
             <XAxis dataKey="year" tick={{ fontSize: 7, fill: "#5a6577" }} interval={xInterval} tickFormatter={formatXLabel} />
             <YAxis tick={{ fontSize: 7, fill: "#8893a4" }} unit="%" width={30} />
