@@ -127,6 +127,38 @@
 
 ---
 
+## Compare Page — v1.0 (נעול)
+
+### גרף
+- קומפוננטה: `components/CompareCharts.tsx`
+- מצב חודשי: עד 24 חודשים — חודשי מלא
+- מצב חצי-שנתי: מעל 24 חודשים — כל חודש שני (`index % 2 === 0`)
+- קרן ללא `monthlyReturns`: `annual/12` עם קו מקווקו (`strokeDasharray="6 3"`)
+- Legend: `verticalAlign="top"`
+- גובה: `340px`
+- YAxis: שמאל, `width=45`
+
+### פלטה
+- `PALETTE` (קרנות): `["#1B3A2F", "#B8975A", "#2563eb", "#9333ea"]`
+- `BM_PALETTE` (בנצ'מרקים): `["#0891b2", "#f59e0b"]`
+- מסונכרן ב: `CompareCharts.tsx`, `CompareTable.tsx`, `page.tsx` (FUND_COLORS)
+
+### כרטיסיות
+- `borderLeft: 3px solid color` (RTL נכון)
+- מובילה: `↑ מובילה` בלבד, ללא הסבר
+
+### טבלה
+- כותרות קרנות: צבע לפי `FUND_COLORS[i]` (prop `fundColors`)
+- `BM_COLORS`: `["#0891b2", "#f59e0b"]`
+- `isBest`: כוכב בלבד, לא דורס צבע תשואה
+
+### כללי זהב
+- לא לשנות PALETTE בלי לעדכן את שלושת הקבצים
+- לא לשנות גובה גרף בלי לבדוק שהקווים לא נחתכים
+- Recharts `dataKey` חייב להיות `fund_${id}` — לא שם קרן
+
+---
+
 ## עדכון אחרון (2026-04-12 — ריצת לילה: compare chart fixes)
 
 ### /compare — 3 תיקונים ✅
