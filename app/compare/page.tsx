@@ -16,7 +16,7 @@ import { brandCssVars } from "@/lib/colors";
 const CompareCharts = dynamic(() => import("@/components/CompareCharts"), { ssr: false });
 
 // ── Palette ──────────────────────────────────────────────────────────────────
-const FUND_COLORS = ["#B8975A", "#2563eb", "#9333ea", "#0891b2"];
+const FUND_COLORS = ["#B8975A", "#2563eb", "#9333ea", "#16a34a"];
 
 // ── Time range ───────────────────────────────────────────────────────────────
 type TimeRange = "ytd" | "12m" | "3y" | "5y" | "max" | "custom";

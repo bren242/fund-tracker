@@ -14,7 +14,7 @@ interface CompareChartsProps {
   to?: string;
 }
 
-const PALETTE = ["#B8975A", "#2563eb", "#9333ea", "#0891b2"];
+const PALETTE = ["#B8975A", "#2563eb", "#9333ea", "#16a34a"];
 const BM_PALETTE = ["#0891b2", "#f59e0b"];
 const MONTH_SHORT = ["ינ", "פב", "מר", "אפ", "מא", "יו", "יל", "אג", "ספ", "אק", "נו", "דצ"];
 
