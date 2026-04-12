@@ -135,27 +135,25 @@ export default function CompareCharts({
   if (compact) {
     return (
       <div style={{ pageBreakInside: "avoid", breakInside: "avoid" }}>
-        <div style={{ width: "100%" }}>
-          <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={lineData} margin={{ top: 8, right: 16, left: 6, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e8eaed" />
-              <XAxis dataKey="year" tick={{ fontSize: 7, fill: "#5a6577" }} interval={xInterval} tickFormatter={formatXLabel} />
-              <YAxis tick={{ fontSize: 7, fill: "#8893a4" }} unit="%" width={30} />
-              <Legend verticalAlign="top" wrapperStyle={{ fontSize: 7, paddingBottom: 8 }} />
-              {funds.map((f, i) => (
-                <Line key={f.id} type="monotone" dataKey={`fund_${f.id}`} name={f.name}
-                  stroke={fundColors[i]} strokeWidth={2}
-                  strokeDasharray={fundIsEstimated[i] ? "5 3" : undefined}
-                  dot={showDots ? { r: 2, fill: fundColors[i] } : false}
-                  connectNulls={true} />
-              ))}
-              {benchmarks.map((bm, i) => (
-                <Line key={bm.id} type="monotone" dataKey={`bm_${bm.id}`} name={bm.name}
-                  stroke={bmColors[i]} strokeWidth={1.5} strokeDasharray="6 3"
-                  dot={false} connectNulls={false} />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <LineChart width={500} height={220} data={lineData} margin={{ top: 8, right: 16, left: 6, bottom: 4 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e8eaed" />
+            <XAxis dataKey="year" tick={{ fontSize: 7, fill: "#5a6577" }} interval={xInterval} tickFormatter={formatXLabel} />
+            <YAxis tick={{ fontSize: 7, fill: "#8893a4" }} unit="%" width={30} />
+            <Legend verticalAlign="top" wrapperStyle={{ fontSize: 7, paddingBottom: 8 }} />
+            {funds.map((f, i) => (
+              <Line key={f.id} type="monotone" dataKey={`fund_${f.id}`} name={f.name}
+                stroke={fundColors[i]} strokeWidth={2}
+                strokeDasharray={fundIsEstimated[i] ? "5 3" : undefined}
+                dot={showDots ? { r: 2, fill: fundColors[i] } : false}
+                connectNulls={true} />
+            ))}
+            {benchmarks.map((bm, i) => (
+              <Line key={bm.id} type="monotone" dataKey={`bm_${bm.id}`} name={bm.name}
+                stroke={bmColors[i]} strokeWidth={1.5} strokeDasharray="6 3"
+                dot={false} connectNulls={false} />
+            ))}
+          </LineChart>
         </div>
       </div>
     );
