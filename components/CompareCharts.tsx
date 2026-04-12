@@ -74,11 +74,11 @@ function buildLineData(
       const entry: Record<string, string | number | null> = { year: ym };
       funds.forEach((f) => {
         const v = (f.monthlyReturns ?? {})[ym] ?? null;
-        entry[f.name] = v !== null ? Math.round(v * 10000) / 100 : null;
+        entry[`fund_${f.id}`] = v !== null ? Math.round(v * 10000) / 100 : null;
       });
       benchmarks.forEach((bm) => {
         const v = (bm.monthlyReturns ?? {})[ym] ?? null;
-        entry[bm.name] = v !== null ? Math.round(v * 10000) / 100 : null;
+        entry[`bm_${bm.id}`] = v !== null ? Math.round(v * 10000) / 100 : null;
       });
       return entry;
     });
@@ -93,11 +93,11 @@ function buildLineData(
       const entry: Record<string, string | number | null> = { year: ye.label };
       funds.forEach((f) => {
         const v = f.returns[ye.key];
-        entry[f.name] = v !== null ? Math.round(v * 10000) / 100 : null;
+        entry[`fund_${f.id}`] = v !== null ? Math.round(v * 10000) / 100 : null;
       });
       benchmarks.forEach((bm) => {
         const v = bm.returns[ye.key];
-        entry[bm.name] = v !== null ? Math.round(v * 10000) / 100 : null;
+        entry[`bm_${bm.id}`] = v !== null ? Math.round(v * 10000) / 100 : null;
       });
       return entry;
     });
@@ -140,14 +140,14 @@ export default function CompareCharts({
             <YAxis tick={{ fontSize: 7, fill: "#8893a4" }} unit="%" width={30} />
             <Legend wrapperStyle={{ fontSize: 7, paddingTop: 4 }} />
             {funds.map((f, i) => (
-              <Line key={f.id} type="monotone" dataKey={f.name}
+              <Line key={f.id} type="monotone" dataKey={`fund_${f.id}`} name={f.name}
                 stroke={fundColors[i]} strokeWidth={2}
                 dot={showDots ? { r: 2, fill: fundColors[i] } : false}
                 connectNulls={false}
               />
             ))}
             {benchmarks.map((bm, i) => (
-              <Line key={bm.id} type="monotone" dataKey={bm.name}
+              <Line key={bm.id} type="monotone" dataKey={`bm_${bm.id}`} name={bm.name}
                 stroke={bmColors[i]} strokeWidth={1.5} strokeDasharray="6 3"
                 dot={false} connectNulls={false}
               />
@@ -174,14 +174,14 @@ export default function CompareCharts({
           />
           <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
           {funds.map((f, i) => (
-            <Line key={f.id} type="monotone" dataKey={f.name}
+            <Line key={f.id} type="monotone" dataKey={`fund_${f.id}`} name={f.name}
               stroke={fundColors[i]} strokeWidth={2.5}
               dot={showDots ? { r: 4, fill: fundColors[i], strokeWidth: 0 } : false}
               activeDot={{ r: showDots ? 6 : 4 }} connectNulls={false}
             />
           ))}
           {benchmarks.map((bm, i) => (
-            <Line key={bm.id} type="monotone" dataKey={bm.name}
+            <Line key={bm.id} type="monotone" dataKey={`bm_${bm.id}`} name={bm.name}
               stroke={bmColors[i]} strokeWidth={2} strokeDasharray="8 4"
               dot={false} activeDot={{ r: 4 }} connectNulls={false}
             />

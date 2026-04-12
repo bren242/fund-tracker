@@ -245,14 +245,14 @@ export default function CompareTable({ funds, accentColor, compact, selectedYear
                   return (
                     <td key={f.id} style={{
                       padding: fs.padD, textAlign: "center",
-                      color: isBest ? accentColor : color,
+                      color,
                       fontWeight: isBest ? 700 : 400,
                       borderBottom: "1px solid #e8eaed",
                       fontVariantNumeric: "tabular-nums",
                       backgroundColor: isBest ? `${accentColor}0D` : "transparent",
                     }}>
                       {val}
-                      {isBest && <span style={{ marginRight: 3, fontSize: fs.star }}> ★</span>}
+                      {isBest && <span style={{ marginRight: 3, fontSize: fs.star, color: accentColor }}> ★</span>}
                     </td>
                   );
                 })}
