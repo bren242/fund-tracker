@@ -10,17 +10,12 @@ interface CompareChartsProps {
   accentColor: string;
   compact?: boolean;
   benchmarks?: Benchmark[];
-  /** Chart start — YYYY-MM. Replaces selectedYears. */
   from?: string;
-  /** Chart end — YYYY-MM. */
   to?: string;
 }
 
-/* Fixed palette for up to 4 funds */
 const PALETTE = ["#1B3A2F", "#B8975A", "#3a5fa0", "#6b4fa0"];
-/* Benchmark palette — distinct from fund colors */
 const BM_PALETTE = ["#6b4fa0", "#0891b2"];
-
 const MONTH_SHORT = ["ינ", "פב", "מר", "אפ", "מא", "יו", "יל", "אג", "ספ", "אק", "נו", "דצ"];
 
 type YearEntry = { key: keyof Fund["returns"]; label: string; year: number };
@@ -36,7 +31,6 @@ const YEAR_ENTRIES: YearEntry[] = [
   { key: "ytd2026", label: "2026", year: 2026 },
 ];
 
-/** All YYYY-MM keys between from and to inclusive */
 function getAllMonths(from: string, to: string): string[] {
   const months: string[] = [];
   let [y, m] = from.split("-").map(Number);
@@ -48,7 +42,6 @@ function getAllMonths(from: string, to: string): string[] {
   return months;
 }
 
-/** Format YYYY-MM → short Hebrew label, or pass through annual label */
 function formatXLabel(label: string): string {
   if (label.includes("-")) {
     const [year, month] = label.split("-");
@@ -57,41 +50,33 @@ function formatXLabel(label: string): string {
   return label;
 }
 
-function buildLineData(
-  funds: Fund[],
-  benchmarks: Benchmark[],
-  from: string,
-  to: string,
-) {
-  // Use monthly mode only if ALL funds have monthly data — otherwise one fund goes invisible
+function buildLineData(funds: Fund[], benchmarks: Benchmark[], from: string, to: string) {
   const hasMonthly = funds.some(
     (f) => f.monthlyReturns && Object.keys(f.monthlyReturns).length > 0,
   );
 
   if (hasMonthly) {
     const months = getAllMonths(from, to);
-    const now = new Date();
-    const currentYear = String(now.getFullYear());
-    const currentYM   = `${currentYear}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const nowYear = String(new Date().getFullYear());
 
     return months.map((ym) => {
       const entry: Record<string, string | number | null> = { year: ym };
-      const yearStr  = ym.slice(0, 4);
-      const isCurYr  = yearStr === currentYear;
-      // For funds without monthly data: single dot at Dec (or current month for YTD)
-      const dotYM    = isCurYr ? currentYM : `${yearStr}-12`;
-      const annualKey = (isCurYr ? `ytd${yearStr}` : `y${yearStr}`) as keyof Fund["returns"];
+      const yearStr = ym.slice(0, 4);
+      const annualKey = (yearStr === nowYear
+        ? `ytd${yearStr}` : `y${yearStr}`) as keyof Fund["returns"];
 
       funds.forEach((f) => {
-        let v: number | null;
+        let v: number | null = null;
         if (f.monthlyReturns && Object.keys(f.monthlyReturns).length > 0) {
           v = f.monthlyReturns[ym] ?? null;
         } else {
-          // No monthly data — one annual dot per year, rest null
-          v = ym === dotYM ? (f.returns[annualKey] ?? null) : null;
+          // אין נתונים חודשיים — מחלק שנתי ב-12 כהערכה
+          const annual = f.returns[annualKey];
+          v = annual != null ? annual / 12 : null;
         }
         entry[`fund_${f.id}`] = v !== null ? Math.round(v * 10000) / 100 : null;
       });
+
       benchmarks.forEach((bm) => {
         const v = (bm.monthlyReturns ?? {})[ym] ?? null;
         entry[`bm_${bm.id}`] = v !== null ? Math.round(v * 10000) / 100 : null;
@@ -100,7 +85,7 @@ function buildLineData(
     });
   }
 
-  // Fallback: annual data filtered by year range
+  // Fallback שנתי
   const fromYear = parseInt(from.slice(0, 4));
   const toYear   = parseInt(to.slice(0, 4));
   return YEAR_ENTRIES
@@ -109,11 +94,11 @@ function buildLineData(
       const entry: Record<string, string | number | null> = { year: ye.label };
       funds.forEach((f) => {
         const v = f.returns[ye.key];
-        entry[`fund_${f.id}`] = v !== null ? Math.round(v * 10000) / 100 : null;
+        entry[`fund_${f.id}`] = v != null ? Math.round(v * 10000) / 100 : null;
       });
       benchmarks.forEach((bm) => {
         const v = bm.returns[ye.key];
-        entry[`bm_${bm.id}`] = v !== null ? Math.round(v * 10000) / 100 : null;
+        entry[`bm_${bm.id}`] = v != null ? Math.round(v * 10000) / 100 : null;
       });
       return entry;
     });
@@ -125,7 +110,7 @@ export default function CompareCharts({
   if (funds.length < 2) return null;
 
   const today = new Date();
-  const defaultTo   = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+  const defaultTo     = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   const effectiveFrom = from ?? "2019-01";
   const effectiveTo   = to   ?? defaultTo;
 
@@ -134,12 +119,15 @@ export default function CompareCharts({
   fundColors[0]    = accentColor;
   const bmColors   = benchmarks.map((_, i) => BM_PALETTE[i % BM_PALETTE.length]);
 
-  // Show at most ~8 X-axis labels regardless of data density
-  const xInterval  = Math.max(0, Math.ceil(lineData.length / 8) - 1);
-  // Hide individual dots when data is dense (monthly)
-  const showDots   = lineData.length <= 12;
+  const xInterval = Math.max(0, Math.ceil(lineData.length / 8) - 1);
+  const showDots  = lineData.length <= 12;
 
-  /* ── Print / compact ──────────────────────────────────────────────── */
+  // קרן ללא נתונים חודשיים — תציג בקו מקווקו
+  const fundIsEstimated = funds.map(
+    (f) => !(f.monthlyReturns && Object.keys(f.monthlyReturns).length > 0)
+  );
+
+  /* ── Print / compact ── */
   if (compact) {
     return (
       <div style={{ pageBreakInside: "avoid", breakInside: "avoid" }}>
@@ -147,26 +135,22 @@ export default function CompareCharts({
           השוואת תשואות (%)
         </h4>
         <div style={{ display: "flex", justifyContent: "center" }}>
-          <LineChart width={540} height={240} data={lineData}
-            margin={{ top: 8, right: 16, left: 6, bottom: 4 }}
-          >
+          <LineChart width={540} height={240} data={lineData} margin={{ top: 8, right: 16, left: 6, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e8eaed" />
-            <XAxis dataKey="year" tick={{ fontSize: 7, fill: "#5a6577" }}
-              interval={xInterval} tickFormatter={formatXLabel} />
+            <XAxis dataKey="year" tick={{ fontSize: 7, fill: "#5a6577" }} interval={xInterval} tickFormatter={formatXLabel} />
             <YAxis tick={{ fontSize: 7, fill: "#8893a4" }} unit="%" width={30} />
             <Legend wrapperStyle={{ fontSize: 7, paddingTop: 4 }} />
             {funds.map((f, i) => (
               <Line key={f.id} type="monotone" dataKey={`fund_${f.id}`} name={f.name}
                 stroke={fundColors[i]} strokeWidth={2}
+                strokeDasharray={fundIsEstimated[i] ? "5 3" : undefined}
                 dot={showDots ? { r: 2, fill: fundColors[i] } : false}
-                connectNulls={false}
-              />
+                connectNulls={true} />
             ))}
             {benchmarks.map((bm, i) => (
               <Line key={bm.id} type="monotone" dataKey={`bm_${bm.id}`} name={bm.name}
                 stroke={bmColors[i]} strokeWidth={1.5} strokeDasharray="6 3"
-                dot={false} connectNulls={false}
-              />
+                dot={false} connectNulls={false} />
             ))}
           </LineChart>
         </div>
@@ -174,33 +158,33 @@ export default function CompareCharts({
     );
   }
 
-  /* ── Full screen ──────────────────────────────────────────────────── */
+  /* ── Full screen ── */
   return (
-    <div style={{ margin: "0 auto", maxWidth: "100%" }}>
+    <div style={{ marginBottom: 8 }}>
       <ResponsiveContainer width="100%" height={280}>
-        <LineChart data={lineData} margin={{ top: 10, right: 55, left: 5, bottom: 5 }}>
+        <LineChart data={lineData} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e8eaed" />
           <XAxis dataKey="year" tick={{ fontSize: 11, fill: "#5a6577" }}
             interval={xInterval} tickFormatter={formatXLabel} />
-          <YAxis tick={{ fontSize: 10, fill: "#8893a4" }} unit="%" width={45} orientation="right" />
+          <YAxis tick={{ fontSize: 10, fill: "#8893a4" }} unit="%" width={45} />
           <Tooltip
             contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #dfe3e8" }}
-            formatter={(value: unknown) => [`${Number(value)?.toFixed(2)}%`]}
+            formatter={(value: unknown, name: unknown) => [`${Number(value)?.toFixed(2)}%`, name]}
             labelFormatter={(label: unknown) => formatXLabel(String(label))}
           />
           <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
           {funds.map((f, i) => (
             <Line key={f.id} type="monotone" dataKey={`fund_${f.id}`} name={f.name}
               stroke={fundColors[i]} strokeWidth={2.5}
+              strokeDasharray={fundIsEstimated[i] ? "6 3" : undefined}
               dot={showDots ? { r: 4, fill: fundColors[i], strokeWidth: 0 } : false}
-              activeDot={{ r: showDots ? 6 : 4 }} connectNulls={false}
-            />
+              activeDot={{ r: showDots ? 6 : 4 }}
+              connectNulls={true} />
           ))}
           {benchmarks.map((bm, i) => (
             <Line key={bm.id} type="monotone" dataKey={`bm_${bm.id}`} name={bm.name}
               stroke={bmColors[i]} strokeWidth={2} strokeDasharray="8 4"
-              dot={false} activeDot={{ r: 4 }} connectNulls={false}
-            />
+              dot={false} activeDot={{ r: 4 }} connectNulls={false} />
           ))}
         </LineChart>
       </ResponsiveContainer>
