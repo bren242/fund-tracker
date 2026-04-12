@@ -503,7 +503,7 @@ function ComparePrint({ funds, brand, lastUpdated, mode, selectedYears, chartFro
   const winnerIdx = computeWinnerIdx(funds, selectedYears || []);
 
   return (
-    <div className="print-only" style={{ width: "100%", background: "white", color: "#1a1f2b", fontFamily: "Assistant, Arial, sans-serif" }}>
+    <div className="print-only" style={{ width: "100%", background: "white", color: "#1a1f2b", fontFamily: "Assistant, Arial, sans-serif", display: "flex", flexDirection: "column", minHeight: "297mm" }}>
 
       {/* ── Header ── */}
       <div style={{ position: "relative", textAlign: "center", marginBottom: 10, paddingBottom: 8, borderBottom: `2px solid ${brand.primaryColor}` }}>
@@ -533,7 +533,7 @@ function ComparePrint({ funds, brand, lastUpdated, mode, selectedYears, chartFro
       </div>
 
       {/* ── Footer ── */}
-      <div className="print-footer" style={{ borderTop: "1px solid #e5e7eb", padding: "6px 8px", background: "white", marginTop: 16 }}>
+      <div className="print-footer" style={{ borderTop: "1px solid #e5e7eb", padding: "6px 8px", background: "white", marginTop: "auto" }}>
         {brand.footerDisclaimer && (
           <div style={{ fontSize: "4.5pt", color: "#666", lineHeight: 1.4, marginBottom: 4 }}>
             {brand.footerDisclaimer}
