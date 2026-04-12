@@ -161,20 +161,22 @@ export default function CompareCharts({
             alignItems: "center",
             gap: "20px",
             flexWrap: "wrap",
-            marginTop: "10px",
+            marginTop: "12px",
             fontSize: "8px",
             fontFamily: "Assistant, sans-serif",
+            width: "560px",
+            direction: "ltr",
           }}>
             {funds.map((f, i) => (
-              <div key={f.id} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <div style={{ width: "24px", height: "2px", backgroundColor: fundColors[i] }} />
-                <span style={{ color: "#1a1f2b" }}>{f.name}</span>
+              <div key={f.id} style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "6px" }}>
+                <div style={{ width: "24px", height: "2px", backgroundColor: fundColors[i], flexShrink: 0 }} />
+                <span style={{ color: "#1a1f2b", whiteSpace: "nowrap" }}>{f.name}</span>
               </div>
             ))}
             {benchmarks.map((bm, i) => (
-              <div key={bm.id} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <div style={{ width: "24px", height: "2px", backgroundColor: bmColors[i] }} />
-                <span style={{ color: "#1a1f2b" }}>{bm.name}</span>
+              <div key={bm.id} style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "6px" }}>
+                <div style={{ width: "24px", height: "2px", backgroundColor: bmColors[i], flexShrink: 0 }} />
+                <span style={{ color: "#1a1f2b", whiteSpace: "nowrap" }}>{bm.name}</span>
               </div>
             ))}
           </div>
