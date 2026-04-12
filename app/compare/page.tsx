@@ -162,7 +162,7 @@ function FundCompareCard({ fund, color, isWinner, selectedYears }: {
   return (
     <div style={{
       backgroundColor: "var(--bg-surface)", borderRadius: 10,
-      border: "1px solid var(--border)", borderTop: `3px solid ${color}`,
+      border: "1px solid var(--border)", borderRight: `3px solid ${color}`,
       padding: "16px 18px", boxShadow: "var(--shadow-card)",
     }}>
       {/* Winner badge or spacer — fixed height so all cards align */}

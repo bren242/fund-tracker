@@ -162,7 +162,7 @@ export default function CompareCharts({
   return (
     <div style={{ marginBottom: 8 }}>
       <ResponsiveContainer width="100%" height={280}>
-        <LineChart data={lineData} margin={{ top: 10, right: 10, left: -40, bottom: 5 }}>
+        <LineChart data={lineData} margin={{ top: 10, right: 16, left: 16, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e8eaed" />
           <XAxis dataKey="year" tick={{ fontSize: 11, fill: "#5a6577" }}
             interval={xInterval} tickFormatter={formatXLabel} />
