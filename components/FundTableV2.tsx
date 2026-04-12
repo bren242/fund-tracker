@@ -127,7 +127,7 @@ function SegmentedControl({ value, onChange }: { value: TimeRange; onChange: (v:
               border: "none",
               borderRight: i > 0 ? "1px solid var(--border-table)" : "none",
               cursor: "pointer",
-              backgroundColor: active ? "var(--bg-section)" : "var(--bg-surface)",
+              backgroundColor: active ? "#1B3A2F" : "var(--bg-surface)",
               color: active ? "#fff" : "var(--text-secondary)",
               transition: "all 0.12s",
               whiteSpace: "nowrap",
@@ -156,8 +156,8 @@ function CategoryPills({ sections, active, onSelect }: {
             style={{
               padding: "4px 12px", borderRadius: 20, fontSize: 12,
               fontWeight: isActive ? 600 : 400, cursor: "pointer",
-              border: `1px solid ${isActive ? "var(--bg-section)" : "var(--border-table)"}`,
-              backgroundColor: isActive ? "var(--bg-section)" : "var(--bg-surface)",
+              border: `1px solid ${isActive ? "#1B3A2F" : "var(--border-table)"}`,
+              backgroundColor: isActive ? "#1B3A2F" : "var(--bg-surface)",
               color: isActive ? "#fff" : "var(--text-secondary)",
               transition: "all 0.12s",
             }}
@@ -227,7 +227,7 @@ function AccordionPanel({ fund }: { fund: Fund }) {
           backgroundColor: "var(--bg-surface-alt)",
           borderTop: "1px solid var(--border-table)",
           borderBottom: "1px solid var(--border-table)",
-          padding: "12px 24px",
+          padding: "16px 24px 20px",
           direction: "rtl",
         }}>
           {/* Single info line */}
@@ -278,12 +278,13 @@ function FundRowV2({
   isOpen: boolean;
   onToggleAccordion: () => void;
 }) {
-  const bg = even ? "var(--bg-surface)" : "var(--bg-row-alt)";
+  const [hovered, setHovered] = useState(false);
+  const bg = even ? "#fbfbfd" : "#f7f7f9";
   const classBadge = getClassBadge(fund.classification || "");
   const shColor = sharpeColor(fund.sharpe);
 
   const cell: React.CSSProperties = {
-    padding: "8px 10px",
+    padding: "15px 16px",
     borderBottom: isOpen ? "none" : "1px solid var(--border-table)",
     fontVariantNumeric: "tabular-nums",
     textAlign: "center",
@@ -294,51 +295,63 @@ function FundRowV2({
   return (
     <tr
       onClick={onToggleAccordion}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
-        backgroundColor: bg,
+        backgroundColor: hovered ? "#eef2f0" : bg,
+        transform: hovered ? "translateX(-4px)" : "none",
+        transition: "background 0.12s, transform 0.15s",
         cursor: "pointer",
         borderInlineStart: comparisonEnabled && isSelected
           ? `2px solid ${accentColor || "var(--accent)"}` : "none",
       }}
     >
       {/* Name */}
-      <td style={{ ...cell, textAlign: "right", fontSize: 12, fontWeight: 600, paddingRight: 12, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          {comparisonEnabled && (
-            <input
-              type="checkbox"
-              checked={isSelected || false}
-              disabled={selectionDisabled && !isSelected}
-              onChange={(e) => { e.stopPropagation(); onToggle?.(fund.id); }}
-              onClick={(e) => e.stopPropagation()}
-              className="no-print"
-              style={{
-                cursor: selectionDisabled && !isSelected ? "not-allowed" : "pointer",
-                width: 13, height: 13, flexShrink: 0,
-                opacity: selectionDisabled && !isSelected ? 0.35 : 1,
-              }}
-              title={selectionDisabled && !isSelected ? "מקסימום 4 קרנות להשוואה" : "בחר להשוואה"}
-            />
-          )}
-          <span style={{ flex: 1 }}>{fund.name}</span>
-          {fund.currency && (
+      <td style={{ ...cell, textAlign: "right", paddingRight: 24, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {comparisonEnabled && (
+              <input
+                type="checkbox"
+                checked={isSelected || false}
+                disabled={selectionDisabled && !isSelected}
+                onChange={(e) => { e.stopPropagation(); onToggle?.(fund.id); }}
+                onClick={(e) => e.stopPropagation()}
+                className="no-print"
+                style={{
+                  cursor: selectionDisabled && !isSelected ? "not-allowed" : "pointer",
+                  width: 13, height: 13, flexShrink: 0,
+                  opacity: selectionDisabled && !isSelected ? 0.35 : 1,
+                }}
+                title={selectionDisabled && !isSelected ? "מקסימום 4 קרנות להשוואה" : "בחר להשוואה"}
+              />
+            )}
+            <span style={{ fontSize: 17, fontWeight: 500, color: "#1d1d1f", letterSpacing: "-0.4px", flex: 1 }}>
+              {fund.name}
+            </span>
+            {fund.currency && (
+              <span style={{
+                fontSize: 9, fontWeight: 700, flexShrink: 0,
+                padding: "2px 6px", borderRadius: 4,
+                color: fund.currency === "USD" ? "#1d4ed8" : "#059669",
+                backgroundColor: fund.currency === "USD" ? "#dbeafe" : "#d1fae5",
+              }}>{fund.currency}</span>
+            )}
+            {classBadge && (
+              <span style={{
+                fontSize: 9, fontWeight: 700, flexShrink: 0, padding: "1px 5px", borderRadius: 3,
+                color: classBadge.color, backgroundColor: classBadge.bg,
+              }}>{classBadge.label}</span>
+            )}
             <span style={{
-              fontSize: 9, fontWeight: 700, flexShrink: 0, padding: "1px 5px", borderRadius: 3,
-              color: fund.currency === "USD" ? "#1d4ed8" : "#059669",
-              backgroundColor: fund.currency === "USD" ? "#dbeafe" : "#d1fae5",
-            }}>{fund.currency}</span>
-          )}
-          {classBadge && (
-            <span style={{
-              fontSize: 9, fontWeight: 700, flexShrink: 0, padding: "1px 5px", borderRadius: 3,
-              color: classBadge.color, backgroundColor: classBadge.bg,
-            }}>{classBadge.label}</span>
-          )}
-          <span style={{
-            fontSize: 10, color: "var(--text-muted)", flexShrink: 0,
-            display: "inline-block", transition: "transform 0.2s ease",
-            transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
-          }}>▾</span>
+              fontSize: 10, color: "var(--text-muted)", flexShrink: 0,
+              display: "inline-block", transition: "transform 0.2s ease",
+              transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+            }}>▾</span>
+          </div>
+          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+            {fund.classification || ""}
+          </span>
         </div>
       </td>
 
@@ -351,7 +364,7 @@ function FundRowV2({
       <td style={{ ...cell, color: returnColorInline(fund.monthlyReturn) }}>{pct(fund.monthlyReturn)}</td>
 
       {/* Period return (computed from monthlyReturns) */}
-      <td style={{ ...cell, fontWeight: 600, color: returnColorInline(periodReturn) }}>
+      <td style={{ ...cell, fontSize: 22, fontWeight: 700, letterSpacing: "-0.5px", color: returnColorInline(periodReturn) }}>
         {pct(periodReturn)}
       </td>
 
@@ -465,9 +478,9 @@ export default function FundTableV2({
     whiteSpace: "nowrap",
     borderBottom: "2px solid var(--border-table)",
     fontSize: "10px",
-    letterSpacing: "0.8px",
+    letterSpacing: "1.2px",
     textTransform: "uppercase",
-    padding: "10px 10px",
+    padding: "12px 16px",
   };
 
   const selectStyle: React.CSSProperties = {
@@ -477,7 +490,7 @@ export default function FundTableV2({
   };
 
   return (
-    <div style={{ direction: "rtl" }}>
+    <div style={{ direction: "rtl", backgroundColor: "#fbfbfd" }}>
 
       {/* ── Controls ── */}
       <div style={{
@@ -524,7 +537,7 @@ export default function FundTableV2({
           <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: "11px", lineHeight: 1.45 }}>
             <thead>
               <tr>
-                <th style={{ ...thBase, textAlign: "right", paddingRight: 12, maxWidth: 200 }}>שם קרן</th>
+                <th style={{ ...thBase, textAlign: "right", paddingRight: 24, maxWidth: 200 }}>שם קרן</th>
                 <th style={{ ...thBase, minWidth: 64 }}>עדכון</th>
                 <th style={thBase}>חודשי</th>
                 <th style={{ ...thBase, color: "var(--text-primary)", fontWeight: 700 }}>
@@ -553,8 +566,9 @@ export default function FundTableV2({
                       borderBottom: "none",
                       borderRight: `3px solid ${accentColor || "var(--bg-section)"}`,
                       color: "var(--section-header-color)",
-                      padding: "12px 16px 6px",
-                      fontWeight: 700, fontSize: 13, textAlign: "right",
+                      padding: "16px 32px 6px",
+                      fontWeight: 700, fontSize: 11, textAlign: "right",
+                      textTransform: "uppercase", letterSpacing: "1.5px",
                     }}>
                       <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                         <span>
