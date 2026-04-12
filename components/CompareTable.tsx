@@ -252,7 +252,7 @@ export default function CompareTable({ funds, accentColor, compact, selectedYear
                       fontWeight: isBest ? 700 : 400,
                       borderBottom: "1px solid #e8eaed",
                       fontVariantNumeric: "tabular-nums",
-                      backgroundColor: isBest ? `${accentColor}0D` : "transparent",
+                      backgroundColor: isBest ? `${accentColor}0D` : (winnerIdx === colIdx ? `${accentColor}08` : "transparent"),
                     }}>
                       {val}
                       {isBest && <span style={{ marginRight: 3, fontSize: fs.star, color: accentColor }}> ★</span>}
