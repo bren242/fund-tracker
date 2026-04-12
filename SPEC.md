@@ -1,5 +1,5 @@
 # Fund Tracker — SPEC.md
-> מצב נכון ל: 2026-04-11 (ריצת לילה) | Cache v45 | גרסה אחרונה: עקביות v2 + ריצת לילה
+> מצב נכון ל: 2026-04-12 (ריצת לילה) | Cache v45 | גרסה אחרונה: compare chart fixes
 
 ---
 
@@ -127,7 +127,33 @@
 
 ---
 
-## עדכון אחרון (2026-04-11 — סשן שמיני)
+## עדכון אחרון (2026-04-12 — ריצת לילה: compare chart fixes)
+
+### /compare — 3 תיקונים ✅
+
+**מה בוצע:**
+
+**1. יישור גרף (chart alignment)**
+- הוסרו כל ה-hacks שנצברו: `margin: "0 24px 8px"` + `paddingLeft/Right: 24` על `ResponsiveContainer`
+- הגרף עכשיו לוקח `width="100%"` של ה-content div שכבר מכיל `padding: "0 24px"` — יישור מלא עם הכרטיסים
+
+**2. לוגיקת תאריכים גוללת + גרף חודשי**
+- `CompareCharts` מקבל עכשיו `from?: string; to?: string` (YYYY-MM) במקום `selectedYears: string[]`
+- `buildLineData()` משתמש ב-`monthlyReturns` כשקיים, fallback שנתי כשלא
+- `rangeToDateRange()`: 3Y = 36 חודשים אחורה בדיוק (אפריל 2023), לא ינואר שנה N
+- X-axis: תוויות עבריות קצרות ("אפ'23"), interval דינמי (max ~8 תוויות)
+- Custom range: מציג עד YYYY-MM מדויק, לא עד סוף שנה
+- נקודות (dots): מוצגות עד 12 data points, מוסתרות לנתונים צפופים (monthly)
+
+**3. פרינט מסונכרן**
+- `ComparePrint` מקבל `chartFrom/chartTo` ומעביר לחרטיב `CompareCharts compact`
+- אותו interval חכם גם בדף הדפסה
+
+**Commits:** `633e720`, `e656f51`
+
+---
+
+## עדכון קודם (2026-04-11 — סשן שמיני)
 
 ### UX — 6 משימות ✅
 

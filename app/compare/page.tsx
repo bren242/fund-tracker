@@ -41,9 +41,9 @@ function rangeToDateRange(range: TimeRange, from?: string, to?: string): { from:
   const cur = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   switch (range) {
     case "ytd":    return { from: `${today.getFullYear()}-01`, to: cur };
-    case "12m":   return { from: addMonths(today, -11), to: cur };
-    case "3y":    return { from: addMonths(today, -35), to: cur };
-    case "5y":    return { from: addMonths(today, -59), to: cur };
+    case "12m":   return { from: addMonths(today, -11), to: cur };  // 12 data points
+    case "3y":    return { from: addMonths(today, -36), to: cur };  // Apr 2023–Apr 2026
+    case "5y":    return { from: addMonths(today, -60), to: cur };  // Apr 2021–Apr 2026
     case "max":   return { from: "2019-01", to: cur };
     case "custom": return { from: from || "2022-01", to: to || cur };
   }
