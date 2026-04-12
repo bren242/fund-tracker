@@ -357,7 +357,16 @@ function CompareContent() {
                 <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>
                   תשואות שנתיות לאורך זמן
                 </span>
-                <SegmentedControl value={timeRange} onChange={setTimeRange} accentColor={brand.primaryColor} />
+                <SegmentedControl value={timeRange} onChange={(range) => {
+                if (range === "custom") {
+                  // Initialize custom selectors from the current chart range — don't jump to hardcoded 2022-01
+                  setCustomFrom(chartRange.from);
+                  setCustomTo(chartRange.to);
+                  setCommittedFrom(chartRange.from);
+                  setCommittedTo(chartRange.to);
+                }
+                setTimeRange(range);
+              }} accentColor={brand.primaryColor} />
               </div>
 
               {/* Custom range row */}
