@@ -140,7 +140,7 @@ export default function CompareCharts({
             <CartesianGrid strokeDasharray="3 3" stroke="#e8eaed" />
             <XAxis dataKey="year" tick={{ fontSize: 7, fill: "#5a6577" }} interval={xInterval} tickFormatter={formatXLabel} />
             <YAxis tick={{ fontSize: 7, fill: "#8893a4" }} unit="%" width={30} />
-            <Legend verticalAlign="top" wrapperStyle={{ fontSize: 7, paddingBottom: 8 }} />
+            <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: 7, paddingTop: 8 }} />
             {funds.map((f, i) => (
               <Line key={f.id} type="monotone" dataKey={`fund_${f.id}`} name={f.name}
                 stroke={fundColors[i]} strokeWidth={2}

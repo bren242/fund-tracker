@@ -528,7 +528,7 @@ function ComparePrint({ funds, brand, lastUpdated, mode, selectedYears, chartFro
         winnerIdx={winnerIdx} />
 
       {/* ── Chart ── */}
-      <div style={{ display:"flex", justifyContent:"center", marginTop:20 }}>
+      <div style={{ display:"flex", justifyContent:"center", marginTop:36 }}>
         <CompareCharts funds={funds} accentColor={brand.primaryColor} compact benchmarks={benchmarks} from={chartFrom} to={chartTo} />
       </div>
 
