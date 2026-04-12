@@ -135,8 +135,8 @@ export default function CompareCharts({
   if (compact) {
     return (
       <div style={{ pageBreakInside: "avoid", breakInside: "avoid" }}>
-        <div style={{ margin: "0 auto", width: "fit-content" }}>
-          <LineChart width={580} height={280} data={lineData} margin={{ top: 5, right: 20, left: 0, bottom: 10 }}>
+        <div style={{ margin: "0 auto", width: "100%" }}>
+          <LineChart width={560} height={320} data={lineData} margin={{ top: 5, right: 20, left: 0, bottom: 10 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e8eaed" />
             <XAxis dataKey="year" tick={{ fontSize: 7, fill: "#5a6577" }} interval={xInterval} tickFormatter={formatXLabel} />
             <YAxis tick={{ fontSize: 7, fill: "#8893a4" }} unit="%" width={30} />
