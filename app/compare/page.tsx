@@ -16,7 +16,7 @@ import { brandCssVars } from "@/lib/colors";
 const CompareCharts = dynamic(() => import("@/components/CompareCharts"), { ssr: false });
 
 // ── Palette ──────────────────────────────────────────────────────────────────
-const FUND_COLORS = ["#1B3A2F", "#B8975A", "#2563eb", "#9333ea"];
+const FUND_COLORS = ["#B8975A", "#2563eb", "#9333ea", "#0891b2"];
 
 // ── Time range ───────────────────────────────────────────────────────────────
 type TimeRange = "ytd" | "12m" | "3y" | "5y" | "max" | "custom";
@@ -460,7 +460,7 @@ function CompareContent() {
               accentColor={brand.primaryColor}
               selectedYears={selectedYears}
               benchmarks={selectedBenchmarks}
-              fundColors={funds.map((_, i) => i === 0 ? brand.primaryColor : FUND_COLORS[i])}
+              fundColors={funds.map((_, i) => FUND_COLORS[i % FUND_COLORS.length])}
             />
 
             {/* Disclaimer */}
@@ -525,7 +525,7 @@ function ComparePrint({ funds, brand, lastUpdated, mode, selectedYears, chartFro
       {/* ── Table ── */}
       <CompareTable funds={funds} accentColor={brand.primaryColor} compact
         selectedYears={selectedYears} benchmarks={benchmarks}
-        fundColors={funds.map((_, i) => i === 0 ? brand.primaryColor : FUND_COLORS[i % FUND_COLORS.length])}
+        fundColors={funds.map((_, i) => FUND_COLORS[i % FUND_COLORS.length])}
         winnerIdx={winnerIdx} isPrint />
 
       {/* ── Chart ── */}
