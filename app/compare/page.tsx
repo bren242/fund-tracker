@@ -506,12 +506,13 @@ function ComparePrint({ funds, brand, lastUpdated, mode, selectedYears, chartFro
     <div className="print-only" style={{ width: "100%", background: "white", color: "#1a1f2b", fontFamily: "Assistant, Arial, sans-serif" }}>
 
       {/* ── Header ── */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, paddingBottom: 8, borderBottom: `2px solid ${brand.primaryColor}` }}>
-        <span style={{ fontSize: "7pt", color: "#8893a4" }}>מעודכן ל: {formatDate(lastUpdated)}</span>
-        {(brand.logoLight || brand.logo) && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={brand.logoLight || brand.logo} alt={brand.name || ""} style={{ maxHeight: 28, width: "auto", objectFit: "contain" }} />
-        )}
+      <div style={{ position: "relative", textAlign: "center", marginBottom: 10, paddingBottom: 8, borderBottom: `2px solid ${brand.primaryColor}` }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={brand.logoLight || brand.logo || ""} alt={brand.name || ""}
+          style={{ maxHeight: 32, width: "auto", objectFit: "contain" }} />
+        <div style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", fontSize: "7pt", color: "#8893a4" }}>
+          מעודכן ל: {formatDate(lastUpdated)}
+        </div>
       </div>
 
       {/* ── Title ── */}
