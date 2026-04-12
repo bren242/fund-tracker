@@ -162,11 +162,11 @@ export default function CompareCharts({
   return (
     <div style={{ marginBottom: 8 }}>
       <ResponsiveContainer width="100%" height={280}>
-        <LineChart data={lineData} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
+        <LineChart data={lineData} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e8eaed" />
           <XAxis dataKey="year" tick={{ fontSize: 11, fill: "#5a6577" }}
             interval={xInterval} tickFormatter={formatXLabel} />
-          <YAxis tick={{ fontSize: 10, fill: "#8893a4" }} unit="%" width={45} />
+          <YAxis tick={{ fontSize: 10, fill: "#8893a4" }} unit="%" width={40} />
           <Tooltip
             contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #dfe3e8" }}
             formatter={(value: unknown) => [`${Number(value)?.toFixed(2)}%`]}
