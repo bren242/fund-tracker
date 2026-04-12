@@ -10,7 +10,6 @@ import { useSearchParams } from "next/navigation";
 import { BrandConfig } from "@/config/brand";
 import BrandLogo from "@/components/BrandLogo";
 import ClientGate from "@/components/ClientGate";
-import CompareSummary from "@/components/CompareSummary"; // print only
 import CompareTable from "@/components/CompareTable";
 import { brandCssVars } from "@/lib/colors";
 
@@ -539,19 +538,52 @@ function ComparePrint({ funds, brand, lastUpdated, mode, selectedYears, chartFro
         <tbody>
           <tr>
             <td style={{ padding: 0 }}>
-              {/* Compact summary strip */}
-              <CompareSummary funds={funds} accentColor={brand.primaryColor} compact selectedYears={selectedYears} />
+              {/* Fund cards — one row */}
+              <div style={{ display: "grid", gridTemplateColumns: `repeat(${funds.length}, 1fr)`, gap: 8, marginBottom: 12 }}>
+                {funds.map((fund, i) => (
+                  <div key={fund.id} style={{
+                    padding: "8px 10px",
+                    backgroundColor: "#fafafa",
+                    borderRadius: 6,
+                    border: `1px solid #e5e7eb`,
+                    borderRightWidth: 3,
+                    borderRightColor: FUND_COLORS[i % FUND_COLORS.length],
+                  }}>
+                    <div style={{ fontSize: "8pt", fontWeight: 700, color: "#1a1f2b", marginBottom: 2 }}>{fund.name}</div>
+                    <div style={{ fontSize: "7pt", color: "#8893a4", marginBottom: 6 }}>{fund.classification || "—"}</div>
+                    <div style={{ display: "flex", gap: 8, justifyContent: "space-between" }}>
+                      <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: "6pt", color: "#8893a4" }}>ממוצע שנתי</div>
+                        <div style={{ fontSize: "9pt", fontWeight: 700, color: (fund.avgAnnualReturn ?? 0) > 0 ? "#059669" : "#dc2626" }}>
+                          {fund.avgAnnualReturn != null ? `${(fund.avgAnnualReturn * 100).toFixed(2)}%` : "—"}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: "6pt", color: "#8893a4" }}>שארפ</div>
+                        <div style={{ fontSize: "9pt", fontWeight: 700, color: "#1a1f2b" }}>
+                          {fund.sharpe != null ? fund.sharpe.toFixed(2) : "—"}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: "6pt", color: "#8893a4" }}>מצטבר</div>
+                        <div style={{ fontSize: "9pt", fontWeight: 700, color: "#059669" }}>
+                          {(() => { const c = computeCumulative(fund, selectedYears || []); return c != null ? `${(c * 100).toFixed(2)}%` : "—"; })()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
 
-              {/* Comparison table */}
-              <CompareTable funds={funds} accentColor={brand.primaryColor} compact selectedYears={selectedYears} benchmarks={benchmarks} />
+              {/* Chart */}
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+                <CompareCharts funds={funds} accentColor={brand.primaryColor} compact
+                  benchmarks={benchmarks} from={chartFrom} to={chartTo} />
+              </div>
 
-              {/* Divider between table and chart */}
-              {mode === "advanced" && (
-                <>
-                  <div style={{ borderTop: "1px solid #dfe3e8", margin: "10px 0" }} />
-                  <CompareCharts funds={funds} accentColor={brand.primaryColor} compact benchmarks={benchmarks} from={chartFrom} to={chartTo} />
-                </>
-              )}
+              {/* Table */}
+              <CompareTable funds={funds} accentColor={brand.primaryColor} compact
+                selectedYears={selectedYears} benchmarks={benchmarks} />
             </td>
           </tr>
         </tbody>
