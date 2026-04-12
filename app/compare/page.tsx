@@ -162,7 +162,7 @@ function FundCompareCard({ fund, color, isWinner, selectedYears }: {
   return (
     <div style={{
       backgroundColor: "var(--bg-surface)", borderRadius: 10,
-      border: "1px solid var(--border)", borderRight: `3px solid ${color}`,
+      border: "1px solid var(--border)", borderLeft: `3px solid ${color}`,
       padding: "16px 18px", boxShadow: "var(--shadow-card)",
     }}>
       {/* Winner badge or spacer — fixed height so all cards align */}
@@ -461,6 +461,7 @@ function CompareContent() {
               accentColor={brand.primaryColor}
               selectedYears={selectedYears}
               benchmarks={selectedBenchmarks}
+              fundColors={funds.map((_, i) => i === 0 ? brand.primaryColor : FUND_COLORS[i])}
             />
 
             {/* Disclaimer */}

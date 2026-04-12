@@ -9,6 +9,7 @@ interface CompareTableProps {
   compact?: boolean;
   selectedYears?: string[];
   benchmarks?: Benchmark[];
+  fundColors?: string[];
 }
 
 function returnColor(v: number | null): string {
@@ -155,7 +156,7 @@ function getBestIdx(funds: Fund[], metric: MetricRow): number | null {
 const BM_COLORS    = ["#6b4fa0", "#0891b2"];
 const BM_BG_COLORS = ["rgba(107, 79, 160, 0.08)", "rgba(8, 145, 178, 0.08)"];
 
-export default function CompareTable({ funds, accentColor, compact, selectedYears, benchmarks = [] }: CompareTableProps) {
+export default function CompareTable({ funds, accentColor, compact, selectedYears, benchmarks = [], fundColors }: CompareTableProps) {
   if (funds.length < 2) return null;
 
   const hasBm = benchmarks.length > 0;
@@ -196,7 +197,7 @@ export default function CompareTable({ funds, accentColor, compact, selectedYear
                 padding: fs.padH, textAlign: "center", fontWeight: 700,
                 color: "white", fontSize: fs.thName,
                 borderBottom: "2px solid #dfe3e8",
-                backgroundColor: accentColor,
+                backgroundColor: fundColors?.[i] ?? accentColor,
                 minWidth: fs.minCol,
                 borderRadius: !compact && !hasBm ? (i === 0 ? "8px 0 0 0" : i === funds.length - 1 ? "0 8px 0 0" : 0) : (i === 0 ? "8px 0 0 0" : 0),
               }}>
