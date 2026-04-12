@@ -159,13 +159,13 @@ export default function CompareCharts({
             <tr>
               {funds.map((f, i) => (
                 <td key={f.id} style={{ padding: "0 10px", whiteSpace: "nowrap", textAlign: "center", verticalAlign: "middle" }}>
-                  <span style={{ display: "inline-block", width: "20px", height: "2px", backgroundColor: fundColors[i], marginInlineEnd: "5px", verticalAlign: "middle" }} />
+                  <span style={{ display: "inline-block", width: "10px", height: "10px", borderRadius: "50%", backgroundColor: fundColors[i], marginInlineEnd: "5px", verticalAlign: "middle" }} />
                   <span style={{ fontSize: "8px", color: "#1a1f2b", fontFamily: "Assistant, sans-serif", verticalAlign: "middle" }}>{f.name}</span>
                 </td>
               ))}
               {benchmarks.map((bm, i) => (
                 <td key={bm.id} style={{ padding: "0 10px", whiteSpace: "nowrap", textAlign: "center", verticalAlign: "middle" }}>
-                  <span style={{ display: "inline-block", width: "20px", height: "2px", backgroundColor: bmColors[i], marginInlineEnd: "5px", verticalAlign: "middle" }} />
+                  <span style={{ display: "inline-block", width: "10px", height: "10px", borderRadius: "50%", backgroundColor: bmColors[i], marginInlineEnd: "5px", verticalAlign: "middle" }} />
                   <span style={{ fontSize: "8px", color: "#1a1f2b", fontFamily: "Assistant, sans-serif", verticalAlign: "middle" }}>{bm.name}</span>
                 </td>
               ))}
