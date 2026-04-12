@@ -56,7 +56,11 @@ function buildLineData(funds: Fund[], benchmarks: Benchmark[], from: string, to:
   );
 
   if (hasMonthly) {
-    const months = getAllMonths(from, to);
+    const allMonths = getAllMonths(from, to);
+    // For ranges > 24 months — use every other month to reduce density
+    const months = allMonths.length > 24
+      ? allMonths.filter((_, i) => i % 2 === 0)
+      : allMonths;
     const nowYear = String(new Date().getFullYear());
 
     return months.map((ym) => {
