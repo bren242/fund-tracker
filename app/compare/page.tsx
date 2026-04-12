@@ -223,6 +223,7 @@ function CompareContent() {
   const [customTo,      setCustomTo]      = useState(_toYM);
   const [committedFrom, setCommittedFrom] = useState("2022-01");
   const [committedTo,   setCommittedTo]   = useState(_toYM);
+  const [showPrint,     setShowPrint]     = useState(false);
 
   // Exact YYYY-MM range for chart (monthly data)
   const chartRange = useMemo(
@@ -319,7 +320,7 @@ function CompareContent() {
                 )}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <button onClick={() => window.print()} style={{
+                <button onClick={() => { setShowPrint(true); setTimeout(() => window.print(), 300); }} style={{
                   backgroundColor: brand.primaryColor, color: "#fff", fontWeight: 700,
                   padding: "6px 18px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12,
                 }}>
@@ -484,7 +485,7 @@ function CompareContent() {
         </div>
 
         {/* ============ PRINT VERSION ============ */}
-        <ComparePrint funds={funds} brand={brand} lastUpdated={data.lastUpdated} mode={mode} selectedYears={selectedYears} chartFrom={chartRange.from} chartTo={chartRange.to} benchmarks={selectedBenchmarks} />
+        {showPrint && <ComparePrint funds={funds} brand={brand} lastUpdated={data.lastUpdated} mode={mode} selectedYears={selectedYears} chartFrom={chartRange.from} chartTo={chartRange.to} benchmarks={selectedBenchmarks} />}
       </div>
     </ClientGate>
   );
