@@ -105,8 +105,8 @@ body {
 /* ========== PRINT ========== */
 @media print {
   @page {
-    size: A4 landscape;
-    margin: 6mm 6mm 14mm 6mm;
+    size: A4 portrait;
+    margin: 8mm 10mm 14mm 10mm;
   }
 
   html, body {
