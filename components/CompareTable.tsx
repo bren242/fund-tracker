@@ -204,7 +204,7 @@ export default function CompareTable({ funds, accentColor, compact, selectedYear
                 ...(winnerIdx === i
                   ? { backgroundColor: isPrint ? "#1B3A2F" : `${accentColor}08`, color: isPrint ? "#ffffff" : "white" }
                   : isPrint
-                    ? { backgroundColor: "#ffffff", color: fundColors?.[i] ?? accentColor }
+                    ? { backgroundColor: fundColors?.[i] ?? accentColor, color: "#ffffff", border: "none", outline: "none" }
                     : { backgroundColor: fundColors?.[i] ?? accentColor, color: "white" }),
               }}>
                 {f.name}
