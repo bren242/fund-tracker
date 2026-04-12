@@ -14,8 +14,8 @@ interface CompareChartsProps {
   to?: string;
 }
 
-const PALETTE = ["#1B3A2F", "#B8975A", "#3a5fa0", "#6b4fa0"];
-const BM_PALETTE = ["#6b4fa0", "#0891b2"];
+const PALETTE = ["#1B3A2F", "#B8975A", "#2563eb", "#9333ea"];
+const BM_PALETTE = ["#0891b2", "#dc2626"];
 const MONTH_SHORT = ["ינ", "פב", "מר", "אפ", "מא", "יו", "יל", "אג", "ספ", "אק", "נו", "דצ"];
 
 type YearEntry = { key: keyof Fund["returns"]; label: string; year: number };
