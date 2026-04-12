@@ -202,7 +202,7 @@ export default function CompareTable({ funds, accentColor, compact, selectedYear
                 backgroundColor: fundColors?.[i] ?? accentColor,
                 minWidth: fs.minCol,
                 borderRadius: !compact && !hasBm ? (i === 0 ? "8px 0 0 0" : i === funds.length - 1 ? "0 8px 0 0" : 0) : (i === 0 ? "8px 0 0 0" : 0),
-                ...(winnerIdx === i ? { backgroundColor: `${accentColor}08`, color: isPrint ? "#1a1f2b" : undefined } : {}),
+                ...(winnerIdx === i ? { backgroundColor: `${accentColor}08`, color: isPrint ? "#1a1f2b" : "white" } : {}),
               }}>
                 {f.name}
               </th>
