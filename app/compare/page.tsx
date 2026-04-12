@@ -503,7 +503,7 @@ function ComparePrint({ funds, brand, lastUpdated, mode, selectedYears, chartFro
   const winnerIdx = computeWinnerIdx(funds, selectedYears || []);
 
   return (
-    <div className="print-only" style={{ width: "100%", background: "white", color: "#1a1f2b", fontFamily: "Assistant, Arial, sans-serif", display: "flex", flexDirection: "column", minHeight: "297mm" }}>
+    <div className="print-only" style={{ width: "100%", background: "white", color: "#1a1f2b", fontFamily: "Assistant, Arial, sans-serif", display: "flex", flexDirection: "column", height: "267mm", padding: "0 10mm", boxSizing: "border-box" }}>
 
       {/* ── Header ── */}
       <div style={{ position: "relative", textAlign: "center", marginBottom: 10, paddingBottom: 8, borderBottom: `2px solid ${brand.primaryColor}` }}>
@@ -528,8 +528,10 @@ function ComparePrint({ funds, brand, lastUpdated, mode, selectedYears, chartFro
         winnerIdx={winnerIdx} isPrint />
 
       {/* ── Chart ── */}
-      <div style={{ display:"flex", justifyContent:"center", marginTop:16 }}>
-        <CompareCharts funds={funds} accentColor={brand.primaryColor} compact benchmarks={benchmarks} from={chartFrom} to={chartTo} />
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", paddingTop: "8px", paddingBottom: "8px" }}>
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <CompareCharts funds={funds} accentColor={brand.primaryColor} compact benchmarks={benchmarks} from={chartFrom} to={chartTo} />
+        </div>
       </div>
 
       {/* ── Footer ── */}

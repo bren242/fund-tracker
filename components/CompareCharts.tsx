@@ -136,27 +136,10 @@ export default function CompareCharts({
     return (
       <div style={{ pageBreakInside: "avoid", breakInside: "avoid" }}>
         <div style={{ margin: "0 auto", width: "fit-content" }}>
-          <LineChart width={580} height={240} data={lineData} margin={{ top: 10, right: 20, left: 20, bottom: 40 }}>
+          <LineChart width={580} height={280} data={lineData} margin={{ top: 5, right: 20, left: 0, bottom: 10 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e8eaed" />
             <XAxis dataKey="year" tick={{ fontSize: 7, fill: "#5a6577" }} interval={xInterval} tickFormatter={formatXLabel} />
             <YAxis tick={{ fontSize: 7, fill: "#8893a4" }} unit="%" width={30} />
-            <Legend
-              layout="horizontal"
-              verticalAlign="bottom"
-              align="center"
-              iconType="plainline"
-              iconSize={16}
-              wrapperStyle={{
-                fontSize: "8px",
-                paddingTop: "20px",
-                width: "100%",
-                display: "flex",
-                flexDirection: "row",
-                justifyContent: "center",
-                gap: "16px",
-                flexWrap: "wrap",
-              }}
-            />
             {funds.map((f, i) => (
               <Line key={f.id} type="monotone" dataKey={`fund_${f.id}`} name={f.name}
                 stroke={fundColors[i]} strokeWidth={2}
@@ -170,6 +153,31 @@ export default function CompareCharts({
                 dot={false} connectNulls={false} />
             ))}
           </LineChart>
+          {/* Manual legend — replaces Recharts Legend which ignores flex in wrapperStyle */}
+          <div style={{
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: "20px",
+            flexWrap: "wrap",
+            marginTop: "10px",
+            fontSize: "8px",
+            fontFamily: "Assistant, sans-serif",
+          }}>
+            {funds.map((f, i) => (
+              <div key={f.id} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <div style={{ width: "24px", height: "2px", backgroundColor: fundColors[i] }} />
+                <span style={{ color: "#1a1f2b" }}>{f.name}</span>
+              </div>
+            ))}
+            {benchmarks.map((bm, i) => (
+              <div key={bm.id} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <div style={{ width: "24px", height: "2px", backgroundColor: bmColors[i] }} />
+                <span style={{ color: "#1a1f2b" }}>{bm.name}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
