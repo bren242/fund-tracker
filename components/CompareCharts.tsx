@@ -169,7 +169,7 @@ export default function CompareCharts({
           <YAxis tick={{ fontSize: 10, fill: "#8893a4" }} unit="%" width={45} />
           <Tooltip
             contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #dfe3e8" }}
-            formatter={(value: unknown, name: unknown) => [`${Number(value)?.toFixed(2)}%`, name]}
+            formatter={(value: unknown) => [`${Number(value)?.toFixed(2)}%`]}
             labelFormatter={(label: unknown) => formatXLabel(String(label))}
           />
           <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
