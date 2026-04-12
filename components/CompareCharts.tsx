@@ -165,8 +165,8 @@ export default function CompareCharts({
   /* ── Full screen ── */
   return (
     <div style={{ marginBottom: 8 }}>
-      <ResponsiveContainer width="100%" height={280}>
-        <LineChart data={lineData} margin={{ top: 10, right: 16, left: 16, bottom: 5 }}>
+      <ResponsiveContainer width="100%" height={340}>
+        <LineChart data={lineData} margin={{ top: 16, right: 16, left: 16, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e8eaed" />
           <XAxis dataKey="year" tick={{ fontSize: 11, fill: "#5a6577" }}
             interval={xInterval} tickFormatter={formatXLabel} />
@@ -176,7 +176,7 @@ export default function CompareCharts({
             formatter={(value: unknown) => [`${Number(value)?.toFixed(2)}%`]}
             labelFormatter={(label: unknown) => formatXLabel(String(label))}
           />
-          <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
+          <Legend verticalAlign="top" wrapperStyle={{ fontSize: 11, paddingBottom: 12 }} />
           {funds.map((f, i) => (
             <Line key={f.id} type="monotone" dataKey={`fund_${f.id}`} name={f.name}
               stroke={fundColors[i]} strokeWidth={2.5}
