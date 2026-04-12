@@ -110,21 +110,8 @@ function sharpeColor(s: number | null): string {
 // ── Month options for custom range ───────────────────────────────────────────
 const _today = new Date();
 const _toYM = `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, "0")}`;
-const MONTH_HE_FULL: Record<string, string> = {
-  "01": "ינואר",  "02": "פברואר", "03": "מרץ",    "04": "אפריל",
-  "05": "מאי",    "06": "יוני",   "07": "יולי",   "08": "אוגוסט",
-  "09": "ספטמבר", "10": "אוקטובר","11": "נובמבר", "12": "דצמבר",
-};
-const MONTH_OPTIONS = (() => {
-  const opts: { value: string; label: string }[] = [];
-  let year = 2019, month = 1;
-  while (year < _today.getFullYear() || (year === _today.getFullYear() && month <= _today.getMonth() + 1)) {
-    const mm = String(month).padStart(2, "0");
-    opts.push({ value: `${year}-${mm}`, label: `${MONTH_HE_FULL[mm]} ${year}` });
-    if (++month > 12) { month = 1; year++; }
-  }
-  return opts;
-})();
+const MONTHS_HE = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
+const CUSTOM_YEARS = Array.from({ length: _today.getFullYear() - 2019 + 1 }, (_, i) => String(2019 + i));
 
 // ── Segmented Control ─────────────────────────────────────────────────────────
 const RANGE_OPTIONS: { key: TimeRange; label: string }[] = [
@@ -373,19 +360,22 @@ function CompareContent() {
               {timeRange === "custom" && (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, flexWrap: "wrap" }} dir="rtl">
                   <span style={{ fontSize: 11, color: "var(--text-muted)" }}>מ-</span>
-                  <select value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} style={selectStyle}>
-                    {MONTH_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  <select value={customFrom.slice(5, 7)} onChange={(e) => setCustomFrom(`${customFrom.slice(0, 4)}-${e.target.value}`)} style={selectStyle}>
+                    {MONTHS_HE.map((name, i) => <option key={i} value={String(i + 1).padStart(2, "0")}>{name}</option>)}
+                  </select>
+                  <select value={customFrom.slice(0, 4)} onChange={(e) => setCustomFrom(`${e.target.value}-${customFrom.slice(5, 7)}`)} style={selectStyle}>
+                    {CUSTOM_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
                   </select>
                   <span style={{ fontSize: 11, color: "var(--text-muted)" }}>עד</span>
-                  <select value={customTo} onChange={(e) => setCustomTo(e.target.value)} style={selectStyle}>
-                    {MONTH_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  <select value={customTo.slice(5, 7)} onChange={(e) => setCustomTo(`${customTo.slice(0, 4)}-${e.target.value}`)} style={selectStyle}>
+                    {MONTHS_HE.map((name, i) => <option key={i} value={String(i + 1).padStart(2, "0")}>{name}</option>)}
+                  </select>
+                  <select value={customTo.slice(0, 4)} onChange={(e) => setCustomTo(`${e.target.value}-${customTo.slice(5, 7)}`)} style={selectStyle}>
+                    {CUSTOM_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
                   </select>
                   <button
                     onClick={() => { setCommittedFrom(customFrom); setCommittedTo(customTo); }}
-                    style={{
-                      padding: "5px 16px", borderRadius: 6, fontSize: 12, cursor: "pointer",
-                      backgroundColor: brand.primaryColor, color: "#fff", border: "none", fontWeight: 600,
-                    }}
+                    style={{ padding: "5px 16px", borderRadius: 6, fontSize: 12, cursor: "pointer", backgroundColor: brand.primaryColor, color: "#fff", border: "none", fontWeight: 600 }}
                   >
                     הצג
                   </button>
@@ -411,7 +401,7 @@ function CompareContent() {
               display: "grid",
               gridTemplateColumns: `repeat(${Math.min(funds.length, 4)}, 1fr)`,
               gap: 16,
-              marginTop: 20,
+              marginTop: 28,
               marginBottom: 24,
             }}>
               {funds.map((fund, i) => (

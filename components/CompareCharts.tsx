@@ -72,8 +72,17 @@ function buildLineData(
     const months = getAllMonths(from, to);
     return months.map((ym) => {
       const entry: Record<string, string | number | null> = { year: ym };
+      const yearStr = ym.slice(0, 4);
+      const annualKey = (yearStr === "2026" ? "ytd2026" : `y${yearStr}`) as keyof Fund["returns"];
       funds.forEach((f) => {
-        const v = (f.monthlyReturns ?? {})[ym] ?? null;
+        let v: number | null;
+        if (f.monthlyReturns && Object.keys(f.monthlyReturns).length > 0) {
+          v = f.monthlyReturns[ym] ?? null;
+        } else {
+          // No monthly data — approximate with annual / 12
+          const annual = f.returns[annualKey] ?? null;
+          v = annual !== null ? annual / 12 : null;
+        }
         entry[`fund_${f.id}`] = v !== null ? Math.round(v * 10000) / 100 : null;
       });
       benchmarks.forEach((bm) => {
@@ -160,7 +169,7 @@ export default function CompareCharts({
 
   /* ── Full screen ──────────────────────────────────────────────────── */
   return (
-    <div style={{ marginBottom: 8 }}>
+    <div style={{ margin: "0 auto", maxWidth: "100%" }}>
       <ResponsiveContainer width="100%" height={280}>
         <LineChart data={lineData} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e8eaed" />
