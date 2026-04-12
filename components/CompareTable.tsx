@@ -153,7 +153,7 @@ function getBestIdx(funds: Fund[], metric: MetricRow): number | null {
   return bestIdx;
 }
 
-const BM_COLORS    = ["#0891b2", "#dc2626"];
+const BM_COLORS    = ["#0891b2", "#f59e0b"];
 const BM_BG_COLORS = ["rgba(107, 79, 160, 0.08)", "rgba(8, 145, 178, 0.08)"];
 
 export default function CompareTable({ funds, accentColor, compact, selectedYears, benchmarks = [], fundColors }: CompareTableProps) {
