@@ -525,6 +525,7 @@ function ComparePrint({ funds, brand, lastUpdated, mode, selectedYears, chartFro
       {/* ── Table ── */}
       <CompareTable funds={funds} accentColor={brand.primaryColor} compact
         selectedYears={selectedYears} benchmarks={benchmarks}
+        fundColors={funds.map((_, i) => i === 0 ? brand.primaryColor : FUND_COLORS[i % FUND_COLORS.length])}
         winnerIdx={winnerIdx} isPrint />
 
       {/* ── Chart ── */}
