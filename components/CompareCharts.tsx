@@ -136,11 +136,11 @@ export default function CompareCharts({
     return (
       <div style={{ pageBreakInside: "avoid", breakInside: "avoid" }}>
         <div style={{ margin: "0 auto", width: "fit-content" }}>
-          <LineChart width={580} height={320} data={lineData} margin={{ top: 8, right: 16, left: 6, bottom: 4 }}>
+          <LineChart width={580} height={240} data={lineData} margin={{ top: 8, right: 16, left: 6, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e8eaed" />
             <XAxis dataKey="year" tick={{ fontSize: 7, fill: "#5a6577" }} interval={xInterval} tickFormatter={formatXLabel} />
             <YAxis tick={{ fontSize: 7, fill: "#8893a4" }} unit="%" width={30} />
-            <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: 7, paddingTop: 28 }} />
+            <Legend verticalAlign="bottom" layout="horizontal" wrapperStyle={{ fontSize: 8, paddingTop: 16, textAlign: "center", width: "100%" }} />
             {funds.map((f, i) => (
               <Line key={f.id} type="monotone" dataKey={`fund_${f.id}`} name={f.name}
                 stroke={fundColors[i]} strokeWidth={2}

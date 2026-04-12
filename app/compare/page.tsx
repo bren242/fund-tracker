@@ -528,12 +528,12 @@ function ComparePrint({ funds, brand, lastUpdated, mode, selectedYears, chartFro
         winnerIdx={winnerIdx} isPrint />
 
       {/* ── Chart ── */}
-      <div style={{ display:"flex", justifyContent:"center", marginTop:36 }}>
+      <div style={{ display:"flex", justifyContent:"center", marginTop:16 }}>
         <CompareCharts funds={funds} accentColor={brand.primaryColor} compact benchmarks={benchmarks} from={chartFrom} to={chartTo} />
       </div>
 
       {/* ── Footer ── */}
-      <div className="print-footer" style={{ borderTop: "1px solid #e5e7eb", padding: "6px 8px", background: "white" }}>
+      <div className="print-footer" style={{ borderTop: "1px solid #e5e7eb", padding: "6px 8px", background: "white", marginTop: 16 }}>
         {brand.footerDisclaimer && (
           <div style={{ fontSize: "4.5pt", color: "#666", lineHeight: 1.4, marginBottom: 4 }}>
             {brand.footerDisclaimer}
