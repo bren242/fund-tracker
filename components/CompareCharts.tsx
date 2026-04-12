@@ -139,11 +139,11 @@ export default function CompareCharts({
           השוואת תשואות (%)
         </h4>
         <div style={{ display: "flex", justifyContent: "center" }}>
-          <LineChart width={540} height={240} data={lineData} margin={{ top: 8, right: 16, left: 6, bottom: 4 }}>
+          <LineChart width={700} height={280} data={lineData} margin={{ top: 8, right: 16, left: 6, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e8eaed" />
             <XAxis dataKey="year" tick={{ fontSize: 7, fill: "#5a6577" }} interval={xInterval} tickFormatter={formatXLabel} />
             <YAxis tick={{ fontSize: 7, fill: "#8893a4" }} unit="%" width={30} />
-            <Legend wrapperStyle={{ fontSize: 7, paddingTop: 4 }} />
+            <Legend verticalAlign="top" wrapperStyle={{ fontSize: 7, paddingBottom: 8 }} />
             {funds.map((f, i) => (
               <Line key={f.id} type="monotone" dataKey={`fund_${f.id}`} name={f.name}
                 stroke={fundColors[i]} strokeWidth={2}

@@ -89,15 +89,9 @@ export default function CompareSummary({ funds, accentColor, compact, selectedYe
         display: "flex", alignItems: "baseline", justifyContent: "space-between",
         pageBreakInside: "avoid", breakInside: "avoid",
       }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-          <span style={{ fontSize: "8pt", color: "#8893a4" }}>הקרן המובילה:</span>
-          <span style={{ fontSize: "10pt", fontWeight: 700, color: accentColor }}>{result.fund.name}</span>
-          <span style={{ fontSize: "7.5pt", color: "#5a6577" }}>
-            — מובילה ב-{result.wins} מתוך {result.total} מדדים · לפי התקופה הנבחרת
-            {result.fund.classification && ` · ${result.fund.classification}`}
-          </span>
-        </div>
-        <span style={{ fontSize: "6.5pt", color: "#8893a4" }}>★ = מוביל בקטגוריה</span>
+        <span style={{ fontSize: "9pt", fontWeight: 600, color: accentColor, whiteSpace: "nowrap" }}>
+          ↑ {result.fund.name} — מובילה ב-{result.wins} מדדים
+        </span>
       </div>
     );
   }
