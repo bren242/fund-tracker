@@ -11,6 +11,7 @@ interface CompareTableProps {
   benchmarks?: Benchmark[];
   fundColors?: string[];
   winnerIdx?: number;
+  isPrint?: boolean;
 }
 
 function returnColor(v: number | null): string {
@@ -157,7 +158,7 @@ function getBestIdx(funds: Fund[], metric: MetricRow): number | null {
 const BM_COLORS    = ["#0891b2", "#f59e0b"];
 const BM_BG_COLORS = ["rgba(107, 79, 160, 0.08)", "rgba(8, 145, 178, 0.08)"];
 
-export default function CompareTable({ funds, accentColor, compact, selectedYears, benchmarks = [], fundColors, winnerIdx }: CompareTableProps) {
+export default function CompareTable({ funds, accentColor, compact, selectedYears, benchmarks = [], fundColors, winnerIdx, isPrint }: CompareTableProps) {
   if (funds.length < 2) return null;
 
   const hasBm = benchmarks.length > 0;
@@ -201,7 +202,7 @@ export default function CompareTable({ funds, accentColor, compact, selectedYear
                 backgroundColor: fundColors?.[i] ?? accentColor,
                 minWidth: fs.minCol,
                 borderRadius: !compact && !hasBm ? (i === 0 ? "8px 0 0 0" : i === funds.length - 1 ? "0 8px 0 0" : 0) : (i === 0 ? "8px 0 0 0" : 0),
-                ...(winnerIdx === i ? { backgroundColor: `${accentColor}08` } : {}),
+                ...(winnerIdx === i ? { backgroundColor: `${accentColor}08`, color: isPrint ? "#1a1f2b" : undefined } : {}),
               }}>
                 {f.name}
               </th>
