@@ -135,9 +135,6 @@ export default function CompareCharts({
   if (compact) {
     return (
       <div style={{ pageBreakInside: "avoid", breakInside: "avoid" }}>
-        <h4 style={{ fontSize: "9pt", fontWeight: 600, color: "#1a1f2b", margin: "0 0 6px", textAlign: "right" }}>
-          השוואת תשואות (%)
-        </h4>
         <div style={{ width: "100%" }}>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={lineData} margin={{ top: 8, right: 16, left: 6, bottom: 4 }}>

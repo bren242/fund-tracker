@@ -522,7 +522,7 @@ function ComparePrint({ funds, brand, lastUpdated, mode, selectedYears, chartFro
       </div>
 
       {/* ── Fund Cards ── */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 14, direction: "rtl" }}>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${funds.length}, 1fr)`, gap: 8, marginBottom: 14, direction: "rtl" }}>
         {funds.map((fund, i) => {
           const cumulative = computeCumulative(fund, selectedYears || []);
           const isWinner = i === winnerIdx;
@@ -575,9 +575,6 @@ function ComparePrint({ funds, brand, lastUpdated, mode, selectedYears, chartFro
       {/* ── Chart ── */}
       {mode === "advanced" && (
         <div style={{ marginBottom: 14, pageBreakInside: "avoid" }}>
-          <div style={{ fontSize: "9pt", fontWeight: 600, color: "#1a1f2b", marginBottom: 6, textAlign: "right" }}>
-            השוואת תשואות (%)
-          </div>
           <CompareCharts
             funds={funds}
             accentColor={brand.primaryColor}
