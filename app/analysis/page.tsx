@@ -73,57 +73,53 @@ function numColor(v: number | null): string {
   return "#1a2e26";
 }
 
-/* ================================================================== */
-/*  PillGroup                                                          */
-/* ================================================================== */
-function PillGroup({
+/* ── Pill button ── */
+function Pill({
   label,
-  options,
-  labels,
-  value,
-  onChange,
+  active,
   activeColor,
+  onClick,
 }: {
   label: string;
-  options: string[];
-  labels?: Record<string, string>;
-  value: string;
-  onChange: (v: string) => void;
+  active: boolean;
   activeColor: string;
+  onClick: () => void;
 }) {
   return (
-    <div>
-      <div style={{ fontSize: 10, color: "#9ca3af", fontWeight: 500, marginBottom: 5, direction: "rtl" }}>
-        {label}
-      </div>
-      <div style={{ overflowX: "auto", whiteSpace: "nowrap", scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}>
-        <div style={{ display: "inline-flex", gap: 4 }}>
-          {options.map((opt) => {
-            const active = value === opt;
-            return (
-              <button
-                key={opt}
-                onClick={() => onChange(opt)}
-                style={{
-                  padding: "6px 16px",
-                  borderRadius: 20,
-                  fontSize: 13,
-                  border: "none",
-                  background: active ? activeColor : "transparent",
-                  color: active ? "#fff" : "#4a5568",
-                  fontWeight: active ? 600 : 400,
-                  cursor: "pointer",
-                  transition: "all 0.12s",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {labels?.[opt] ?? opt}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </div>
+    <button
+      onClick={onClick}
+      style={{
+        padding: "6px 16px",
+        borderRadius: 20,
+        fontSize: 13,
+        border: "none",
+        background: active ? activeColor : "transparent",
+        color: active ? "#fff" : "#4a5568",
+        fontWeight: active ? 600 : 400,
+        cursor: "pointer",
+        transition: "all 0.12s",
+        whiteSpace: "nowrap",
+        flexShrink: 0,
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+/* ── Divider between pill groups ── */
+function PillDivider() {
+  return (
+    <span
+      style={{
+        width: 1,
+        height: 20,
+        background: "#e8ecee",
+        alignSelf: "center",
+        flexShrink: 0,
+        margin: "0 4px",
+      }}
+    />
   );
 }
 
@@ -349,38 +345,83 @@ function AnalysisContent() {
           </div>
         </div>
 
-        {/* ── FILTER BAR ── */}
+        {/* ── FILTER BAR — שורה אחת עם overflow-x ── */}
         <div
           style={{
-            background: "rgba(255,255,255,0.92)",
-            borderBottom: "0.5px solid #eaecee",
-            padding: "16px 32px",
-            backdropFilter: "blur(8px)",
             position: "sticky",
             top: 0,
             zIndex: 10,
+            background: "rgba(255,255,255,0.92)",
+            borderBottom: "0.5px solid #eaecee",
+            backdropFilter: "blur(8px)",
+            padding: "0 32px",
+            boxSizing: "border-box",
           }}
         >
-          <div style={{ maxWidth: 1400, margin: "0 auto", display: "flex", gap: 28, alignItems: "flex-start", flexWrap: "wrap", direction: "rtl" }}>
-            <PillGroup label="קבוצה" options={[ALL, ...filterOptions.groups]} value={group} onChange={handleGroupChange} activeColor="#1B3A2F" />
-            <PillGroup label="קטגוריה" options={[ALL, ...filterOptions.categories]} value={category} onChange={handleCategoryChange} activeColor="#1B3A2F" />
-            <PillGroup
-              label="מטבע"
-              options={["all", "ILS", "USD"]}
-              labels={{ all: "הכל", ILS: "ILS", USD: "USD" }}
-              value={currencyFilter}
-              onChange={(v) => setCurrencyFilter(v as "all" | "ILS" | "USD")}
-              activeColor="#1B3A2F"
-            />
-            <div style={{ marginRight: "auto" }}>
-              <PillGroup
-                label="תקופה"
-                options={periodLabels.map((p) => p.key)}
-                labels={Object.fromEntries(periodLabels.map((p) => [p.key, p.label]))}
-                value={period}
-                onChange={(v) => setPeriod(v as typeof period)}
-                activeColor="#B8975A"
+          <div
+            style={{
+              maxWidth: 1400,
+              margin: "0 auto",
+              display: "flex",
+              flexWrap: "nowrap",
+              alignItems: "center",
+              gap: 0,
+              direction: "rtl",
+              overflowX: "auto",
+              scrollbarWidth: "none",
+              msOverflowStyle: "none",
+              padding: "10px 0",
+            } as React.CSSProperties}
+          >
+            {/* קבוצה */}
+            {[ALL, ...filterOptions.groups].map((opt) => (
+              <Pill
+                key={`group-${opt}`}
+                label={opt}
+                active={group === opt}
+                activeColor="#1B3A2F"
+                onClick={() => handleGroupChange(opt)}
               />
+            ))}
+
+            <PillDivider />
+
+            {/* קטגוריה */}
+            {[ALL, ...filterOptions.categories].map((opt) => (
+              <Pill
+                key={`cat-${opt}`}
+                label={opt}
+                active={category === opt}
+                activeColor="#1B3A2F"
+                onClick={() => handleCategoryChange(opt)}
+              />
+            ))}
+
+            <PillDivider />
+
+            {/* מטבע */}
+            {(["all", "ILS", "USD"] as const).map((opt) => (
+              <Pill
+                key={`cur-${opt}`}
+                label={opt === "all" ? "הכל" : opt}
+                active={currencyFilter === opt}
+                activeColor="#1B3A2F"
+                onClick={() => setCurrencyFilter(opt)}
+              />
+            ))}
+
+            {/* תקופה — דוחפת ימינה (RTL: marginRight: auto) */}
+            <div style={{ marginRight: "auto", display: "flex", alignItems: "center", gap: 0, flexShrink: 0 }}>
+              <PillDivider />
+              {periodLabels.map(({ key, label }) => (
+                <Pill
+                  key={`period-${key}`}
+                  label={label}
+                  active={period === key}
+                  activeColor="#B8975A"
+                  onClick={() => setPeriod(key)}
+                />
+              ))}
             </div>
           </div>
         </div>
