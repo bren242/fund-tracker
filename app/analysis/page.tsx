@@ -100,7 +100,15 @@ function PillGroup({
       >
         {label}
       </div>
-      <div style={{ display: "flex", gap: 4, flexWrap: "nowrap", overflowX: "auto" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 4,
+          flexWrap: "nowrap",
+          overflowX: "auto",
+          scrollbarWidth: "none",
+        } as React.CSSProperties}
+      >
         {options.map((opt) => {
           const active = value === opt;
           return (
@@ -108,12 +116,12 @@ function PillGroup({
               key={opt}
               onClick={() => onChange(opt)}
               style={{
-                padding: "4px 12px",
+                padding: "6px 16px",
                 borderRadius: 20,
-                fontSize: 12,
+                fontSize: 13,
                 border: "none",
-                backgroundColor: active ? activeColor : "#f1f3f5",
-                color: active ? "#fff" : "#4b5563",
+                background: active ? activeColor : "transparent",
+                color: active ? "#fff" : "#4a5568",
                 fontWeight: active ? 600 : 400,
                 cursor: "pointer",
                 transition: "all 0.12s",
@@ -265,11 +273,11 @@ function AnalysisContent() {
   const bottomRows = showSeparator ? sortedFunds.slice(TOP_N) : [];
 
   const periodLabels: { key: typeof period; label: string }[] = [
-    { key: "YTD", label: "YTD" },
-    { key: "24M", label: "24M" },
-    { key: "36M", label: "36M" },
-    { key: "60M", label: "60M" },
     { key: "inception", label: "מאז הקמה" },
+    { key: "60M", label: "60M" },
+    { key: "36M", label: "36M" },
+    { key: "24M", label: "24M" },
+    { key: "YTD", label: "YTD" },
   ];
 
   const sortLabels: { key: typeof sortBy; label: string }[] = [
@@ -280,8 +288,7 @@ function AnalysisContent() {
   ];
 
   const colTemplate = "20px 36px 1fr 108px 68px 68px 68px";
-  const activePeriodLabel =
-    periodLabels.find((p) => p.key === period)?.label ?? period;
+  const activePeriodLabel = periodLabels.find((p) => p.key === period)?.label ?? period;
 
   /* ── Row renderer ── */
   const renderRow = (fund: Fund, rank: number, isBottom = false) => {
@@ -332,7 +339,7 @@ function AnalysisContent() {
         <span
           style={{
             fontSize: 11,
-            color: isBottom ? "#ffb3ae" : "#9ca3af",
+            color: isBottom ? "#ffb3ae" : "#b0bac4",
             fontWeight: 500,
             textAlign: "center",
           }}
@@ -359,6 +366,7 @@ function AnalysisContent() {
             fontWeight: 600,
             textAlign: "center",
             letterSpacing: "-0.2px",
+            fontVariantNumeric: "tabular-nums",
           }}
         >
           {fmt(periodRet)}
@@ -368,6 +376,8 @@ function AnalysisContent() {
             fontSize: 13,
             color: fund.sharpe !== null ? "#1a2e26" : "#d1d5db",
             textAlign: "center",
+            letterSpacing: "-0.2px",
+            fontVariantNumeric: "tabular-nums",
           }}
         >
           {fmtNum(fund.sharpe)}
@@ -377,6 +387,7 @@ function AnalysisContent() {
             fontSize: 13,
             color: consistency !== null ? "#1a2e26" : "#d1d5db",
             textAlign: "center",
+            fontVariantNumeric: "tabular-nums",
           }}
         >
           {consistency !== null ? `${consistency}%` : "—"}
@@ -387,6 +398,7 @@ function AnalysisContent() {
             color: numColor(ytd),
             textAlign: "center",
             letterSpacing: "-0.2px",
+            fontVariantNumeric: "tabular-nums",
           }}
         >
           {fmt(ytd)}
@@ -491,24 +503,21 @@ function AnalysisContent() {
                   key={key}
                   onClick={() => setSortBy(key)}
                   style={{
-                    padding: "5px 16px",
-                    borderRadius: 20,
+                    padding: "7px 18px",
+                    borderRadius: 22,
                     fontSize: 12,
-                    border: active ? "1px solid #1B3A2F" : "1px solid #e8eaec",
+                    border: `1px solid ${active ? "#1B3A2F" : "#e8eaec"}`,
                     color: active ? "#1B3A2F" : "#6b7280",
                     fontWeight: active ? 600 : 400,
-                    backgroundColor: "transparent",
+                    background: "#fff",
                     cursor: "pointer",
                     transition: "all 0.12s",
                   }}
                 >
-                  {label}
+                  {label}{active ? " ↓" : ""}
                 </button>
               );
             })}
-            <span style={{ fontSize: 11, color: "#9ca3af", marginRight: 12 }}>
-              {sortedFunds.length} קרנות
-            </span>
           </div>
         </div>
 
@@ -582,7 +591,7 @@ function AnalysisContent() {
                     paddingRight: 8,
                   }}
                 >
-                  שם קרן
+                  קרן
                 </span>
                 <span
                   style={{
@@ -722,14 +731,13 @@ function AnalysisContent() {
                 background: "none",
                 border: "none",
                 color: "#94a3b8",
-                fontSize: 20,
+                fontSize: 13,
                 cursor: "pointer",
                 padding: "0 4px",
-                lineHeight: 1,
                 flexShrink: 0,
               }}
             >
-              ×
+              נקה
             </button>
           </div>
         )}
