@@ -2,11 +2,15 @@
 
 import { useEffect, useState, useMemo, Suspense } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { FundsData, Fund } from "@/lib/types";
 import { useBrand } from "@/lib/useBrand";
 import { useClientKey, withClient } from "@/lib/useClientKey";
 import ClientGate from "@/components/ClientGate";
 import { brandCssVars } from "@/lib/colors";
+import BrandLogo from "@/components/BrandLogo";
+import { ThemeToggle } from "@/components/ThemeProvider";
+import { formatDate } from "@/lib/format";
 
 const ALL = "הכל";
 const MAX_SELECT = 6;
@@ -89,49 +93,35 @@ function PillGroup({
 }) {
   return (
     <div>
-      <div
-        style={{
-          fontSize: 10,
-          color: "#9ca3af",
-          fontWeight: 500,
-          marginBottom: 5,
-          direction: "rtl",
-        }}
-      >
+      <div style={{ fontSize: 10, color: "#9ca3af", fontWeight: 500, marginBottom: 5, direction: "rtl" }}>
         {label}
       </div>
-      <div
-        style={{
-          display: "flex",
-          gap: 4,
-          flexWrap: "nowrap",
-          overflowX: "auto",
-          scrollbarWidth: "none",
-        } as React.CSSProperties}
-      >
-        {options.map((opt) => {
-          const active = value === opt;
-          return (
-            <button
-              key={opt}
-              onClick={() => onChange(opt)}
-              style={{
-                padding: "6px 16px",
-                borderRadius: 20,
-                fontSize: 13,
-                border: "none",
-                background: active ? activeColor : "transparent",
-                color: active ? "#fff" : "#4a5568",
-                fontWeight: active ? 600 : 400,
-                cursor: "pointer",
-                transition: "all 0.12s",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {labels?.[opt] ?? opt}
-            </button>
-          );
-        })}
+      <div style={{ overflowX: "auto", whiteSpace: "nowrap", scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}>
+        <div style={{ display: "inline-flex", gap: 4 }}>
+          {options.map((opt) => {
+            const active = value === opt;
+            return (
+              <button
+                key={opt}
+                onClick={() => onChange(opt)}
+                style={{
+                  padding: "6px 16px",
+                  borderRadius: 20,
+                  fontSize: 13,
+                  border: "none",
+                  background: active ? activeColor : "transparent",
+                  color: active ? "#fff" : "#4a5568",
+                  fontWeight: active ? 600 : 400,
+                  cursor: "pointer",
+                  transition: "all 0.12s",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {labels?.[opt] ?? opt}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -166,7 +156,6 @@ function AnalysisContent() {
       .then(setData);
   }, [clientKey]);
 
-  /* ── Cascading filter options ── */
   const filterOptions = useMemo(() => {
     if (!data) return { groups: [] as string[], categories: [] as string[] };
     const groupSet = new Set<string>();
@@ -174,17 +163,11 @@ function AnalysisContent() {
     for (const cat of data.categories) {
       const section = cat.parentSection || "כללי";
       groupSet.add(section);
-      if (group === ALL || section === group) {
-        catSet.add(cat.name);
-      }
+      if (group === ALL || section === group) catSet.add(cat.name);
     }
-    return {
-      groups: Array.from(groupSet),
-      categories: Array.from(catSet),
-    };
+    return { groups: Array.from(groupSet), categories: Array.from(catSet) };
   }, [data, group]);
 
-  /* ── Funds matching current filters ── */
   const filteredFunds = useMemo(() => {
     if (!data) return [] as Fund[];
     const result: Fund[] = [];
@@ -200,24 +183,17 @@ function AnalysisContent() {
     return result;
   }, [data, group, category, currencyFilter]);
 
-  /* ── Sorted funds ── */
   const sortedFunds = useMemo(() => {
     const arr = [...filteredFunds];
     arr.sort((a, b) => {
-      if (sortBy === "avg") {
-        return (b.avgAnnualReturn ?? -Infinity) - (a.avgAnnualReturn ?? -Infinity);
-      } else if (sortBy === "sharpe") {
-        return (b.sharpe ?? -Infinity) - (a.sharpe ?? -Infinity);
-      } else if (sortBy === "stddev") {
-        return (a.stdDev ?? Infinity) - (b.stdDev ?? Infinity);
-      } else {
-        return (calcConsistency(b) ?? -Infinity) - (calcConsistency(a) ?? -Infinity);
-      }
+      if (sortBy === "avg") return (b.avgAnnualReturn ?? -Infinity) - (a.avgAnnualReturn ?? -Infinity);
+      if (sortBy === "sharpe") return (b.sharpe ?? -Infinity) - (a.sharpe ?? -Infinity);
+      if (sortBy === "stddev") return (a.stdDev ?? Infinity) - (b.stdDev ?? Infinity);
+      return (calcConsistency(b) ?? -Infinity) - (calcConsistency(a) ?? -Infinity);
     });
     return arr;
   }, [filteredFunds, sortBy]);
 
-  /* ── Search result ── */
   const searchResult = useMemo(() => {
     if (!searchQuery.trim()) return null;
     const q = searchQuery.trim().toLowerCase();
@@ -226,7 +202,6 @@ function AnalysisContent() {
     return { fund: sortedFunds[idx], rank: idx + 1, total: sortedFunds.length };
   }, [searchQuery, sortedFunds]);
 
-  /* ── Mixed currency warning ── */
   const hasMixedCurrencies = useMemo(() => {
     if (selectedIds.size < 2) return false;
     const selected = filteredFunds.filter((f) => selectedIds.has(f.id));
@@ -234,16 +209,8 @@ function AnalysisContent() {
     return currencies.size > 1;
   }, [selectedIds, filteredFunds]);
 
-  /* ── Handlers ── */
-  const handleGroupChange = (v: string) => {
-    setGroup(v);
-    setCategory(ALL);
-    setSelectedIds(new Set());
-  };
-  const handleCategoryChange = (v: string) => {
-    setCategory(v);
-    setSelectedIds(new Set());
-  };
+  const handleGroupChange = (v: string) => { setGroup(v); setCategory(ALL); setSelectedIds(new Set()); };
+  const handleCategoryChange = (v: string) => { setCategory(v); setSelectedIds(new Set()); };
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -260,11 +227,7 @@ function AnalysisContent() {
   };
 
   if (!data) {
-    return (
-      <div style={{ padding: 40, textAlign: "center", color: "#9ca3af" }}>
-        טוען נתונים...
-      </div>
-    );
+    return <div style={{ padding: 40, textAlign: "center", color: "#9ca3af" }}>טוען נתונים...</div>;
   }
 
   const selectedFunds = filteredFunds.filter((f) => selectedIds.has(f.id));
@@ -289,6 +252,9 @@ function AnalysisContent() {
 
   const colTemplate = "20px 36px 1fr 108px 68px 68px 68px";
   const activePeriodLabel = periodLabels.find((p) => p.key === period)?.label ?? period;
+  const subtitle = brand.subtitleMode === "custom" && brand.customSubtitle
+    ? brand.customSubtitle
+    : `עדכון: ${formatDate(data.lastUpdated)}`;
 
   /* ── Row renderer ── */
   const renderRow = (fund: Fund, rank: number, isBottom = false) => {
@@ -314,14 +280,8 @@ function AnalysisContent() {
           direction: "rtl",
           opacity: disabled ? 0.5 : 1,
         }}
-        onMouseEnter={(e) => {
-          if (!checked)
-            (e.currentTarget as HTMLDivElement).style.backgroundColor = "#f7faf8";
-        }}
-        onMouseLeave={(e) => {
-          if (!checked)
-            (e.currentTarget as HTMLDivElement).style.backgroundColor = "transparent";
-        }}
+        onMouseEnter={(e) => { if (!checked) (e.currentTarget as HTMLDivElement).style.backgroundColor = "#f7faf8"; }}
+        onMouseLeave={(e) => { if (!checked) (e.currentTarget as HTMLDivElement).style.backgroundColor = "transparent"; }}
       >
         <input
           type="checkbox"
@@ -329,78 +289,24 @@ function AnalysisContent() {
           disabled={disabled}
           onChange={() => !disabled && toggleSelect(fund.id)}
           onClick={(e) => e.stopPropagation()}
-          style={{
-            width: 14,
-            height: 14,
-            accentColor: "#1B3A2F",
-            cursor: disabled ? "not-allowed" : "pointer",
-          }}
+          style={{ width: 14, height: 14, accentColor: "#1B3A2F", cursor: disabled ? "not-allowed" : "pointer" }}
         />
-        <span
-          style={{
-            fontSize: 11,
-            color: isBottom ? "#ffb3ae" : "#b0bac4",
-            fontWeight: 500,
-            textAlign: "center",
-          }}
-        >
+        <span style={{ fontSize: 11, color: isBottom ? "#ffb3ae" : "#b0bac4", fontWeight: 500, textAlign: "center" }}>
           {rank}
         </span>
-        <span
-          style={{
-            fontSize: 13,
-            color: "#1a2e26",
-            fontWeight: 500,
-            paddingRight: 8,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
+        <span style={{ fontSize: 13, color: "#1a2e26", fontWeight: 500, paddingRight: 8, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           {fund.name}
         </span>
-        <span
-          style={{
-            fontSize: 13,
-            color: numColor(periodRet),
-            fontWeight: 600,
-            textAlign: "center",
-            letterSpacing: "-0.2px",
-            fontVariantNumeric: "tabular-nums",
-          }}
-        >
+        <span style={{ fontSize: 13, color: numColor(periodRet), fontWeight: 600, textAlign: "center", letterSpacing: "-0.2px", fontVariantNumeric: "tabular-nums" }}>
           {fmt(periodRet)}
         </span>
-        <span
-          style={{
-            fontSize: 13,
-            color: fund.sharpe !== null ? "#1a2e26" : "#d1d5db",
-            textAlign: "center",
-            letterSpacing: "-0.2px",
-            fontVariantNumeric: "tabular-nums",
-          }}
-        >
+        <span style={{ fontSize: 13, color: fund.sharpe !== null ? "#1a2e26" : "#d1d5db", textAlign: "center", letterSpacing: "-0.2px", fontVariantNumeric: "tabular-nums" }}>
           {fmtNum(fund.sharpe)}
         </span>
-        <span
-          style={{
-            fontSize: 13,
-            color: consistency !== null ? "#1a2e26" : "#d1d5db",
-            textAlign: "center",
-            fontVariantNumeric: "tabular-nums",
-          }}
-        >
+        <span style={{ fontSize: 13, color: consistency !== null ? "#1a2e26" : "#d1d5db", textAlign: "center", fontVariantNumeric: "tabular-nums" }}>
           {consistency !== null ? `${consistency}%` : "—"}
         </span>
-        <span
-          style={{
-            fontSize: 13,
-            color: numColor(ytd),
-            textAlign: "center",
-            letterSpacing: "-0.2px",
-            fontVariantNumeric: "tabular-nums",
-          }}
-        >
+        <span style={{ fontSize: 13, color: numColor(ytd), textAlign: "center", letterSpacing: "-0.2px", fontVariantNumeric: "tabular-nums" }}>
           {fmt(ytd)}
         </span>
       </div>
@@ -413,11 +319,36 @@ function AnalysisContent() {
         style={{
           minHeight: "100vh",
           backgroundColor: "#f8f9fa",
-          fontFamily:
-            "-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif",
+          fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif",
           ...(brandCssVars(brand.primaryColor, brand.accentColor) as React.CSSProperties),
         }}
       >
+        {/* ── APP HEADER ── */}
+        <div style={{ height: 4, backgroundColor: brand.primaryColor }} />
+        <div style={{ backgroundColor: "var(--bg-surface)", borderBottom: "1px solid var(--border)" }}>
+          <div style={{ maxWidth: 1400, margin: "0 auto", padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <BrandLogo brand={brand} height={28} variant="light" />
+              <span style={{ fontSize: 14, color: "var(--text-primary)", fontWeight: 600 }}>{brand.mainTitle}</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{subtitle}</span>
+              {brand.version && (
+                <span style={{ fontSize: 10, color: "var(--text-muted)", backgroundColor: "var(--bg-input)", padding: "2px 8px", borderRadius: 4, fontWeight: 500 }}>
+                  v{brand.version}
+                </span>
+              )}
+              <div className="nav-tabs">
+                <Link href={withClient("/", clientKey)} className="nav-tab">קרנות</Link>
+                <Link href={withClient("/analysis", clientKey)} className="nav-tab nav-tab--active">ניתוח</Link>
+                <Link href={withClient("/charts", clientKey)} className="nav-tab">גרפים</Link>
+                <Link href={withClient("/admin", clientKey)} className="nav-tab">ניהול</Link>
+              </div>
+              <ThemeToggle />
+            </div>
+          </div>
+        </div>
+
         {/* ── FILTER BAR ── */}
         <div
           style={{
@@ -430,31 +361,9 @@ function AnalysisContent() {
             zIndex: 10,
           }}
         >
-          <div
-            style={{
-              maxWidth: 1400,
-              margin: "0 auto",
-              display: "flex",
-              gap: 28,
-              alignItems: "flex-start",
-              flexWrap: "wrap",
-              direction: "rtl",
-            }}
-          >
-            <PillGroup
-              label="קבוצה"
-              options={[ALL, ...filterOptions.groups]}
-              value={group}
-              onChange={handleGroupChange}
-              activeColor="#1B3A2F"
-            />
-            <PillGroup
-              label="קטגוריה"
-              options={[ALL, ...filterOptions.categories]}
-              value={category}
-              onChange={handleCategoryChange}
-              activeColor="#1B3A2F"
-            />
+          <div style={{ maxWidth: 1400, margin: "0 auto", display: "flex", gap: 28, alignItems: "flex-start", flexWrap: "wrap", direction: "rtl" }}>
+            <PillGroup label="קבוצה" options={[ALL, ...filterOptions.groups]} value={group} onChange={handleGroupChange} activeColor="#1B3A2F" />
+            <PillGroup label="קטגוריה" options={[ALL, ...filterOptions.categories]} value={category} onChange={handleCategoryChange} activeColor="#1B3A2F" />
             <PillGroup
               label="מטבע"
               options={["all", "ILS", "USD"]}
@@ -477,25 +386,8 @@ function AnalysisContent() {
         </div>
 
         {/* ── SORT BAR ── */}
-        <div
-          style={{
-            width: "100%",
-            background: "#fff",
-            borderBottom: "0.5px solid #eaecee",
-            padding: "11px 32px",
-            boxSizing: "border-box",
-          }}
-        >
-          <div
-            style={{
-              maxWidth: 1400,
-              margin: "0 auto",
-              display: "flex",
-              gap: 7,
-              direction: "rtl",
-              alignItems: "center",
-            }}
-          >
+        <div style={{ width: "100%", background: "#fff", borderBottom: "0.5px solid #eaecee", padding: "11px 32px", boxSizing: "border-box" }}>
+          <div style={{ maxWidth: 1400, margin: "0 auto", display: "flex", gap: 7, direction: "rtl", alignItems: "center" }}>
             {sortLabels.map(({ key, label }) => {
               const active = sortBy === key;
               return (
@@ -522,221 +414,55 @@ function AnalysisContent() {
         </div>
 
         {/* ── MAIN CONTENT ── */}
-        <div
-          style={{ maxWidth: 1400, margin: "0 auto", padding: "24px 16px 120px" }}
-        >
+        <div style={{ maxWidth: 1400, margin: "0 auto", padding: "24px 16px 120px" }}>
           {hasMixedCurrencies && (
-            <div
-              style={{
-                marginBottom: 16,
-                padding: "10px 16px",
-                backgroundColor: "#fffbeb",
-                border: "1px solid #f59e0b",
-                borderRadius: 8,
-                fontSize: 13,
-                color: "#92400e",
-              }}
-            >
+            <div style={{ marginBottom: 16, padding: "10px 16px", backgroundColor: "#fffbeb", border: "1px solid #f59e0b", borderRadius: 8, fontSize: 13, color: "#92400e" }}>
               ⚠️ השוואה כוללת קרנות במטבעות שונים
             </div>
           )}
 
           {sortedFunds.length === 0 ? (
-            <div
-              style={{
-                padding: "80px 20px",
-                textAlign: "center",
-                color: "#9ca3af",
-                fontSize: 14,
-              }}
-            >
+            <div style={{ padding: "80px 20px", textAlign: "center", color: "#9ca3af", fontSize: 14 }}>
               לא נמצאו קרנות עם הפילטרים הנוכחיים
             </div>
           ) : (
-            <div
-              style={{
-                background: "#fff",
-                border: "0.5px solid #e8ecee",
-                borderRadius: 16,
-                overflow: "hidden",
-              }}
-            >
+            <div style={{ background: "#fff", border: "0.5px solid #e8ecee", borderRadius: 16, overflow: "hidden" }}>
               {/* Table header */}
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: colTemplate,
-                  padding: "11px 20px",
-                  backgroundColor: "#fafbfc",
-                  borderBottom: "0.5px solid #f2f4f6",
-                  direction: "rtl",
-                }}
-              >
+              <div style={{ display: "grid", gridTemplateColumns: colTemplate, padding: "11px 20px", backgroundColor: "#fafbfc", borderBottom: "0.5px solid #f2f4f6", direction: "rtl" }}>
                 <span />
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: "#9ca3af",
-                    fontWeight: 500,
-                    textAlign: "center",
-                  }}
-                >
-                  #
-                </span>
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: "#9ca3af",
-                    fontWeight: 500,
-                    paddingRight: 8,
-                  }}
-                >
-                  קרן
-                </span>
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: "#9ca3af",
-                    fontWeight: 500,
-                    textAlign: "center",
-                  }}
-                >
-                  {activePeriodLabel}
-                </span>
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: "#9ca3af",
-                    fontWeight: 500,
-                    textAlign: "center",
-                  }}
-                >
-                  שארפ
-                </span>
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: "#9ca3af",
-                    fontWeight: 500,
-                    textAlign: "center",
-                  }}
-                >
-                  עקביות
-                </span>
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: "#9ca3af",
-                    fontWeight: 500,
-                    textAlign: "center",
-                  }}
-                >
-                  YTD
-                </span>
+                <span style={{ fontSize: 11, color: "#9ca3af", fontWeight: 500, textAlign: "center" }}>#</span>
+                <span style={{ fontSize: 11, color: "#9ca3af", fontWeight: 500, paddingRight: 8 }}>קרן</span>
+                <span style={{ fontSize: 11, color: "#9ca3af", fontWeight: 500, textAlign: "center" }}>{activePeriodLabel}</span>
+                <span style={{ fontSize: 11, color: "#9ca3af", fontWeight: 500, textAlign: "center" }}>שארפ</span>
+                <span style={{ fontSize: 11, color: "#9ca3af", fontWeight: 500, textAlign: "center" }}>עקביות</span>
+                <span style={{ fontSize: 11, color: "#9ca3af", fontWeight: 500, textAlign: "center" }}>YTD</span>
               </div>
 
-              {/* Top rows */}
               {topRows.map((fund, i) => renderRow(fund, i + 1))}
 
-              {/* Separator */}
               {showSeparator && (
-                <div
-                  style={{
-                    borderTop: "1px dashed #e8ecee",
-                    borderBottom: "1px dashed #e8ecee",
-                    background: "#fdfcfb",
-                    padding: "10px 20px",
-                    textAlign: "center",
-                    fontSize: 12,
-                    color: "#9ca3af",
-                    direction: "rtl",
-                    userSelect: "none",
-                  }}
-                >
+                <div style={{ borderTop: "1px dashed #e8ecee", borderBottom: "1px dashed #e8ecee", background: "#fdfcfb", padding: "10px 20px", textAlign: "center", fontSize: 12, color: "#9ca3af", direction: "rtl", userSelect: "none" }}>
                   · · · · · {bottomRows.length} קרנות נוספות · · · · ·
                 </div>
               )}
 
-              {/* Bottom rows */}
-              {bottomRows.map((fund, i) =>
-                renderRow(fund, TOP_N + i + 1, TOP_N + i + 1 >= 80)
-              )}
+              {bottomRows.map((fund, i) => renderRow(fund, TOP_N + i + 1, TOP_N + i + 1 >= 80))}
             </div>
           )}
         </div>
 
         {/* ── COMPARE BAR ── */}
         {selectedIds.size > 0 && (
-          <div
-            style={{
-              position: "fixed",
-              bottom: 24,
-              left: "50%",
-              transform: "translateX(-50%)",
-              background: "#1a2e26",
-              borderRadius: 14,
-              padding: "13px 22px",
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
-              zIndex: 100,
-              boxShadow: "0 4px 24px rgba(0,0,0,0.25)",
-              direction: "rtl",
-            }}
-          >
-            <span
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: "#B8975A",
-                flexShrink: 0,
-              }}
-            />
-            <span style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>
-              {selectedIds.size} קרנות נבחרו
-            </span>
-            <span
-              style={{
-                fontSize: 12,
-                color: "#94a3b8",
-                maxWidth: 300,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
+          <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", background: "#1a2e26", borderRadius: 14, padding: "13px 22px", display: "flex", alignItems: "center", gap: 14, zIndex: 100, boxShadow: "0 4px 24px rgba(0,0,0,0.25)", direction: "rtl" }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#B8975A", flexShrink: 0 }} />
+            <span style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>{selectedIds.size} קרנות נבחרו</span>
+            <span style={{ fontSize: 12, color: "#94a3b8", maxWidth: 300, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {selectedFunds.map((f) => f.name).join(" · ")}
             </span>
-            <button
-              onClick={handleCompare}
-              style={{
-                background: "#B8975A",
-                color: "#fff",
-                border: "none",
-                borderRadius: 8,
-                padding: "7px 18px",
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: "pointer",
-                marginRight: 8,
-                flexShrink: 0,
-              }}
-            >
+            <button onClick={handleCompare} style={{ background: "#B8975A", color: "#fff", border: "none", borderRadius: 8, padding: "7px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", marginRight: 8, flexShrink: 0 }}>
               השווה ←
             </button>
-            <button
-              onClick={() => setSelectedIds(new Set())}
-              style={{
-                background: "none",
-                border: "none",
-                color: "#94a3b8",
-                fontSize: 13,
-                cursor: "pointer",
-                padding: "0 4px",
-                flexShrink: 0,
-              }}
-            >
+            <button onClick={() => setSelectedIds(new Set())} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: 13, cursor: "pointer", padding: "0 4px", flexShrink: 0 }}>
               נקה
             </button>
           </div>
@@ -744,148 +470,46 @@ function AnalysisContent() {
 
         {/* ── SEARCH BUBBLE ── */}
         <button
-          onClick={() => {
-            setSearchOpen((v) => !v);
-            if (searchOpen) setSearchQuery("");
-          }}
+          onClick={() => { setSearchOpen((v) => !v); if (searchOpen) setSearchQuery(""); }}
           title="חיפוש קרן"
-          style={{
-            position: "fixed",
-            bottom: 32,
-            left: 32,
-            width: 50,
-            height: 50,
-            borderRadius: "50%",
-            background: "#1a2e26",
-            border: "none",
-            color: "#fff",
-            fontSize: 20,
-            cursor: "pointer",
-            boxShadow: "0 2px 12px rgba(0,0,0,0.2)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 200,
-          }}
+          style={{ position: "fixed", bottom: 32, left: 32, width: 50, height: 50, borderRadius: "50%", background: "#1a2e26", border: "none", color: "#fff", fontSize: 20, cursor: "pointer", boxShadow: "0 2px 12px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 }}
         >
           🔍
         </button>
 
         {searchOpen && (
-          <div
-            style={{
-              position: "fixed",
-              bottom: 92,
-              left: 32,
-              background: "#fff",
-              borderRadius: 16,
-              padding: "16px",
-              boxShadow: "0 4px 24px rgba(0,0,0,0.15)",
-              zIndex: 200,
-              width: 280,
-              direction: "rtl",
-            }}
-          >
+          <div style={{ position: "fixed", bottom: 92, left: 32, background: "#fff", borderRadius: 16, padding: "16px", boxShadow: "0 4px 24px rgba(0,0,0,0.15)", zIndex: 200, width: 280, direction: "rtl" }}>
             <input
               autoFocus
               type="text"
               placeholder="חפש שם קרן..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                borderRadius: 8,
-                border: "1px solid #e8eaec",
-                fontSize: 13,
-                outline: "none",
-                boxSizing: "border-box",
-                direction: "rtl",
-              }}
+              style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #e8eaec", fontSize: 13, outline: "none", boxSizing: "border-box", direction: "rtl" }}
             />
             {searchQuery && !searchResult && (
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "#9ca3af",
-                  marginTop: 10,
-                  textAlign: "center",
-                }}
-              >
-                לא נמצאה קרן
-              </div>
+              <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 10, textAlign: "center" }}>לא נמצאה קרן</div>
             )}
             {searchResult && (
-              <div
-                style={{
-                  marginTop: 12,
-                  border: "1.5px solid #C9A96E",
-                  borderRadius: 14,
-                  padding: "12px 14px",
-                  boxShadow: "0 1px 20px rgba(184,151,90,0.10)",
-                  background: "#fffdf9",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: "#1a2e26",
-                    marginBottom: 4,
-                  }}
-                >
-                  {searchResult.fund.name}
-                </div>
-                <div
-                  style={{ fontSize: 11, color: "#9ca3af", marginBottom: 8 }}
-                >
-                  #{searchResult.rank} מתוך {searchResult.total}
-                </div>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 6,
-                    marginBottom: 10,
-                  }}
-                >
+              <div style={{ marginTop: 12, border: "1.5px solid #C9A96E", borderRadius: 14, padding: "12px 14px", boxShadow: "0 1px 20px rgba(184,151,90,0.10)", background: "#fffdf9" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#1a2e26", marginBottom: 4 }}>{searchResult.fund.name}</div>
+                <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 8 }}>#{searchResult.rank} מתוך {searchResult.total}</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 10 }}>
                   {[
                     { label: "ממוצע", value: fmt(searchResult.fund.avgAnnualReturn) },
                     { label: "שארפ", value: fmtNum(searchResult.fund.sharpe) },
-                    {
-                      label: "עקביות",
-                      value:
-                        calcConsistency(searchResult.fund) !== null
-                          ? `${calcConsistency(searchResult.fund)}%`
-                          : "—",
-                    },
+                    { label: "עקביות", value: calcConsistency(searchResult.fund) !== null ? `${calcConsistency(searchResult.fund)}%` : "—" },
                     { label: "YTD", value: fmt(searchResult.fund.returns?.ytd2026 ?? null) },
                   ].map(({ label, value }) => (
                     <div key={label} style={{ textAlign: "center" }}>
                       <div style={{ fontSize: 10, color: "#9ca3af" }}>{label}</div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#1a2e26" }}>
-                        {value}
-                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#1a2e26" }}>{value}</div>
                     </div>
                   ))}
                 </div>
                 <button
-                  onClick={() => {
-                    toggleSelect(searchResult.fund.id);
-                    setSearchOpen(false);
-                    setSearchQuery("");
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "7px",
-                    borderRadius: 8,
-                    background: "#1B3A2F",
-                    color: "#fff",
-                    border: "none",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
+                  onClick={() => { toggleSelect(searchResult.fund.id); setSearchOpen(false); setSearchQuery(""); }}
+                  style={{ width: "100%", padding: "7px", borderRadius: 8, background: "#1B3A2F", color: "#fff", border: "none", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
                 >
                   הוסף להשוואה
                 </button>
@@ -903,13 +527,7 @@ function AnalysisContent() {
 /* ================================================================== */
 export default function AnalysisPage() {
   return (
-    <Suspense
-      fallback={
-        <div style={{ padding: 40, textAlign: "center", color: "#888" }}>
-          טוען...
-        </div>
-      }
-    >
+    <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: "#888" }}>טוען...</div>}>
       <AnalysisContent />
     </Suspense>
   );
