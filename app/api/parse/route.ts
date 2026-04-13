@@ -595,10 +595,12 @@ Extract ONLY months that explicitly appear in the document with actual values.
 The current date is ${new Date().toISOString().split('T')[0]}.
 Never extract or infer values for future months.
 If a cell is empty, blank, or the month has not yet occurred — set to null, never invent a value.
-- reportMonth: string | null — detect from the LAST non-empty month column that has data across most rows.
-  If January and February both have data in 2026, reportMonth = "2026-02".
-  Also check document header, title, date, or context for explicit date.
-  Examples: "ינואר 2026" → "2026-01", "Feb 2026" → "2026-02", "דוח חודשי 03/2026" → "2026-03"
+- reportMonth: string | null — the month this report covers.
+  Priority 1: Look for an explicit date in the document HEADER, TITLE, FOOTER, or any date stamp.
+  Examples: "מרץ 2026" → "2026-03", "March 2026" → "2026-03", "03/2026" → "2026-03", "Feb 2026" → "2026-02"
+  Priority 2: If no explicit date, use the LATEST month that has actual data in the MOST RECENT year row.
+  For example, if 2026 has data only in Jan, Feb, Mar — reportMonth = "2026-03" (March, the latest).
+  DO NOT use "last month across most rows" — historical rows always have December, that would be wrong.
   If the month cannot be clearly determined, set reportMonth to null.
   NEVER guess or default to the current month.
 - reportMonthConfidence: "high" | "low" (how certain you are about the report month)
@@ -1131,6 +1133,19 @@ function validateParsedEntry(entry: MappedEntry, reportMonth: string | null): Va
   const rows: MonthlyValidation[] = [];
   const suspiciousMonths: string[] = [];
 
+  // Compute effective report month = max(detected reportMonth, latest month actually in the data).
+  // This prevents valid months from being excluded when Pass-1 reportMonth detection is off
+  // (e.g., AI returns "2026-01" for a March 2026 report — Feb/Mar would be wrongly excluded).
+  let effectiveReportMonth = reportMonth;
+  for (const field of entry.fields) {
+    const m = field.key.match(/^monthlyReturns\.(\d{4}-(0[1-9]|1[0-2]))$/);
+    if (m && typeof field.value === 'number') {
+      if (!effectiveReportMonth || m[1] > effectiveReportMonth) {
+        effectiveReportMonth = m[1];
+      }
+    }
+  }
+
   // קבץ חודשים לפי שנה
   const byYear: Record<string, (number | null)[]> = {};
   const annualByYear: Record<string, number> = {};
@@ -1140,8 +1155,8 @@ function validateParsedEntry(entry: MappedEntry, reportMonth: string | null): Va
     const monthMatch = field.key.match(/^monthlyReturns\.(\d{4})-(0[1-9]|1[0-2])$/);
     if (monthMatch) {
       const monthKey = `${monthMatch[1]}-${monthMatch[2]}`; // YYYY-MM
-      // Skip months later than reportMonth — they are suspicious (likely YTD leaked into a future-month column)
-      if (reportMonth && monthKey > reportMonth) {
+      // Skip months later than effective report month — suspicious (likely hallucinated future months)
+      if (effectiveReportMonth && monthKey > effectiveReportMonth) {
         suspiciousMonths.push(monthKey);
         continue;
       }
