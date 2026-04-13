@@ -1,5 +1,5 @@
 # Fund Tracker — SPEC.md
-> מצב נכון ל: 2026-04-13 | Cache v47 | גרסה אחרונה: model fix + validation fix
+> מצב נכון ל: 2026-04-14 | Cache v47 | גרסה אחרונה: analysis page redesign + header + pill fix
 
 ---
 
@@ -127,7 +127,33 @@
 
 ---
 
-## עדכון אחרון (2026-04-13 — תיקוני פרסר: model + validation)
+## עדכון אחרון (2026-04-14 — analysis page redesign)
+
+### דף ניתוח (analysis) — עיצוב מחדש ✅
+
+**מה בוצע:**
+
+**1. UI redesign מלא — `app/analysis/page.tsx`**
+- Pills: `background: transparent` כשלא active, `padding: 6px 16px`, `fontSize: 13px`
+- Sort bar: 4 כפתורים בלבד (ללא label/ספירה), `padding: 7px 18px`, `borderRadius: 22px`, active מציג `label + ↓`
+- מספרים: `fontVariantNumeric: tabular-nums` + `letterSpacing: -0.2px`
+- מספרי שורה: `#b0bac4` (top), `#ffb3ae` (80+)
+- compare bar: כפתור ניקוי `נקה` (במקום ×)
+- סדר תקופות: מאז הקמה → 60M → 36M → 24M → YTD
+
+**2. AppHeader**
+- הוסף header זהה לדף הראשי: פס צבע brand, לוגו, כותרת, תאריך עדכון, nav tabs (ניתוח = active), ThemeToggle
+- nav tabs מקוצר: קרנות | ניתוח | גרפים | ניהול
+
+**3. תיקון filter pill overflow**
+- wrapper: `overflowX: auto` + `whiteSpace: nowrap` + `scrollbarWidth: none`
+- inner: `display: inline-flex` (במקום flex שגרם לגלישה)
+
+**Commits:** `9f8f5e2`, `9b88faf`
+
+---
+
+## עדכון קודם (2026-04-13 — תיקוני פרסר: model + validation)
 
 ### 3 תיקונים קריטיים ✅
 
