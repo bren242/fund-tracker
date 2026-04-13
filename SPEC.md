@@ -1,5 +1,5 @@
 # Fund Tracker — SPEC.md
-> מצב נכון ל: 2026-04-12 (ריצת לילה) | Cache v45 | גרסה אחרונה: compare chart fixes
+> מצב נכון ל: 2026-04-13 | Cache v47 | גרסה אחרונה: model fix + validation fix
 
 ---
 
@@ -67,7 +67,7 @@
 
 **Fallback:** אם Pass-2 לא מצא טבלאות (למשל כרטיס חודשי יחיד) — בונה `dualCurrencyData` מנתוני Pass-1 כולל חישוב YTD מצטבר מחודשים.
 
-**Cache:** תוצאות נשמרות לפי hash של הקובץ. גרסה נוכחית: **v45**. כל cache ישן ממנה בטל.
+**Cache:** תוצאות נשמרות לפי hash של הקובץ. גרסה נוכחית: **v47**. כל cache ישן ממנה בטל.
 
 **מה מחולץ בהצלחה (קבצים שנבדקו):**
 | קובץ | סטטוס | הערות |
@@ -127,7 +127,31 @@
 
 ---
 
-## עדכון אחרון (2026-04-12 — ריצת לילה: compare chart fixes)
+## עדכון אחרון (2026-04-13 — תיקוני פרסר: model + validation)
+
+### 3 תיקונים קריטיים ✅
+
+**1. מודל שבור — claude-sonnet-4-20250514 → claude-sonnet-4-5**
+- שורש כל ה-502 במהלך הסשן. המודל הישן deprecated/broken.
+- תוקן בשני מקומות: `callClaude` + `callClaudeVision`.
+
+**2. Validation — reportMonth blocking חודשים תקינים**
+- `validateParsedEntry` חסמה חודשים שאחרי `reportMonth` כ-"suspicious".
+- כשה-AI החזיר `reportMonth="2026-01"` (שגוי) לדוח מרץ — פברואר ומרץ נחסמו, הולידציה הראתה 1/12 ובלמה Apply.
+- תוקן: `effectiveReportMonth = max(detected, latest_in_data)`. גם prompt עודכן: Priority 1 = כותרת הדוח, Priority 2 = החודש האחרון בשורה הנוכחית.
+
+**3. Cache v47**
+- v45 ו-v46 בוטלו. תוצאות ישנות (שנשמרו עם ולידציה שגויה) מחייבות re-parse.
+
+**אומת:** 9 קרנות מרץ 2026 — כולן 3/12 + validationStatus: valid ✅
+
+**נותר:** קיפלר — non-determinism של ה-AI עם הקובץ הספציפי הזה. Workaround: re-upload.
+
+**Commits:** `4ff391a`, `7f7c703`, `670ebd8`, `ff62234`
+
+---
+
+## עדכון קודם (2026-04-12 — ריצת לילה: compare chart fixes)
 
 ### /compare — 3 תיקונים ✅
 
