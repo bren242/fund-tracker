@@ -380,7 +380,7 @@ async function callClaude(apiKey: string, systemPrompt: string, userText: string
           "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-4-5",
           max_tokens: 16384,
           temperature: 0,
           system: systemPrompt,
@@ -449,7 +449,7 @@ async function callClaudeVision(
           "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-4-5",
           max_tokens: 16384,
           temperature: 0,
           system: systemPrompt,
