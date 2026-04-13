@@ -100,7 +100,7 @@ function PillGroup({
       >
         {label}
       </div>
-      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 4, flexWrap: "nowrap", overflowX: "auto" }}>
         {options.map((opt) => {
           const active = value === opt;
           return (
@@ -423,8 +423,8 @@ function AnalysisContent() {
               maxWidth: 1400,
               margin: "0 auto",
               display: "flex",
-              gap: 24,
-              alignItems: "center",
+              gap: 28,
+              alignItems: "flex-start",
               flexWrap: "wrap",
               direction: "rtl",
             }}
@@ -467,9 +467,11 @@ function AnalysisContent() {
         {/* ── SORT BAR ── */}
         <div
           style={{
+            width: "100%",
             background: "#fff",
             borderBottom: "0.5px solid #eaecee",
             padding: "11px 32px",
+            boxSizing: "border-box",
           }}
         >
           <div
@@ -477,7 +479,7 @@ function AnalysisContent() {
               maxWidth: 1400,
               margin: "0 auto",
               display: "flex",
-              gap: 8,
+              gap: 7,
               direction: "rtl",
               alignItems: "center",
             }}
@@ -555,9 +557,9 @@ function AnalysisContent() {
                 style={{
                   display: "grid",
                   gridTemplateColumns: colTemplate,
-                  padding: "10px 20px",
-                  backgroundColor: "#f9fafb",
-                  borderBottom: "1px solid #e8ecee",
+                  padding: "11px 20px",
+                  backgroundColor: "#fafbfc",
+                  borderBottom: "0.5px solid #f2f4f6",
                   direction: "rtl",
                 }}
               >
