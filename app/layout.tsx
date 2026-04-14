@@ -6,6 +6,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "מעקב קרנות השקעה",
   description: "מערכת מעקב קרנות השקעה",
+  icons: { icon: "/favicon.svg" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
