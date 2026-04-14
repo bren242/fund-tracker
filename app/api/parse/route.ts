@@ -384,7 +384,7 @@ async function callClaude(apiKey: string, systemPrompt: string, userText: string
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-5",
-          max_tokens: 16384,
+          max_tokens: 4096,
           temperature: 0,
           system: systemPrompt,
           messages: [{ role: "user", content: userText }],
@@ -453,7 +453,7 @@ async function callClaudeVision(
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-5",
-          max_tokens: 16384,
+          max_tokens: 8192,
           temperature: 0,
           system: systemPrompt,
           messages: [{
