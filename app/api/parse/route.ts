@@ -912,7 +912,6 @@ function mapRawTablesToFields(tables: RawTable[]): MappedEntry[] {
     const allMonthlyReturns: Record<string, number> = {};
     const fields: ParsedField[] = [];
 
-    console.log('RAW HEADERS:', JSON.stringify(table.headers));
     const headerMap: ('ytd' | 'itd' | number | 'year' | null)[] = table.headers.map(h => {
       const norm = normalizeHeader(h);
       if (YTD_ALIASES.some(a => norm === a.toLowerCase())) return 'ytd';
