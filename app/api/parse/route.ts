@@ -167,7 +167,7 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v24: remove pre-fill, fixed year range 2019-2026, all X cells
   // v27: single-pass only (removed buildDynamicStructuredPrompt second API call)
   // v47: validation fix — effectiveReportMonth prevents valid months from being excluded
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 47) return null;
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 48) return null;
 
   return cached.result;
 }
@@ -2915,7 +2915,7 @@ export async function POST(req: NextRequest) {
         resultObj.validation = result.validation;
         resultObj.validationStatus = result.validationStatus;
       }
-      resultObj._cacheVersion = 47;
+      resultObj._cacheVersion = 48;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
