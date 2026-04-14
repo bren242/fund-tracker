@@ -1,5 +1,6 @@
 # Fund Tracker — SPEC.md
 > מצב נכון ל: 2026-04-14 | Cache v47 | גרסה אחרונה: analysis page redesign + header + pill fix
+> **פתוח:** 502 חדש בפרסר — לא אובחן עדיין. חשד: מודל `claude-sonnet-4-5` דפרקייטד לטובת `claude-sonnet-4-6`
 
 ---
 
