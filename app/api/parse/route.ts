@@ -935,7 +935,7 @@ function mapRawTablesToFields(tables: RawTable[]): MappedEntry[] {
         const meaning = headerMap[idx];
         if (meaning === null || meaning === undefined || meaning === 'itd' || meaning === 'year') return;
 
-        const raw = String(cell).replace('%', '').trim();
+        const raw = String(cell).replace('%', '').replace(/[\*eE]/g, '').trim();
         const num = parseFloat(raw);
         if (isNaN(num)) return;
         const decimal = Math.round((num / 100) * 1e8) / 1e8;
