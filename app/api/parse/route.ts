@@ -1694,6 +1694,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  console.error('PARSE START');
   try {
     const clientKey = getClientKeyFromRequest(req.url);
     const auth = await isAuthorized(req, clientKey);
@@ -2933,6 +2934,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (err) {
     console.error('PARSE ERROR:', err);
+    console.error('PARSE CATCH:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }
