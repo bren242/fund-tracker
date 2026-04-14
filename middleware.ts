@@ -16,6 +16,20 @@ export function middleware(req: NextRequest) {
   const segments = pathname.split("/").filter(Boolean);
   const firstSegment = segments[0]?.toLowerCase();
 
+  // ── NOX auth gate ──────────────────────────────────────────
+  if (firstSegment === "nox") {
+    // Always allow the login page through (no rewrite, no auth check)
+    if (pathname === "/nox/login") {
+      return NextResponse.next();
+    }
+    // Check httpOnly cookie set by /api/nox-auth
+    const cookie = req.cookies.get("nox-auth");
+    if (!cookie || cookie.value !== "1") {
+      return NextResponse.redirect(new URL("/nox/login", req.url));
+    }
+  }
+  // ───────────────────────────────────────────────────────────
+
   if (firstSegment && CLIENT_KEYS.has(firstSegment)) {
     // Build internal path without client prefix
     const restPath = "/" + segments.slice(1).join("/") || "/";
