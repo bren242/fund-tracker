@@ -566,9 +566,10 @@ export default function FundTableV2({
         {/* Sub bar — classifications */}
         {subBarClassifications.length > 0 && (
           <div style={{
-            background: "#f5f5f7", padding: "6px 16px",
-            borderBottom: "1px solid var(--border-table)",
-            display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center",
+            background: "#f5f5f7", padding: "8px 16px",
+            borderBottom: "2px solid #1B3A2F",
+            display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center",
+            alignSelf: "flex-start",
           }}>
             {subBarClassifications.map(cls => {
               const isActive = activeClassification === cls;
@@ -576,13 +577,16 @@ export default function FundTableV2({
                 <button
                   key={cls}
                   onClick={() => setActiveClassification(isActive ? null : cls)}
+                  onMouseEnter={(e) => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = "rgba(27,58,47,0.06)"; }}
+                  onMouseLeave={(e) => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
                   style={{
                     fontSize: 12, padding: "3px 10px", borderRadius: 20,
-                    background: "none", border: "none", cursor: "pointer",
+                    cursor: "pointer",
                     color: isActive ? "#1B3A2F" : "#555",
                     fontWeight: isActive ? 600 : 400,
-                    borderBottom: isActive ? "2px solid #B8975A" : "2px solid transparent",
-                    transition: "color 0.12s, border-color 0.12s",
+                    background: isActive ? "#eef2f0" : "transparent",
+                    border: isActive ? "0.5px solid #1B3A2F" : "0.5px solid #ddd",
+                    transition: "background 0.12s, color 0.12s, border-color 0.12s",
                   }}
                 >
                   {cls}

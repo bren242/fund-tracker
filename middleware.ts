@@ -12,6 +12,13 @@ import { CLIENT_KEYS } from "./lib/clientKey";
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  // Redirect /nox* → /green*
+  if (pathname.startsWith("/nox")) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/green" + pathname.slice(4);
+    return NextResponse.redirect(url);
+  }
+
   // Extract first path segment
   const segments = pathname.split("/").filter(Boolean);
   const firstSegment = segments[0]?.toLowerCase();
