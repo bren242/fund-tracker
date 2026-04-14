@@ -4,8 +4,6 @@ import { storageRead, storageWrite, storageAppend } from "@/lib/storage";
 import { ParseDraft, ParseLogEntry, ParsedField, CollisionInfo } from "@/lib/parseTypes";
 import { createHash } from "crypto";
 
-console.error('PARSE MODULE LOADED');
-
 const SUPER_ADMIN_PASSWORD = "super2026";
 const DEFAULT_ADMIN_PASSWORD = "admin2026";
 
@@ -1696,7 +1694,6 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  console.error('PARSE START');
   try {
     const clientKey = getClientKeyFromRequest(req.url);
     const auth = await isAuthorized(req, clientKey);
@@ -1724,8 +1721,7 @@ export async function POST(req: NextRequest) {
       }
 
       const apiKey = process.env.ANTHROPIC_API_KEY;
-      const cleanKey = apiKey?.trim().replace(/[^\x20-\x7E]/g, '');
-      if (!cleanKey) {
+      if (!apiKey) {
         return NextResponse.json({
           error: "ANTHROPIC_API_KEY not configured. Add it in Vercel Dashboard → Settings → Environment Variables.",
         }, { status: 500 });
@@ -1752,7 +1748,7 @@ export async function POST(req: NextRequest) {
 
       const systemPrompt = buildSystemPrompt(existingFunds);
 
-      const claudeResult = await callClaude(cleanKey, systemPrompt, text);
+      const claudeResult = await callClaude(apiKey, systemPrompt, text);
       if (!claudeResult.success) {
         return NextResponse.json({ error: claudeResult.error }, { status: 502 });
       }
@@ -2706,8 +2702,7 @@ export async function POST(req: NextRequest) {
       }
 
       const apiKey = process.env.ANTHROPIC_API_KEY;
-      const cleanKey = apiKey?.trim().replace(/[^\x20-\x7E]/g, '');
-      if (!cleanKey) {
+      if (!apiKey) {
         return NextResponse.json({
           error: "ANTHROPIC_API_KEY not configured.",
         }, { status: 500 });
@@ -2759,7 +2754,7 @@ export async function POST(req: NextRequest) {
 
       const systemPrompt = buildSystemPrompt(existingFunds);
 
-      const claudeResult = await callClaudeVision(cleanKey, systemPrompt, base64Data, mimeType);
+      const claudeResult = await callClaudeVision(apiKey, systemPrompt, base64Data, mimeType);
       if (!claudeResult.success) {
         return NextResponse.json({
           error: claudeResult.error,
@@ -2788,7 +2783,7 @@ export async function POST(req: NextRequest) {
       // Two-Pass: Raw extraction → deterministic mapping
       try {
         const rawPrompt = buildRawExtractionPrompt();
-        const rawResult = await callClaudeVision(cleanKey, rawPrompt, base64Data, mimeType);
+        const rawResult = await callClaudeVision(apiKey, rawPrompt, base64Data, mimeType);
         if (rawResult.success) {
           totalInputTokens += rawResult.usage.input_tokens;
           const rawContent = rawResult.content;
@@ -2935,8 +2930,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (err) {
-    console.error('PARSE ERROR:', err);
-    console.error('PARSE CATCH:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("POST /api/parse error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
