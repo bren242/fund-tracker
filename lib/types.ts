@@ -5,6 +5,7 @@ export interface Fund {
   startDate: string | null;
   manager: string;
   lastReportDate: string | null;
+  reportingDelay?: boolean;
   monthlyReturn: number | null;
   returns: {
     ytd2026: number | null;

@@ -19,7 +19,10 @@ export function useBrand(clientKey: string = "nox"): BrandConfig {
       .then((b: BrandConfig) => {
         // Ensure features has defaults for older configs that lack it
         if (!b.features) {
-          b.features = { comparison: true, chartPage: true };
+          b.features = { comparison: true, chartPage: true, fundStatus: true };
+        }
+        if (b.features && b.features.fundStatus === undefined) {
+          b.features.fundStatus = true;
         }
         cache[clientKey] = b;
         setBrand(b);

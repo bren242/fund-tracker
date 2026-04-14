@@ -47,10 +47,28 @@ function toYYYYMM(s: string | null | undefined): string | null {
   return null;
 }
 
-type StatusKey = "updated" | "warning" | "old";
+type StatusKey = "updated" | "warning" | "old" | "delay";
 
 function computeStatus(fund: Fund, expected: string): StatusKey {
   const latest = getLatestKey(fund);
+  if (!latest) return "old";
+  const behind = monthsBehind(latest, expected);
+  if (behind <= 0) return "updated";
+  if (behind === 1) return "warning";
+  return "old";
+}
+
+function shortCategory(cat: string): string {
+  const c = cat.toLowerCase();
+  if (c.includes("מולטי") || c.includes("multi")) return "MULTI";
+  if (c.includes("אג"))                            return "BOND";
+  if (c.includes("לונג") || c.includes("long"))   return "LONG";
+  return cat;
+}
+
+/** Compute status from a FundRow (no Fund object needed) */
+function statusFromRow(row: { latestKey: string | null }, expected: string): StatusKey {
+  const latest = row.latestKey;
   if (!latest) return "old";
   const behind = monthsBehind(latest, expected);
   if (behind <= 0) return "updated";
@@ -68,6 +86,7 @@ const STATUS_CFG: Record<StatusKey, { label: string; badge: string; color: strin
   updated: { label: "עודכן",      badge: "✅", color: "#059669", bg: "#D1FAE5", darkBg: "#064E3B" },
   warning: { label: "חסר חודש",  badge: "⚠️", color: "#D97706", bg: "#FEF3C7", darkBg: "#78350F" },
   old:     { label: "לא עודכן",  badge: "❌", color: "#DC2626", bg: "#FEE2E2", darkBg: "#7F1D1D" },
+  delay:   { label: "דיליי",     badge: "⏳", color: "#5F5E5A", bg: "#f1efe8", darkBg: "#3a3830" },
 };
 
 /* ── row type ────────────────────────────────────────────── */
@@ -80,6 +99,7 @@ interface FundRow {
   latestKey: string | null;        // "2026-03"
   reportDateKey: string | null;    // "2026-03" — from lastReportDate
   mismatch: boolean;               // lastReportDate !== latestKey
+  reportingDelay: boolean;
   status: StatusKey;
 }
 
@@ -107,7 +127,7 @@ function FundStatusContent() {
 
   const expected = useMemo(() => getExpectedMonth(), []);
 
-  const rows = useMemo((): FundRow[] => {
+  const baseRows = useMemo((): FundRow[] => {
     if (!data) return [];
     const out: FundRow[] = [];
     for (const cat of data.categories) {
@@ -116,6 +136,7 @@ function FundStatusContent() {
         const lk = getLatestKey(fund);
         const rdk = fund.lastReportDate ?? null;
         const mismatch = !!lk && !!rdk && toYYYYMM(lk) !== toYYYYMM(rdk);
+        const reportingDelay = fund.reportingDelay ?? false;
         out.push({
           id: fund.id,
           name: fund.name,
@@ -125,18 +146,23 @@ function FundStatusContent() {
           latestKey: lk,
           reportDateKey: rdk,
           mismatch,
-          status: computeStatus(fund, expected),
+          reportingDelay,
+          status: reportingDelay ? "delay" : computeStatus(fund, expected),
         });
       }
     }
     return out;
   }, [data, expected]);
 
+  const [rows, setRows] = useState<FundRow[]>([]);
+  useEffect(() => { setRows(baseRows); }, [baseRows]);
+
   const counts = useMemo(() => ({
     total:   rows.length,
     updated: rows.filter((r) => r.status === "updated").length,
     warning: rows.filter((r) => r.status === "warning").length,
     old:     rows.filter((r) => r.status === "old").length,
+    delay:   rows.filter((r) => r.status === "delay").length,
   }), [rows]);
 
   const filtered = useMemo(() => {
@@ -153,15 +179,31 @@ function FundStatusContent() {
     { id: "updated", label: "עודכנו ✅",   count: counts.updated },
     { id: "warning", label: "ממתינות ⚠️", count: counts.warning },
     { id: "old",     label: "ישנות ❌",    count: counts.old },
+    { id: "delay",   label: "דיליי ⏳",   count: counts.delay },
   ];
 
   const STAT_CARDS = [
     { label: "סה״כ קרנות",           value: counts.total,   color: brand.primaryColor || "#1B3A2F" },
     { label: "עודכנו לחודש הנוכחי", value: counts.updated, color: "#059669" },
-    { label: "ממתינות לעדכון",       value: counts.total - counts.updated, color: "#D97706" },
+    { label: "ממתינות לעדכון",       value: counts.total - counts.updated - counts.delay, color: "#D97706" },
+    { label: "דיליי",                value: counts.delay,   color: "#7C3AED" },
   ];
 
-  const COL = "1fr 160px 76px 110px 120px 130px 116px";
+  async function toggleDelay(id: string, current: boolean) {
+    const pwd = sessionStorage.getItem(`client-auth-password-${clientKey}`) ?? "";
+    await fetch(`/api/funds/${id}?client=${encodeURIComponent(clientKey)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-admin-password": pwd },
+      body: JSON.stringify({ reportingDelay: !current }),
+    });
+    setRows(prev => prev.map(r =>
+      r.id === id
+        ? { ...r, reportingDelay: !current, status: !current ? "delay" : statusFromRow(r, expected) }
+        : r
+    ));
+  }
+
+  const COL = "1fr 150px 110px 120px 130px 72px 110px";
 
   return (
     <ClientGate clientKey={clientKey}>
@@ -174,7 +216,7 @@ function FundStatusContent() {
           <div style={{ display: "flex", gap: 16, marginBottom: 28, flexWrap: "wrap" }}>
             {STAT_CARDS.map((s) => (
               <div key={s.label} style={{
-                flex: "1 1 200px", backgroundColor: "var(--bg-surface)",
+                flex: "1 1 180px", backgroundColor: "var(--bg-surface)",
                 borderRadius: 12, padding: "22px 26px",
                 border: "1px solid var(--border)", boxShadow: "var(--shadow-card)",
               }}>
@@ -189,7 +231,6 @@ function FundStatusContent() {
             ))}
           </div>
 
-          {/* Filter bar */}
           {/* Search */}
           <div style={{ marginBottom: 12, position: "relative", maxWidth: 360 }}>
             <span style={{ position: "absolute", top: "50%", right: 12, transform: "translateY(-50%)", fontSize: 14, color: "var(--text-muted)", pointerEvents: "none" }}>🔍</span>
@@ -254,8 +295,8 @@ function FundStatusContent() {
               borderBottom: "2px solid var(--border)",
               direction: "rtl",
             }}>
-              {["שם קרן", "קטגוריה", "מטבע", "חודש אחרון", "תאריך עדכון", "סטטוס", "פעולה"].map((h) => (
-                <div key={h} style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", letterSpacing: 0.4, textTransform: "uppercase" }}>{h}</div>
+              {["שם קרן", "קטגוריה", "חודש אחרון", "עדכון אחרון", "סטטוס", "דיליי", ""].map((h, i) => (
+                <div key={i} style={{ fontSize: 10, fontWeight: 600, color: "#999", letterSpacing: "1.2px", textTransform: "uppercase" }}>{h}</div>
               ))}
             </div>
 
@@ -285,18 +326,7 @@ function FundStatusContent() {
                   <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", paddingLeft: 8 }}>{row.name}</div>
 
                   {/* קטגוריה */}
-                  <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{row.category}</div>
-
-                  {/* מטבע */}
-                  <div>
-                    {row.currency !== "—" ? (
-                      <span style={{
-                        padding: "2px 8px", borderRadius: 10, fontSize: 11, fontWeight: 600,
-                        backgroundColor: row.currency === "USD" ? "#DBEAFE" : "#D1FAE5",
-                        color: row.currency === "USD" ? "#1D4ED8" : "#065F46",
-                      }}>{row.currency}</span>
-                    ) : <span style={{ color: "var(--text-muted)", fontSize: 12 }}>—</span>}
-                  </div>
+                  <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{shortCategory(row.category)}</div>
 
                   {/* חודש אחרון (לפי monthlyReturns) */}
                   <div style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 5 }}>
@@ -325,23 +355,49 @@ function FundStatusContent() {
                     </span>
                   </div>
 
-                  {/* פעולה */}
+                  {/* דיליי toggle */}
+                  <div style={{ display: "flex", alignItems: "center" }}>
+                    <label style={{ position: "relative", display: "inline-block", width: 34, height: 18, cursor: "pointer" }}>
+                      <input
+                        type="checkbox"
+                        checked={row.reportingDelay}
+                        onChange={() => toggleDelay(row.id, row.reportingDelay)}
+                        style={{ opacity: 0, width: 0, height: 0, position: "absolute" }}
+                      />
+                      <span style={{
+                        position: "absolute", inset: 0, borderRadius: 9,
+                        backgroundColor: row.reportingDelay ? "#7C3AED" : "#d1d5db",
+                        transition: "background 0.2s",
+                      }} />
+                      <span style={{
+                        position: "absolute", width: 14, height: 14, top: 2, borderRadius: "50%",
+                        backgroundColor: "#fff",
+                        left: row.reportingDelay ? 18 : 2,
+                        transition: "left 0.2s",
+                        boxShadow: "0 1px 2px rgba(0,0,0,0.15)",
+                      }} />
+                    </label>
+                  </div>
+
+                  {/* פעולה — רק לשורות שאינן עודכן */}
                   <div>
-                    <button
-                      onClick={() => router.push(
-                        withClient(`/upload?fundId=${encodeURIComponent(row.id)}&fundName=${encodeURIComponent(row.name)}`, clientKey)
-                      )}
-                      style={{
-                        padding: "5px 13px", borderRadius: 6, border: "none", cursor: "pointer",
-                        backgroundColor: brand.primaryColor, color: "#fff",
-                        fontSize: 11, fontWeight: 600, transition: "opacity 0.15s",
-                        whiteSpace: "nowrap",
-                      }}
-                      onMouseOver={(e) => (e.currentTarget.style.opacity = "0.78")}
-                      onMouseOut={(e) => (e.currentTarget.style.opacity = "1")}
-                    >
-                      העלה דוח
-                    </button>
+                    {row.status !== "updated" && (
+                      <button
+                        onClick={() => router.push(
+                          withClient(`/upload?fundId=${encodeURIComponent(row.id)}&fundName=${encodeURIComponent(row.name)}`, clientKey)
+                        )}
+                        style={{
+                          padding: "5px 13px", borderRadius: 6, border: "none", cursor: "pointer",
+                          backgroundColor: brand.primaryColor, color: "#fff",
+                          fontSize: 11, fontWeight: 600, transition: "opacity 0.15s",
+                          whiteSpace: "nowrap",
+                        }}
+                        onMouseOver={(e) => (e.currentTarget.style.opacity = "0.78")}
+                        onMouseOut={(e) => (e.currentTarget.style.opacity = "1")}
+                      >
+                        העלה דוח
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -353,7 +409,8 @@ function FundStatusContent() {
             חודש עדכון צפוי: <strong>{fmtKey(expected)}</strong> &nbsp;·&nbsp;
             ✅ עודכן לחודש הנוכחי &nbsp;·&nbsp;
             ⚠️ חסר חודש אחד &nbsp;·&nbsp;
-            ❌ חסר 2+ חודשים או ללא נתונים
+            ❌ חסר 2+ חודשים או ללא נתונים &nbsp;·&nbsp;
+            ⏳ דיליי — מדווח באיחור
           </div>
         </div>
       </div>
