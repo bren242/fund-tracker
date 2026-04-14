@@ -1721,7 +1721,8 @@ export async function POST(req: NextRequest) {
       }
 
       const apiKey = process.env.ANTHROPIC_API_KEY;
-      if (!apiKey) {
+      const cleanKey = apiKey?.trim().replace(/[^\x20-\x7E]/g, '');
+      if (!cleanKey) {
         return NextResponse.json({
           error: "ANTHROPIC_API_KEY not configured. Add it in Vercel Dashboard → Settings → Environment Variables.",
         }, { status: 500 });
@@ -1748,7 +1749,7 @@ export async function POST(req: NextRequest) {
 
       const systemPrompt = buildSystemPrompt(existingFunds);
 
-      const claudeResult = await callClaude(apiKey, systemPrompt, text);
+      const claudeResult = await callClaude(cleanKey, systemPrompt, text);
       if (!claudeResult.success) {
         return NextResponse.json({ error: claudeResult.error }, { status: 502 });
       }
@@ -2702,7 +2703,8 @@ export async function POST(req: NextRequest) {
       }
 
       const apiKey = process.env.ANTHROPIC_API_KEY;
-      if (!apiKey) {
+      const cleanKey = apiKey?.trim().replace(/[^\x20-\x7E]/g, '');
+      if (!cleanKey) {
         return NextResponse.json({
           error: "ANTHROPIC_API_KEY not configured.",
         }, { status: 500 });
@@ -2754,7 +2756,7 @@ export async function POST(req: NextRequest) {
 
       const systemPrompt = buildSystemPrompt(existingFunds);
 
-      const claudeResult = await callClaudeVision(apiKey, systemPrompt, base64Data, mimeType);
+      const claudeResult = await callClaudeVision(cleanKey, systemPrompt, base64Data, mimeType);
       if (!claudeResult.success) {
         return NextResponse.json({
           error: claudeResult.error,
@@ -2783,7 +2785,7 @@ export async function POST(req: NextRequest) {
       // Two-Pass: Raw extraction → deterministic mapping
       try {
         const rawPrompt = buildRawExtractionPrompt();
-        const rawResult = await callClaudeVision(apiKey, rawPrompt, base64Data, mimeType);
+        const rawResult = await callClaudeVision(cleanKey, rawPrompt, base64Data, mimeType);
         if (rawResult.success) {
           totalInputTokens += rawResult.usage.input_tokens;
           const rawContent = rawResult.content;
@@ -2930,7 +2932,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (err) {
-    console.error("POST /api/parse error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error('PARSE ERROR:', err);
+    return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }
