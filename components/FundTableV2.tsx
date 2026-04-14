@@ -112,10 +112,12 @@ function getClassBadge(cls: string): { label: string; bg: string; color: string 
 function SegmentedControl({ value, onChange }: { value: TimeRange; onChange: (v: TimeRange) => void }) {
   return (
     <div style={{
-      display: "inline-flex", borderRadius: 8,
-      border: "1px solid var(--border-table)", overflow: "hidden",
+      display: "inline-flex",
+      background: "#e8e8ed",
+      borderRadius: 10,
+      padding: 3,
     }}>
-      {TIME_RANGE_OPTIONS.map((o, i) => {
+      {TIME_RANGE_OPTIONS.map((o) => {
         const active = value === o.key;
         return (
           <button
@@ -123,12 +125,13 @@ function SegmentedControl({ value, onChange }: { value: TimeRange; onChange: (v:
             onClick={() => onChange(o.key)}
             style={{
               padding: "6px 13px", fontSize: 12,
-              fontWeight: active ? 700 : 400,
+              fontWeight: active ? 600 : 400,
               border: "none",
-              borderRight: i > 0 ? "1px solid var(--border-table)" : "none",
+              borderRadius: active ? 8 : 0,
               cursor: "pointer",
-              backgroundColor: active ? "var(--bg-section)" : "var(--bg-surface)",
-              color: active ? "#fff" : "var(--text-secondary)",
+              backgroundColor: active ? "#ffffff" : "transparent",
+              boxShadow: active ? "0 1px 3px rgba(0,0,0,0.12)" : "none",
+              color: active ? "var(--text-primary)" : "#666",
               transition: "all 0.12s",
               whiteSpace: "nowrap",
             }}
@@ -146,7 +149,7 @@ function CategoryPills({ sections, active, onSelect }: {
   sections: string[]; active: string; onSelect: (v: string) => void;
 }) {
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+    <div style={{ display: "inline-flex", flexWrap: "wrap", gap: 2, background: "#e8e8ed", borderRadius: 10, padding: 3, alignSelf: "flex-start" }}>
       {["הכל", ...sections].map(s => {
         const isActive = active === s;
         return (
@@ -154,13 +157,15 @@ function CategoryPills({ sections, active, onSelect }: {
             key={s}
             onClick={() => onSelect(s)}
             style={{
-              padding: "4px 12px", borderRadius: 20, fontSize: 12,
+              padding: "5px 14px", borderRadius: 8, fontSize: 13,
               fontWeight: isActive ? 600 : 400, cursor: "pointer",
-              border: `1px solid ${isActive ? "var(--bg-section)" : "var(--border-table)"}`,
-              backgroundColor: isActive ? "var(--bg-section)" : "var(--bg-surface)",
-              color: isActive ? "#fff" : "var(--text-secondary)",
-              transition: "all 0.12s",
+              border: "none",
+              backgroundColor: isActive ? "#1B3A2F" : "transparent",
+              color: isActive ? "#ffffff" : "#444",
+              transition: "background 0.12s",
             }}
+            onMouseEnter={(e) => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(0,0,0,0.06)"; }}
+            onMouseLeave={(e) => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}
           >
             {s}
           </button>
@@ -280,14 +285,13 @@ function FundRowV2({
   isFirst?: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
-  const bg = even ? "var(--bg-surface)" : "var(--bg-row-alt)";
+  const bg = even ? "#ffffff" : "#fafafa";
   const classBadge = getClassBadge(fund.classification || "");
   const shColor = sharpeColor(fund.sharpe);
 
   const cell: React.CSSProperties = {
-    padding: isFirst ? "8px 10px" : "8px 10px",
-    paddingTop: isFirst ? "8px" : "8px",
-    borderBottom: isOpen ? "none" : "1px solid var(--border-table)",
+    padding: "8px 10px",
+    borderBottom: "none",
     fontVariantNumeric: "tabular-nums",
     textAlign: "center",
     whiteSpace: "nowrap",
@@ -304,12 +308,13 @@ function FundRowV2({
         cursor: "pointer",
         borderInlineStart: comparisonEnabled && isSelected
           ? `2px solid ${accentColor || "var(--accent)"}` : "none",
-        transform: hovered ? "translateX(-2px)" : "none",
-        transition: "transform 0.12s ease",
+        transform: hovered ? "translateY(-1px)" : "none",
+        boxShadow: hovered ? "0 2px 12px rgba(0,0,0,0.06)" : "none",
+        transition: "transform 0.15s ease, box-shadow 0.15s ease, background 0.12s",
       }}
     >
       {/* Name */}
-      <td style={{ ...cell, textAlign: "right", fontSize: 12, fontWeight: 600, paddingRight: 12, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis" }}>
+      <td style={{ ...cell, textAlign: "right", paddingRight: 12, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           {comparisonEnabled && (
             <input
@@ -328,7 +333,12 @@ function FundRowV2({
               title={selectionDisabled && !isSelected ? "מקסימום 4 קרנות להשוואה" : "בחר להשוואה"}
             />
           )}
-          <span style={{ flex: 1 }}>{fund.name}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 600, color: "#1D1D1F", fontSize: 16, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fund.name}</div>
+            {fund.classification && (
+              <div style={{ color: "#86868B", fontSize: 12, fontWeight: 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fund.classification}</div>
+            )}
+          </div>
           {fund.currency && (
             <span style={{
               fontSize: 9, fontWeight: 700, flexShrink: 0, padding: "1px 5px", borderRadius: 3,
@@ -351,23 +361,23 @@ function FundRowV2({
       </td>
 
       {/* Last report date */}
-      <td style={{ ...cell, fontSize: 10, color: "var(--text-muted)" }}>
+      <td style={{ ...cell, fontSize: 13, color: "#AEAEB2" }}>
         {formatReportDate(fund.lastReportDate)}
       </td>
 
       {/* Monthly return */}
-      <td style={{ ...cell, color: returnColorInline(fund.monthlyReturn) }}>{pct(fund.monthlyReturn)}</td>
+      <td style={{ ...cell, fontSize: 15, fontWeight: 600, color: returnColorInline(fund.monthlyReturn) }}>{pct(fund.monthlyReturn)}</td>
 
       {/* Period return (computed from monthlyReturns) */}
-      <td style={{ ...cell, fontWeight: 600, color: returnColorInline(periodReturn) }}>
+      <td style={{ ...cell, fontSize: 22, fontWeight: 700, letterSpacing: "-0.5px", color: returnColorInline(periodReturn) }}>
         {pct(periodReturn)}
       </td>
 
       {/* Avg annual */}
-      <td style={{ ...cell, color: returnColorInline(fund.avgAnnualReturn) }}>{pct(fund.avgAnnualReturn)}</td>
+      <td style={{ ...cell, fontSize: 15, fontWeight: 500, color: returnColorInline(fund.avgAnnualReturn) }}>{pct(fund.avgAnnualReturn)}</td>
 
       {/* Sharpe with dot */}
-      <td style={cell}>
+      <td style={{ ...cell, fontSize: 14, fontWeight: 400, color: "#555" }}>
         {fund.sharpe != null ? (
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
             <span style={{
@@ -485,7 +495,7 @@ export default function FundTableV2({
   };
 
   return (
-    <div style={{ direction: "rtl", background: "#f5f5f7" }}>
+    <div style={{ direction: "rtl", background: "#f5f5f7", width: "100%" }}>
 
       {/* ── Controls ── */}
       <div style={{
