@@ -265,7 +265,7 @@ function AccordionPanel({ fund }: { fund: Fund }) {
 // ── Fund Row ───────────────────────────────────────────────────────────────
 function FundRowV2({
   fund, even, comparisonEnabled, isSelected, onToggle, selectionDisabled,
-  accentColor, periodReturn, isOpen, onToggleAccordion,
+  accentColor, periodReturn, isOpen, onToggleAccordion, isFirst,
 }: {
   fund: Fund;
   even: boolean;
@@ -277,13 +277,16 @@ function FundRowV2({
   periodReturn: number | null;
   isOpen: boolean;
   onToggleAccordion: () => void;
+  isFirst?: boolean;
 }) {
+  const [hovered, setHovered] = useState(false);
   const bg = even ? "var(--bg-surface)" : "var(--bg-row-alt)";
   const classBadge = getClassBadge(fund.classification || "");
   const shColor = sharpeColor(fund.sharpe);
 
   const cell: React.CSSProperties = {
-    padding: "8px 10px",
+    padding: isFirst ? "8px 10px" : "8px 10px",
+    paddingTop: isFirst ? "8px" : "8px",
     borderBottom: isOpen ? "none" : "1px solid var(--border-table)",
     fontVariantNumeric: "tabular-nums",
     textAlign: "center",
@@ -294,11 +297,15 @@ function FundRowV2({
   return (
     <tr
       onClick={onToggleAccordion}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         backgroundColor: bg,
         cursor: "pointer",
         borderInlineStart: comparisonEnabled && isSelected
           ? `2px solid ${accentColor || "var(--accent)"}` : "none",
+        transform: hovered ? "translateX(-2px)" : "none",
+        transition: "transform 0.12s ease",
       }}
     >
       {/* Name */}
@@ -315,7 +322,8 @@ function FundRowV2({
               style={{
                 cursor: selectionDisabled && !isSelected ? "not-allowed" : "pointer",
                 width: 13, height: 13, flexShrink: 0,
-                opacity: selectionDisabled && !isSelected ? 0.35 : 1,
+                opacity: hovered ? (selectionDisabled && !isSelected ? 0.35 : 1) : 0,
+                transition: "opacity 0.12s",
               }}
               title={selectionDisabled && !isSelected ? "מקסימום 4 קרנות להשוואה" : "בחר להשוואה"}
             />
@@ -330,7 +338,7 @@ function FundRowV2({
           )}
           {classBadge && (
             <span style={{
-              fontSize: 9, fontWeight: 700, flexShrink: 0, padding: "1px 5px", borderRadius: 3,
+              fontSize: "9px", fontWeight: 700, flexShrink: 0, padding: "1px 5px", borderRadius: 3,
               color: classBadge.color, backgroundColor: classBadge.bg,
             }}>{classBadge.label}</span>
           )}
@@ -459,13 +467,13 @@ export default function FundTableV2({
 
   const thBase: React.CSSProperties = {
     backgroundColor: "transparent",
-    color: "var(--text-secondary)",
-    fontWeight: 600,
+    color: "#555555",
+    fontWeight: 500,
     textAlign: "center",
     whiteSpace: "nowrap",
     borderBottom: "2px solid var(--border-table)",
-    fontSize: "10px",
-    letterSpacing: "0.8px",
+    fontSize: "12px",
+    letterSpacing: "0.5px",
     textTransform: "uppercase",
     padding: "10px 10px",
   };
@@ -477,7 +485,7 @@ export default function FundTableV2({
   };
 
   return (
-    <div style={{ direction: "rtl" }}>
+    <div style={{ direction: "rtl", background: "#f5f5f7" }}>
 
       {/* ── Controls ── */}
       <div style={{
@@ -520,7 +528,7 @@ export default function FundTableV2({
           לא נמצאו קרנות.
         </div>
       ) : (
-        <div style={{ overflowX: "auto" }}>
+        <div style={{ overflowX: "auto", background: "#ffffff" }}>
           <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: "11px", lineHeight: 1.45 }}>
             <thead>
               <tr>
@@ -609,6 +617,7 @@ export default function FundTableV2({
                           periodReturn={periodReturn}
                           isOpen={isOpen}
                           onToggleAccordion={() => toggleAccordion(fund.id)}
+                          isFirst={fi === 0}
                         />
                       );
                       if (isOpen) {

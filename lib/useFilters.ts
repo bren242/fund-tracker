@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useEffect } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Category } from "@/lib/types";
 
@@ -93,6 +93,26 @@ export function useFilters(categories: Category[]) {
     },
     [searchParams, router, pathname],
   );
+
+  // Guard: if group/category in URL don't exist in options, clear them
+  useEffect(() => {
+    if (categories.length === 0) return; // data not loaded yet
+    const params = new URLSearchParams(searchParams.toString());
+    let changed = false;
+    if (group !== ALL && !options.groups.includes(group)) {
+      params.delete("group");
+      params.delete("category");
+      params.delete("cls");
+      changed = true;
+    } else if (category !== ALL && !options.categories.includes(category)) {
+      params.delete("category");
+      params.delete("cls");
+      changed = true;
+    }
+    if (changed) {
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    }
+  }, [categories.length, group, category, options.groups, options.categories, searchParams, router, pathname, ALL]);
 
   // Clear all filters
   const clearAll = useCallback(() => {
