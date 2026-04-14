@@ -145,8 +145,9 @@ function SegmentedControl({ value, onChange }: { value: TimeRange; onChange: (v:
 }
 
 // ── Category Pills ─────────────────────────────────────────────────────────
-function CategoryPills({ sections, active, onSelect }: {
+function CategoryPills({ sections, active, onSelect, onHover }: {
   sections: string[]; active: string; onSelect: (v: string) => void;
+  onHover?: (section: string | null) => void;
 }) {
   return (
     <div style={{ display: "inline-flex", flexWrap: "wrap", gap: 2, background: "#e8e8ed", borderRadius: 10, padding: 3, alignSelf: "flex-start" }}>
@@ -156,6 +157,11 @@ function CategoryPills({ sections, active, onSelect }: {
           <button
             key={s}
             onClick={() => onSelect(s)}
+            onMouseEnter={(e) => {
+              if (!isActive) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(0,0,0,0.06)";
+              onHover?.(s !== "הכל" ? s : null);
+            }}
+            onMouseLeave={(e) => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}
             style={{
               padding: "5px 14px", borderRadius: 8, fontSize: 13,
               fontWeight: isActive ? 600 : 400, cursor: "pointer",
@@ -164,8 +170,6 @@ function CategoryPills({ sections, active, onSelect }: {
               color: isActive ? "#ffffff" : "#444",
               transition: "background 0.12s",
             }}
-            onMouseEnter={(e) => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(0,0,0,0.06)"; }}
-            onMouseLeave={(e) => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}
           >
             {s}
           </button>
@@ -408,10 +412,12 @@ export default function FundTableV2({
   onToggleFund?: (id: string) => void;
   accentColor?: string;
 }) {
-  const [timeRange, setTimeRange]       = useState<TimeRange>("3y");
-  const [customFrom, setCustomFrom]     = useState("2022-01");
-  const [customTo, setCustomTo]         = useState(_toYM);
-  const [activeFilter, setActiveFilter] = useState("הכל");
+  const [timeRange, setTimeRange]             = useState<TimeRange>("3y");
+  const [customFrom, setCustomFrom]           = useState("2022-01");
+  const [customTo, setCustomTo]               = useState(_toYM);
+  const [activeFilter, setActiveFilter]       = useState("הכל");
+  const [activeClassification, setActiveClassification] = useState<string | null>(null);
+  const [hoveredSection, setHoveredSection]   = useState<string | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [openAccordions, setOpenAccordions]   = useState<Set<string>>(new Set());
 
@@ -434,11 +440,34 @@ export default function FundTableV2({
     return out;
   }, [categories]);
 
+  // Sub bar classifications (from hovered section)
+  const subBarClassifications = useMemo(() => {
+    if (!hoveredSection) return [];
+    const cats = categories.filter(c => c.parentSection === hoveredSection || c.name === hoveredSection);
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const cat of cats) {
+      for (const fund of cat.funds) {
+        if (fund.classification && !seen.has(fund.classification)) {
+          seen.add(fund.classification);
+          out.push(fund.classification);
+        }
+      }
+    }
+    return out;
+  }, [categories, hoveredSection]);
+
   // Filtered categories
   const filteredCats = useMemo(() => {
-    if (activeFilter === "הכל") return categories;
-    return categories.filter(c => c.parentSection === activeFilter || c.name === activeFilter);
-  }, [categories, activeFilter]);
+    let cats = activeFilter === "הכל"
+      ? categories
+      : categories.filter(c => c.parentSection === activeFilter || c.name === activeFilter);
+    if (activeClassification) {
+      cats = cats.map(c => ({ ...c, funds: c.funds.filter(f => f.classification === activeClassification) }))
+                 .filter(c => c.funds.length > 0);
+    }
+    return cats;
+  }, [categories, activeFilter, activeClassification]);
 
   // Grouped by section
   const { sectionMap, sectionOrder } = useMemo(() => {
@@ -497,39 +526,71 @@ export default function FundTableV2({
   return (
     <div style={{ direction: "rtl", background: "#f5f5f7", width: "100%" }}>
 
-      {/* ── Controls ── */}
-      <div style={{
-        padding: "12px 16px",
-        borderBottom: "1px solid var(--border-table)",
-        backgroundColor: "var(--bg-surface)",
-        display: "flex", flexDirection: "column", gap: 10,
-      }}>
-        {/* Time range */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>טווח זמן:</span>
-          <SegmentedControl value={timeRange} onChange={(v) => { setTimeRange(v); resetAccordions(); }} />
+      {/* ── Controls + Sub bar wrapper ── */}
+      <div onMouseLeave={() => setHoveredSection(null)}>
+        <div style={{
+          padding: "12px 16px",
+          borderBottom: subBarClassifications.length > 0 ? "none" : "1px solid var(--border-table)",
+          backgroundColor: "var(--bg-surface)",
+          display: "flex", flexDirection: "column", gap: 10,
+        }}>
+          {/* Time range */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>טווח זמן:</span>
+            <SegmentedControl value={timeRange} onChange={(v) => { setTimeRange(v); resetAccordions(); }} />
+          </div>
+
+          {/* Custom YYYY-MM pickers */}
+          {timeRange === "custom" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>מ-</span>
+              <select value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={selectStyle}>
+                {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>עד</span>
+              <select value={customTo} onChange={e => setCustomTo(e.target.value)} style={selectStyle}>
+                {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Category pills */}
+          <CategoryPills
+            sections={sectionLabels}
+            active={activeFilter}
+            onSelect={(v) => { setActiveFilter(v); setActiveClassification(null); resetAccordions(); }}
+            onHover={setHoveredSection}
+          />
         </div>
 
-        {/* Custom YYYY-MM pickers */}
-        {timeRange === "custom" && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>מ-</span>
-            <select value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={selectStyle}>
-              {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>עד</span>
-            <select value={customTo} onChange={e => setCustomTo(e.target.value)} style={selectStyle}>
-              {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+        {/* Sub bar — classifications */}
+        {subBarClassifications.length > 0 && (
+          <div style={{
+            background: "#f5f5f7", padding: "6px 16px",
+            borderBottom: "1px solid var(--border-table)",
+            display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center",
+          }}>
+            {subBarClassifications.map(cls => {
+              const isActive = activeClassification === cls;
+              return (
+                <button
+                  key={cls}
+                  onClick={() => setActiveClassification(isActive ? null : cls)}
+                  style={{
+                    fontSize: 12, padding: "3px 10px", borderRadius: 20,
+                    background: "none", border: "none", cursor: "pointer",
+                    color: isActive ? "#1B3A2F" : "#555",
+                    fontWeight: isActive ? 600 : 400,
+                    borderBottom: isActive ? "2px solid #B8975A" : "2px solid transparent",
+                    transition: "color 0.12s, border-color 0.12s",
+                  }}
+                >
+                  {cls}
+                </button>
+              );
+            })}
           </div>
         )}
-
-        {/* Category pills */}
-        <CategoryPills
-          sections={sectionLabels}
-          active={activeFilter}
-          onSelect={(v) => { setActiveFilter(v); resetAccordions(); }}
-        />
       </div>
 
       {/* ── Table ── */}
