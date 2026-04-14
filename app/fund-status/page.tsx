@@ -6,8 +6,6 @@ import { useClientKey, withClient } from "@/lib/useClientKey";
 import { useBrand } from "@/lib/useBrand";
 import { FundsData, Fund } from "@/lib/types";
 import ClientGate from "@/components/ClientGate";
-import BrandLogo from "@/components/BrandLogo";
-import { ThemeToggle } from "@/components/ThemeProvider";
 import { brandCssVars } from "@/lib/colors";
 
 /* ── status helpers ──────────────────────────────────────── */
@@ -150,12 +148,6 @@ function FundStatusContent() {
     return result;
   }, [rows, filter, search]);
 
-  const navLink: React.CSSProperties = {
-    fontSize: 12, color: "var(--text-secondary)", textDecoration: "none",
-    padding: "5px 10px", borderRadius: 6, border: "1px solid var(--border)",
-    transition: "border-color 0.15s", cursor: "pointer",
-  };
-
   const FILTERS: { id: "all" | StatusKey; label: string; count: number }[] = [
     { id: "all",     label: "הכל",         count: counts.total },
     { id: "updated", label: "עודכנו ✅",   count: counts.updated },
@@ -174,28 +166,6 @@ function FundStatusContent() {
   return (
     <ClientGate clientKey={clientKey}>
       <div style={{ minHeight: "100vh", ...brandCssVars(brand.primaryColor, brand.accentColor) } as React.CSSProperties}>
-
-        {/* Brand accent bar */}
-        <div style={{ height: 4, backgroundColor: brand.primaryColor }} />
-
-        {/* Top nav */}
-        <div style={{ backgroundColor: "var(--bg-surface)", borderBottom: "1px solid var(--border)" }}>
-          <div style={{ maxWidth: 1500, margin: "0 auto", padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <BrandLogo brand={brand} height={28} variant="light" />
-              <span style={{ fontSize: 14, color: "var(--text-primary)", fontWeight: 600 }}>{brand.mainTitle}</span>
-              <span style={{ fontSize: 13, color: "var(--text-muted)" }}>/ סטטוס קרנות</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <a href={withClient("/", clientKey)} style={navLink}>דוח</a>
-              <a href={withClient("/analysis", clientKey)} style={navLink}>ניתוח</a>
-              <a href={withClient("/charts", clientKey)} style={navLink}>גרפים</a>
-              <span style={{ ...navLink, backgroundColor: brand.primaryColor, color: "#fff", fontWeight: 700, border: "none" }}>סטטוס</span>
-              <a href={withClient("/admin", clientKey)} style={navLink}>ניהול</a>
-              <ThemeToggle />
-            </div>
-          </div>
-        </div>
 
         {/* Main content */}
         <div style={{ maxWidth: 1500, margin: "0 auto", padding: "28px 24px 40px" }}>
