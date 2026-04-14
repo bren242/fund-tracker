@@ -1042,6 +1042,9 @@ STEP 3 — READ HEADERS:
 - Common header types: month names (ינו׳/jan), שנתי/annual/yearly, ITD/מהקמה, **.
 
 STEP 4 — READ CELLS:
+CRITICAL: Empty cells must be preserved as empty. Never shift values to fill empty positions.
+If column 1 (January) is empty, output null for January. Do not move February's value to January.
+
 CRITICAL — partial rows (ANY year, including historical years when fund started mid-year):
 - A partial row has values only in some month columns.
 - Each cell position MUST match its header position EXACTLY.
