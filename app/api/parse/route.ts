@@ -868,7 +868,7 @@ const MONTH_ALIASES: Record<string, number> = {
   '09': 9, '10': 10, '11': 11, '12': 12,
 };
 
-const YTD_ALIASES = ['ytd','שנתי','שנתית','מצטבר','מתחילת השנה','מה״ש','annual','סה"כ שנתי','סה"כ'];
+const YTD_ALIASES = ['ytd','שנתי','שנתית','מצטבר','מתחילת השנה','מה״ש','annual','סה"כ שנתי','סהכ שנתי','סה"כ','total annual'];
 // Note: 'dec','december','דצמבר',"דצמ'" removed — December is a month, not YTD
 const ITD_ALIASES = ['itd','מהקמה','מאז הקמה','since inception','inception','מהקמה:'];
 const USD_ALIASES = ['$','($)','דולר','דולרי','דולרית','usd','dollar'];
