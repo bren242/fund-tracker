@@ -1,3 +1,5 @@
+export const maxDuration = 300;
+
 import { NextRequest, NextResponse } from "next/server";
 import { getClientKeyFromRequest } from "@/lib/clientKey";
 import { storageRead, storageWrite, storageAppend } from "@/lib/storage";
