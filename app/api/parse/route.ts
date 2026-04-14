@@ -1099,6 +1099,7 @@ STEP 6 — NEGATIVE NUMBERS:
 - "-5.3%" → "-5.3"
 - "(5.3%)" → "-5.3" (parentheses = negative)
 - Empty cell or dash → null
+- If a cell value contains asterisk (*) or superscript (e/E), extract only the numeric value. Example: *3.01% → 3.01%, 2.5%e → 2.5%
 
 STEP 7 — COLUMN INDEX ROWS:
 Some tables have a numeric row above the headers (e.g. "1 2 3 4 5 6 7 8 9 10 11 12").
