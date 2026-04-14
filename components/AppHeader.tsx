@@ -6,6 +6,7 @@ import { useState } from "react";
 interface AppHeaderProps {
   fundCount?: number;
   client?: string;
+  tenant?: string;
 }
 
 type TabKey = "funds" | "analysis" | "tools" | "admin";
@@ -54,10 +55,13 @@ function getActiveTab(pathname: string): TabKey {
   return "funds";
 }
 
-export default function AppHeader({ fundCount = 84, client }: AppHeaderProps) {
+export default function AppHeader({ fundCount = 84, client, tenant = "green" }: AppHeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [hoveredTab, setHoveredTab] = useState<TabKey | null>(null);
+
+  // /nox routes use legacy interface — no AppHeader
+  if (pathname.startsWith("/nox")) return null;
 
   const activeTab = getActiveTab(pathname);
   const visibleSubBar = hoveredTab ?? (SUB_TABS[activeTab].length > 0 ? activeTab : null);
@@ -93,11 +97,15 @@ export default function AppHeader({ fundCount = 84, client }: AppHeaderProps) {
           direction: "rtl",
         }}
       >
-        <img
-          src="/branding/green/green-logo-transparent.png"
-          alt="GREEN"
-          style={{ height: "38px", width: "auto", objectFit: "contain", display: "block" }}
-        />
+        {tenant === "nox" ? (
+          <span style={{ color: "#ffffff", fontSize: 20, fontWeight: 700, letterSpacing: "2px" }}>NOX</span>
+        ) : (
+          <img
+            src="/branding/green/green-logo-transparent.png"
+            alt="GREEN"
+            style={{ height: "38px", width: "auto", objectFit: "contain", display: "block" }}
+          />
+        )}
         <span style={{ fontSize: 12, color: "#999" }}>
           {fundCount} קרנות פעילות
         </span>
