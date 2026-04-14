@@ -27,6 +27,11 @@ yarn-error.log*
 
 # dev logs
 dev-err.log
+
+# local test/patch scripts
+test-kepler.mjs
+test-kepler-full.mjs
+patch-kepler.mjs
 dev-out.log
 
 # vercel
