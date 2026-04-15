@@ -99,7 +99,7 @@ export default function NoxChangelogModal({ clientKey }: { clientKey: string }) 
               marginBottom: 18,
             }}
           >
-            נשמח לפידבק — [שם/מייל איש קשר]
+            נשמח לפידבק — <a href="mailto:brennere@gmail.com" style={{ color: NOX_PRIMARY, textDecoration: "none", fontWeight: 600 }}>brennere@gmail.com</a>
           </div>
 
           <button
