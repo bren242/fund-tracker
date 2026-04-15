@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useBrand } from "@/lib/useBrand";
 import BrandLogo from "@/components/BrandLogo";
 import PasswordInput from "@/components/PasswordInput";
+import NoxChangelogModal from "@/components/NoxChangelogModal";
 
 /**
  * Password gate for public pages (/ and /charts).
@@ -49,7 +50,12 @@ export default function ClientGate({ clientKey, children }: { clientKey: string;
 
   // Authenticated — show content
   if (authed) {
-    return <>{children}</>;
+    return (
+      <>
+        {children}
+        <NoxChangelogModal clientKey={clientKey} />
+      </>
+    );
   }
 
   // Login screen
