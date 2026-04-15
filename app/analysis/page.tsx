@@ -101,6 +101,22 @@ function numColor(v: number | null): string {
   return "#6b7280";
 }
 
+function fmtKey(k: string): string {
+  const [y, m] = k.split("-");
+  return `${m}/${y}`;
+}
+
+function getLatestReportMonth(funds: Fund[]): string | null {
+  let latest: string | null = null;
+  for (const f of funds) {
+    if (!f.monthlyReturns) continue;
+    const keys = Object.keys(f.monthlyReturns).filter(k => /^\d{4}-\d{2}$/.test(k)).sort();
+    const last = keys.at(-1);
+    if (last && (!latest || last > latest)) latest = last;
+  }
+  return latest;
+}
+
 function fmtStartDate(s: string | null | undefined): string {
   if (!s) return "—";
   const d = new Date(s);
@@ -292,8 +308,15 @@ function AnalysisContent() {
         result.push(f);
       }
     }
+    const latestMonth = getLatestReportMonth(result);
+    if (sortKey === "MTD" && latestMonth) {
+      return result.filter(f => {
+        const keys = Object.keys(f.monthlyReturns ?? {}).filter(k => /^\d{4}-\d{2}$/.test(k)).sort();
+        return keys.at(-1) === latestMonth;
+      });
+    }
     return result;
-  }, [data, group, category, currencyFilter]);
+  }, [data, group, category, currencyFilter, sortKey]);
 
   const sortedFunds = useMemo(() => {
     return [...filteredFunds].sort((a, b) => {
@@ -394,7 +417,13 @@ function AnalysisContent() {
 
               {/* Header */}
               <div style={{ display: "grid", gridTemplateColumns: COL, padding: "11px 24px", background: "#fafbfc", borderBottom: "0.5px solid #eaecee", direction: "rtl" }}>
-                {["#", "קרן", SORT_OPTIONS.find(s => s.key === sortKey)?.label ?? sortKey, "שארפ", "עקביות", "הוקמה"].map((h, i) => (
+                {(() => {
+                  const latestMonth = getLatestReportMonth(filteredFunds);
+                  const sortLabel = sortKey === "MTD" && latestMonth
+                    ? fmtKey(latestMonth)
+                    : SORT_OPTIONS.find(s => s.key === sortKey)?.label ?? sortKey;
+                  return ["#", "קרן", sortLabel, "שארפ", "עקביות", "הוקמה"];
+                })().map((h, i) => (
                   <span key={i} style={{ fontSize: 10, color: "#9ca3af", fontWeight: 600, letterSpacing: "0.8px", textAlign: i >= 2 ? "center" : "right" }}>{h}</span>
                 ))}
               </div>
