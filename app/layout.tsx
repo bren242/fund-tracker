@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import AppHeader from "@/components/AppHeader";
 import "./globals.css";
@@ -14,7 +15,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="he" dir="rtl" suppressHydrationWarning>
       <body className="antialiased">
         <ThemeProvider>
-          <AppHeader fundCount={84} />
+          <Suspense fallback={null}>
+            <AppHeader fundCount={84} />
+          </Suspense>
           {children}
         </ThemeProvider>
       </body>

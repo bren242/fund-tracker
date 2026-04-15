@@ -2,11 +2,12 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import { useClientKey } from "@/lib/useClientKey";
+import { useBrand } from "@/lib/useBrand";
 
 interface AppHeaderProps {
   fundCount?: number;
   client?: string;
-  tenant?: string;
 }
 
 type TabKey = "funds" | "analysis" | "tools" | "admin";
@@ -55,13 +56,12 @@ function getActiveTab(pathname: string): TabKey {
   return "funds";
 }
 
-export default function AppHeader({ fundCount = 84, client, tenant = "green" }: AppHeaderProps) {
+export default function AppHeader({ fundCount = 84, client }: AppHeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [hoveredTab, setHoveredTab] = useState<TabKey | null>(null);
-
-  // /nox routes use legacy interface — no AppHeader
-  if (pathname.startsWith("/nox")) return null;
+  const clientKey = useClientKey();
+  const brand = useBrand(clientKey);
 
   const activeTab = getActiveTab(pathname);
   const visibleSubBar = hoveredTab ?? (SUB_TABS[activeTab].length > 0 ? activeTab : null);
@@ -97,14 +97,22 @@ export default function AppHeader({ fundCount = 84, client, tenant = "green" }: 
           direction: "rtl",
         }}
       >
-        {tenant === "nox" ? (
-          <span style={{ color: "#ffffff", fontSize: 20, fontWeight: 700, letterSpacing: "2px" }}>NOX</span>
-        ) : (
+        {brand.logoLight ? (
           <img
-            src="/branding/green/green-logo-transparent.png"
-            alt="GREEN"
+            src={brand.logoLight}
+            alt={brand.name || clientKey}
             style={{ height: "38px", width: "auto", objectFit: "contain", display: "block" }}
           />
+        ) : brand.logo ? (
+          <img
+            src={brand.logo}
+            alt={brand.name || clientKey}
+            style={{ height: "38px", width: "auto", objectFit: "contain", display: "block" }}
+          />
+        ) : (
+          <span style={{ fontSize: 16, fontWeight: 700, color: "#1B3A2F", letterSpacing: "1px" }}>
+            {brand.name || clientKey.toUpperCase()}
+          </span>
         )}
         <span style={{ fontSize: 12, color: "#999" }}>
           {fundCount} קרנות פעילות
@@ -115,7 +123,7 @@ export default function AppHeader({ fundCount = 84, client, tenant = "green" }: 
       <div
         style={{
           height: 44,
-          background: "#1B3A2F",
+          background: brand.primaryColor || "#1B3A2F",
           display: "flex",
           alignItems: "center",
           padding: "0 24px",
@@ -142,7 +150,7 @@ export default function AppHeader({ fundCount = 84, client, tenant = "green" }: 
                 height: 44,
                 fontSize: 14,
                 color: isActive ? "#ffffff" : "rgba(255,255,255,0.65)",
-                borderBottom: isActive ? "2px solid #B8975A" : "2px solid transparent",
+                borderBottom: isActive ? `2px solid ${brand.accentColor || "#B8975A"}` : "2px solid transparent",
                 transition: "color 0.12s ease, border-color 0.12s ease",
                 fontFamily: "inherit",
                 whiteSpace: "nowrap",
@@ -165,7 +173,7 @@ export default function AppHeader({ fundCount = 84, client, tenant = "green" }: 
             padding: "0 24px",
             direction: "rtl",
             gap: 4,
-            borderBottom: "1px solid #B8975A",
+            borderBottom: `1px solid ${brand.accentColor || "#B8975A"}`,
           }}
         >
           {subTabs.map((sub) => {
@@ -181,9 +189,9 @@ export default function AppHeader({ fundCount = 84, client, tenant = "green" }: 
                   padding: "0 12px",
                   height: 36,
                   fontSize: 13,
-                  color: "#1B3A2F",
+                  color: brand.primaryColor || "#1B3A2F",
                   fontWeight: isActive ? 500 : 400,
-                  borderBottom: isActive ? "2px solid #B8975A" : "2px solid transparent",
+                  borderBottom: isActive ? `2px solid ${brand.accentColor || "#B8975A"}` : "2px solid transparent",
                   transition: "border 0.12s, color 0.12s",
                   fontFamily: "inherit",
                   whiteSpace: "nowrap",
@@ -191,12 +199,12 @@ export default function AppHeader({ fundCount = 84, client, tenant = "green" }: 
                 onMouseEnter={(e) => {
                   const el = e.currentTarget as HTMLButtonElement;
                   el.style.fontWeight = "500";
-                  if (!isActive) el.style.borderBottom = "2px solid #1B3A2F";
+                  if (!isActive) el.style.borderBottom = `2px solid ${brand.primaryColor || "#1B3A2F"}`;
                 }}
                 onMouseLeave={(e) => {
                   const el = e.currentTarget as HTMLButtonElement;
                   el.style.fontWeight = isActive ? "500" : "400";
-                  el.style.borderBottom = isActive ? "2px solid #B8975A" : "2px solid transparent";
+                  el.style.borderBottom = isActive ? `2px solid ${brand.accentColor || "#B8975A"}` : "2px solid transparent";
                 }}
               >
                 {sub.label}

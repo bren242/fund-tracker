@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Category, Fund } from "@/lib/types";
 import { pct, num, returnColorInline, formatReportDate } from "@/lib/format";
 
@@ -420,6 +420,17 @@ export default function FundTableV2({
   const [hoveredSection, setHoveredSection]   = useState<string | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [openAccordions, setOpenAccordions]   = useState<Set<string>>(new Set());
+
+  // Auto-detect: if no funds have monthlyReturns, default to YTD
+  const defaultSet = useRef(false);
+  useEffect(() => {
+    if (defaultSet.current || categories.length === 0) return;
+    const hasMonthly = categories.some(cat =>
+      cat.funds.some(f => f.monthlyReturns && Object.keys(f.monthlyReturns).length > 0)
+    );
+    if (!hasMonthly) setTimeRange("ytd");
+    defaultSet.current = true;
+  }, [categories]);
 
   const selectionDisabled = (selectedFundIds?.size ?? 0) >= 4;
 
