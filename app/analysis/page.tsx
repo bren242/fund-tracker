@@ -47,8 +47,8 @@ function calcPeriodReturn(fund: Fund, key: SortKey): number | null {
   }
 
   if (filtered.length === 0) return null;
-  if (key === "MTD") return filtered[0];
-  return filtered.reduce((acc, r) => acc * (1 + r / 100), 1) * 100 - 100;
+  if (key === "MTD") return filtered[0] * 100;
+  return (filtered.reduce((acc, r) => acc * (1 + r), 1) - 1) * 100;
 }
 
 function calcConsistency(fund: Fund): number | null {
@@ -78,8 +78,8 @@ function getSparklineData(fund: Fund, sortKey: SortKey): number[] {
     filtered = entries;
   }
   // cumulative
-  let cum = 100;
-  return filtered.map(([, v]) => { cum = cum * (1 + v / 100); return cum - 100; });
+  let cum = 1;
+  return filtered.map(([, v]) => { cum = cum * (1 + v); return (cum - 1) * 100; });
 }
 
 function fmt(v: number | null, dec = 1): string {
