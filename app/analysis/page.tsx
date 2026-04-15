@@ -409,7 +409,7 @@ function AnalysisContent() {
         </div>
 
         {/* TABLE */}
-        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "20px 28px 100px" }}>
+        <div style={{ maxWidth: 900, margin: "0 auto", padding: "20px 28px 100px" }}>
           {sortedFunds.length === 0 ? (
             <div style={{ padding: "80px 20px", textAlign: "center", color: "#9ca3af", fontSize: 14 }}>לא נמצאו קרנות</div>
           ) : (
