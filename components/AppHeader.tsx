@@ -7,7 +7,6 @@ import { useBrand } from "@/lib/useBrand";
 
 interface AppHeaderProps {
   fundCount?: number;
-  client?: string;
 }
 
 type TabKey = "funds" | "analysis" | "tools" | "admin";
@@ -56,7 +55,7 @@ function getActiveTab(pathname: string): TabKey {
   return "funds";
 }
 
-export default function AppHeader({ fundCount = 84, client }: AppHeaderProps) {
+export default function AppHeader({ fundCount = 84 }: AppHeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [hoveredTab, setHoveredTab] = useState<TabKey | null>(null);
@@ -67,7 +66,7 @@ export default function AppHeader({ fundCount = 84, client }: AppHeaderProps) {
   const visibleSubBar = hoveredTab ?? (SUB_TABS[activeTab].length > 0 ? activeTab : null);
   const subTabs = visibleSubBar ? SUB_TABS[visibleSubBar] : [];
 
-  const prefix = client ? `/${client}` : "";
+  const prefix = `/${clientKey}`;
 
   const navigate = (path: string) => {
     router.push(`${prefix}${path}`);
