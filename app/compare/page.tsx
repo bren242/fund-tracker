@@ -14,7 +14,8 @@ import CompareSummary from "@/components/CompareSummary"; // print only
 import CompareTable from "@/components/CompareTable";
 import { brandCssVars } from "@/lib/colors";
 
-const CompareCharts = dynamic(() => import("@/components/CompareCharts"), { ssr: false });
+const CompareCharts  = dynamic(() => import("@/components/CompareCharts"),  { ssr: false });
+const CompareYearBars = dynamic(() => import("@/components/CompareYearBars"), { ssr: false });
 
 // ── Palette ──────────────────────────────────────────────────────────────────
 const FUND_COLORS = ["#1B3A2F", "#B8975A", "#2563eb", "#9333ea"];
@@ -160,15 +161,15 @@ const YEAR_BTN_OPTIONS: { key: string; label: string }[] = [
 ];
 type YearBtnKey = typeof YEAR_BTN_OPTIONS[number]["key"];
 
-function YearButtons({ value, onChange, accentColor }: {
-  value: YearBtnKey; onChange: (v: YearBtnKey) => void; accentColor: string;
+function YearButtons({ values, onToggle, accentColor }: {
+  values: YearBtnKey[]; onToggle: (v: YearBtnKey) => void; accentColor: string;
 }) {
   return (
     <div style={{ display: "inline-flex", borderRadius: 8, border: "1px solid var(--border)", overflow: "hidden" }}>
       {YEAR_BTN_OPTIONS.map((o, i) => {
-        const active = value === o.key;
+        const active = values.includes(o.key);
         return (
-          <button key={o.key} onClick={() => onChange(o.key)} style={{
+          <button key={o.key} onClick={() => onToggle(o.key)} style={{
             padding: "6px 13px", fontSize: 12, fontWeight: active ? 700 : 400,
             border: "none",
             borderRight: i < YEAR_BTN_OPTIONS.length - 1 ? "1px solid var(--border)" : "none",
@@ -263,9 +264,25 @@ function CompareContent() {
   const [showPrint,     setShowPrint]     = useState(false);
 
   // Year mode: when no fund has monthlyReturns (e.g. NOX)
-  const [isYearMode, setIsYearMode]     = useState(false);
-  const [selectedYear, setSelectedYear] = useState<YearBtnKey>("2025");
+  const [isYearMode, setIsYearMode]             = useState(false);
+  const [selectedYearKeys, setSelectedYearKeys] = useState<YearBtnKey[]>(["2025"]);
   const modeDetected = useRef(false);
+
+  const toggleYear = (k: YearBtnKey) => {
+    setSelectedYearKeys((prev) => {
+      if (prev.includes(k)) {
+        if (prev.length === 1) return prev; // must keep at least one
+        return prev.filter((x) => x !== k);
+      }
+      return [...prev, k];
+    });
+  };
+
+  // Chronologically sorted (for chart legend + stable cards/table reference)
+  const sortedYearKeys = useMemo(() => {
+    const yearNum = (k: string) => (k === "ytd2026" ? 2026 : parseInt(k));
+    return [...selectedYearKeys].sort((a, b) => yearNum(a) - yearNum(b));
+  }, [selectedYearKeys]);
 
   const selectStyle: React.CSSProperties = {
     padding: "4px 8px", borderRadius: 5, fontSize: 11,
@@ -305,24 +322,19 @@ function CompareContent() {
     modeDetected.current = true;
   }, [funds]);
 
-  // Exact YYYY-MM range for chart — from 2020 to end of selected year in year mode
+  // Exact YYYY-MM range for chart (non-year-mode only — year mode uses its own bar chart)
   const chartRange = useMemo(() => {
-    if (isYearMode) {
-      if (selectedYear === "ytd2026") {
-        const now = new Date();
-        const curMonth = String(now.getMonth() + 1).padStart(2, "0");
-        return { from: "2020-01", to: `${now.getFullYear()}-${curMonth}` };
-      }
-      return { from: "2020-01", to: `${selectedYear}-12` };
-    }
     return rangeToDateRange(timeRange, committedFrom, committedTo);
-  }, [isYearMode, selectedYear, timeRange, committedFrom, committedTo]);
+  }, [timeRange, committedFrom, committedTo]);
 
-  // Year keys for cards/table — single selected year in year mode
+  // Year keys for cards/table — first selected year in year mode
   const selectedYears = useMemo(() => {
-    if (isYearMode) return [selectedYear === "ytd2026" ? "ytd2026" : `y${selectedYear}`];
+    if (isYearMode) {
+      const k = selectedYearKeys[0];
+      return [k === "ytd2026" ? "ytd2026" : `y${k}`];
+    }
     return dateRangeToYearKeys(chartRange.from, chartRange.to);
-  }, [isYearMode, selectedYear, chartRange]);
+  }, [isYearMode, selectedYearKeys, chartRange]);
 
   const selectedBenchmarks = useMemo(() =>
     selectedBmIds.map((id) => allBenchmarks.find((b) => b.id === id)).filter(Boolean) as Benchmark[],
@@ -403,7 +415,7 @@ function CompareContent() {
                   תשואות שנתיות לאורך זמן
                 </span>
                 {isYearMode ? (
-                  <YearButtons value={selectedYear} onChange={setSelectedYear} accentColor={brand.primaryColor} />
+                  <YearButtons values={selectedYearKeys} onToggle={toggleYear} accentColor={brand.primaryColor} />
                 ) : (
                   <SegmentedControl value={timeRange} onChange={(range) => {
                     if (range === "custom") {
@@ -449,14 +461,22 @@ function CompareContent() {
           {/* 3. Content — chart + cards + table, all same padding */}
           <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}>
 
-            {/* Chart — monthly data when available, annual fallback */}
-            <CompareCharts
-              funds={funds}
-              accentColor={brand.primaryColor}
-              from={chartRange.from}
-              to={chartRange.to}
-              benchmarks={selectedBenchmarks}
-            />
+            {/* Chart — bar chart in year mode, line chart otherwise */}
+            {isYearMode ? (
+              <CompareYearBars
+                funds={funds}
+                yearKeys={sortedYearKeys}
+                accentColor={brand.primaryColor}
+              />
+            ) : (
+              <CompareCharts
+                funds={funds}
+                accentColor={brand.primaryColor}
+                from={chartRange.from}
+                to={chartRange.to}
+                benchmarks={selectedBenchmarks}
+              />
+            )}
 
             {/* Fund cards */}
             <div style={{
