@@ -48,6 +48,10 @@ function calcPeriodReturn(fund: Fund, key: SortKey): number | null {
 
   if (filtered.length === 0) return null;
   if (key === "MTD") return filtered[0] * 100;
+  if (key !== "YTD") {
+    const months = key === "12M" ? 12 : key === "36M" ? 36 : 60;
+    if (filtered.length < months * 0.7) return null;
+  }
   return (filtered.reduce((acc, r) => acc * (1 + r), 1) - 1) * 100;
 }
 
@@ -258,7 +262,7 @@ function AnalysisContent() {
   const [category, setCategory] = useState(ALL);
   const [hoveredGroup, setHoveredGroup] = useState<string | null>(null);
   const [currencyFilter, setCurrencyFilter] = useState<"all" | "ILS" | "USD">("all");
-  const [sortKey, setSortKey] = useState<SortKey>("36M");
+  const [sortKey, setSortKey] = useState<SortKey>("YTD");
   const [showAll, setShowAll] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -405,7 +409,7 @@ function AnalysisContent() {
         </div>
 
         {/* TABLE */}
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "20px 28px 100px" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "20px 28px 100px" }}>
           {sortedFunds.length === 0 ? (
             <div style={{ padding: "80px 20px", textAlign: "center", color: "#9ca3af", fontSize: 14 }}>לא נמצאו קרנות</div>
           ) : (
