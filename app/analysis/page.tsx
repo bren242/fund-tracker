@@ -171,7 +171,7 @@ function FundRow({ fund, rank, sortKey, primary, isBottom }: {
     ? rank === 1 ? "#fffdf7" : rank === 2 ? "#fefefe" : "#fefcf9"
     : rank % 2 === 0 ? "#fafafa" : "#fff";
 
-  const COL = "44px 1fr 120px 72px 72px 100px";
+  const COL = "44px 1fr 130px 72px 72px";
 
   return (
     <div>
@@ -194,19 +194,17 @@ function FundRow({ fund, rank, sortKey, primary, isBottom }: {
           <div style={{ fontSize: isTop3 ? 14 : 13, fontWeight: isTop3 ? 700 : 600, color: "#1a2e26", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             {fund.name}
           </div>
-          <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>{fund.currency ?? ""}</div>
+          <div style={{ fontSize: 11, color: "#b0bac4", marginTop: 3 }}>
+            {fund.currency}{fund.startDate ? ` · הוקם ${fmtStartDate(fund.startDate)}` : ""}
+          </div>
         </div>
 
-        <div style={{ textAlign: "center", fontSize: isTop3 ? 18 : 14, fontWeight: 800, color: numColor(periodVal), fontVariantNumeric: "tabular-nums", letterSpacing: "-0.3px" }}>
+        <div style={{ textAlign: "center", fontSize: isTop3 ? 26 : 20, fontWeight: 800, color: numColor(periodVal), fontVariantNumeric: "tabular-nums", letterSpacing: "-0.3px" }}>
           {sortKey === "sharpe" ? fmtNum(periodVal) : fmt(periodVal)}
         </div>
 
         <div style={{ textAlign: "center", fontSize: 13, color: "#1a2e26", fontVariantNumeric: "tabular-nums" }}>{fmtNum(fund.sharpe)}</div>
         <div style={{ textAlign: "center", fontSize: 13, color: "#1a2e26", fontVariantNumeric: "tabular-nums" }}>{consistency !== null ? `${consistency}%` : "—"}</div>
-        <div style={{ textAlign: "center", fontSize: 11, color: "#9ca3af", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-          {fmtStartDate(fund.startDate)}
-          <span style={{ fontSize: 10, color: open ? primary : "#d1d5db", transition: "color 0.15s" }}>{open ? "▲" : "▼"}</span>
-        </div>
       </div>
 
       {/* Accordion */}
@@ -349,7 +347,7 @@ function AnalysisContent() {
   const middleRows = sortedFunds.slice(TOP_N, sortedFunds.length - BOTTOM_N);
   const bottomRows = sortedFunds.slice(-BOTTOM_N);
   const hiddenCount = middleRows.length;
-  const COL = "44px 1fr 120px 72px 72px 100px";
+  const COL = "44px 1fr 130px 72px 72px";
 
   return (
     <ClientGate clientKey={clientKey}>
@@ -420,9 +418,16 @@ function AnalysisContent() {
                   const sortLabel = sortKey === "MTD" && latestMonth
                     ? fmtKey(latestMonth)
                     : SORT_OPTIONS.find(s => s.key === sortKey)?.label ?? sortKey;
-                  return ["#", "קרן", sortLabel, "שארפ", "עקביות", "הוקמה"];
-                })().map((h, i) => (
-                  <span key={i} style={{ fontSize: 10, color: "#9ca3af", fontWeight: 600, letterSpacing: "0.8px", textAlign: i >= 2 ? "center" : "right" }}>{h}</span>
+                  const headers: { label: string; title?: string }[] = [
+                    { label: "#" },
+                    { label: "קרן" },
+                    { label: sortLabel, title: "תשואה מצטברת לתקופה הנבחרת" },
+                    { label: "שארפ",   title: "יחס שארפ: תשואה עודפת לעומת סיכון. ככל שגבוה יותר — טוב יותר" },
+                    { label: "עקביות", title: "אחוז החודשים שבהם הקרן סיימה בתשואה חיובית" },
+                  ];
+                  return headers;
+                })().map(({ label, title }, i) => (
+                  <span key={i} title={title} style={{ fontSize: 10, color: "#9ca3af", fontWeight: 600, letterSpacing: "0.8px", textAlign: i >= 2 ? "center" : "right", cursor: title ? "help" : "default" }}>{label}</span>
                 ))}
               </div>
 
