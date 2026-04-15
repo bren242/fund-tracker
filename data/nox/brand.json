@@ -4,6 +4,7 @@
   "logo": "",
   "logoLight": "/branding/nox/logoLight.png",
   "logoDark": "",
+  "favicon": "/branding/nox/favicon.svg",
   "primaryColor": "#1a365d",
   "secondaryColor": "#2d4a7a",
   "accentColor": "#c8a96b",

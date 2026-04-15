@@ -21,6 +21,7 @@ export interface BrandConfig {
   logo: string;
   logoLight: string;
   logoDark: string;
+  favicon?: string;
 
   primaryColor: string;
   secondaryColor: string;

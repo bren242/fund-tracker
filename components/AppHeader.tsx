@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useClientKey } from "@/lib/useClientKey";
 import { useBrand } from "@/lib/useBrand";
 import type { AppFeatures } from "@/config/brand";
@@ -69,6 +69,18 @@ export default function AppHeader({ fundCount = 84 }: AppHeaderProps) {
   const [hoveredTab, setHoveredTab] = useState<TabKey | null>(null);
   const clientKey = useClientKey();
   const brand = useBrand(clientKey);
+
+  // Dynamic favicon per tenant (uses brand.favicon if set, else default)
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    let link = document.querySelector('link[rel="icon"]') as HTMLLinkElement | null;
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "icon";
+      document.head.appendChild(link);
+    }
+    link.href = brand.favicon || "/favicon.svg";
+  }, [brand.favicon]);
 
   const activeTab = getActiveTab(pathname);
 

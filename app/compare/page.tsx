@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, Suspense } from "react";
+import { useEffect, useState, useMemo, Suspense, useRef } from "react";
 import dynamic from "next/dynamic";
 import { FundsData, Fund, Benchmark } from "@/lib/types";
 import { pct, num, formatDate } from "@/lib/format";
@@ -148,6 +148,35 @@ function SegmentedControl({ value, onChange, accentColor }: {
   );
 }
 
+// ── Year Buttons (year-mode — NOX) ───────────────────────────────────────────
+const YEAR_BTN_OPTIONS = ["2020", "2021", "2022", "2023", "2024", "2025"] as const;
+type YearBtnKey = typeof YEAR_BTN_OPTIONS[number];
+
+function YearButtons({ value, onChange, accentColor }: {
+  value: YearBtnKey; onChange: (v: YearBtnKey) => void; accentColor: string;
+}) {
+  return (
+    <div style={{ display: "inline-flex", borderRadius: 8, border: "1px solid var(--border)", overflow: "hidden" }}>
+      {YEAR_BTN_OPTIONS.map((y, i) => {
+        const active = value === y;
+        return (
+          <button key={y} onClick={() => onChange(y)} style={{
+            padding: "6px 13px", fontSize: 12, fontWeight: active ? 700 : 400,
+            border: "none",
+            borderRight: i < YEAR_BTN_OPTIONS.length - 1 ? "1px solid var(--border)" : "none",
+            cursor: "pointer",
+            backgroundColor: active ? accentColor : "var(--bg-surface)",
+            color: active ? "#fff" : "var(--text-secondary)",
+            transition: "all 0.12s", whiteSpace: "nowrap",
+          }}>
+            {y}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Fund Card ─────────────────────────────────────────────────────────────────
 function FundCompareCard({ fund, color, isWinner, selectedYears }: {
   fund: Fund; color: string; isWinner: boolean; selectedYears: string[];
@@ -225,17 +254,10 @@ function CompareContent() {
   const [committedTo,   setCommittedTo]   = useState(_toYM);
   const [showPrint,     setShowPrint]     = useState(false);
 
-  // Exact YYYY-MM range for chart (monthly data)
-  const chartRange = useMemo(
-    () => rangeToDateRange(timeRange, committedFrom, committedTo),
-    [timeRange, committedFrom, committedTo],
-  );
-
-  // Annual year keys derived from chart range — for CompareTable row filtering
-  const selectedYears = useMemo(
-    () => dateRangeToYearKeys(chartRange.from, chartRange.to),
-    [chartRange],
-  );
+  // Year mode: when no fund has monthlyReturns (e.g. NOX)
+  const [isYearMode, setIsYearMode]     = useState(false);
+  const [selectedYear, setSelectedYear] = useState<YearBtnKey>("2025");
+  const modeDetected = useRef(false);
 
   const selectStyle: React.CSSProperties = {
     padding: "4px 8px", borderRadius: 5, fontSize: 11,
@@ -266,6 +288,26 @@ function CompareContent() {
         if (fundIds.includes(f.id)) all.push(f);
     return fundIds.map((id) => all.find((f) => f.id === id)).filter(Boolean) as Fund[];
   }, [data, fundIds]);
+
+  // Detect year-mode once funds arrive (no monthly data → NOX)
+  useEffect(() => {
+    if (modeDetected.current || funds.length === 0) return;
+    const hasMonthly = funds.some(f => f.monthlyReturns && Object.keys(f.monthlyReturns).length > 0);
+    if (!hasMonthly) setIsYearMode(true);
+    modeDetected.current = true;
+  }, [funds]);
+
+  // Exact YYYY-MM range for chart — fixed 2020-2025 in year mode
+  const chartRange = useMemo(() => {
+    if (isYearMode) return { from: "2020-01", to: "2025-12" };
+    return rangeToDateRange(timeRange, committedFrom, committedTo);
+  }, [isYearMode, timeRange, committedFrom, committedTo]);
+
+  // Year keys for cards/table — single selected year in year mode
+  const selectedYears = useMemo(() => {
+    if (isYearMode) return [`y${selectedYear}`];
+    return dateRangeToYearKeys(chartRange.from, chartRange.to);
+  }, [isYearMode, selectedYear, chartRange]);
 
   const selectedBenchmarks = useMemo(() =>
     selectedBmIds.map((id) => allBenchmarks.find((b) => b.id === id)).filter(Boolean) as Benchmark[],
@@ -340,25 +382,29 @@ function CompareContent() {
           <div style={{ backgroundColor: "var(--bg-surface)", borderBottom: "1px solid var(--border)" }}>
             <div style={{ maxWidth: 1200, margin: "0 auto", padding: "16px 24px 14px" }}>
 
-              {/* Title + Segmented Control */}
+              {/* Title + Segmented Control / Year Buttons */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }} dir="rtl">
                 <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>
                   תשואות שנתיות לאורך זמן
                 </span>
-                <SegmentedControl value={timeRange} onChange={(range) => {
-                if (range === "custom") {
-                  // Initialize custom selectors from the current chart range — don't jump to hardcoded 2022-01
-                  setCustomFrom(chartRange.from);
-                  setCustomTo(chartRange.to);
-                  setCommittedFrom(chartRange.from);
-                  setCommittedTo(chartRange.to);
-                }
-                setTimeRange(range);
-              }} accentColor={brand.primaryColor} />
+                {isYearMode ? (
+                  <YearButtons value={selectedYear} onChange={setSelectedYear} accentColor={brand.primaryColor} />
+                ) : (
+                  <SegmentedControl value={timeRange} onChange={(range) => {
+                    if (range === "custom") {
+                      // Initialize custom selectors from the current chart range — don't jump to hardcoded 2022-01
+                      setCustomFrom(chartRange.from);
+                      setCustomTo(chartRange.to);
+                      setCommittedFrom(chartRange.from);
+                      setCommittedTo(chartRange.to);
+                    }
+                    setTimeRange(range);
+                  }} accentColor={brand.primaryColor} />
+                )}
               </div>
 
               {/* Custom range row */}
-              {timeRange === "custom" && (
+              {!isYearMode && timeRange === "custom" && (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, flexWrap: "wrap" }} dir="rtl">
                   <span style={{ fontSize: 11, color: "var(--text-muted)" }}>מ-</span>
                   <select value={customFrom.slice(5, 7)} onChange={(e) => setCustomFrom(`${customFrom.slice(0, 4)}-${e.target.value}`)} style={selectStyle}>
