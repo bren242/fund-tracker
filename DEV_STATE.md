@@ -1,7 +1,7 @@
 # DEV STATE — System Functionality & Stability
 
-**Status:** STABLE — v1.6 (Data Completion)
-**Date:** 2026-04-05
+**Status:** STABLE — v1.7 (NOX v1.1 release — feature-flag nav + year mode + changelog modal)
+**Date:** 2026-04-15
 
 ---
 
@@ -25,6 +25,7 @@
 | Monthly direction | ✅ Stable | per-fund LTR/RTL normalization, direction selector in diff review |
 | Value Layer infra | ✅ Stable | period selector (12/24/36/60), analysis window helper, insight placeholder |
 | Data completion | ✅ Stable | standalone page, per-fund selection, search, feature flag controlled |
+| NOX tenant (white-label) | 🔒 Locked | v1.1 — feature-flag nav, year mode on table + /compare, per-tenant favicon, one-time changelog modal |
 
 ---
 
@@ -40,13 +41,18 @@ app/data-completion/page.tsx  — Data completion (auto-compute missing fields)
 
 ### Components
 ```
-components/PrintReport.tsx   — Print-only table for fund report
-components/FundTable.tsx     — Screen fund table with sorting/filtering
-components/FilterBar.tsx     — Category/manager/search filters
-components/BrandLogo.tsx     — Logo renderer (supports light/dark variants)
-components/ClientGate.tsx    — Password gate wrapper
-components/PasswordInput.tsx — Password input UI
-components/ThemeProvider.tsx  — Dark/light theme context
+components/PrintReport.tsx      — Print-only table for fund report
+components/FundTable.tsx        — Screen fund table with sorting/filtering
+components/FundTableV2.tsx      — V2 table with year-mode (auto-detected when no monthlyReturns)
+components/FilterBar.tsx        — Category/manager/search filters
+components/BrandLogo.tsx        — Logo renderer (supports light/dark variants)
+components/AppHeader.tsx        — Top nav with feature-flag filtering + dynamic favicon/logo
+components/ClientGate.tsx       — Password gate wrapper (renders NoxChangelogModal when authed)
+components/PasswordInput.tsx    — Password input UI
+components/ThemeProvider.tsx    — Dark/light theme context
+components/CompareCharts.tsx    — Line chart for /compare (monthly + annual fallback)
+components/CompareYearBars.tsx  — Grouped BarChart for /compare year-mode (NOX)
+components/NoxChangelogModal.tsx — One-time session modal (NOX-only, versioned dismiss key)
 ```
 
 ### Lib

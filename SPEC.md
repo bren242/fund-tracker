@@ -1,5 +1,6 @@
 # Fund Tracker — SPEC.md
-> מצב נכון ל: 2026-04-14 | Cache v47 | גרסה אחרונה: analysis page redesign + header + pill fix
+> מצב נכון ל: 2026-04-15 | Cache v47 | גרסה אחרונה: NOX v1.1 release — feature-flag nav + year mode + changelog modal
+> **NOX סגור ונעול** — ראה סעיף "עדכון אחרון" למטה.
 > **פתוח:** 502 חדש בפרסר — לא אובחן עדיין. חשד: מודל `claude-sonnet-4-5` דפרקייטד לטובת `claude-sonnet-4-6`
 
 ---
@@ -128,7 +129,67 @@
 
 ---
 
-## עדכון אחרון (2026-04-14 — analysis page redesign)
+## עדכון אחרון (2026-04-15 — NOX v1.1 release) 🔒
+
+### NOX — סגור ונעול ✅
+
+תיקוני UI מלאים + פיצ'רים חדשים ל-NOX בלבד. GREEN לא נגעה.
+
+**1. Feature-flag-based navigation (data-driven)**
+- `components/AppHeader.tsx` — סאב-טאבים מוגדרים עם `flag?: keyof AppFeatures`
+- `filterSubs()` מסנן לפי `brand.features` — tab עם 0 תת-טאבים גלויים מוסתר גם הוא
+- NOX מקבל רק: קרנות | ניתוח (השוואה בלבד) | כלים (אינדיקציה + סטטוס) | ניהול (קרנות בלבד)
+- לא חסום לפי `clientKey === "nox"` — כל לקוח מקבל UI לפי ה-flags שלו
+
+**2. Year-mode על דפי קרנות ו-/compare**
+- זוהה אוטומטית: אם אין אף קרן עם `monthlyReturns` → מעבר למצב שנתי (NOX)
+- Detection running once per mount דרך `useRef` — לא חוזר על עצמו
+- **`FundTableV2.tsx`**: YearSelector (2020–2025 + YTD 2026 + ממוצע) במקום SegmentedControl
+- **`/compare`**:
+  - **Multi-select year buttons** (toggle) — ברירת מחדל `2025`, מינימום אחד חייב להישאר
+  - **`CompareYearBars.tsx`** — BarChart חדש: X = קרנות, Y = תשואה %, כל שנה בצבע נפרד (`YEAR_COLORS` map)
+  - טבלה וכרטיסיות → מבוססות על `selectedYearKeys[0]` (השנה הראשונה שנבחרה)
+  - Sorted chronologically לפני העברה לגרף
+
+**3. Dynamic per-tenant favicon**
+- `BrandConfig.favicon?: string` — שדה חדש
+- `AppHeader` מזריק `<link rel="icon">` דינמית ב-`useEffect` לפי `brand.favicon`
+- NOX: `/branding/nox/favicon.svg` (N על רקע לבן, `#1a365d`)
+- GREEN: fallback ל-`/favicon.svg` הקיים
+
+**4. Changelog modal חד-פעמי אחרי לוגין**
+- `components/NoxChangelogModal.tsx` — self-guarding (מחזיר null אם `clientKey !== "nox"`)
+- רץ רק תחת `authed=true` ב-`ClientGate` (לא במסך הסיסמה)
+- Dismiss key: `sessionStorage["nox-changelog-seen-apr2026"]` — versioned, שינוי גרסה → מופיע שוב
+- עיצוב: modal מרכזי, border-top זהב `#c8a96b`, כפתור "הבנתי" בזהב, RTL
+- איש קשר: `brennere@gmail.com` (mailto קליקבילי)
+
+**5. תיקוני באגים נלווים שעלו אגב הסשן**
+- Admin nav — `prefix` השתמש ב-prop `client` שלא עבר (קיבל `""`) → תיקון ל-`useClientKey()` ישירות
+- לוגו NOX — קוד קשיח בעבר החזיר "NOX" כטקסט על רקע לבן → עבר ל-`useBrand(clientKey)` דינמי
+- Suspense boundary ל-`useSearchParams` ב-`AppHeader` — נוסף ב-`layout.tsx` כדי לאפשר SSG
+
+**קבצים חדשים:**
+- `components/CompareYearBars.tsx` — BarChart מקובץ לפי שנה
+- `components/NoxChangelogModal.tsx` — modal עם versioned dismiss
+- `public/branding/nox/favicon.svg`
+
+**קבצים ששונו מהותית:**
+- `components/AppHeader.tsx` — feature-flag filtering + dynamic favicon + dynamic logo + prefix fix
+- `app/compare/page.tsx` — year-mode + multi-select year buttons + bar chart swap
+- `components/FundTableV2.tsx` — year-mode (YearSelector)
+- `components/ClientGate.tsx` — מרנדר את NoxChangelogModal ב-authed branch
+- `config/brand.ts` — `favicon?: string` נוסף ל-BrandConfig
+- `data/nox/brand.json` — features + favicon + צבעי NOX (`#1a365d`, `#c8a96b`)
+- `lib/useBrand.ts` — ברירת מחדל `indications: true`
+
+**Commits:** `5db762c` (year-mode + favicon), `e0ccd58` (YTD 2026 button), `a8f40dc` (chart sync), `3f584b8` (multi-select + bar), `dd9ad15` (remove init route), `2c14f8c` (changelog modal), `9f39c07` (contact email)
+
+**NOX status:** 🔒 נעול. כל הפיצ'רים מאומתים בפרודקשן.
+
+---
+
+## עדכון קודם (2026-04-14 — analysis page redesign)
 
 ### דף ניתוח (analysis) — עיצוב מחדש ✅
 
