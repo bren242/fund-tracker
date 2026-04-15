@@ -4,12 +4,15 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useClientKey } from "@/lib/useClientKey";
 import { useBrand } from "@/lib/useBrand";
+import type { AppFeatures } from "@/config/brand";
 
 interface AppHeaderProps {
   fundCount?: number;
 }
 
 type TabKey = "funds" | "analysis" | "tools" | "admin";
+
+type SubTab = { label: string; path: string; flag?: keyof AppFeatures };
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "funds", label: "קרנות" },
@@ -18,24 +21,29 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "admin", label: "ניהול" },
 ];
 
-const SUB_TABS: Record<TabKey, { label: string; path: string }[]> = {
+const SUB_TABS: Record<TabKey, SubTab[]> = {
   funds: [],
   analysis: [
-    { label: "דירוג", path: "/analysis" },
-    { label: "גרפים", path: "/charts" },
-    { label: "השוואה", path: "/compare" },
-    { label: "עקביות", path: "/consistency" },
+    { label: "דירוג",   path: "/analysis",    flag: "chartPage" },
+    { label: "גרפים",   path: "/charts",       flag: "chartPage" },
+    { label: "השוואה",  path: "/compare",      flag: "comparison" },
+    { label: "עקביות",  path: "/consistency",  flag: "consistencyAnalysis" },
   ],
   tools: [
-    { label: "אינדיקציה", path: "/indications" },
-    { label: "סטטוס קרנות", path: "/fund-status" },
+    { label: "אינדיקציה",    path: "/indications", flag: "indications" },
+    { label: "סטטוס קרנות", path: "/fund-status",  flag: "fundStatus" },
   ],
   admin: [
-    { label: "קרנות", path: "/admin" },
-    { label: "בנצ'מרקים", path: "/admin/benchmarks" },
-    { label: "העלאת דוח", path: "/upload" },
+    { label: "קרנות",      path: "/admin" },
+    { label: "בנצ'מרקים", path: "/admin/benchmarks", flag: "benchmarks" },
+    { label: "העלאת דוח", path: "/upload",            flag: "desktopUpload" },
   ],
 };
+
+/** Returns subs that pass their feature flag (missing flag = always visible) */
+function filterSubs(subs: SubTab[], features: AppFeatures | undefined): SubTab[] {
+  return subs.filter((s) => !s.flag || (features?.[s.flag] ?? true));
+}
 
 function getActiveTab(pathname: string): TabKey {
   if (
@@ -63,8 +71,16 @@ export default function AppHeader({ fundCount = 84 }: AppHeaderProps) {
   const brand = useBrand(clientKey);
 
   const activeTab = getActiveTab(pathname);
-  const visibleSubBar = hoveredTab ?? (SUB_TABS[activeTab].length > 0 ? activeTab : null);
-  const subTabs = visibleSubBar ? SUB_TABS[visibleSubBar] : [];
+
+  // Filter tabs + sub-tabs by feature flags
+  const visibleTabs = TABS.filter((tab) => {
+    const subs = SUB_TABS[tab.key];
+    if (subs.length === 0) return true; // "funds" / tabs with no subs — always show
+    return filterSubs(subs, brand.features).length > 0;
+  });
+
+  const visibleSubBar = hoveredTab ?? (filterSubs(SUB_TABS[activeTab], brand.features).length > 0 ? activeTab : null);
+  const subTabs = visibleSubBar ? filterSubs(SUB_TABS[visibleSubBar], brand.features) : [];
 
   const prefix = `/${clientKey}`;
 
@@ -130,13 +146,13 @@ export default function AppHeader({ fundCount = 84 }: AppHeaderProps) {
           gap: 4,
         }}
       >
-        {TABS.map((tab) => {
+        {visibleTabs.map((tab) => {
           const isActive = activeTab === tab.key;
           return (
             <button
               key={tab.key}
               onClick={() => {
-                const subs = SUB_TABS[tab.key];
+                const subs = filterSubs(SUB_TABS[tab.key], brand.features);
                 if (subs.length > 0) navigate(subs[0].path);
                 else navigate("/");
               }}
