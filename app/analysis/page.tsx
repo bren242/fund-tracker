@@ -158,7 +158,7 @@ function RankBadge({ rank, isBottom }: { rank: number; isBottom: boolean }) {
   if (rank === 1) return <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg,#B8975A,#d4af6e)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, flexShrink: 0 }}>{rank}</div>;
   if (rank === 2) return <div style={{ width: 32, height: 32, borderRadius: 8, background: "#e8eaec", color: "#4a5568", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, flexShrink: 0 }}>{rank}</div>;
   if (rank === 3) return <div style={{ width: 32, height: 32, borderRadius: 8, background: "#e8dfd4", color: "#7c6045", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, flexShrink: 0 }}>{rank}</div>;
-  return <span style={{ fontSize: 13, fontWeight: 600, color: isBottom ? "#ffb3ae" : "#9ca3af", minWidth: 32, textAlign: "center", display: "inline-block" }}>{rank}</span>;
+  return <span style={{ fontSize: 14, fontWeight: 600, color: isBottom ? "#ffb3ae" : "#6b7280", minWidth: 32, textAlign: "center", display: "inline-block" }}>{rank}</span>;
 }
 
 /* ── Accordion Row ── */
@@ -172,10 +172,10 @@ function FundRow({ fund, rank, sortKey, primary, isBottom }: {
   const sparkData = useMemo(() => getSparklineData(fund, sortKey), [fund, sortKey]);
 
   const rowBg = isTop3
-    ? rank === 1 ? "#fffdf7" : rank === 2 ? "#fefefe" : "#fefcf9"
+    ? rank === 1 ? "#f0f9f4" : rank === 2 ? "#fefefe" : "#fefcf9"
     : rank % 2 === 0 ? "#fafafa" : "#fff";
 
-  const COL = "44px 1fr 130px 72px 72px";
+  const COL = "44px minmax(0,1fr) 120px 68px 68px";
 
   return (
     <div>
@@ -351,7 +351,7 @@ function AnalysisContent() {
   const middleRows = sortedFunds.slice(TOP_N, sortedFunds.length - BOTTOM_N);
   const bottomRows = sortedFunds.slice(-BOTTOM_N);
   const hiddenCount = middleRows.length;
-  const COL = "44px 1fr 130px 72px 72px";
+  const COL = "44px minmax(0,1fr) 120px 68px 68px";
 
   return (
     <ClientGate clientKey={clientKey}>
@@ -393,11 +393,11 @@ function AnalysisContent() {
 
         {/* SORT BAR */}
         <div style={{ background: "#fff", borderBottom: "0.5px solid #eaecee", padding: "10px 28px", display: "flex", justifyContent: "space-between", alignItems: "center", direction: "rtl" }}>
-          <div style={{ display: "flex", gap: 5, flexWrap: "nowrap", overflowX: "auto", scrollbarWidth: "none" }}>
+          <div style={{ display: "flex", gap: 3, background: "#f1f3f4", borderRadius: 22, padding: 3 }}>
             {SORT_OPTIONS.map(({ key, label }) => {
               const active = sortKey === key;
               return (
-                <button key={key} onClick={() => { setSortKey(key); setShowAll(false); }} style={{ padding: "6px 14px", borderRadius: 20, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap", border: active ? `1.5px solid ${primary}` : "0.5px solid #e8eaec", color: active ? primary : "#6b7280", fontWeight: active ? 700 : 400, background: "#fff", transition: "all 0.12s" }}>
+                <button key={key} onClick={() => { setSortKey(key); setShowAll(false); }} style={{ padding: "6px 14px", borderRadius: 20, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap", border: "none", color: active ? primary : "#6b7280", fontWeight: active ? 700 : 400, background: active ? "#fff" : "transparent", boxShadow: active ? "0 1px 3px rgba(0,0,0,0.1)" : "none", transition: "all 0.12s" }}>
                   {label}{active ? " ↓" : ""}
                 </button>
               );
