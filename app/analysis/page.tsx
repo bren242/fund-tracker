@@ -35,9 +35,7 @@ function calcPeriodReturn(fund: Fund, key: SortKey): number | null {
 
   let filtered: number[] = [];
   if (key === "MTD") {
-    const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    // fallback: last available month
-    const sorted = entries.sort(([a], [b]) => a.localeCompare(b));
+    const sorted = [...entries].sort(([a], [b]) => a.localeCompare(b));
     const last = sorted.at(-1);
     filtered = last ? [last[1]] : [];
   } else if (key === "YTD") {
