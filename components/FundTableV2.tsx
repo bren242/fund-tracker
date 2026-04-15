@@ -6,6 +6,7 @@ import { pct, num, returnColorInline, formatReportDate } from "@/lib/format";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type TimeRange = "ytd" | "12m" | "3y" | "5y" | "max" | "custom";
+type YearKey   = "2020" | "2021" | "2022" | "2023" | "2024" | "2025" | "ytd2026" | "avg";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 const MONTH_HE: Record<string, string> = {
@@ -19,6 +20,17 @@ const MONTH_HE_FULL: Record<string, string> = {
   "05": "מאי", "06": "יוני", "07": "יולי", "08": "אוגוסט",
   "09": "ספטמבר", "10": "אוקטובר", "11": "נובמבר", "12": "דצמבר",
 };
+
+const YEAR_OPTIONS: { key: YearKey; label: string }[] = [
+  { key: "2020",    label: "2020" },
+  { key: "2021",    label: "2021" },
+  { key: "2022",    label: "2022" },
+  { key: "2023",    label: "2023" },
+  { key: "2024",    label: "2024" },
+  { key: "2025",    label: "2025" },
+  { key: "ytd2026", label: "YTD 2026" },
+  { key: "avg",     label: "ממוצע שנתי" },
+];
 
 const TIME_RANGE_OPTIONS: { key: TimeRange; label: string }[] = [
   { key: "ytd",    label: "מתחילת שנה" },
@@ -93,6 +105,12 @@ function calcCumulative(fund: Fund): number | null {
   return vals.reduce((acc, v) => acc * (1 + v), 1) - 1;
 }
 
+function getYearReturn(fund: Fund, year: YearKey): number | null {
+  if (year === "avg") return fund.avgAnnualReturn;
+  const key = year === "ytd2026" ? "ytd2026" : (`y${year}` as keyof Fund["returns"]);
+  return fund.returns[key] ?? null;
+}
+
 function sharpeColor(s: number | null): string {
   if (s === null) return "var(--text-muted)";
   if (s >= 1)   return "#059669";
@@ -118,6 +136,44 @@ function SegmentedControl({ value, onChange }: { value: TimeRange; onChange: (v:
       padding: 3,
     }}>
       {TIME_RANGE_OPTIONS.map((o) => {
+        const active = value === o.key;
+        return (
+          <button
+            key={o.key}
+            onClick={() => onChange(o.key)}
+            style={{
+              padding: "6px 13px", fontSize: 12,
+              fontWeight: active ? 600 : 400,
+              border: "none",
+              borderRadius: active ? 8 : 0,
+              cursor: "pointer",
+              backgroundColor: active ? "#ffffff" : "transparent",
+              boxShadow: active ? "0 1px 3px rgba(0,0,0,0.12)" : "none",
+              color: active ? "var(--text-primary)" : "#666",
+              transition: "all 0.12s",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Year Selector (no-monthly mode) ───────────────────────────────────────
+function YearSelector({ value, onChange }: { value: YearKey; onChange: (v: YearKey) => void }) {
+  return (
+    <div style={{
+      display: "inline-flex",
+      flexWrap: "wrap",
+      background: "#e8e8ed",
+      borderRadius: 10,
+      padding: 3,
+      gap: 0,
+    }}>
+      {YEAR_OPTIONS.map((o) => {
         const active = value === o.key;
         return (
           <button
@@ -421,15 +477,17 @@ export default function FundTableV2({
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [openAccordions, setOpenAccordions]   = useState<Set<string>>(new Set());
 
-  // Auto-detect: if no funds have monthlyReturns, default to YTD
-  const defaultSet = useRef(false);
+  // Year-mode: activated when no fund has monthlyReturns data (e.g. NOX)
+  const [isYearMode, setIsYearMode]     = useState(false);
+  const [selectedYear, setSelectedYear] = useState<YearKey>("2025");
+  const modeDetected = useRef(false);
   useEffect(() => {
-    if (defaultSet.current || categories.length === 0) return;
+    if (modeDetected.current || categories.length === 0) return;
     const hasMonthly = categories.some(cat =>
       cat.funds.some(f => f.monthlyReturns && Object.keys(f.monthlyReturns).length > 0)
     );
-    if (!hasMonthly) setTimeRange("ytd");
-    defaultSet.current = true;
+    if (!hasMonthly) setIsYearMode(true);
+    modeDetected.current = true;
   }, [categories]);
 
   const selectionDisabled = (selectedFundIds?.size ?? 0) >= 4;
@@ -503,6 +561,11 @@ export default function FundTableV2({
 
   // Column header label for period column
   const periodLabel = useMemo(() => {
+    if (isYearMode) {
+      if (selectedYear === "ytd2026") return "YTD 2026";
+      if (selectedYear === "avg")     return "ממוצע שנתי";
+      return selectedYear;
+    }
     if (timeRange === "custom") {
       const fOpt = MONTH_OPTIONS.find(o => o.value === customFrom);
       const tOpt = MONTH_OPTIONS.find(o => o.value === customTo);
@@ -513,7 +576,7 @@ export default function FundTableV2({
       "3y": "3 שנים", "5y": "5 שנים", max: "מקס", custom: "",
     };
     return labels[timeRange];
-  }, [timeRange, customFrom, customTo]);
+  }, [isYearMode, selectedYear, timeRange, customFrom, customTo]);
 
   const thBase: React.CSSProperties = {
     backgroundColor: "transparent",
@@ -545,24 +608,31 @@ export default function FundTableV2({
           backgroundColor: "var(--bg-surface)",
           display: "flex", flexDirection: "column", gap: 10,
         }}>
-          {/* Time range */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>טווח זמן:</span>
-            <SegmentedControl value={timeRange} onChange={(v) => { setTimeRange(v); resetAccordions(); }} />
-          </div>
-
-          {/* Custom YYYY-MM pickers */}
-          {timeRange === "custom" && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>מ-</span>
-              <select value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={selectStyle}>
-                {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>עד</span>
-              <select value={customTo} onChange={e => setCustomTo(e.target.value)} style={selectStyle}>
-                {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
+          {/* Time range / Year selector */}
+          {isYearMode ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>שנה:</span>
+              <YearSelector value={selectedYear} onChange={(v) => { setSelectedYear(v); resetAccordions(); }} />
             </div>
+          ) : (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>טווח זמן:</span>
+                <SegmentedControl value={timeRange} onChange={(v) => { setTimeRange(v); resetAccordions(); }} />
+              </div>
+              {timeRange === "custom" && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>מ-</span>
+                  <select value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={selectStyle}>
+                    {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>עד</span>
+                  <select value={customTo} onChange={e => setCustomTo(e.target.value)} style={selectStyle}>
+                    {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
+              )}
+            </>
           )}
 
           {/* Category pills */}
@@ -688,7 +758,9 @@ export default function FundTableV2({
 
                     cat.funds.forEach((fund, fi) => {
                       const isOpen = openAccordions.has(fund.id);
-                      const periodReturn = calcRangeReturn(fund.monthlyReturns, rangeFrom, rangeTo);
+                      const periodReturn = isYearMode
+                        ? getYearReturn(fund, selectedYear)
+                        : calcRangeReturn(fund.monthlyReturns, rangeFrom, rangeTo);
 
                       rows.push(
                         <FundRowV2
