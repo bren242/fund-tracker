@@ -16,8 +16,8 @@
   "version": "1.1",
   "defaultAppearance": "light",
   "features": {
-    "fundStatus": false,
-    "indications": false,
+    "fundStatus": true,
+    "indications": true,
     "aiParser": false,
     "mobileUpload": false,
     "desktopUpload": false,
