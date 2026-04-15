@@ -1,172 +1,261 @@
 "use client";
 
-import { useEffect, useState, useMemo, Suspense } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useMemo, useRef, Suspense } from "react";
 import { FundsData, Fund } from "@/lib/types";
 import { useBrand } from "@/lib/useBrand";
-import { useClientKey, withClient } from "@/lib/useClientKey";
+import { useClientKey } from "@/lib/useClientKey";
 import ClientGate from "@/components/ClientGate";
 import { brandCssVars } from "@/lib/colors";
 
 const ALL = "הכל";
-const MAX_SELECT = 6;
-const TOP_N = 7;
+const TOP_N = 5;
+const BOTTOM_N = 3;
+
+/* ── Types ── */
+type SortKey = "MTD" | "YTD" | "12M" | "36M" | "60M" | "avg" | "sharpe";
+
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: "MTD",    label: "MTD" },
+  { key: "YTD",    label: "YTD" },
+  { key: "12M",    label: "12M" },
+  { key: "36M",    label: "36M" },
+  { key: "60M",    label: "60M" },
+  { key: "avg",    label: "ממוצע שנתי" },
+  { key: "sharpe", label: "שארפ" },
+];
 
 /* ── Helpers ── */
-function calcConsistency(fund: Fund): number | null {
+function calcPeriodReturn(fund: Fund, key: SortKey): number | null {
+  if (key === "sharpe") return fund.sharpe ?? null;
+  if (key === "avg")    return fund.avgAnnualReturn ?? null;
   if (!fund.monthlyReturns) return null;
-  const values = Object.values(fund.monthlyReturns);
-  if (values.length === 0) return null;
-  const positive = values.filter((v) => v > 0).length;
-  return Math.round((positive / values.length) * 100);
-}
 
-function calcPeriodReturn(fund: Fund, period: string): number | null {
-  if (!fund.monthlyReturns) return null;
   const now = new Date();
   const entries = Object.entries(fund.monthlyReturns);
+
   let filtered: number[] = [];
-  if (period === "YTD") {
-    filtered = entries
-      .filter(([k]) => k.startsWith(`${now.getFullYear()}`))
-      .map(([, v]) => v);
-  } else if (period === "24M") {
-    const cutoff = new Date(now.getFullYear(), now.getMonth() - 24, 1);
-    filtered = entries
-      .filter(([k]) => new Date(k + "-01") >= cutoff)
-      .map(([, v]) => v);
-  } else if (period === "36M") {
-    const cutoff = new Date(now.getFullYear(), now.getMonth() - 36, 1);
-    filtered = entries
-      .filter(([k]) => new Date(k + "-01") >= cutoff)
-      .map(([, v]) => v);
-  } else if (period === "60M") {
-    const cutoff = new Date(now.getFullYear(), now.getMonth() - 60, 1);
-    filtered = entries
-      .filter(([k]) => new Date(k + "-01") >= cutoff)
-      .map(([, v]) => v);
-  } else if (period === "inception") {
-    filtered = entries.map(([, v]) => v);
+  if (key === "MTD") {
+    const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    // fallback: last available month
+    const sorted = entries.sort(([a], [b]) => a.localeCompare(b));
+    const last = sorted.at(-1);
+    filtered = last ? [last[1]] : [];
+  } else if (key === "YTD") {
+    filtered = entries.filter(([k]) => k.startsWith(`${now.getFullYear()}`)).map(([, v]) => v);
+  } else {
+    const months = key === "12M" ? 12 : key === "36M" ? 36 : 60;
+    const cutoff = new Date(now.getFullYear(), now.getMonth() - months, 1);
+    filtered = entries.filter(([k]) => new Date(k + "-01") >= cutoff).map(([, v]) => v);
   }
+
   if (filtered.length === 0) return null;
+  if (key === "MTD") return filtered[0];
   return filtered.reduce((acc, r) => acc * (1 + r / 100), 1) * 100 - 100;
 }
 
-function fmt(v: number | null, decimals = 1): string {
-  if (v === null || v === undefined) return "—";
-  return (v > 0 ? "+" : "") + v.toFixed(decimals) + "%";
+function calcConsistency(fund: Fund): number | null {
+  if (!fund.monthlyReturns) return null;
+  const vals = Object.values(fund.monthlyReturns);
+  if (!vals.length) return null;
+  return Math.round((vals.filter((v) => v > 0).length / vals.length) * 100);
 }
 
-function fmtNum(v: number | null, decimals = 2): string {
+function getSparklineData(fund: Fund, sortKey: SortKey): number[] {
+  if (!fund.monthlyReturns) return [];
+  const now = new Date();
+  const entries = Object.entries(fund.monthlyReturns).sort(([a], [b]) => a.localeCompare(b));
+  let filtered = entries;
+  if (sortKey === "MTD" || sortKey === "YTD") {
+    filtered = entries.slice(-12);
+  } else if (sortKey === "12M") {
+    const cutoff = new Date(now.getFullYear(), now.getMonth() - 12, 1);
+    filtered = entries.filter(([k]) => new Date(k + "-01") >= cutoff);
+  } else if (sortKey === "36M") {
+    const cutoff = new Date(now.getFullYear(), now.getMonth() - 36, 1);
+    filtered = entries.filter(([k]) => new Date(k + "-01") >= cutoff);
+  } else if (sortKey === "60M") {
+    const cutoff = new Date(now.getFullYear(), now.getMonth() - 60, 1);
+    filtered = entries.filter(([k]) => new Date(k + "-01") >= cutoff);
+  } else {
+    filtered = entries;
+  }
+  // cumulative
+  let cum = 100;
+  return filtered.map(([, v]) => { cum = cum * (1 + v / 100); return cum - 100; });
+}
+
+function fmt(v: number | null, dec = 1): string {
   if (v === null || v === undefined) return "—";
-  return v.toFixed(decimals);
+  return (v > 0 ? "+" : "") + v.toFixed(dec) + "%";
+}
+
+function fmtNum(v: number | null): string {
+  if (v === null || v === undefined) return "—";
+  return v.toFixed(2);
 }
 
 function numColor(v: number | null): string {
   if (v === null) return "#9ca3af";
   if (v > 0) return "#1a8a3c";
   if (v < 0) return "#e53e3e";
-  return "#1a2e26";
+  return "#6b7280";
 }
 
-/* ================================================================== */
-/*  PillGroup                                                          */
-/* ================================================================== */
-function PillGroup({
-  label,
-  options,
-  labels,
-  value,
-  onChange,
-  activeColor,
-}: {
-  label: string;
-  options: string[];
-  labels?: Record<string, string>;
-  value: string;
-  onChange: (v: string) => void;
-  activeColor: string;
+function fmtStartDate(s: string | null | undefined): string {
+  if (!s) return "—";
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("he-IL", { month: "short", year: "numeric" });
+}
+
+/* ── Sparkline ── */
+function Sparkline({ data, color }: { data: number[]; color: string }) {
+  if (data.length < 2) return <div style={{ height: 40, display: "flex", alignItems: "center", justifyContent: "center", color: "#d1d5db", fontSize: 11 }}>אין מספיק נתונים</div>;
+
+  const w = 260, h = 48, pad = 4;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+
+  const points = data.map((v, i) => {
+    const x = pad + (i / (data.length - 1)) * (w - pad * 2);
+    const y = pad + ((max - v) / range) * (h - pad * 2);
+    return `${x},${y}`;
+  }).join(" ");
+
+  const zeroY = pad + ((max - 0) / range) * (h - pad * 2);
+  const clampedZero = Math.max(pad, Math.min(h - pad, zeroY));
+
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} width="100%" height={h} style={{ display: "block" }}>
+      <line x1={pad} y1={clampedZero} x2={w - pad} y2={clampedZero} stroke="#e8ecee" strokeWidth="0.5" strokeDasharray="3,3" />
+      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={points.split(" ").at(-1)!.split(",")[0]} cy={points.split(" ").at(-1)!.split(",")[1]} r="2.5" fill={color} />
+    </svg>
+  );
+}
+
+/* ── Rank Badge ── */
+function RankBadge({ rank, isBottom }: { rank: number; isBottom: boolean }) {
+  if (rank === 1) return <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg,#B8975A,#d4af6e)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, flexShrink: 0 }}>{rank}</div>;
+  if (rank === 2) return <div style={{ width: 32, height: 32, borderRadius: 8, background: "#e8eaec", color: "#4a5568", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, flexShrink: 0 }}>{rank}</div>;
+  if (rank === 3) return <div style={{ width: 32, height: 32, borderRadius: 8, background: "#e8dfd4", color: "#7c6045", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, flexShrink: 0 }}>{rank}</div>;
+  return <span style={{ fontSize: 13, fontWeight: 600, color: isBottom ? "#ffb3ae" : "#9ca3af", minWidth: 32, textAlign: "center", display: "inline-block" }}>{rank}</span>;
+}
+
+/* ── Accordion Row ── */
+function FundRow({ fund, rank, sortKey, primary, isBottom }: {
+  fund: Fund; rank: number; sortKey: SortKey; primary: string; isBottom: boolean;
 }) {
+  const [open, setOpen] = useState(false);
+  const isTop3 = rank <= 3;
+  const periodVal = calcPeriodReturn(fund, sortKey);
+  const consistency = calcConsistency(fund);
+  const sparkData = useMemo(() => getSparklineData(fund, sortKey), [fund, sortKey]);
+
+  const rowBg = isTop3
+    ? rank === 1 ? "#fffdf7" : rank === 2 ? "#fefefe" : "#fefcf9"
+    : rank % 2 === 0 ? "#fafafa" : "#fff";
+
+  const COL = "44px 1fr 120px 72px 72px 100px";
+
   return (
     <div>
+      {/* Main row */}
       <div
+        onClick={() => setOpen((v) => !v)}
         style={{
-          fontSize: 10,
-          color: "#9ca3af",
-          fontWeight: 500,
-          marginBottom: 5,
-          direction: "rtl",
+          display: "grid", gridTemplateColumns: COL,
+          alignItems: "center", padding: "13px 24px",
+          borderBottom: open ? "none" : "0.5px solid #f0f2f4",
+          backgroundColor: open ? "#f7faf8" : rowBg,
+          cursor: "pointer", transition: "background 0.1s", direction: "rtl",
         }}
+        onMouseEnter={(e) => { if (!open) e.currentTarget.style.backgroundColor = "#f7faf8"; }}
+        onMouseLeave={(e) => { if (!open) e.currentTarget.style.backgroundColor = rowBg; }}
       >
-        {label}
+        <RankBadge rank={rank} isBottom={isBottom} />
+
+        <div style={{ paddingRight: isTop3 ? 10 : 4 }}>
+          <div style={{ fontSize: isTop3 ? 14 : 13, fontWeight: isTop3 ? 700 : 600, color: "#1a2e26", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {fund.name}
+          </div>
+          <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>{fund.currency ?? ""}</div>
+        </div>
+
+        <div style={{ textAlign: "center", fontSize: isTop3 ? 18 : 14, fontWeight: 800, color: numColor(periodVal), fontVariantNumeric: "tabular-nums", letterSpacing: "-0.3px" }}>
+          {sortKey === "sharpe" ? fmtNum(periodVal) : fmt(periodVal)}
+        </div>
+
+        <div style={{ textAlign: "center", fontSize: 13, color: "#1a2e26", fontVariantNumeric: "tabular-nums" }}>{fmtNum(fund.sharpe)}</div>
+        <div style={{ textAlign: "center", fontSize: 13, color: "#1a2e26", fontVariantNumeric: "tabular-nums" }}>{consistency !== null ? `${consistency}%` : "—"}</div>
+        <div style={{ textAlign: "center", fontSize: 11, color: "#9ca3af", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+          {fmtStartDate(fund.startDate)}
+          <span style={{ fontSize: 10, color: open ? primary : "#d1d5db", transition: "color 0.15s" }}>{open ? "▲" : "▼"}</span>
+        </div>
       </div>
-      <div
-        style={{
-          display: "flex",
-          gap: 4,
-          flexWrap: "nowrap",
-          overflowX: "auto",
-          scrollbarWidth: "none",
-        } as React.CSSProperties}
-      >
-        {options.map((opt) => {
-          const active = value === opt;
-          return (
-            <button
-              key={opt}
-              onClick={() => onChange(opt)}
-              style={{
-                padding: "6px 16px",
-                borderRadius: 20,
-                fontSize: 13,
-                border: "none",
-                background: active ? activeColor : "transparent",
-                color: active ? "#fff" : "#4a5568",
-                fontWeight: active ? 600 : 400,
-                cursor: "pointer",
-                transition: "all 0.12s",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {labels?.[opt] ?? opt}
-            </button>
-          );
-        })}
-      </div>
+
+      {/* Accordion */}
+      {open && (
+        <div style={{ background: "#f9fbfa", borderBottom: "0.5px solid #e8ecee", padding: "16px 24px 20px", direction: "rtl" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 24, alignItems: "start" }}>
+
+            {/* מדדים */}
+            <div>
+              <div style={{ fontSize: 11, color: "#9ca3af", fontWeight: 600, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 12 }}>נתונים מורחבים</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+                {[
+                  { label: "MTD", value: fmt(calcPeriodReturn(fund, "MTD")) },
+                  { label: "YTD", value: fmt(calcPeriodReturn(fund, "YTD")) },
+                  { label: "12M", value: fmt(calcPeriodReturn(fund, "12M")) },
+                  { label: "36M", value: fmt(calcPeriodReturn(fund, "36M")) },
+                  { label: "60M", value: fmt(calcPeriodReturn(fund, "60M")) },
+                  { label: "ממוצע שנתי", value: fmt(fund.avgAnnualReturn ?? null) },
+                  { label: "שארפ", value: fmtNum(fund.sharpe) },
+                  { label: "סטיית תקן", value: fmtNum(fund.stdDev) },
+                ].map(({ label, value }) => (
+                  <div key={label} style={{ background: "#fff", borderRadius: 10, padding: "10px 14px", border: "0.5px solid #e8ecee" }}>
+                    <div style={{ fontSize: 10, color: "#9ca3af", fontWeight: 500, marginBottom: 4 }}>{label}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#1a2e26", fontVariantNumeric: "tabular-nums" }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Sparkline */}
+            <div>
+              <div style={{ fontSize: 11, color: "#9ca3af", fontWeight: 600, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 12 }}>תשואה מצטברת</div>
+              <div style={{ background: "#fff", borderRadius: 10, padding: "12px 14px", border: "0.5px solid #e8ecee" }}>
+                <Sparkline data={sparkData} color={primary} />
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-/* ================================================================== */
-/*  Analysis Content                                                   */
-/* ================================================================== */
+/* ── Main ── */
 function AnalysisContent() {
   const clientKey = useClientKey();
   const brand = useBrand(clientKey);
-  const router = useRouter();
   const [data, setData] = useState<FundsData | null>(null);
-
-  /* Filters */
   const [group, setGroup] = useState(ALL);
   const [category, setCategory] = useState(ALL);
+  const [hoveredGroup, setHoveredGroup] = useState<string | null>(null);
   const [currencyFilter, setCurrencyFilter] = useState<"all" | "ILS" | "USD">("all");
-  const [period, setPeriod] = useState<"YTD" | "24M" | "36M" | "60M" | "inception">("36M");
-  const [sortBy, setSortBy] = useState<"avg" | "sharpe" | "stddev" | "consistency">("avg");
-
-  /* Search */
+  const [sortKey, setSortKey] = useState<SortKey>("36M");
+  const [showAll, setShowAll] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-
-  /* Selection */
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch(`/api/funds?client=${encodeURIComponent(clientKey)}`)
-      .then((r) => r.json())
-      .then(setData);
+    fetch(`/api/funds?client=${encodeURIComponent(clientKey)}`).then((r) => r.json()).then(setData);
   }, [clientKey]);
 
-  /* ── Cascading filter options ── */
   const filterOptions = useMemo(() => {
     if (!data) return { groups: [] as string[], categories: [] as string[] };
     const groupSet = new Set<string>();
@@ -174,17 +263,22 @@ function AnalysisContent() {
     for (const cat of data.categories) {
       const section = cat.parentSection || "כללי";
       groupSet.add(section);
-      if (group === ALL || section === group) {
-        catSet.add(cat.name);
-      }
+      if (group === ALL || section === group) catSet.add(cat.name);
     }
-    return {
-      groups: Array.from(groupSet),
-      categories: Array.from(catSet),
-    };
+    return { groups: Array.from(groupSet), categories: Array.from(catSet) };
   }, [data, group]);
 
-  /* ── Funds matching current filters ── */
+  const subBarCategories = useMemo(() => {
+    if (!data) return [] as string[];
+    const activeGroup = hoveredGroup || group;
+    if (activeGroup === ALL) return [];
+    const catSet = new Set<string>();
+    for (const cat of data.categories) {
+      if ((cat.parentSection || "כללי") === activeGroup) catSet.add(cat.name);
+    }
+    return Array.from(catSet);
+  }, [data, hoveredGroup, group]);
+
   const filteredFunds = useMemo(() => {
     if (!data) return [] as Fund[];
     const result: Fund[] = [];
@@ -193,6 +287,7 @@ function AnalysisContent() {
       if (group !== ALL && section !== group) continue;
       if (category !== ALL && cat.name !== category) continue;
       for (const f of cat.funds) {
+        if (f.active === false) continue;
         if (currencyFilter !== "all" && f.currency !== currencyFilter) continue;
         result.push(f);
       }
@@ -200,24 +295,14 @@ function AnalysisContent() {
     return result;
   }, [data, group, category, currencyFilter]);
 
-  /* ── Sorted funds ── */
   const sortedFunds = useMemo(() => {
-    const arr = [...filteredFunds];
-    arr.sort((a, b) => {
-      if (sortBy === "avg") {
-        return (b.avgAnnualReturn ?? -Infinity) - (a.avgAnnualReturn ?? -Infinity);
-      } else if (sortBy === "sharpe") {
-        return (b.sharpe ?? -Infinity) - (a.sharpe ?? -Infinity);
-      } else if (sortBy === "stddev") {
-        return (a.stdDev ?? Infinity) - (b.stdDev ?? Infinity);
-      } else {
-        return (calcConsistency(b) ?? -Infinity) - (calcConsistency(a) ?? -Infinity);
-      }
+    return [...filteredFunds].sort((a, b) => {
+      if (sortKey === "sharpe") return (b.sharpe ?? -Infinity) - (a.sharpe ?? -Infinity);
+      if (sortKey === "avg") return (b.avgAnnualReturn ?? -Infinity) - (a.avgAnnualReturn ?? -Infinity);
+      return (calcPeriodReturn(b, sortKey) ?? -Infinity) - (calcPeriodReturn(a, sortKey) ?? -Infinity);
     });
-    return arr;
-  }, [filteredFunds, sortBy]);
+  }, [filteredFunds, sortKey]);
 
-  /* ── Search result ── */
   const searchResult = useMemo(() => {
     if (!searchQuery.trim()) return null;
     const q = searchQuery.trim().toLowerCase();
@@ -226,690 +311,200 @@ function AnalysisContent() {
     return { fund: sortedFunds[idx], rank: idx + 1, total: sortedFunds.length };
   }, [searchQuery, sortedFunds]);
 
-  /* ── Mixed currency warning ── */
-  const hasMixedCurrencies = useMemo(() => {
-    if (selectedIds.size < 2) return false;
-    const selected = filteredFunds.filter((f) => selectedIds.has(f.id));
-    const currencies = new Set(selected.map((f) => f.currency).filter(Boolean));
-    return currencies.size > 1;
-  }, [selectedIds, filteredFunds]);
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setSearchOpen(false); setSearchQuery("");
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
-  /* ── Handlers ── */
-  const handleGroupChange = (v: string) => {
-    setGroup(v);
-    setCategory(ALL);
-    setSelectedIds(new Set());
-  };
-  const handleCategoryChange = (v: string) => {
-    setCategory(v);
-    setSelectedIds(new Set());
-  };
+  if (!data) return <div style={{ padding: 40, textAlign: "center", color: "#9ca3af" }}>טוען נתונים...</div>;
 
-  const toggleSelect = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else if (next.size < MAX_SELECT) next.add(id);
-      return next;
-    });
-  };
-
-  const handleCompare = () => {
-    const ids = Array.from(selectedIds).join(",");
-    router.push(withClient(`/compare?funds=${ids}`, clientKey));
-  };
-
-  if (!data) {
-    return (
-      <div style={{ padding: 40, textAlign: "center", color: "#9ca3af" }}>
-        טוען נתונים...
-      </div>
-    );
-  }
-
-  const selectedFunds = filteredFunds.filter((f) => selectedIds.has(f.id));
-  const showSeparator = sortedFunds.length > TOP_N + 3;
-  const topRows = showSeparator ? sortedFunds.slice(0, TOP_N) : sortedFunds;
-  const bottomRows = showSeparator ? sortedFunds.slice(TOP_N) : [];
-
-  const periodLabels: { key: typeof period; label: string }[] = [
-    { key: "inception", label: "מאז הקמה" },
-    { key: "60M", label: "60M" },
-    { key: "36M", label: "36M" },
-    { key: "24M", label: "24M" },
-    { key: "YTD", label: "YTD" },
-  ];
-
-  const sortLabels: { key: typeof sortBy; label: string }[] = [
-    { key: "avg", label: "ממוצע שנתי" },
-    { key: "sharpe", label: "שארפ" },
-    { key: "stddev", label: "סטיית תקן" },
-    { key: "consistency", label: "עקביות" },
-  ];
-
-  const colTemplate = "20px 36px 1fr 108px 68px 68px 68px";
-  const activePeriodLabel = periodLabels.find((p) => p.key === period)?.label ?? period;
-
-  /* ── Row renderer ── */
-  const renderRow = (fund: Fund, rank: number, isBottom = false) => {
-    const checked = selectedIds.has(fund.id);
-    const disabled = !checked && selectedIds.size >= MAX_SELECT;
-    const consistency = calcConsistency(fund);
-    const periodRet = calcPeriodReturn(fund, period);
-    const ytd = fund.returns?.ytd2026 ?? null;
-
-    return (
-      <div
-        key={fund.id}
-        onClick={() => !disabled && toggleSelect(fund.id)}
-        style={{
-          display: "grid",
-          gridTemplateColumns: colTemplate,
-          alignItems: "center",
-          padding: "13px 20px",
-          cursor: disabled ? "not-allowed" : "pointer",
-          backgroundColor: checked ? "#f2f7f4" : "transparent",
-          borderBottom: "0.5px solid #f0f2f4",
-          transition: "background 0.1s",
-          direction: "rtl",
-          opacity: disabled ? 0.5 : 1,
-        }}
-        onMouseEnter={(e) => {
-          if (!checked)
-            (e.currentTarget as HTMLDivElement).style.backgroundColor = "#f7faf8";
-        }}
-        onMouseLeave={(e) => {
-          if (!checked)
-            (e.currentTarget as HTMLDivElement).style.backgroundColor = "transparent";
-        }}
-      >
-        <input
-          type="checkbox"
-          checked={checked}
-          disabled={disabled}
-          onChange={() => !disabled && toggleSelect(fund.id)}
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            width: 14,
-            height: 14,
-            accentColor: "#1B3A2F",
-            cursor: disabled ? "not-allowed" : "pointer",
-          }}
-        />
-        <span
-          style={{
-            fontSize: 11,
-            color: isBottom ? "#ffb3ae" : "#b0bac4",
-            fontWeight: 500,
-            textAlign: "center",
-          }}
-        >
-          {rank}
-        </span>
-        <span
-          style={{
-            fontSize: 13,
-            color: "#1a2e26",
-            fontWeight: 500,
-            paddingRight: 8,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
-          {fund.name}
-        </span>
-        <span
-          style={{
-            fontSize: 13,
-            color: numColor(periodRet),
-            fontWeight: 600,
-            textAlign: "center",
-            letterSpacing: "-0.2px",
-            fontVariantNumeric: "tabular-nums",
-          }}
-        >
-          {fmt(periodRet)}
-        </span>
-        <span
-          style={{
-            fontSize: 13,
-            color: fund.sharpe !== null ? "#1a2e26" : "#d1d5db",
-            textAlign: "center",
-            letterSpacing: "-0.2px",
-            fontVariantNumeric: "tabular-nums",
-          }}
-        >
-          {fmtNum(fund.sharpe)}
-        </span>
-        <span
-          style={{
-            fontSize: 13,
-            color: consistency !== null ? "#1a2e26" : "#d1d5db",
-            textAlign: "center",
-            fontVariantNumeric: "tabular-nums",
-          }}
-        >
-          {consistency !== null ? `${consistency}%` : "—"}
-        </span>
-        <span
-          style={{
-            fontSize: 13,
-            color: numColor(ytd),
-            textAlign: "center",
-            letterSpacing: "-0.2px",
-            fontVariantNumeric: "tabular-nums",
-          }}
-        >
-          {fmt(ytd)}
-        </span>
-      </div>
-    );
-  };
+  const primary = brand.primaryColor || "#1B3A2F";
+  const topRows = sortedFunds.slice(0, TOP_N);
+  const middleRows = sortedFunds.slice(TOP_N, sortedFunds.length - BOTTOM_N);
+  const bottomRows = sortedFunds.slice(-BOTTOM_N);
+  const hiddenCount = middleRows.length;
+  const COL = "44px 1fr 120px 72px 72px 100px";
 
   return (
     <ClientGate clientKey={clientKey}>
-      <div
-        style={{
-          minHeight: "100vh",
-          backgroundColor: "#f8f9fa",
-          fontFamily:
-            "-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif",
-          ...(brandCssVars(brand.primaryColor, brand.accentColor) as React.CSSProperties),
-        }}
-      >
-        {/* ── FILTER BAR ── */}
+      <div style={{ minHeight: "100vh", backgroundColor: "#f8f9fa", fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif", ...(brandCssVars(primary, brand.accentColor) as React.CSSProperties) }}>
+
+        {/* FILTER BAR */}
         <div
-          style={{
-            background: "rgba(255,255,255,0.92)",
-            borderBottom: "0.5px solid #eaecee",
-            padding: "16px 32px",
-            backdropFilter: "blur(8px)",
-            position: "sticky",
-            top: 0,
-            zIndex: 10,
-          }}
+          style={{ background: "rgba(255,255,255,0.97)", borderBottom: "0.5px solid #eaecee", padding: "13px 28px", backdropFilter: "blur(8px)", position: "sticky", top: 0, zIndex: 10 }}
+          onMouseLeave={() => setHoveredGroup(null)}
         >
-          <div
-            style={{
-              maxWidth: 1400,
-              margin: "0 auto",
-              display: "flex",
-              gap: 28,
-              alignItems: "flex-start",
-              flexWrap: "wrap",
-              direction: "rtl",
-            }}
-          >
-            <PillGroup
-              label="קבוצה"
-              options={[ALL, ...filterOptions.groups]}
-              value={group}
-              onChange={handleGroupChange}
-              activeColor="#1B3A2F"
-            />
-            <PillGroup
-              label="קטגוריה"
-              options={[ALL, ...filterOptions.categories]}
-              value={category}
-              onChange={handleCategoryChange}
-              activeColor="#1B3A2F"
-            />
-            <PillGroup
-              label="מטבע"
-              options={["all", "ILS", "USD"]}
-              labels={{ all: "הכל", ILS: "ILS", USD: "USD" }}
-              value={currencyFilter}
-              onChange={(v) => setCurrencyFilter(v as "all" | "ILS" | "USD")}
-              activeColor="#1B3A2F"
-            />
-            <div style={{ marginRight: "auto" }}>
-              <PillGroup
-                label="תקופה"
-                options={periodLabels.map((p) => p.key)}
-                labels={Object.fromEntries(periodLabels.map((p) => [p.key, p.label]))}
-                value={period}
-                onChange={(v) => setPeriod(v as typeof period)}
-                activeColor="#B8975A"
-              />
-            </div>
+          <div style={{ display: "flex", gap: 5, alignItems: "center", flexWrap: "nowrap", overflowX: "auto", scrollbarWidth: "none", direction: "rtl" }}>
+            {[ALL, ...filterOptions.groups].map((g) => (
+              <button key={g}
+                onClick={() => { setGroup(g); setCategory(ALL); setShowAll(false); }}
+                onMouseEnter={() => setHoveredGroup(g)}
+                style={{ padding: "6px 15px", borderRadius: 20, fontSize: 13, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: group === g ? primary : "transparent", color: group === g ? "#fff" : "#4a5568", fontWeight: group === g ? 600 : 400, transition: "all 0.12s" }}
+              >{g}</button>
+            ))}
+            <div style={{ width: 0.5, height: 22, background: "#e2e8f0", flexShrink: 0, margin: "0 6px" }} />
+            {(["all", "ILS", "USD"] as const).map((c) => (
+              <button key={c}
+                onClick={() => setCurrencyFilter(c)}
+                style={{ padding: "6px 13px", borderRadius: 20, fontSize: 13, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: currencyFilter === c ? primary : "transparent", color: currencyFilter === c ? "#fff" : "#4a5568", fontWeight: currencyFilter === c ? 600 : 400, transition: "all 0.12s" }}
+              >{c === "all" ? "הכל" : c}</button>
+            ))}
           </div>
+
+          {subBarCategories.length > 0 && (
+            <div style={{ marginTop: 8, display: "flex", gap: 5, flexWrap: "wrap", direction: "rtl", borderTop: "0.5px solid #f0f2f4", paddingTop: 8 }}>
+              {[ALL, ...subBarCategories].map((cat) => (
+                <button key={cat}
+                  onClick={() => setCategory(cat)}
+                  style={{ padding: "3px 11px", borderRadius: 20, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap", background: category === cat ? "#eef2f0" : "transparent", color: category === cat ? primary : "#555", fontWeight: category === cat ? 600 : 400, border: category === cat ? `0.5px solid ${primary}` : "0.5px solid #ddd", transition: "all 0.12s" }}
+                >{cat}</button>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* ── SORT BAR ── */}
-        <div
-          style={{
-            width: "100%",
-            background: "#fff",
-            borderBottom: "0.5px solid #eaecee",
-            padding: "11px 32px",
-            boxSizing: "border-box",
-          }}
-        >
-          <div
-            style={{
-              maxWidth: 1400,
-              margin: "0 auto",
-              display: "flex",
-              gap: 7,
-              direction: "rtl",
-              alignItems: "center",
-            }}
-          >
-            {sortLabels.map(({ key, label }) => {
-              const active = sortBy === key;
+        {/* SORT BAR */}
+        <div style={{ background: "#fff", borderBottom: "0.5px solid #eaecee", padding: "10px 28px", display: "flex", justifyContent: "space-between", alignItems: "center", direction: "rtl" }}>
+          <div style={{ display: "flex", gap: 5, flexWrap: "nowrap", overflowX: "auto", scrollbarWidth: "none" }}>
+            {SORT_OPTIONS.map(({ key, label }) => {
+              const active = sortKey === key;
               return (
-                <button
-                  key={key}
-                  onClick={() => setSortBy(key)}
-                  style={{
-                    padding: "7px 18px",
-                    borderRadius: 22,
-                    fontSize: 12,
-                    border: `1px solid ${active ? "#1B3A2F" : "#e8eaec"}`,
-                    color: active ? "#1B3A2F" : "#6b7280",
-                    fontWeight: active ? 600 : 400,
-                    background: "#fff",
-                    cursor: "pointer",
-                    transition: "all 0.12s",
-                  }}
-                >
+                <button key={key} onClick={() => { setSortKey(key); setShowAll(false); }} style={{ padding: "6px 14px", borderRadius: 20, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap", border: active ? `1.5px solid ${primary}` : "0.5px solid #e8eaec", color: active ? primary : "#6b7280", fontWeight: active ? 700 : 400, background: "#fff", transition: "all 0.12s" }}>
                   {label}{active ? " ↓" : ""}
                 </button>
               );
             })}
           </div>
+          <div style={{ fontSize: 11, color: "#9ca3af", flexShrink: 0, marginRight: 12 }}>
+            {sortedFunds.length} קרנות
+          </div>
         </div>
 
-        {/* ── MAIN CONTENT ── */}
-        <div
-          style={{ maxWidth: 1400, margin: "0 auto", padding: "24px 16px 120px" }}
-        >
-          {hasMixedCurrencies && (
-            <div
-              style={{
-                marginBottom: 16,
-                padding: "10px 16px",
-                backgroundColor: "#fffbeb",
-                border: "1px solid #f59e0b",
-                borderRadius: 8,
-                fontSize: 13,
-                color: "#92400e",
-              }}
-            >
-              ⚠️ השוואה כוללת קרנות במטבעות שונים
-            </div>
-          )}
-
+        {/* TABLE */}
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "20px 28px 100px" }}>
           {sortedFunds.length === 0 ? (
-            <div
-              style={{
-                padding: "80px 20px",
-                textAlign: "center",
-                color: "#9ca3af",
-                fontSize: 14,
-              }}
-            >
-              לא נמצאו קרנות עם הפילטרים הנוכחיים
-            </div>
+            <div style={{ padding: "80px 20px", textAlign: "center", color: "#9ca3af", fontSize: 14 }}>לא נמצאו קרנות</div>
           ) : (
-            <div
-              style={{
-                background: "#fff",
-                border: "0.5px solid #e8ecee",
-                borderRadius: 16,
-                overflow: "hidden",
-              }}
-            >
-              {/* Table header */}
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: colTemplate,
-                  padding: "11px 20px",
-                  backgroundColor: "#fafbfc",
-                  borderBottom: "0.5px solid #f2f4f6",
-                  direction: "rtl",
-                }}
-              >
-                <span />
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: "#9ca3af",
-                    fontWeight: 500,
-                    textAlign: "center",
-                  }}
-                >
-                  #
-                </span>
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: "#9ca3af",
-                    fontWeight: 500,
-                    paddingRight: 8,
-                  }}
-                >
-                  קרן
-                </span>
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: "#9ca3af",
-                    fontWeight: 500,
-                    textAlign: "center",
-                  }}
-                >
-                  {activePeriodLabel}
-                </span>
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: "#9ca3af",
-                    fontWeight: 500,
-                    textAlign: "center",
-                  }}
-                >
-                  שארפ
-                </span>
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: "#9ca3af",
-                    fontWeight: 500,
-                    textAlign: "center",
-                  }}
-                >
-                  עקביות
-                </span>
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: "#9ca3af",
-                    fontWeight: 500,
-                    textAlign: "center",
-                  }}
-                >
-                  YTD
-                </span>
+            <div style={{ background: "#fff", border: "0.5px solid #e8ecee", borderRadius: 16, overflow: "hidden" }}>
+
+              {/* Header */}
+              <div style={{ display: "grid", gridTemplateColumns: COL, padding: "11px 24px", background: "#fafbfc", borderBottom: "0.5px solid #eaecee", direction: "rtl" }}>
+                {["#", "קרן", SORT_OPTIONS.find(s => s.key === sortKey)?.label ?? sortKey, "שארפ", "עקביות", "הוקמה"].map((h, i) => (
+                  <span key={i} style={{ fontSize: 10, color: "#9ca3af", fontWeight: 600, letterSpacing: "0.8px", textAlign: i >= 2 ? "center" : "right" }}>{h}</span>
+                ))}
               </div>
 
-              {/* Top rows */}
-              {topRows.map((fund, i) => renderRow(fund, i + 1))}
+              {/* TOP 5 */}
+              {topRows.map((fund, i) => (
+                <FundRow key={fund.id} fund={fund} rank={i + 1} sortKey={sortKey} primary={primary} isBottom={false} />
+              ))}
 
-              {/* Separator */}
-              {showSeparator && (
+              {/* הראה רשימה מלאה */}
+              {hiddenCount > 0 && !showAll && (
                 <div
-                  style={{
-                    borderTop: "1px dashed #e8ecee",
-                    borderBottom: "1px dashed #e8ecee",
-                    background: "#fdfcfb",
-                    padding: "10px 20px",
-                    textAlign: "center",
-                    fontSize: 12,
-                    color: "#9ca3af",
-                    direction: "rtl",
-                    userSelect: "none",
-                  }}
+                  onClick={() => setShowAll(true)}
+                  style={{ borderTop: "0.5px solid #eaecee", borderBottom: "0.5px solid #eaecee", background: "#fafbfc", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, cursor: "pointer", direction: "rtl" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f2f7f4")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "#fafbfc")}
                 >
-                  · · · · · {bottomRows.length} קרנות נוספות · · · · ·
+                  <span style={{ fontSize: 13, color: primary, fontWeight: 600 }}>הראה רשימה מלאה</span>
+                  <span style={{ fontSize: 11, color: "#9ca3af" }}>{hiddenCount} קרנות</span>
+                  <span style={{ fontSize: 14, color: "#B8975A" }}>↓</span>
                 </div>
               )}
 
-              {/* Bottom rows */}
-              {bottomRows.map((fund, i) =>
-                renderRow(fund, TOP_N + i + 1, TOP_N + i + 1 >= 80)
+              {/* Middle rows — כשפתוח */}
+              {showAll && middleRows.map((fund, i) => (
+                <FundRow key={fund.id} fund={fund} rank={TOP_N + i + 1} sortKey={sortKey} primary={primary} isBottom={false} />
+              ))}
+
+              {/* הסתר */}
+              {showAll && hiddenCount > 0 && (
+                <div
+                  onClick={() => setShowAll(false)}
+                  style={{ borderTop: "0.5px solid #eaecee", borderBottom: "0.5px solid #eaecee", background: "#fafbfc", padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, cursor: "pointer", direction: "rtl" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f2f7f4")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "#fafbfc")}
+                >
+                  <span style={{ fontSize: 13, color: "#6b7280" }}>הסתר</span>
+                  <span style={{ fontSize: 14, color: "#9ca3af" }}>↑</span>
+                </div>
               )}
+
+              {/* BOTTOM 3 — תמיד */}
+              {bottomRows.length > 0 && (
+                <>
+                  <div style={{ borderTop: "1px dashed #e8ecee", background: "#fdfcfb", padding: "8px 24px", textAlign: "center", fontSize: 11, color: "#b0bac4", userSelect: "none", direction: "rtl" }}>
+                    · · · · ·
+                  </div>
+                  {bottomRows.map((fund, i) => (
+                    <FundRow key={fund.id} fund={fund} rank={sortedFunds.length - BOTTOM_N + i + 1} sortKey={sortKey} primary={primary} isBottom={true} />
+                  ))}
+                </>
+              )}
+
             </div>
           )}
         </div>
 
-        {/* ── COMPARE BAR ── */}
-        {selectedIds.size > 0 && (
-          <div
-            style={{
-              position: "fixed",
-              bottom: 24,
-              left: "50%",
-              transform: "translateX(-50%)",
-              background: "#1a2e26",
-              borderRadius: 14,
-              padding: "13px 22px",
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
-              zIndex: 100,
-              boxShadow: "0 4px 24px rgba(0,0,0,0.25)",
-              direction: "rtl",
-            }}
-          >
-            <span
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: "#B8975A",
-                flexShrink: 0,
-              }}
-            />
-            <span style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>
-              {selectedIds.size} קרנות נבחרו
-            </span>
-            <span
-              style={{
-                fontSize: 12,
-                color: "#94a3b8",
-                maxWidth: 300,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {selectedFunds.map((f) => f.name).join(" · ")}
-            </span>
-            <button
-              onClick={handleCompare}
-              style={{
-                background: "#B8975A",
-                color: "#fff",
-                border: "none",
-                borderRadius: 8,
-                padding: "7px 18px",
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: "pointer",
-                marginRight: 8,
-                flexShrink: 0,
-              }}
-            >
-              השווה ←
-            </button>
-            <button
-              onClick={() => setSelectedIds(new Set())}
-              style={{
-                background: "none",
-                border: "none",
-                color: "#94a3b8",
-                fontSize: 13,
-                cursor: "pointer",
-                padding: "0 4px",
-                flexShrink: 0,
-              }}
-            >
-              נקה
-            </button>
-          </div>
-        )}
-
-        {/* ── SEARCH BUBBLE ── */}
-        <button
-          onClick={() => {
-            setSearchOpen((v) => !v);
-            if (searchOpen) setSearchQuery("");
-          }}
-          title="חיפוש קרן"
-          style={{
-            position: "fixed",
-            bottom: 32,
-            left: 32,
-            width: 50,
-            height: 50,
-            borderRadius: "50%",
-            background: "#1a2e26",
-            border: "none",
-            color: "#fff",
-            fontSize: 20,
-            cursor: "pointer",
-            boxShadow: "0 2px 12px rgba(0,0,0,0.2)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 200,
-          }}
-        >
-          🔍
-        </button>
-
-        {searchOpen && (
-          <div
-            style={{
-              position: "fixed",
-              bottom: 92,
-              left: 32,
-              background: "#fff",
-              borderRadius: 16,
-              padding: "16px",
-              boxShadow: "0 4px 24px rgba(0,0,0,0.15)",
-              zIndex: 200,
-              width: 280,
-              direction: "rtl",
-            }}
-          >
-            <input
-              autoFocus
-              type="text"
-              placeholder="חפש שם קרן..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                borderRadius: 8,
-                border: "1px solid #e8eaec",
-                fontSize: 13,
-                outline: "none",
-                boxSizing: "border-box",
-                direction: "rtl",
-              }}
-            />
-            {searchQuery && !searchResult && (
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "#9ca3af",
-                  marginTop: 10,
-                  textAlign: "center",
-                }}
-              >
-                לא נמצאה קרן
-              </div>
-            )}
-            {searchResult && (
-              <div
-                style={{
-                  marginTop: 12,
-                  border: "1.5px solid #C9A96E",
-                  borderRadius: 14,
-                  padding: "12px 14px",
-                  boxShadow: "0 1px 20px rgba(184,151,90,0.10)",
-                  background: "#fffdf9",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: "#1a2e26",
-                    marginBottom: 4,
-                  }}
-                >
-                  {searchResult.fund.name}
-                </div>
-                <div
-                  style={{ fontSize: 11, color: "#9ca3af", marginBottom: 8 }}
-                >
-                  #{searchResult.rank} מתוך {searchResult.total}
-                </div>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 6,
-                    marginBottom: 10,
-                  }}
-                >
-                  {[
-                    { label: "ממוצע", value: fmt(searchResult.fund.avgAnnualReturn) },
-                    { label: "שארפ", value: fmtNum(searchResult.fund.sharpe) },
-                    {
-                      label: "עקביות",
-                      value:
-                        calcConsistency(searchResult.fund) !== null
-                          ? `${calcConsistency(searchResult.fund)}%`
-                          : "—",
-                    },
-                    { label: "YTD", value: fmt(searchResult.fund.returns?.ytd2026 ?? null) },
-                  ].map(({ label, value }) => (
-                    <div key={label} style={{ textAlign: "center" }}>
-                      <div style={{ fontSize: 10, color: "#9ca3af" }}>{label}</div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#1a2e26" }}>
-                        {value}
-                      </div>
+        {/* SEARCH BUBBLE */}
+        <div ref={searchRef} style={{ position: "fixed", bottom: 28, left: 28, zIndex: 200 }}>
+          {searchOpen && (
+            <div style={{ position: "absolute", bottom: 60, left: 0, background: "#fff", borderRadius: 16, padding: 16, boxShadow: "0 4px 24px rgba(0,0,0,0.15)", width: 290, border: "0.5px solid #e8ecee", direction: "rtl", marginBottom: 8 }}>
+              <input
+                autoFocus type="text" placeholder="חיפוש קרן..."
+                value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "0.5px solid #e2e8f0", fontSize: 13, outline: "none", boxSizing: "border-box", direction: "rtl" }}
+              />
+              {searchQuery && !searchResult && (
+                <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 10, textAlign: "center" }}>לא נמצאה קרן</div>
+              )}
+              {searchResult && (
+                <div style={{ marginTop: 12, border: "1.5px solid #C9A96E", borderRadius: 12, padding: 14, background: "#fffdf9" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#1a2e26" }}>{searchResult.fund.name}</div>
+                      <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>{searchResult.fund.currency}</div>
                     </div>
-                  ))}
+                    <div style={{ background: primary, color: "#fff", borderRadius: 8, padding: "4px 10px", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>
+                      #{searchResult.rank} מתוך {searchResult.total}
+                    </div>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, textAlign: "center" }}>
+                    {[
+                      { label: SORT_OPTIONS.find(s => s.key === sortKey)?.label ?? sortKey, value: sortKey === "sharpe" ? fmtNum(searchResult.fund.sharpe) : fmt(calcPeriodReturn(searchResult.fund, sortKey)) },
+                      { label: "שארפ", value: fmtNum(searchResult.fund.sharpe) },
+                      { label: "עקביות", value: calcConsistency(searchResult.fund) !== null ? `${calcConsistency(searchResult.fund)}%` : "—" },
+                    ].map(({ label, value }) => (
+                      <div key={label}>
+                        <div style={{ fontSize: 10, color: "#9ca3af" }}>{label}</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "#1a2e26" }}>{value}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <button
-                  onClick={() => {
-                    toggleSelect(searchResult.fund.id);
-                    setSearchOpen(false);
-                    setSearchQuery("");
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "7px",
-                    borderRadius: 8,
-                    background: "#1B3A2F",
-                    color: "#fff",
-                    border: "none",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                >
-                  הוסף להשוואה
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </div>
+          )}
+          <button
+            onClick={() => { setSearchOpen((v) => !v); if (searchOpen) setSearchQuery(""); }}
+            style={{ width: 50, height: 50, borderRadius: "50%", background: "#1a2e26", border: "none", color: "#fff", fontSize: 20, cursor: "pointer", boxShadow: "0 2px 12px rgba(0,0,0,0.22)", display: "flex", alignItems: "center", justifyContent: "center" }}
+          >🔍</button>
+        </div>
+
       </div>
     </ClientGate>
   );
 }
 
-/* ================================================================== */
-/*  Page export                                                        */
-/* ================================================================== */
 export default function AnalysisPage() {
   return (
-    <Suspense
-      fallback={
-        <div style={{ padding: 40, textAlign: "center", color: "#888" }}>
-          טוען...
-        </div>
-      }
-    >
+    <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: "#888" }}>טוען...</div>}>
       <AnalysisContent />
     </Suspense>
   );
