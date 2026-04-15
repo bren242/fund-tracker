@@ -149,18 +149,26 @@ function SegmentedControl({ value, onChange, accentColor }: {
 }
 
 // ── Year Buttons (year-mode — NOX) ───────────────────────────────────────────
-const YEAR_BTN_OPTIONS = ["2020", "2021", "2022", "2023", "2024", "2025"] as const;
-type YearBtnKey = typeof YEAR_BTN_OPTIONS[number];
+const YEAR_BTN_OPTIONS: { key: string; label: string }[] = [
+  { key: "2020",    label: "2020" },
+  { key: "2021",    label: "2021" },
+  { key: "2022",    label: "2022" },
+  { key: "2023",    label: "2023" },
+  { key: "2024",    label: "2024" },
+  { key: "2025",    label: "2025" },
+  { key: "ytd2026", label: "YTD 2026" },
+];
+type YearBtnKey = typeof YEAR_BTN_OPTIONS[number]["key"];
 
 function YearButtons({ value, onChange, accentColor }: {
   value: YearBtnKey; onChange: (v: YearBtnKey) => void; accentColor: string;
 }) {
   return (
     <div style={{ display: "inline-flex", borderRadius: 8, border: "1px solid var(--border)", overflow: "hidden" }}>
-      {YEAR_BTN_OPTIONS.map((y, i) => {
-        const active = value === y;
+      {YEAR_BTN_OPTIONS.map((o, i) => {
+        const active = value === o.key;
         return (
-          <button key={y} onClick={() => onChange(y)} style={{
+          <button key={o.key} onClick={() => onChange(o.key)} style={{
             padding: "6px 13px", fontSize: 12, fontWeight: active ? 700 : 400,
             border: "none",
             borderRight: i < YEAR_BTN_OPTIONS.length - 1 ? "1px solid var(--border)" : "none",
@@ -169,7 +177,7 @@ function YearButtons({ value, onChange, accentColor }: {
             color: active ? "#fff" : "var(--text-secondary)",
             transition: "all 0.12s", whiteSpace: "nowrap",
           }}>
-            {y}
+            {o.label}
           </button>
         );
       })}
@@ -305,7 +313,7 @@ function CompareContent() {
 
   // Year keys for cards/table — single selected year in year mode
   const selectedYears = useMemo(() => {
-    if (isYearMode) return [`y${selectedYear}`];
+    if (isYearMode) return [selectedYear === "ytd2026" ? "ytd2026" : `y${selectedYear}`];
     return dateRangeToYearKeys(chartRange.from, chartRange.to);
   }, [isYearMode, selectedYear, chartRange]);
 
