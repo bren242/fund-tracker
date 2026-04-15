@@ -305,11 +305,18 @@ function CompareContent() {
     modeDetected.current = true;
   }, [funds]);
 
-  // Exact YYYY-MM range for chart — fixed 2020-2025 in year mode
+  // Exact YYYY-MM range for chart — from 2020 to end of selected year in year mode
   const chartRange = useMemo(() => {
-    if (isYearMode) return { from: "2020-01", to: "2025-12" };
+    if (isYearMode) {
+      if (selectedYear === "ytd2026") {
+        const now = new Date();
+        const curMonth = String(now.getMonth() + 1).padStart(2, "0");
+        return { from: "2020-01", to: `${now.getFullYear()}-${curMonth}` };
+      }
+      return { from: "2020-01", to: `${selectedYear}-12` };
+    }
     return rangeToDateRange(timeRange, committedFrom, committedTo);
-  }, [isYearMode, timeRange, committedFrom, committedTo]);
+  }, [isYearMode, selectedYear, timeRange, committedFrom, committedTo]);
 
   // Year keys for cards/table — single selected year in year mode
   const selectedYears = useMemo(() => {
