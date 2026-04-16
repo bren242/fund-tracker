@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, Suspense, useRef } from "react";
 import dynamic from "next/dynamic";
 import { FundsData, Fund, Benchmark } from "@/lib/types";
-import { pct, num, formatDate } from "@/lib/format";
+import { pct, num, formatDate, formatReportDate } from "@/lib/format";
 import { useBrand } from "@/lib/useBrand";
 import { useClientKey, withClient } from "@/lib/useClientKey";
 import { useSearchParams } from "next/navigation";
@@ -187,8 +187,8 @@ function YearButtons({ values, onToggle, accentColor }: {
 }
 
 // ── Fund Card ─────────────────────────────────────────────────────────────────
-function FundCompareCard({ fund, color, isWinner, selectedYears }: {
-  fund: Fund; color: string; isWinner: boolean; selectedYears: string[];
+function FundCompareCard({ fund, color, isWinner, selectedYears, isYearMode }: {
+  fund: Fund; color: string; isWinner: boolean; selectedYears: string[]; isYearMode: boolean;
 }) {
   const cumulative = computeCumulative(fund, selectedYears);
   const metrics = [
@@ -209,7 +209,7 @@ function FundCompareCard({ fund, color, isWinner, selectedYears }: {
       </div>
 
       {/* Name + classification */}
-      <div style={{ marginBottom: 14 }}>
+      <div style={{ marginBottom: fund.lastReportDate ? 8 : 14 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", lineHeight: 1.35, marginBottom: 3 }}>
           {fund.name}
         </div>
@@ -217,6 +217,13 @@ function FundCompareCard({ fund, color, isWinner, selectedYears }: {
           {fund.classification || "—"}
         </div>
       </div>
+
+      {/* Update date */}
+      {fund.lastReportDate && (
+        <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 10 }}>
+          {isYearMode ? "עודכן לאחרונה" : "מעודכן ל"}: {formatReportDate(fund.lastReportDate)}
+        </div>
+      )}
 
       {/* 3 metrics */}
       <div style={{ display: "flex", borderTop: "1px solid var(--border)", paddingTop: 10 }}>
@@ -493,6 +500,7 @@ function CompareContent() {
                   color={FUND_COLORS[i % FUND_COLORS.length]}
                   isWinner={i === winnerIdx}
                   selectedYears={selectedYears}
+                  isYearMode={isYearMode}
                 />
               ))}
             </div>
