@@ -12,6 +12,10 @@ import { CLIENT_KEYS } from "./lib/clientKey";
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  // Forward pathname as request header so server components can read it
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-pathname", pathname);
+
   // Extract first path segment
   const segments = pathname.split("/").filter(Boolean);
   const firstSegment = segments[0]?.toLowerCase();
@@ -24,7 +28,9 @@ export function middleware(req: NextRequest) {
     url.pathname = restPath;
     url.searchParams.set("client", firstSegment);
 
-    return NextResponse.rewrite(url);
+    return NextResponse.rewrite(url, {
+      request: { headers: requestHeaders },
+    });
   }
 
   // Block bare "/" and unknown paths (no valid client) — show 404
@@ -36,10 +42,14 @@ export function middleware(req: NextRequest) {
     // Rewrite to Next.js not-found page
     const url = req.nextUrl.clone();
     url.pathname = "/_not-found";
-    return NextResponse.rewrite(url);
+    return NextResponse.rewrite(url, {
+      request: { headers: requestHeaders },
+    });
   }
 
-  return NextResponse.next();
+  return NextResponse.next({
+    request: { headers: requestHeaders },
+  });
 }
 
 export const config = {

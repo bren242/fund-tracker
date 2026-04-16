@@ -94,18 +94,17 @@ function PrintPageInner() {
           font-size: 13px; font-weight: 600;
           cursor: pointer; letter-spacing: 0.3px;
         }
-        /* print-header / print-footer: hidden on screen, shown in print */
+        /* print-header: hidden on screen, shown in print */
         .print-ph { display: none; }
-        .print-pf { display: none; }
+        /* print-only elements from Body (disclaimer inside verdict) */
+        .print-only { display: none !important; }
 
         @media print {
-          header, nav, [data-app-header] { display: none !important; }
           body { background: #fff; }
           .print-btn-bar { display: none !important; }
-          /* Hide Body's screen-only disclaimer section */
           .no-print { display: none !important; }
+          .print-only { display: block !important; }
           .print-ph { display: flex !important; }
-          .print-pf { display: flex !important; }
           .print-page-shell {
             margin: 0 !important; border-radius: 0 !important;
             box-shadow: none !important;
@@ -114,8 +113,6 @@ function PrintPageInner() {
           }
           /* Tighten section spacing to fit 2 pages */
           .onepager-section { margin-bottom: 14px !important; }
-          /* Verdict + footer must stay on same page */
-          .print-pf { break-before: avoid !important; page-break-before: avoid !important; }
           * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
@@ -181,28 +178,8 @@ function PrintPageInner() {
           </div>
         )}
 
-        {/* Content */}
-        {data && (
-          <>
-            <Body data={data} primary={primary} accent={accent} brand={brand} />
-
-            {/* Print footer */}
-            <div className="print-pf" style={{ flexDirection: "column", marginTop: 16 }}>
-              <div style={{ borderTop: "0.5px solid #ddd", paddingTop: 14, textAlign: "center" }}>
-                <div style={{ fontSize: 7.5, color: "#bbb", lineHeight: 1.6, marginBottom: 8 }}>
-                  {brand.footerDisclaimer || "המידע לצורך ניתוח בלבד ואינו מהווה ייעוץ השקעות. אין לראות במידע המלצה לרכישה או מכירה של ניירות ערך."}
-                </div>
-                {logo && <img src={logo} alt="" style={{ height: 20, objectFit: "contain", marginBottom: 4 }} />}
-                <div style={{ fontSize: 10, color: primary, letterSpacing: 2, fontWeight: 700 }}>
-                  {brand.fullName || brand.name}
-                </div>
-                <div style={{ fontSize: 7, color: "#ccc", marginTop: 4 }}>
-                  © {new Date().getFullYear()} {brand.fullName || brand.name}. כל הזכויות שמורות.
-                </div>
-              </div>
-            </div>
-          </>
-        )}
+        {/* Content — Body now includes the print disclaimer inside verdict section */}
+        {data && <Body data={data} primary={primary} accent={accent} brand={brand} />}
       </div>
     </>
   );

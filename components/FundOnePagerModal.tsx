@@ -516,45 +516,62 @@ export function Body({ data, primary, accent, brand }: {
         </div>
       )}
 
-      {/* ── Verdict ── */}
-      <div className="onepager-section" style={{ marginBottom: 28, textAlign: "center" }}>
-        <div style={{ width: 40, height: 2, background: accent, margin: "0 auto 12px", borderRadius: 1 }} />
-        <div style={{ fontSize: 10, color: accent, textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600, marginBottom: 16 }}>
-          שורה תחתונה
-        </div>
-        {data.ai?.verdict ? (
-          <div style={{ maxWidth: 560, margin: "0 auto" }}>
-            <div style={{ fontSize: 28, color: accent, lineHeight: 0.8, marginBottom: 8, fontFamily: "serif" }}>״</div>
-            <div style={{ fontSize: 18, fontWeight: 500, color: primary, lineHeight: 1.65 }}>
-              {data.ai.verdict}
+      {/* ── Verdict + disclaimer — single section so they never split across pages ── */}
+      <div className="onepager-section" style={{ marginBottom: 0 }}>
+        {/* Verdict */}
+        <div style={{ textAlign: "center", marginBottom: 20 }}>
+          <div style={{ width: 40, height: 2, background: accent, margin: "0 auto 12px", borderRadius: 1 }} />
+          <div style={{ fontSize: 10, color: accent, textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600, marginBottom: 16 }}>
+            שורה תחתונה
+          </div>
+          {data.ai?.verdict ? (
+            <div style={{ maxWidth: 560, margin: "0 auto" }}>
+              <div style={{ fontSize: 28, color: accent, lineHeight: 0.8, marginBottom: 8, fontFamily: "serif" }}>״</div>
+              <div style={{ fontSize: 18, fontWeight: 500, color: primary, lineHeight: 1.65 }}>
+                {data.ai.verdict}
+              </div>
+              <div style={{ fontSize: 28, color: accent, lineHeight: 0.8, marginTop: 8, fontFamily: "serif" }}>״</div>
             </div>
-            <div style={{ fontSize: 28, color: accent, lineHeight: 0.8, marginTop: 8, fontFamily: "serif" }}>״</div>
-          </div>
-        ) : !data.aiError ? (
-          <div style={{ maxWidth: 480, margin: "0 auto" }}>
-            <Skel h={17} /><div style={{ marginTop: 8 }}><Skel w="75%" h={17} /></div>
-          </div>
-        ) : null}
-      </div>
+          ) : !data.aiError ? (
+            <div style={{ maxWidth: 480, margin: "0 auto" }}>
+              <Skel h={17} /><div style={{ marginTop: 8 }}><Skel w="75%" h={17} /></div>
+            </div>
+          ) : null}
+        </div>
 
-      {/* ── Screen disclaimer ── */}
-      <div className="no-print" style={{
-        borderTop: "0.5px solid #e5e5e5", paddingTop: 20, marginTop: 8,
-        textAlign: "center", fontSize: 9, color: "#bbb", lineHeight: 1.7,
-      }}>
-        {brand.footerDisclaimer || "המידע לצורך ניתוח בלבד ואינו מהווה ייעוץ השקעות."}
-        <div style={{ marginTop: 8 }}>
-          {logo && <img src={logo} alt="" style={{ height: 20, objectFit: "contain", display: "block", margin: "0 auto 4px" }} />}
-          <div style={{ fontSize: 10, letterSpacing: 2, color: primary, fontWeight: 600 }}>
+        {/* Screen disclaimer */}
+        <div className="no-print" style={{
+          borderTop: "0.5px solid #e5e5e5", paddingTop: 16, marginTop: 8,
+          textAlign: "center", fontSize: 9, color: "#bbb", lineHeight: 1.7,
+        }}>
+          {brand.footerDisclaimer || "המידע לצורך ניתוח בלבד ואינו מהווה ייעוץ השקעות."}
+          <div style={{ marginTop: 6 }}>
+            {logo && <img src={logo} alt="" style={{ height: 18, objectFit: "contain", display: "block", margin: "0 auto 3px" }} />}
+            <div style={{ fontSize: 10, letterSpacing: 2, color: primary, fontWeight: 600 }}>
+              {brand.fullName || brand.name}
+            </div>
+          </div>
+          {data.reportMonth && (
+            <div style={{ marginTop: 2, fontSize: 9, color: "#ccc" }}>
+              נתוני {fmtML(data.reportMonth)}
+              {data.cached && <span style={{ marginInlineStart: 8, opacity: 0.6 }}>(cached)</span>}
+            </div>
+          )}
+        </div>
+
+        {/* Print disclaimer — compact, 7px, stays with verdict */}
+        <div className="print-only" style={{
+          borderTop: "0.5px solid #e5e5e5", paddingTop: 10, marginTop: 10,
+          textAlign: "center",
+        }}>
+          {logo && <img src={logo} alt="" style={{ height: 16, objectFit: "contain", display: "block", margin: "0 auto 4px" }} />}
+          <div style={{ fontSize: 8.5, color: primary, letterSpacing: 1.5, fontWeight: 700, marginBottom: 4 }}>
             {brand.fullName || brand.name}
           </div>
-        </div>
-        {data.reportMonth && (
-          <div style={{ marginTop: 3, fontSize: 9, color: "#ccc" }}>
-            נתוני {fmtML(data.reportMonth)}
-            {data.cached && <span style={{ marginInlineStart: 8, opacity: 0.6 }}>(cached)</span>}
+          <div style={{ fontSize: 7, color: "#bbb", lineHeight: 1.5 }}>
+            {brand.footerDisclaimer || "המידע לצורך ניתוח בלבד ואינו מהווה ייעוץ השקעות. אין לראות במידע המלצה לרכישה או מכירה של ניירות ערך."}
           </div>
-        )}
+        </div>
       </div>
     </>
   );
