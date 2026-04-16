@@ -5,13 +5,11 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
 } from "recharts";
-import { useClientKey, withClient } from "@/lib/useClientKey";
+import { useClientKey } from "@/lib/useClientKey";
 import { useBrand } from "@/lib/useBrand";
 import { useTheme } from "@/components/ThemeProvider";
 import { FundsData, Benchmark } from "@/lib/types";
 import ClientGate from "@/components/ClientGate";
-import BrandLogo from "@/components/BrandLogo";
-import { ThemeToggle } from "@/components/ThemeProvider";
 import { brandCssVars } from "@/lib/colors";
 import {
   getBenchmarkForCategory,
@@ -210,7 +208,6 @@ function buildSparkline(filteredMR: Record<string, number>): {
     H - ((v - min) / range) * (H - 4) - 2,
   ]);
 
-  // Linear slope for trend
   const n    = values.length;
   const xs   = Array.from({ length: n }, (_, i) => i);
   const sumX = xs.reduce((a, b) => a + b, 0);
@@ -227,7 +224,7 @@ function buildSparkline(filteredMR: Record<string, number>): {
 function Sparkline({ filteredMR }: { filteredMR: Record<string, number> }) {
   const { points, trend } = buildSparkline(filteredMR);
   if (points.length < 2) {
-    return <span style={{ color: "#999", fontSize: 10 }}>—</span>;
+    return <span style={{ color: "var(--text-muted)", fontSize: 10 }}>—</span>;
   }
   const color     = trend === "up" ? "#059669" : trend === "down" ? "#DC2626" : "#D97706";
   const pointsStr = points.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
@@ -302,9 +299,9 @@ function ConsistencyContent() {
   /* ── compute rows ────────────────────────────────────────────────────── */
   const { rows, bmInfo, bmMRFiltered, fundsWithData, totalFunds } = useMemo(() => {
     const empty = {
-      rows:         [] as TableRow[],
-      bmInfo:       { label: "—", months: 0 },
-      bmMRFiltered: {} as Record<string, number>,
+      rows:          [] as TableRow[],
+      bmInfo:        { label: "—", months: 0 },
+      bmMRFiltered:  {} as Record<string, number>,
       fundsWithData: 0,
       totalFunds:    0,
     };
@@ -362,46 +359,33 @@ function ConsistencyContent() {
   const kpiWeak       = rows.filter((r) => r.result && r.result.score < 40).length;
   const kpiTop        = rows[0]?.name ?? "—";
 
-  /* ── Chart + color system ────────────────────────────────────────────── */
+  /* ── Chart colors (hex required by recharts — per LESSONS.md) ─────────── */
   const fundColor = isDark ? "#4ade80" : "#1B3A2F";
   const bmColor   = "#B8975A";
   const gridColor = isDark ? "#2d3a3a" : "#e5e7eb";
   const axisColor = isDark ? "#6b7280" : "#9ca3af";
 
-  const G    = "#1B3A2F";
-  const GOLD = "#B8975A";
-  const BG   = isDark ? "#0d1117"                    : "#F8F7F4";
-  const CARD = isDark ? "#161b22"                    : "#FFFFFF";
-  const BDR  = isDark ? "rgba(255,255,255,0.07)"     : "rgba(27,58,47,0.06)";
-  const T1   = isDark ? "#e2e6ea"                    : "#1a1a1a";
-  const T2   = isDark ? "#a8b4c0"                    : "#5a5a5a";
-  const T3   = isDark ? "#6b7280"                    : "#999999";
-  const DET  = isDark ? "#111b1b"                    : "#FAFAF8";
-
-  const CG = '"Cormorant Garamond", Georgia, serif';
-  const DM = '"DM Sans", system-ui, sans-serif';
+  /* ── Brand accent ─────────────────────────────────────────────────────── */
+  const G = "#1B3A2F";  // active states / headings
 
   /* ── Shared table header style ───────────────────────────────────────── */
   const TH = (align: "right" | "center", w: string): React.CSSProperties => ({
     padding: "14px 20px",
     textAlign: align,
-    fontFamily: DM,
     fontSize: 10,
     fontWeight: 500,
     letterSpacing: "0.6px",
     textTransform: "uppercase",
-    color: T3,
+    color: "var(--text-muted)",
     width: w,
     whiteSpace: "nowrap",
-    borderBottom: `0.5px solid ${BDR}`,
+    borderBottom: "1px solid var(--border)",
   });
 
   return (
     <ClientGate clientKey={clientKey}>
-      {/* Fonts + animations */}
+      {/* Animations */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300&family=DM+Sans:wght@300;400;500&display=swap');
-
         @keyframes fadeUp {
           from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0); }
@@ -417,73 +401,9 @@ function ConsistencyContent() {
 
       <div style={{
         minHeight: "100vh",
-        backgroundColor: BG,
-        fontFamily: DM,
+        backgroundColor: "var(--bg-page)",
         ...brandCssVars(brand.primaryColor, brand.accentColor) as React.CSSProperties,
       }}>
-
-        {/* ═══ Header ══════════════════════════════════════════════════════ */}
-        <div style={{ height: 2, background: `linear-gradient(90deg, ${G}, ${GOLD})` }} />
-        <div style={{
-          backgroundColor: CARD,
-          borderBottom: `0.5px solid ${BDR}`,
-        }}>
-          <div style={{
-            maxWidth: 1200, margin: "0 auto", padding: "0 28px",
-            height: 54,
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-          }}>
-            {/* Logo */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <BrandLogo brand={brand} height={26} variant="light" />
-              <span style={{
-                fontFamily: CG, fontWeight: 400, fontSize: 18,
-                letterSpacing: "3px", color: G, lineHeight: 1,
-              }}>
-                {brand.name || "GREEN"}
-              </span>
-              <span style={{
-                width: 4, height: 4, borderRadius: "50%",
-                backgroundColor: GOLD, flexShrink: 0,
-              }} />
-              <span style={{ fontFamily: DM, fontSize: 12, color: T3, lineHeight: 1 }}>
-                מעקב קרנות השקעה
-              </span>
-            </div>
-            {/* Nav */}
-            <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-              {[
-                { label: "דוח",   href: withClient("/",         clientKey), active: false },
-                { label: "גרפים", href: withClient("/charts",   clientKey), active: false },
-                { label: "ניתוח", href: withClient("/analysis", clientKey), active: true  },
-                { label: "ניהול", href: withClient("/admin",    clientKey), active: false },
-              ].map((item) => (
-                <a
-                  key={item.label}
-                  href={item.href}
-                  style={{
-                    fontFamily: DM,
-                    fontSize: 11,
-                    fontWeight: item.active ? 500 : 400,
-                    letterSpacing: "0.8px",
-                    textTransform: "uppercase",
-                    textDecoration: "none",
-                    color: item.active ? G : T2,
-                    padding: "18px 10px",
-                    borderBottom: item.active ? `1.5px solid ${G}` : "1.5px solid transparent",
-                    transition: "color 0.15s",
-                    display: "inline-block",
-                  }}
-                >
-                  {item.label}
-                </a>
-              ))}
-              <div style={{ marginRight: 12, marginLeft: 4 }}>
-                <ThemeToggle />
-              </div>
-            </div>
-          </div>
-        </div>
 
         {/* ═══ Body ════════════════════════════════════════════════════════ */}
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 28px 56px" }}>
@@ -494,13 +414,13 @@ function ConsistencyContent() {
             marginBottom: 28,
           }}>
             <h1 style={{
-              fontFamily: CG, fontWeight: 300, fontSize: 32,
-              color: G, margin: 0, lineHeight: 1.1,
+              fontSize: 24, fontWeight: 700,
+              color: "var(--text-primary)", margin: 0, lineHeight: 1.2,
             }}>
               עקביות קרנות
             </h1>
             <p style={{
-              fontFamily: DM, fontSize: 12, color: T3,
+              fontSize: 12, color: "var(--text-muted)",
               margin: 0, textAlign: "left", maxWidth: 360,
             }}>
               כמה פעמים הקרן הכתה את המדד — ולא רק בשורה התחתונה
@@ -519,13 +439,12 @@ function ConsistencyContent() {
                     padding: "7px 18px",
                     borderRadius: 100,
                     fontSize: 12,
-                    fontFamily: DM,
                     fontWeight: active ? 500 : 400,
                     cursor: "pointer",
                     transition: "all 0.15s",
                     backgroundColor: active ? G : "transparent",
-                    color: active ? "#fff" : T2,
-                    border: active ? `1px solid ${G}` : `1px solid ${BDR}`,
+                    color: active ? "#fff" : "var(--text-secondary)",
+                    border: active ? `1px solid ${G}` : "1px solid var(--border)",
                   }}
                 >
                   {cat.label}
@@ -536,9 +455,9 @@ function ConsistencyContent() {
 
           {/* Time range card */}
           <div style={{
-            backgroundColor: CARD,
+            backgroundColor: "var(--bg-surface)",
             borderRadius: 12,
-            border: `0.5px solid ${BDR}`,
+            border: "1px solid var(--border)",
             padding: "14px 20px",
             marginBottom: 10,
             display: "flex",
@@ -547,9 +466,9 @@ function ConsistencyContent() {
             {/* Rolling */}
             <div style={{ flex: 1, paddingLeft: 20 }}>
               <div style={{
-                fontSize: 10, fontFamily: DM, fontWeight: 500,
+                fontSize: 10, fontWeight: 500,
                 letterSpacing: "0.5px", textTransform: "uppercase",
-                color: T3, marginBottom: 8,
+                color: "var(--text-muted)", marginBottom: 8,
               }}>
                 מתגלגל
               </div>
@@ -563,11 +482,10 @@ function ConsistencyContent() {
                         padding: "5px 12px",
                         borderRadius: 6,
                         fontSize: 11,
-                        fontFamily: DM,
                         cursor: "pointer",
                         transition: "background 0.12s, color 0.12s",
                         backgroundColor: active ? G : "transparent",
-                        color: active ? "#fff" : T2,
+                        color: active ? "#fff" : "var(--text-secondary)",
                         border: "none",
                       }}
                     >{r.label}</button>
@@ -578,16 +496,16 @@ function ConsistencyContent() {
             {/* Divider */}
             <div style={{
               width: "0.5px",
-              backgroundColor: BDR,
+              backgroundColor: "var(--border)",
               margin: "0 4px",
               flexShrink: 0,
             }} />
             {/* Calendar */}
             <div style={{ flex: 2, paddingRight: 20 }}>
               <div style={{
-                fontSize: 10, fontFamily: DM, fontWeight: 500,
+                fontSize: 10, fontWeight: 500,
                 letterSpacing: "0.5px", textTransform: "uppercase",
-                color: T3, marginBottom: 8,
+                color: "var(--text-muted)", marginBottom: 8,
               }}>
                 קלנדרי
               </div>
@@ -601,11 +519,10 @@ function ConsistencyContent() {
                         padding: "5px 12px",
                         borderRadius: 6,
                         fontSize: 11,
-                        fontFamily: DM,
                         cursor: "pointer",
                         transition: "background 0.12s, color 0.12s",
                         backgroundColor: active ? G : "transparent",
-                        color: active ? "#fff" : T2,
+                        color: active ? "#fff" : "var(--text-secondary)",
                         border: "none",
                       }}
                     >{r.label}</button>
@@ -620,25 +537,22 @@ function ConsistencyContent() {
             <div style={{
               display: "flex", alignItems: "center",
               flexWrap: "wrap", gap: 8,
-              fontSize: 11, fontFamily: DM, color: T3,
+              fontSize: 11, color: "var(--text-muted)",
               marginBottom: 22, padding: "2px 0",
             }}>
               <span>בנצ׳מרק</span>
-              <span style={{ width: 3, height: 3, borderRadius: "50%", backgroundColor: T3, display: "inline-block", flexShrink: 0 }} />
-              <span style={{ fontWeight: 500, color: T1 }}>{bmInfo.label}</span>
-              <span style={{ width: 3, height: 3, borderRadius: "50%", backgroundColor: T3, display: "inline-block", flexShrink: 0 }} />
+              <span style={{ width: 3, height: 3, borderRadius: "50%", backgroundColor: "var(--text-muted)", display: "inline-block", flexShrink: 0 }} />
+              <span style={{ fontWeight: 500, color: "var(--text-primary)" }}>{bmInfo.label}</span>
+              <span style={{ width: 3, height: 3, borderRadius: "50%", backgroundColor: "var(--text-muted)", display: "inline-block", flexShrink: 0 }} />
               <span>{bmInfo.months} חודשים</span>
-              <span style={{ width: 3, height: 3, borderRadius: "50%", backgroundColor: T3, display: "inline-block", flexShrink: 0 }} />
+              <span style={{ width: 3, height: 3, borderRadius: "50%", backgroundColor: "var(--text-muted)", display: "inline-block", flexShrink: 0 }} />
               <span>מינימום 12 חודשים משותפים</span>
             </div>
           )}
 
           {/* Loading */}
           {loading && (
-            <div style={{
-              padding: 56, textAlign: "center",
-              color: T3, fontSize: 13, fontFamily: DM,
-            }}>
+            <div style={{ padding: 56, textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
               טוען נתונים...
             </div>
           )}
@@ -653,28 +567,25 @@ function ConsistencyContent() {
               <div className="con-kpi con-kpi-1" style={{
                 position: "relative", overflow: "hidden",
                 borderRadius: 14, padding: "20px 24px",
-                backgroundColor: CARD, border: `0.5px solid ${BDR}`,
+                backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
               }}>
                 <div style={{
                   position: "absolute", top: -24, left: -24,
                   width: 80, height: 80, borderRadius: "50%",
-                  backgroundColor: "#059669", opacity: 0.04, pointerEvents: "none",
+                  backgroundColor: "#059669", opacity: 0.06, pointerEvents: "none",
                 }} />
                 <div style={{
-                  fontSize: 10, fontFamily: DM, fontWeight: 500,
+                  fontSize: 10, fontWeight: 500,
                   letterSpacing: "0.6px", textTransform: "uppercase",
-                  color: T3, marginBottom: 10,
+                  color: "var(--text-muted)", marginBottom: 10,
                 }}>
                   קרנות עקביות
                 </div>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                  <span style={{
-                    fontFamily: CG, fontWeight: 300, fontSize: 36,
-                    color: "#059669", lineHeight: 1,
-                  }}>
+                  <span style={{ fontWeight: 700, fontSize: 36, color: "#059669", lineHeight: 1 }}>
                     {kpiConsistent}
                   </span>
-                  <span style={{ fontFamily: DM, fontSize: 13, color: T2 }}>
+                  <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
                     מתוך {fundsWithData}
                   </span>
                 </div>
@@ -684,28 +595,25 @@ function ConsistencyContent() {
               <div className="con-kpi con-kpi-2" style={{
                 position: "relative", overflow: "hidden",
                 borderRadius: 14, padding: "20px 24px",
-                backgroundColor: CARD, border: `0.5px solid ${BDR}`,
+                backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
               }}>
                 <div style={{
                   position: "absolute", top: -24, left: -24,
                   width: 80, height: 80, borderRadius: "50%",
-                  backgroundColor: "#DC2626", opacity: 0.04, pointerEvents: "none",
+                  backgroundColor: "#DC2626", opacity: 0.06, pointerEvents: "none",
                 }} />
                 <div style={{
-                  fontSize: 10, fontFamily: DM, fontWeight: 500,
+                  fontSize: 10, fontWeight: 500,
                   letterSpacing: "0.6px", textTransform: "uppercase",
-                  color: T3, marginBottom: 10,
+                  color: "var(--text-muted)", marginBottom: 10,
                 }}>
                   קרנות חלשות
                 </div>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                  <span style={{
-                    fontFamily: CG, fontWeight: 300, fontSize: 36,
-                    color: "#DC2626", lineHeight: 1,
-                  }}>
+                  <span style={{ fontWeight: 700, fontSize: 36, color: "#DC2626", lineHeight: 1 }}>
                     {kpiWeak}
                   </span>
-                  <span style={{ fontFamily: DM, fontSize: 13, color: T2 }}>
+                  <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
                     מתוך {fundsWithData}
                   </span>
                 </div>
@@ -715,22 +623,22 @@ function ConsistencyContent() {
               <div className="con-kpi con-kpi-3" style={{
                 position: "relative", overflow: "hidden",
                 borderRadius: 14, padding: "20px 24px",
-                backgroundColor: CARD, border: `0.5px solid ${BDR}`,
+                backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
               }}>
                 <div style={{
                   position: "absolute", top: -24, left: -24,
                   width: 80, height: 80, borderRadius: "50%",
-                  backgroundColor: GOLD, opacity: 0.04, pointerEvents: "none",
+                  backgroundColor: "#B8975A", opacity: 0.06, pointerEvents: "none",
                 }} />
                 <div style={{
-                  fontSize: 10, fontFamily: DM, fontWeight: 500,
+                  fontSize: 10, fontWeight: 500,
                   letterSpacing: "0.6px", textTransform: "uppercase",
-                  color: T3, marginBottom: 10,
+                  color: "var(--text-muted)", marginBottom: 10,
                 }}>
                   קרן מובילה
                 </div>
                 <div style={{
-                  fontFamily: DM, fontSize: 14, fontWeight: 500,
+                  fontSize: 14, fontWeight: 600,
                   color: G, lineHeight: 1.4, wordBreak: "break-word",
                 }}>
                   {kpiTop}
@@ -742,8 +650,8 @@ function ConsistencyContent() {
           {/* Table */}
           {!loading && rows.length > 0 && (
             <div className="con-table" style={{
-              backgroundColor: CARD,
-              border: `0.5px solid ${BDR}`,
+              backgroundColor: "var(--bg-surface)",
+              border: "1px solid var(--border)",
               borderRadius: 12,
               overflow: "hidden",
             }}>
@@ -774,10 +682,8 @@ function ConsistencyContent() {
                         <tr
                           className={isNA ? "" : "con-row-hover"}
                           style={{
-                            borderBottom: hasBorder ? `0.5px solid ${BDR}` : "none",
-                            backgroundColor: isExpanded
-                              ? (isDark ? "rgba(27,58,47,0.12)" : "rgba(27,58,47,0.025)")
-                              : "transparent",
+                            borderBottom: hasBorder ? "1px solid var(--border)" : "none",
+                            backgroundColor: isExpanded ? "var(--bg-surface-alt)" : "transparent",
                             opacity: isNA ? 0.25 : 1,
                             transition: "background 0.15s",
                           }}
@@ -785,8 +691,8 @@ function ConsistencyContent() {
                           {/* Fund name */}
                           <td style={{
                             padding: "16px 20px",
-                            fontFamily: DM, fontWeight: 500, fontSize: 14,
-                            color: T1, textAlign: "right",
+                            fontWeight: 500, fontSize: 14,
+                            color: "var(--text-primary)", textAlign: "right",
                           }}>
                             {row.name}
                           </td>
@@ -794,7 +700,7 @@ function ConsistencyContent() {
                           {isNA ? (
                             <td colSpan={4} style={{
                               padding: "16px 20px", textAlign: "center",
-                              fontFamily: DM, fontSize: 11, color: T3,
+                              fontSize: 11, color: "var(--text-muted)",
                             }}>
                               אין נתונים
                             </td>
@@ -806,9 +712,8 @@ function ConsistencyContent() {
                                   display: "inline-block",
                                   padding: "5px 16px",
                                   borderRadius: 10,
-                                  fontFamily: CG,
-                                  fontSize: 14,
-                                  fontWeight: 500,
+                                  fontSize: 13,
+                                  fontWeight: 700,
                                   ...scoreBadgeStyle(row.result!.score),
                                 }}>
                                   {row.result!.score.toFixed(1)}%
@@ -823,7 +728,7 @@ function ConsistencyContent() {
                               {/* Months */}
                               <td style={{
                                 padding: "16px 20px", textAlign: "center",
-                                fontFamily: DM, fontSize: 12, color: T2,
+                                fontSize: 12, color: "var(--text-secondary)",
                               }}>
                                 {row.sharedMonths}
                               </td>
@@ -835,7 +740,7 @@ function ConsistencyContent() {
                                   style={{
                                     background: "none", border: "none",
                                     cursor: "pointer", padding: 4,
-                                    color: isExpanded ? G : T3,
+                                    color: isExpanded ? G : "var(--text-muted)",
                                     transition: "color 0.15s, transform 0.2s",
                                     display: "inline-flex", alignItems: "center",
                                     transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
@@ -859,11 +764,11 @@ function ConsistencyContent() {
                         {/* ── Expanded detail ────────────────────────── */}
                         {isExpanded && (
                           <tr key={`${row.id}-detail`} style={{
-                            borderBottom: i < rows.length - 1 ? `0.5px solid ${BDR}` : "none",
+                            borderBottom: i < rows.length - 1 ? "1px solid var(--border)" : "none",
                           }}>
                             <td colSpan={5} style={{ padding: 0 }}>
                               <div className="con-enter" style={{
-                                backgroundColor: DET,
+                                backgroundColor: "var(--bg-surface-alt)",
                                 padding: "24px 28px",
                               }}>
                                 {/* Head */}
@@ -871,15 +776,10 @@ function ConsistencyContent() {
                                   display: "flex", alignItems: "baseline",
                                   gap: 10, marginBottom: 16,
                                 }}>
-                                  <span style={{
-                                    fontFamily: DM, fontSize: 14,
-                                    fontWeight: 600, color: T1,
-                                  }}>
+                                  <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
                                     {row.name}
                                   </span>
-                                  <span style={{
-                                    fontFamily: DM, fontSize: 12, color: T3,
-                                  }}>
+                                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
                                     vs {bmInfo.label} — תשואה מצטברת
                                   </span>
                                 </div>
@@ -887,9 +787,9 @@ function ConsistencyContent() {
                                 {/* Chart canvas */}
                                 {chartData && chartData.length >= 2 ? (
                                   <div style={{
-                                    backgroundColor: isDark ? "#1c2230" : "#FFFFFF",
+                                    backgroundColor: "var(--bg-surface)",
                                     borderRadius: 10,
-                                    border: `0.5px solid ${BDR}`,
+                                    border: "1px solid var(--border)",
                                     padding: 16,
                                     marginBottom: 14,
                                   }}>
@@ -949,10 +849,7 @@ function ConsistencyContent() {
                                     </ResponsiveContainer>
                                   </div>
                                 ) : (
-                                  <div style={{
-                                    fontSize: 12, color: T3,
-                                    padding: "20px 0", fontFamily: DM,
-                                  }}>
+                                  <div style={{ fontSize: 12, color: "var(--text-muted)", padding: "20px 0" }}>
                                     אין מספיק נתונים לגרף
                                   </div>
                                 )}
@@ -968,7 +865,7 @@ function ConsistencyContent() {
                                         width: 20, height: 2,
                                         backgroundColor: fundColor, borderRadius: 2,
                                       }} />
-                                      <span style={{ fontFamily: DM, fontSize: 11, color: T2 }}>
+                                      <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
                                         {row.name}
                                       </span>
                                     </div>
@@ -979,7 +876,7 @@ function ConsistencyContent() {
                                           stroke={bmColor} strokeWidth={1.5} strokeDasharray="4 2"
                                         />
                                       </svg>
-                                      <span style={{ fontFamily: DM, fontSize: 11, color: T2 }}>
+                                      <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
                                         {bmInfo.label}
                                       </span>
                                     </div>
@@ -1001,34 +898,29 @@ function ConsistencyContent() {
                                       },
                                       {
                                         label: "Information Ratio",
-                                        value: row.result.ir != null
-                                          ? row.result.ir.toFixed(3)
-                                          : "—",
+                                        value: row.result.ir != null ? row.result.ir.toFixed(3) : "—",
                                         color: irColor(row.result.ir),
                                       },
                                       {
                                         label: "ניצחונות",
                                         value: `${row.result.wins} / ${row.result.total}`,
-                                        color: T1,
+                                        color: "var(--text-primary)",
                                       },
                                     ].map((m) => (
                                       <div key={m.label} style={{
-                                        backgroundColor: isDark ? "#1c2230" : "#FFFFFF",
+                                        backgroundColor: "var(--bg-surface)",
                                         borderRadius: 10,
-                                        border: `0.5px solid ${BDR}`,
+                                        border: "1px solid var(--border)",
                                         padding: "14px 16px",
                                       }}>
                                         <div style={{
-                                          fontSize: 10, fontFamily: DM, fontWeight: 500,
+                                          fontSize: 10, fontWeight: 500,
                                           letterSpacing: "0.5px", textTransform: "uppercase",
-                                          color: T3, marginBottom: 8,
+                                          color: "var(--text-muted)", marginBottom: 8,
                                         }}>
                                           {m.label}
                                         </div>
-                                        <div style={{
-                                          fontFamily: CG, fontSize: 16,
-                                          fontWeight: 500, color: m.color,
-                                        }}>
+                                        <div style={{ fontSize: 16, fontWeight: 700, color: m.color }}>
                                           {m.value}
                                         </div>
                                       </div>
@@ -1062,7 +954,6 @@ function ConsistencyContent() {
                                       color: isDark ? "#34d399" : "#065F46",
                                       padding: "10px 16px",
                                       fontSize: 12,
-                                      fontFamily: DM,
                                       lineHeight: 1.6,
                                       direction: "rtl",
                                     }}>
@@ -1086,8 +977,7 @@ function ConsistencyContent() {
           {!loading && (
             <p style={{
               fontSize: 10,
-              fontFamily: DM,
-              color: T3,
+              color: "var(--text-muted)",
               letterSpacing: "0.3px",
               marginTop: 12,
               textAlign: "right",
