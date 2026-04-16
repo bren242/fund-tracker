@@ -599,6 +599,7 @@ function MonthlyDataTab({ data, updateFund, onUpdateDate, password, clientKey }:
                     <th style={thStyle(80)}>2024</th>
                     <th style={thStyle(90)}>מטבע</th>
                     <th style={thStyle(undefined)}>מנהל</th>
+                    <th style={thStyle(160)}>חודש עדכון</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -640,6 +641,16 @@ function MonthlyRow({ fund, categoryId, odd, onUpdate, password, clientKey }: {
   const [managerInput, setManagerInput] = useState(fund.manager || "");
   const [managerSaved, setManagerSaved] = useState(false);
 
+  // Per-fund lastUpdated
+  const defaultMonth = (() => {
+    if (fund.lastUpdated) return fund.lastUpdated;
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  })();
+  const [monthInput, setMonthInput] = useState(defaultMonth);
+  const [monthSaving, setMonthSaving] = useState(false);
+  const [monthSaved, setMonthSaved] = useState(false);
+
   const bgBase = odd ? "var(--bg-surface-alt)" : "var(--bg-surface)";
   const bg = !hasCurrency ? "#FFFBE6" : bgBase;
 
@@ -675,6 +686,21 @@ function MonthlyRow({ fund, categoryId, odd, onUpdate, password, clientKey }: {
     });
     setManagerSaved(true);
     setTimeout(() => setManagerSaved(false), 2000);
+  }
+
+  async function handleSaveLastUpdated() {
+    if (!monthInput) return;
+    setMonthSaving(true);
+    const res = await fetch(`/api/funds?action=set-last-updated&client=${encodeURIComponent(clientKey)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-admin-password": password },
+      body: JSON.stringify({ fundId: fund.id, lastUpdated: monthInput }),
+    });
+    setMonthSaving(false);
+    if (res.ok) {
+      setMonthSaved(true);
+      setTimeout(() => setMonthSaved(false), 2000);
+    }
   }
 
   return (
@@ -773,6 +799,39 @@ function MonthlyRow({ fund, categoryId, odd, onUpdate, password, clientKey }: {
         {managerSaved && (
           <span style={{ position: "absolute", top: "50%", right: -2, transform: "translateY(-50%)", fontSize: 10, color: "#059669" }}>✓</span>
         )}
+      </td>
+      <td style={{ padding: "5px 8px", textAlign: "center" }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+          <input
+            type="month"
+            value={monthInput}
+            onChange={(e) => setMonthInput(e.target.value)}
+            style={{
+              fontSize: 11, padding: "3px 6px", borderRadius: 5,
+              border: "1px solid var(--border)",
+              backgroundColor: "var(--bg-input)",
+              color: "var(--text-primary)",
+              cursor: "pointer",
+            }}
+            dir="ltr"
+          />
+          {monthSaved ? (
+            <span style={{ fontSize: 11, color: "#059669", fontWeight: 600 }}>✓</span>
+          ) : (
+            <button
+              onClick={handleSaveLastUpdated}
+              disabled={monthSaving}
+              style={{
+                fontSize: 10, padding: "3px 7px", borderRadius: 5, border: "none",
+                backgroundColor: "#1B3A2F", color: "#fff",
+                cursor: monthSaving ? "default" : "pointer",
+                fontWeight: 600, opacity: monthSaving ? 0.6 : 1,
+              }}
+            >
+              {monthSaving ? "..." : "שמור"}
+            </button>
+          )}
+        </span>
       </td>
     </tr>
   );

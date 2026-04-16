@@ -216,5 +216,29 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ success: true });
   }
 
+  // Set lastUpdated on a single fund by ID
+  if (url.searchParams.get("action") === "set-last-updated") {
+    const body = await req.json();
+    const { fundId, lastUpdated } = body as { fundId: string; lastUpdated: string };
+    if (!fundId || !lastUpdated || !/^\d{4}-\d{2}$/.test(lastUpdated)) {
+      return NextResponse.json({ error: "Missing fundId or invalid lastUpdated (YYYY-MM)" }, { status: 400 });
+    }
+    let found = false;
+    const categories = (data.categories || []) as Record<string, unknown>[];
+    for (const cat of categories) {
+      const funds = cat.funds as Record<string, unknown>[];
+      const idx = funds.findIndex((f) => f.id === fundId);
+      if (idx >= 0) {
+        funds[idx].lastUpdated   = lastUpdated;
+        funds[idx].lastUpdatedAt = new Date().toISOString();
+        found = true;
+        break;
+      }
+    }
+    if (!found) return NextResponse.json({ error: "Fund not found" }, { status: 404 });
+    await writeData(clientKey, data);
+    return NextResponse.json({ success: true });
+  }
+
   return NextResponse.json({ error: "Unknown PATCH action" }, { status: 400 });
 }
