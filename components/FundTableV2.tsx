@@ -21,6 +21,12 @@ const MONTH_HE_FULL: Record<string, string> = {
   "09": "ספטמבר", "10": "אוקטובר", "11": "נובמבר", "12": "דצמבר",
 };
 
+/** "YYYY-MM" → "ינואר 2026" */
+function fmtLastUpdated(ym: string): string {
+  const [yyyy, mm] = ym.split("-");
+  return `${MONTH_HE_FULL[mm] ?? mm} ${yyyy}`;
+}
+
 const YEAR_OPTIONS: { key: YearKey; label: string }[] = [
   { key: "2020",    label: "2020" },
   { key: "2021",    label: "2021" },
@@ -406,6 +412,11 @@ function FundRowV2({
             <div style={{ fontWeight: 600, color: "#1D1D1F", fontSize: 16, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fund.name}</div>
             {fund.classification && (
               <div style={{ color: "#86868B", fontSize: 12, fontWeight: 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fund.classification}</div>
+            )}
+            {fund.lastUpdated && (
+              <div style={{ color: "var(--text-muted)", fontSize: 11 }}>
+                עודכן: {fmtLastUpdated(fund.lastUpdated)}
+              </div>
             )}
           </div>
           {fund.currency && (
