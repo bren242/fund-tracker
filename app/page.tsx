@@ -110,6 +110,7 @@ function ReportContent() {
             selectedFundIds={selectedFundIds}
             onToggleFund={toggleFundSelection}
             accentColor={brand.primaryColor}
+            clientKey={clientKey}
           />
         </div>
 

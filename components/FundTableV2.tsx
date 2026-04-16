@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Category, Fund } from "@/lib/types";
 import { pct, num, returnColorInline, formatReportDate } from "@/lib/format";
+import FundOnePagerModal from "./FundOnePagerModal";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type TimeRange = "ytd" | "12m" | "3y" | "5y" | "max" | "custom";
@@ -348,6 +349,7 @@ function AccordionPanel({ fund }: { fund: Fund }) {
 function FundRowV2({
   fund, even, comparisonEnabled, isSelected, onToggle, selectionDisabled,
   accentColor, periodReturn, annualAvg, isOpen, onToggleAccordion, isFirst,
+  aiAvailable, onOpenAi,
 }: {
   fund: Fund;
   even: boolean;
@@ -361,6 +363,8 @@ function FundRowV2({
   isOpen: boolean;
   onToggleAccordion: () => void;
   isFirst?: boolean;
+  aiAvailable?: boolean;
+  onOpenAi?: (fundId: string) => void;
 }) {
   const [hovered, setHovered] = useState(false);
   const bg = even ? "#ffffff" : "#fafafa";
@@ -430,6 +434,22 @@ function FundRowV2({
               color: classBadge.color, backgroundColor: classBadge.bg,
             }}>{classBadge.label}</span>
           )}
+          {aiAvailable && onOpenAi && (
+            <button
+              className="no-print"
+              onClick={(e) => { e.stopPropagation(); onOpenAi(fund.id); }}
+              title="סיכום קרן מבוסס AI"
+              style={{
+                fontSize: 10, fontWeight: 700, flexShrink: 0,
+                padding: "2px 7px", borderRadius: 4,
+                border: "1px solid var(--border)",
+                background: hovered ? "rgba(27,58,47,0.06)" : "transparent",
+                color: hovered ? "var(--text-primary)" : "var(--text-secondary)",
+                cursor: "pointer", letterSpacing: 0.5,
+                transition: "all 0.15s", lineHeight: 1.4,
+              }}
+            >AI</button>
+          )}
           <span style={{
             fontSize: 10, color: "var(--text-muted)", flexShrink: 0,
             display: "inline-block", transition: "transform 0.2s ease",
@@ -481,12 +501,15 @@ export default function FundTableV2({
   selectedFundIds,
   onToggleFund,
   accentColor,
+  clientKey,
 }: {
   categories: Category[];
   comparisonEnabled?: boolean;
   selectedFundIds?: Set<string>;
   onToggleFund?: (id: string) => void;
   accentColor?: string;
+  /** Passed from parent; required for the AI One-Pager feature. */
+  clientKey?: string;
 }) {
   const [timeRange, setTimeRange]             = useState<TimeRange>("3y");
   const [customFrom, setCustomFrom]           = useState("2022-01");
@@ -496,6 +519,21 @@ export default function FundTableV2({
   const [hoveredSection, setHoveredSection]   = useState<string | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [openAccordions, setOpenAccordions]   = useState<Set<string>>(new Set());
+
+  // AI One-Pager: availability check + open modal
+  const [aiAvailable, setAiAvailable] = useState(false);
+  const [aiFundId, setAiFundId]       = useState<string | null>(null);
+  useEffect(() => {
+    if (!clientKey) return;
+    let abort = false;
+    fetch(`/api/fund-report?check=true&client=${encodeURIComponent(clientKey)}`)
+      .then((r) => r.json())
+      .then((d: { available?: boolean }) => {
+        if (!abort) setAiAvailable(!!d.available);
+      })
+      .catch(() => { /* silent — button simply won't render */ });
+    return () => { abort = true; };
+  }, [clientKey]);
 
   // Year-mode: activated when no fund has monthlyReturns data (e.g. NOX)
   const [isYearMode, setIsYearMode]     = useState(false);
@@ -801,6 +839,8 @@ export default function FundTableV2({
                           isOpen={isOpen}
                           onToggleAccordion={() => toggleAccordion(fund.id)}
                           isFirst={fi === 0}
+                          aiAvailable={aiAvailable && !!clientKey}
+                          onOpenAi={setAiFundId}
                         />
                       );
                       if (isOpen) {
@@ -815,6 +855,15 @@ export default function FundTableV2({
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* AI One-Pager modal */}
+      {aiFundId && clientKey && (
+        <FundOnePagerModal
+          fundId={aiFundId}
+          clientKey={clientKey}
+          onClose={() => setAiFundId(null)}
+        />
       )}
     </div>
   );
