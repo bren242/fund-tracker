@@ -409,19 +409,16 @@ function ConsistencyContent() {
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 28px 56px" }}>
 
           {/* Hero */}
-          <div style={{
-            display: "flex", alignItems: "flex-end", justifyContent: "space-between",
-            marginBottom: 28,
-          }}>
+          <div style={{ marginBottom: 20 }}>
             <h1 style={{
-              fontSize: 24, fontWeight: 700,
+              fontSize: 20, fontWeight: 700,
               color: "var(--text-primary)", margin: 0, lineHeight: 1.2,
             }}>
               עקביות קרנות
             </h1>
             <p style={{
-              fontSize: 12, color: "var(--text-muted)",
-              margin: 0, textAlign: "left", maxWidth: 360,
+              fontSize: 13, color: "var(--text-secondary)",
+              margin: "4px 0 0 0",
             }}>
               כמה פעמים הקרן הכתה את המדד — ולא רק בשורה התחתונה
             </p>
@@ -565,15 +562,9 @@ function ConsistencyContent() {
             }}>
               {/* Card 1 — עקביות */}
               <div className="con-kpi con-kpi-1" style={{
-                position: "relative", overflow: "hidden",
                 borderRadius: 14, padding: "20px 24px",
                 backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
               }}>
-                <div style={{
-                  position: "absolute", top: -24, left: -24,
-                  width: 80, height: 80, borderRadius: "50%",
-                  backgroundColor: "#059669", opacity: 0.06, pointerEvents: "none",
-                }} />
                 <div style={{
                   fontSize: 10, fontWeight: 500,
                   letterSpacing: "0.6px", textTransform: "uppercase",
@@ -593,15 +584,9 @@ function ConsistencyContent() {
 
               {/* Card 2 — חלשות */}
               <div className="con-kpi con-kpi-2" style={{
-                position: "relative", overflow: "hidden",
                 borderRadius: 14, padding: "20px 24px",
                 backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
               }}>
-                <div style={{
-                  position: "absolute", top: -24, left: -24,
-                  width: 80, height: 80, borderRadius: "50%",
-                  backgroundColor: "#DC2626", opacity: 0.06, pointerEvents: "none",
-                }} />
                 <div style={{
                   fontSize: 10, fontWeight: 500,
                   letterSpacing: "0.6px", textTransform: "uppercase",
@@ -621,15 +606,9 @@ function ConsistencyContent() {
 
               {/* Card 3 — מובילה */}
               <div className="con-kpi con-kpi-3" style={{
-                position: "relative", overflow: "hidden",
                 borderRadius: 14, padding: "20px 24px",
                 backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
               }}>
-                <div style={{
-                  position: "absolute", top: -24, left: -24,
-                  width: 80, height: 80, borderRadius: "50%",
-                  backgroundColor: "#B8975A", opacity: 0.06, pointerEvents: "none",
-                }} />
                 <div style={{
                   fontSize: 10, fontWeight: 500,
                   letterSpacing: "0.6px", textTransform: "uppercase",
