@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ThemeProvider } from "@/components/ThemeProvider";
-import AppHeader from "@/components/AppHeader";
+import ConditionalHeader from "@/components/ConditionalHeader";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,7 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="antialiased">
         <ThemeProvider>
           <Suspense fallback={null}>
-            <AppHeader fundCount={84} />
+            <ConditionalHeader />
           </Suspense>
           {children}
         </ThemeProvider>

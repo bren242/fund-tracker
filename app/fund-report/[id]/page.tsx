@@ -113,14 +113,16 @@ function PrintPageInner() {
             max-width: 100% !important;
           }
           /* Tighten section spacing to fit 2 pages */
-          .onepager-section { margin-bottom: 18px !important; }
+          .onepager-section { margin-bottom: 14px !important; }
+          /* Verdict + footer must stay on same page */
+          .print-pf { break-before: avoid !important; page-break-before: avoid !important; }
           * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
           @page {
             size: A4 portrait;
-            margin: 12mm 0 12mm 0;
+            margin: 10mm 0 10mm 0;
           }
         }
       `}</style>
