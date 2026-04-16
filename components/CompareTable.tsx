@@ -1,7 +1,7 @@
 "use client";
 
 import { Fund, Benchmark } from "@/lib/types";
-import { pct, num } from "@/lib/format";
+import { pct, num, formatReportDate } from "@/lib/format";
 
 interface CompareTableProps {
   funds: Fund[];
@@ -254,6 +254,11 @@ export default function CompareTable({ funds, accentColor, compact, selectedYear
                     }}>
                       {val}
                       {isBest && <span style={{ marginRight: 3, fontSize: fs.star, color: accentColor }}> ★</span>}
+                      {metric.label === "תשואה חודשית" && f.lastReportDate && (
+                        <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+                          {formatReportDate(f.lastReportDate)}
+                        </div>
+                      )}
                     </td>
                   );
                 })}
