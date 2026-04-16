@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useMemo, Suspense } from "react";
+import { useState, useMemo, useEffect, Suspense, Fragment } from "react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer,
+  Tooltip, ResponsiveContainer,
 } from "recharts";
 import { useClientKey, withClient } from "@/lib/useClientKey";
 import { useBrand } from "@/lib/useBrand";
@@ -46,14 +46,6 @@ const CALENDAR_RANGES = [
   { id: "all",  label: "מ-2020" },
 ];
 
-const COL_TOOLTIPS: Record<string, string> = {
-  months:   "מספר החודשים המשותפים בין הקרן לבנצ'מרק בטווח הנבחר",
-  consist:  "כמה פעמים הקרן הניבה תשואה גבוהה מהבנצ'מרק.\nמעל 60% טוב ✅  |  מתחת ל-40% חלש 🔴",
-  avgGap:   "הפער הממוצע החודשי מול הבנצ'מרק.\nמראה כמה אלפא מייצר המנהל בממוצע",
-  ir:       "Information Ratio — משלב כמה הקרן הכתה את המדד וכמה היתה עקבית.\nמעל 0.5 טוב ✅  |  מעל 1.0 מצוין ⭐  |  שלילי = הפסידה למדד 🔴",
-  score:    "ממוצע עקביות vs בנצ'מרק ועקביות vs קטגוריה.\nכרגע מבוסס על בנצ'מרק בלבד עד שיצטברו נתוני קטגוריה",
-};
-
 /* ══════════════════════════════════════════════════════════════════════════ */
 /*  Types                                                                     */
 /* ══════════════════════════════════════════════════════════════════════════ */
@@ -70,49 +62,6 @@ interface TableRow {
   result: ConsistencyResult | null;
   tags: string[];
   filteredMR: Record<string, number>;
-}
-
-/* ══════════════════════════════════════════════════════════════════════════ */
-/*  Column tooltip component (top-level — no nested components)              */
-/* ══════════════════════════════════════════════════════════════════════════ */
-
-function ColTooltip({ text }: { text: string }) {
-  const [show, setShow] = useState(false);
-  return (
-    <span style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
-      <button
-        onMouseEnter={() => setShow(true)}
-        onMouseLeave={() => setShow(false)}
-        style={{
-          background: "none",
-          border: "1px solid var(--border)",
-          borderRadius: "50%",
-          width: 13, height: 13,
-          fontSize: 8, cursor: "help",
-          color: "var(--text-muted)",
-          padding: 0, lineHeight: 1,
-          display: "inline-flex", alignItems: "center", justifyContent: "center",
-          flexShrink: 0,
-        }}
-      >?</button>
-      {show && (
-        <div style={{
-          position: "absolute", zIndex: 200,
-          top: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)",
-          backgroundColor: "var(--bg-surface)",
-          border: "1px solid var(--border)",
-          borderRadius: 7, padding: "9px 12px",
-          fontSize: 11, color: "var(--text-primary)",
-          width: 230, boxShadow: "0 6px 20px rgba(0,0,0,0.16)",
-          whiteSpace: "pre-wrap", lineHeight: 1.6,
-          textAlign: "right", fontWeight: 400,
-          direction: "rtl",
-        }}>
-          {text}
-        </div>
-      )}
-    </span>
-  );
 }
 
 /* ══════════════════════════════════════════════════════════════════════════ */
@@ -153,7 +102,7 @@ function effectiveBlend(
 }
 
 /* ══════════════════════════════════════════════════════════════════════════ */
-/*  Tag + color helpers                                                       */
+/*  Tag helper (unchanged logic — used in rows computation)                  */
 /* ══════════════════════════════════════════════════════════════════════════ */
 
 function getTags(
@@ -167,17 +116,21 @@ function getTags(
   return tags;
 }
 
-function scoreColor(score: number): string {
-  if (score >= 55) return "#059669";
-  if (score >= 45) return "#d97706";
-  return "#dc2626";
-}
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  Color helpers                                                             */
+/* ══════════════════════════════════════════════════════════════════════════ */
 
 function irColor(ir: number | null): string {
   if (ir === null) return "var(--text-muted)";
   if (ir > 0.5) return "#059669";
-  if (ir < 0)   return "#dc2626";
+  if (ir < 0)   return "#DC2626";
   return "var(--text-secondary)";
+}
+
+function scoreBadgeStyle(score: number): React.CSSProperties {
+  if (score >= 55) return { background: "rgba(5,150,105,0.08)",  color: "#065F46" };
+  if (score >= 45) return { background: "rgba(217,119,6,0.08)",  color: "#92400E" };
+  return             { background: "rgba(220,38,38,0.08)",  color: "#991B1B" };
 }
 
 /* ══════════════════════════════════════════════════════════════════════════ */
@@ -189,20 +142,19 @@ function buildBmLabel(
   benchmarks: Benchmark[],
   config: ConsistencyConfig | null,
   timeRange: string
-): { label: string; months: number; weightsText: string } {
+): { label: string; months: number } {
   const blend = effectiveBlend(categoryId, config);
-  if (!blend) return { label: "—", months: 0, weightsText: "" };
+  if (!blend) return { label: "—", months: 0 };
 
   const parts = Object.entries(blend).map(([id, w]) => {
-    const bm = benchmarks.find((b) => b.id === id);
+    const bm  = benchmarks.find((b) => b.id === id);
     const pct = Math.round(w * 100);
     return bm ? `${pct}% ${bm.name}` : id;
   });
 
-  const weightsText = parts.join("\n");
-  const rawMR       = blendBenchmarkReturns(blend, benchmarks);
-  const filtered    = filterByTimeRange(rawMR, timeRange);
-  return { label: parts.join(" + "), months: Object.keys(filtered).length, weightsText };
+  const rawMR    = blendBenchmarkReturns(blend, benchmarks);
+  const filtered = filterByTimeRange(rawMR, timeRange);
+  return { label: parts.join(" + "), months: Object.keys(filtered).length };
 }
 
 /* ══════════════════════════════════════════════════════════════════════════ */
@@ -232,7 +184,70 @@ function fmtMonth(m: string): string {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════ */
-/*  Chart tooltip (top-level)                                                 */
+/*  Sparkline                                                                 */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+function buildSparkline(filteredMR: Record<string, number>): {
+  points: [number, number][];
+  trend: "up" | "flat" | "down";
+} {
+  const sorted = Object.keys(filteredMR).sort();
+  const last6  = sorted.slice(-6);
+  if (last6.length < 2) return { points: [], trend: "flat" };
+
+  let cum = 0;
+  const values = last6.map((m) => {
+    cum = (1 + cum) * (1 + filteredMR[m]) - 1;
+    return cum * 100;
+  });
+
+  const min   = Math.min(...values);
+  const max   = Math.max(...values);
+  const range = max - min || 1;
+  const W = 56, H = 24;
+  const points: [number, number][] = values.map((v, i) => [
+    (i / (values.length - 1)) * W,
+    H - ((v - min) / range) * (H - 4) - 2,
+  ]);
+
+  // Linear slope for trend
+  const n    = values.length;
+  const xs   = Array.from({ length: n }, (_, i) => i);
+  const sumX = xs.reduce((a, b) => a + b, 0);
+  const sumY = values.reduce((a, v) => a + v, 0);
+  const sumXY = xs.reduce((a, x, i) => a + x * values[i], 0);
+  const sumX2 = xs.reduce((a, x) => a + x * x, 0);
+  const denom = n * sumX2 - sumX * sumX;
+  const slope = denom !== 0 ? (n * sumXY - sumX * sumY) / denom : 0;
+
+  const trend = slope > 0.05 ? "up" : slope < -0.05 ? "down" : "flat";
+  return { points, trend };
+}
+
+function Sparkline({ filteredMR }: { filteredMR: Record<string, number> }) {
+  const { points, trend } = buildSparkline(filteredMR);
+  if (points.length < 2) {
+    return <span style={{ color: "#999", fontSize: 10 }}>—</span>;
+  }
+  const color     = trend === "up" ? "#059669" : trend === "down" ? "#DC2626" : "#D97706";
+  const pointsStr = points.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+
+  return (
+    <svg width={56} height={24} viewBox="0 0 56 24" style={{ display: "block", margin: "0 auto" }}>
+      <polyline
+        points={pointsStr}
+        fill="none"
+        stroke={color}
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  Chart tooltip                                                             */
 /* ══════════════════════════════════════════════════════════════════════════ */
 
 function ChartTooltip({ active, payload, label, isDark }: {
@@ -246,7 +261,7 @@ function ChartTooltip({ active, payload, label, isDark }: {
     <div style={{
       backgroundColor: isDark ? "#1e2d2d" : "#ffffff",
       border: `1px solid ${isDark ? "#3a4a4a" : "#e5e7eb"}`,
-      borderRadius: 6, padding: "8px 12px", fontSize: 11,
+      borderRadius: 8, padding: "8px 12px", fontSize: 11,
     }}>
       <div style={{ fontWeight: 600, marginBottom: 4, color: isDark ? "#94a3b8" : "#64748b" }}>{label}</div>
       {payload.map((p) => (
@@ -259,82 +274,14 @@ function ChartTooltip({ active, payload, label, isDark }: {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════ */
-/*  Category summary card (top-level)                                         */
-/* ══════════════════════════════════════════════════════════════════════════ */
-
-function SummaryCard({
-  avgIR, pctAbove50, topFund, primaryColor, fundsWithData,
-}: {
-  avgIR: number | null;
-  pctAbove50: number;
-  topFund: string;
-  primaryColor: string;
-  fundsWithData: number;
-}) {
-  const lowData = fundsWithData < 5;
-  const dimColor = (c: string) => lowData ? "var(--text-muted)" : c;
-
-  const stats = [
-    {
-      label: "IR ממוצע קטגוריה",
-      value: avgIR !== null ? avgIR.toFixed(3) : "—",
-      color: dimColor(avgIR !== null ? (avgIR > 0.5 ? "#059669" : avgIR < 0 ? "#dc2626" : "var(--text-primary)") : "var(--text-muted)"),
-    },
-    {
-      label: "קרנות מעל 50% עקביות",
-      value: `${pctAbove50.toFixed(0)}%`,
-      color: dimColor(pctAbove50 >= 50 ? "#059669" : pctAbove50 >= 30 ? "#d97706" : "#dc2626"),
-    },
-    {
-      label: "קרן מובילה",
-      value: topFund || "—",
-      color: dimColor(primaryColor),
-      small: true,
-    },
-  ];
-
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{
-        display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12,
-      }}>
-        {stats.map((s) => (
-          <div
-            key={s.label}
-            style={{
-              backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
-              borderRadius: 10, padding: "14px 18px",
-              opacity: lowData ? 0.75 : 1,
-            }}
-          >
-            <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6 }}>{s.label}</div>
-            <div style={{
-              fontSize: s.small ? 13 : 22, fontWeight: 700, color: s.color,
-              lineHeight: 1.2, wordBreak: "break-word",
-            }}>
-              {s.value}
-            </div>
-          </div>
-        ))}
-      </div>
-      {lowData && (
-        <p style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 6, textAlign: "right" }}>
-          ⚠️ מבוסס על {fundsWithData} קרנות בלבד — נתונים חלקיים
-        </p>
-      )}
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════════════════════ */
 /*  Main content                                                              */
 /* ══════════════════════════════════════════════════════════════════════════ */
 
 function ConsistencyContent() {
-  const clientKey      = useClientKey();
-  const brand          = useBrand(clientKey);
-  const { theme }      = useTheme();
-  const isDark         = theme === "dark";
+  const clientKey = useClientKey();
+  const brand     = useBrand(clientKey);
+  const { theme } = useTheme();
+  const isDark    = theme === "dark";
 
   const [fundsData,   setFundsData]   = useState<FundsData | null>(null);
   const [benchmarks,  setBenchmarks]  = useState<Benchmark[]>([]);
@@ -352,15 +299,14 @@ function ConsistencyContent() {
       .then((r) => r.json()).then(setConfig);
   }, [clientKey]);
 
-  /* ── compute rows + summary ─────────────────────────────────────────── */
-  const { rows, bmInfo, bmMRFiltered, fundsWithData, totalFunds, summary } = useMemo(() => {
+  /* ── compute rows ────────────────────────────────────────────────────── */
+  const { rows, bmInfo, bmMRFiltered, fundsWithData, totalFunds } = useMemo(() => {
     const empty = {
-      rows: [] as TableRow[],
-      bmInfo: { label: "—", months: 0, weightsText: "" },
+      rows:         [] as TableRow[],
+      bmInfo:       { label: "—", months: 0 },
       bmMRFiltered: {} as Record<string, number>,
       fundsWithData: 0,
-      totalFunds: 0,
-      summary: { avgIR: null as number | null, pctAbove50: 0, topFund: "" },
+      totalFunds:    0,
     };
     if (!fundsData || !benchmarks.length) return empty;
 
@@ -400,128 +346,267 @@ function ConsistencyContent() {
     });
 
     const withResult = rows.filter((r) => r.result);
-    const fundsWithData = withResult.length;
-
-    // Summary stats
-    const irValues = withResult.map((r) => r.result!.ir).filter((v): v is number => v !== null);
-    const avgIR    = irValues.length ? irValues.reduce((a, b) => a + b, 0) / irValues.length : null;
-    const above50  = withResult.filter((r) => r.result!.score > 50).length;
-    const pctAbove50 = fundsWithData > 0 ? (above50 / fundsWithData) * 100 : 0;
-    const topFund    = withResult[0]?.name ?? "";
-
     return {
-      rows, bmInfo, bmMRFiltered,
-      fundsWithData, totalFunds: category.funds.length,
-      summary: { avgIR, pctAbove50, topFund },
+      rows,
+      bmInfo,
+      bmMRFiltered,
+      fundsWithData: withResult.length,
+      totalFunds:    category.funds.length,
     };
   }, [fundsData, benchmarks, config, selectedCat, timeRange]);
 
-  const loading    = !fundsData || !benchmarks.length || !config;
+  const loading = !fundsData || !benchmarks.length || !config;
 
-  // Chart colors per theme
+  /* ── KPI ─────────────────────────────────────────────────────────────── */
+  const kpiConsistent = rows.filter((r) => r.result && r.result.score > 55).length;
+  const kpiWeak       = rows.filter((r) => r.result && r.result.score < 40).length;
+  const kpiTop        = rows[0]?.name ?? "—";
+
+  /* ── Chart + color system ────────────────────────────────────────────── */
   const fundColor = isDark ? "#4ade80" : "#1B3A2F";
   const bmColor   = "#B8975A";
+  const gridColor = isDark ? "#2d3a3a" : "#e5e7eb";
+  const axisColor = isDark ? "#6b7280" : "#9ca3af";
 
-  // Recharts grid/axis colors (must be hex, not CSS vars — per LESSONS.md)
-  const gridColor  = isDark ? "#2d3a3a" : "#e5e7eb";
-  const axisColor  = isDark ? "#6b7280" : "#9ca3af";
+  const G    = "#1B3A2F";
+  const GOLD = "#B8975A";
+  const BG   = isDark ? "#0d1117"                    : "#F8F7F4";
+  const CARD = isDark ? "#161b22"                    : "#FFFFFF";
+  const BDR  = isDark ? "rgba(255,255,255,0.07)"     : "rgba(27,58,47,0.06)";
+  const T1   = isDark ? "#e2e6ea"                    : "#1a1a1a";
+  const T2   = isDark ? "#a8b4c0"                    : "#5a5a5a";
+  const T3   = isDark ? "#6b7280"                    : "#999999";
+  const DET  = isDark ? "#111b1b"                    : "#FAFAF8";
+
+  const CG = '"Cormorant Garamond", Georgia, serif';
+  const DM = '"DM Sans", system-ui, sans-serif';
+
+  /* ── Shared table header style ───────────────────────────────────────── */
+  const TH = (align: "right" | "center", w: string): React.CSSProperties => ({
+    padding: "14px 20px",
+    textAlign: align,
+    fontFamily: DM,
+    fontSize: 10,
+    fontWeight: 500,
+    letterSpacing: "0.6px",
+    textTransform: "uppercase",
+    color: T3,
+    width: w,
+    whiteSpace: "nowrap",
+    borderBottom: `0.5px solid ${BDR}`,
+  });
 
   return (
     <ClientGate clientKey={clientKey}>
-      <div style={{ minHeight: "100vh", ...brandCssVars(brand.primaryColor, brand.accentColor) as React.CSSProperties }}>
+      {/* Fonts + animations */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300&family=DM+Sans:wght@300;400;500&display=swap');
 
-        {/* ── Header ────────────────────────────────────────────────────── */}
-        <div style={{ height: 4, backgroundColor: brand.primaryColor }} />
-        <div style={{ backgroundColor: "var(--bg-surface)", borderBottom: "1px solid var(--border)" }}>
-          <div style={{ maxWidth: 1400, margin: "0 auto", padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <BrandLogo brand={brand} height={28} variant="light" />
-              <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{brand.mainTitle}</span>
-            </div>
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .con-kpi   { animation: fadeUp 0.5s ease both; }
+        .con-kpi-1 { animation-delay: 0.05s; }
+        .con-kpi-2 { animation-delay: 0.10s; }
+        .con-kpi-3 { animation-delay: 0.15s; }
+        .con-table { animation: fadeUp 0.5s ease both; animation-delay: 0.20s; }
+        .con-enter { animation: fadeUp 0.3s ease both; }
+        .con-row-hover:hover td { background: rgba(27,58,47,0.012) !important; }
+      `}</style>
+
+      <div style={{
+        minHeight: "100vh",
+        backgroundColor: BG,
+        fontFamily: DM,
+        ...brandCssVars(brand.primaryColor, brand.accentColor) as React.CSSProperties,
+      }}>
+
+        {/* ═══ Header ══════════════════════════════════════════════════════ */}
+        <div style={{ height: 2, background: `linear-gradient(90deg, ${G}, ${GOLD})` }} />
+        <div style={{
+          backgroundColor: CARD,
+          borderBottom: `0.5px solid ${BDR}`,
+        }}>
+          <div style={{
+            maxWidth: 1200, margin: "0 auto", padding: "0 28px",
+            height: 54,
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+          }}>
+            {/* Logo */}
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <a href={withClient("/", clientKey)}         style={navLinkStyle}>דוח</a>
-              <a href={withClient("/charts", clientKey)}   style={navLinkStyle}>גרפים</a>
-              <a href={withClient("/analysis", clientKey)} style={navLinkStyle}>ניתוח</a>
-              <a href={withClient("/admin", clientKey)}    style={navLinkStyle}>ניהול</a>
-              <ThemeToggle />
+              <BrandLogo brand={brand} height={26} variant="light" />
+              <span style={{
+                fontFamily: CG, fontWeight: 400, fontSize: 18,
+                letterSpacing: "3px", color: G, lineHeight: 1,
+              }}>
+                {brand.name || "GREEN"}
+              </span>
+              <span style={{
+                width: 4, height: 4, borderRadius: "50%",
+                backgroundColor: GOLD, flexShrink: 0,
+              }} />
+              <span style={{ fontFamily: DM, fontSize: 12, color: T3, lineHeight: 1 }}>
+                מעקב קרנות השקעה
+              </span>
+            </div>
+            {/* Nav */}
+            <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+              {[
+                { label: "דוח",   href: withClient("/",         clientKey), active: false },
+                { label: "גרפים", href: withClient("/charts",   clientKey), active: false },
+                { label: "ניתוח", href: withClient("/analysis", clientKey), active: true  },
+                { label: "ניהול", href: withClient("/admin",    clientKey), active: false },
+              ].map((item) => (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  style={{
+                    fontFamily: DM,
+                    fontSize: 11,
+                    fontWeight: item.active ? 500 : 400,
+                    letterSpacing: "0.8px",
+                    textTransform: "uppercase",
+                    textDecoration: "none",
+                    color: item.active ? G : T2,
+                    padding: "18px 10px",
+                    borderBottom: item.active ? `1.5px solid ${G}` : "1.5px solid transparent",
+                    transition: "color 0.15s",
+                    display: "inline-block",
+                  }}
+                >
+                  {item.label}
+                </a>
+              ))}
+              <div style={{ marginRight: 12, marginLeft: 4 }}>
+                <ThemeToggle />
+              </div>
             </div>
           </div>
         </div>
 
-        {/* ── Body ──────────────────────────────────────────────────────── */}
-        <div style={{ maxWidth: 1400, margin: "0 auto", padding: "28px 24px" }}>
+        {/* ═══ Body ════════════════════════════════════════════════════════ */}
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 28px 56px" }}>
 
-          {/* Title */}
-          <div style={{ marginBottom: 20 }}>
-            <h1 style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
-              ניתוח עקביות קרנות
+          {/* Hero */}
+          <div style={{
+            display: "flex", alignItems: "flex-end", justifyContent: "space-between",
+            marginBottom: 28,
+          }}>
+            <h1 style={{
+              fontFamily: CG, fontWeight: 300, fontSize: 32,
+              color: G, margin: 0, lineHeight: 1.1,
+            }}>
+              עקביות קרנות
             </h1>
-            <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 4, marginBottom: 0 }}>
-              כמה חודשים הקרן עקפה את הבנצ'מרק — מבוסס על נתונים חודשיים מ-2020 ואילך
+            <p style={{
+              fontFamily: DM, fontSize: 12, color: T3,
+              margin: 0, textAlign: "left", maxWidth: 360,
+            }}>
+              כמה פעמים הקרן הכתה את המדד — ולא רק בשורה התחתונה
             </p>
           </div>
 
-          {/* Category filter */}
+          {/* Category pills */}
           <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => { setSelectedCat(cat.id); setExpandedId(null); }}
-                style={{
-                  padding: "7px 18px", borderRadius: 8, fontSize: 12,
-                  fontWeight: selectedCat === cat.id ? 700 : 400,
-                  cursor: "pointer", transition: "all 0.15s",
-                  backgroundColor: selectedCat === cat.id ? brand.primaryColor : "var(--bg-surface)",
-                  color:           selectedCat === cat.id ? "#fff"              : "var(--text-secondary)",
-                  border:          selectedCat === cat.id ? `1px solid ${brand.primaryColor}` : "1px solid var(--border)",
-                }}
-              >
-                {cat.label}
-              </button>
-            ))}
+            {CATEGORIES.map((cat) => {
+              const active = selectedCat === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => { setSelectedCat(cat.id); setExpandedId(null); }}
+                  style={{
+                    padding: "7px 18px",
+                    borderRadius: 100,
+                    fontSize: 12,
+                    fontFamily: DM,
+                    fontWeight: active ? 500 : 400,
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                    backgroundColor: active ? G : "transparent",
+                    color: active ? "#fff" : T2,
+                    border: active ? `1px solid ${G}` : `1px solid ${BDR}`,
+                  }}
+                >
+                  {cat.label}
+                </button>
+              );
+            })}
           </div>
 
-          {/* ── Time range filters ───────────────────────────────────────── */}
+          {/* Time range card */}
           <div style={{
-            backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
-            borderRadius: 8, padding: "12px 16px", marginBottom: 12,
-            display: "flex", flexDirection: "column", gap: 10,
+            backgroundColor: CARD,
+            borderRadius: 12,
+            border: `0.5px solid ${BDR}`,
+            padding: "14px 20px",
+            marginBottom: 10,
+            display: "flex",
+            alignItems: "stretch",
           }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 11, color: "var(--text-muted)", minWidth: 88, textAlign: "right" }}>חלון מתגלגל:</span>
-              <div style={{ display: "flex", gap: 6 }}>
+            {/* Rolling */}
+            <div style={{ flex: 1, paddingLeft: 20 }}>
+              <div style={{
+                fontSize: 10, fontFamily: DM, fontWeight: 500,
+                letterSpacing: "0.5px", textTransform: "uppercase",
+                color: T3, marginBottom: 8,
+              }}>
+                מתגלגל
+              </div>
+              <div style={{ display: "flex", gap: 4 }}>
                 {ROLLING_RANGES.map((r) => {
                   const active = timeRange === r.id;
                   return (
                     <button key={r.id}
                       onClick={() => { setTimeRange(active ? "all" : r.id); setExpandedId(null); }}
                       style={{
-                        padding: "4px 14px", borderRadius: 6, fontSize: 11, cursor: "pointer",
-                        transition: "all 0.15s", fontWeight: active ? 700 : 400,
-                        backgroundColor: active ? brand.primaryColor : "var(--bg-input)",
-                        color:           active ? "#fff"              : "var(--text-secondary)",
-                        border:          active ? `1px solid ${brand.primaryColor}` : "1px solid var(--border)",
+                        padding: "5px 12px",
+                        borderRadius: 6,
+                        fontSize: 11,
+                        fontFamily: DM,
+                        cursor: "pointer",
+                        transition: "background 0.12s, color 0.12s",
+                        backgroundColor: active ? G : "transparent",
+                        color: active ? "#fff" : T2,
+                        border: "none",
                       }}
                     >{r.label}</button>
                   );
                 })}
               </div>
             </div>
-            <div style={{ height: 1, backgroundColor: "var(--border)" }} />
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 11, color: "var(--text-muted)", minWidth: 88, textAlign: "right" }}>שנה קלנדרית:</span>
-              <div style={{ display: "flex", gap: 6 }}>
+            {/* Divider */}
+            <div style={{
+              width: "0.5px",
+              backgroundColor: BDR,
+              margin: "0 4px",
+              flexShrink: 0,
+            }} />
+            {/* Calendar */}
+            <div style={{ flex: 2, paddingRight: 20 }}>
+              <div style={{
+                fontSize: 10, fontFamily: DM, fontWeight: 500,
+                letterSpacing: "0.5px", textTransform: "uppercase",
+                color: T3, marginBottom: 8,
+              }}>
+                קלנדרי
+              </div>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                 {CALENDAR_RANGES.map((r) => {
                   const active = timeRange === r.id;
                   return (
                     <button key={r.id}
                       onClick={() => { setTimeRange(r.id); setExpandedId(null); }}
                       style={{
-                        padding: "4px 14px", borderRadius: 6, fontSize: 11, cursor: "pointer",
-                        transition: "all 0.15s", fontWeight: active ? 700 : 400,
-                        backgroundColor: active ? brand.primaryColor : "var(--bg-input)",
-                        color:           active ? "#fff"              : "var(--text-secondary)",
-                        border:          active ? `1px solid ${brand.primaryColor}` : "1px solid var(--border)",
+                        padding: "5px 12px",
+                        borderRadius: 6,
+                        fontSize: 11,
+                        fontFamily: DM,
+                        cursor: "pointer",
+                        transition: "background 0.12s, color 0.12s",
+                        backgroundColor: active ? G : "transparent",
+                        color: active ? "#fff" : T2,
+                        border: "none",
                       }}
                     >{r.label}</button>
                   );
@@ -530,263 +615,466 @@ function ConsistencyContent() {
             </div>
           </div>
 
-          {/* Benchmark info bar */}
+          {/* Benchmark bar */}
           {!loading && (
             <div style={{
-              display: "flex", alignItems: "center", flexWrap: "wrap",
-              backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
-              borderRadius: 8, padding: "9px 16px", marginBottom: 16, fontSize: 12, gap: 0,
+              display: "flex", alignItems: "center",
+              flexWrap: "wrap", gap: 8,
+              fontSize: 11, fontFamily: DM, color: T3,
+              marginBottom: 22, padding: "2px 0",
             }}>
-              <span style={{ color: "var(--text-muted)", paddingLeft: 6 }}>בנצ'מרק:</span>
-              <span style={{ fontWeight: 600, color: "var(--text-primary)", paddingLeft: 8 }}>{bmInfo.label}</span>
-              {bmInfo.weightsText && (
-                <span style={{ paddingLeft: 4 }}>
-                  <ColTooltip text={`משקולות:\n${bmInfo.weightsText}`} />
-                </span>
-              )}
-              <span style={{ color: "var(--border)", paddingLeft: 12 }}>|</span>
-              <span style={{ color: "var(--text-secondary)", paddingLeft: 12 }}>{bmInfo.months} חודשים זמינים</span>
-              <span style={{ color: "var(--border)", paddingLeft: 12 }}>|</span>
-              <span style={{ color: "var(--text-secondary)" }}>מינימום 12 חודשים משותפים לחישוב</span>
+              <span>בנצ׳מרק</span>
+              <span style={{ width: 3, height: 3, borderRadius: "50%", backgroundColor: T3, display: "inline-block", flexShrink: 0 }} />
+              <span style={{ fontWeight: 500, color: T1 }}>{bmInfo.label}</span>
+              <span style={{ width: 3, height: 3, borderRadius: "50%", backgroundColor: T3, display: "inline-block", flexShrink: 0 }} />
+              <span>{bmInfo.months} חודשים</span>
+              <span style={{ width: 3, height: 3, borderRadius: "50%", backgroundColor: T3, display: "inline-block", flexShrink: 0 }} />
+              <span>מינימום 12 חודשים משותפים</span>
             </div>
           )}
 
           {/* Loading */}
           {loading && (
-            <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
+            <div style={{
+              padding: 56, textAlign: "center",
+              color: T3, fontSize: 13, fontFamily: DM,
+            }}>
               טוען נתונים...
             </div>
           )}
 
-          {/* ── Summary card ─────────────────────────────────────────────── */}
+          {/* KPI Cards */}
           {!loading && fundsWithData > 0 && (
-            <SummaryCard
-              avgIR={summary.avgIR}
-              pctAbove50={summary.pctAbove50}
-              topFund={summary.topFund}
-              primaryColor={brand.primaryColor}
-              fundsWithData={fundsWithData}
-            />
+            <div style={{
+              display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
+              gap: 14, marginBottom: 20,
+            }}>
+              {/* Card 1 — עקביות */}
+              <div className="con-kpi con-kpi-1" style={{
+                position: "relative", overflow: "hidden",
+                borderRadius: 14, padding: "20px 24px",
+                backgroundColor: CARD, border: `0.5px solid ${BDR}`,
+              }}>
+                <div style={{
+                  position: "absolute", top: -24, left: -24,
+                  width: 80, height: 80, borderRadius: "50%",
+                  backgroundColor: "#059669", opacity: 0.04, pointerEvents: "none",
+                }} />
+                <div style={{
+                  fontSize: 10, fontFamily: DM, fontWeight: 500,
+                  letterSpacing: "0.6px", textTransform: "uppercase",
+                  color: T3, marginBottom: 10,
+                }}>
+                  קרנות עקביות
+                </div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                  <span style={{
+                    fontFamily: CG, fontWeight: 300, fontSize: 36,
+                    color: "#059669", lineHeight: 1,
+                  }}>
+                    {kpiConsistent}
+                  </span>
+                  <span style={{ fontFamily: DM, fontSize: 13, color: T2 }}>
+                    מתוך {fundsWithData}
+                  </span>
+                </div>
+              </div>
+
+              {/* Card 2 — חלשות */}
+              <div className="con-kpi con-kpi-2" style={{
+                position: "relative", overflow: "hidden",
+                borderRadius: 14, padding: "20px 24px",
+                backgroundColor: CARD, border: `0.5px solid ${BDR}`,
+              }}>
+                <div style={{
+                  position: "absolute", top: -24, left: -24,
+                  width: 80, height: 80, borderRadius: "50%",
+                  backgroundColor: "#DC2626", opacity: 0.04, pointerEvents: "none",
+                }} />
+                <div style={{
+                  fontSize: 10, fontFamily: DM, fontWeight: 500,
+                  letterSpacing: "0.6px", textTransform: "uppercase",
+                  color: T3, marginBottom: 10,
+                }}>
+                  קרנות חלשות
+                </div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                  <span style={{
+                    fontFamily: CG, fontWeight: 300, fontSize: 36,
+                    color: "#DC2626", lineHeight: 1,
+                  }}>
+                    {kpiWeak}
+                  </span>
+                  <span style={{ fontFamily: DM, fontSize: 13, color: T2 }}>
+                    מתוך {fundsWithData}
+                  </span>
+                </div>
+              </div>
+
+              {/* Card 3 — מובילה */}
+              <div className="con-kpi con-kpi-3" style={{
+                position: "relative", overflow: "hidden",
+                borderRadius: 14, padding: "20px 24px",
+                backgroundColor: CARD, border: `0.5px solid ${BDR}`,
+              }}>
+                <div style={{
+                  position: "absolute", top: -24, left: -24,
+                  width: 80, height: 80, borderRadius: "50%",
+                  backgroundColor: GOLD, opacity: 0.04, pointerEvents: "none",
+                }} />
+                <div style={{
+                  fontSize: 10, fontFamily: DM, fontWeight: 500,
+                  letterSpacing: "0.6px", textTransform: "uppercase",
+                  color: T3, marginBottom: 10,
+                }}>
+                  קרן מובילה
+                </div>
+                <div style={{
+                  fontFamily: DM, fontSize: 14, fontWeight: 500,
+                  color: G, lineHeight: 1.4, wordBreak: "break-word",
+                }}>
+                  {kpiTop}
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Table */}
           {!loading && rows.length > 0 && (
-            <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <div className="con-table" style={{
+              backgroundColor: CARD,
+              border: `0.5px solid ${BDR}`,
+              borderRadius: 12,
+              overflow: "hidden",
+            }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
-                  <tr style={{ backgroundColor: "var(--bg-input)", borderBottom: "1px solid var(--border)" }}>
-                    <th style={thStyle("right")}>שם קרן</th>
-                    <th style={thStyle("center")}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                        חודשים <ColTooltip text={COL_TOOLTIPS.months} />
-                      </span>
-                    </th>
-                    <th style={thStyle("center")}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                        עקביות vs בנצ'מרק <ColTooltip text={COL_TOOLTIPS.consist} />
-                      </span>
-                    </th>
-                    <th style={thStyle("center")}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                        avgGap / חודש <ColTooltip text={COL_TOOLTIPS.avgGap} />
-                      </span>
-                    </th>
-                    <th style={thStyle("center")}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                        IR <ColTooltip text={COL_TOOLTIPS.ir} />
-                      </span>
-                    </th>
-                    <th style={thStyle("center")}>תגיות</th>
-                    <th style={thStyle("center")}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                        ציון כולל <ColTooltip text={COL_TOOLTIPS.score} />
-                      </span>
-                    </th>
-                    <th style={thStyle("center")}></th>
+                  <tr>
+                    <th style={TH("right",  "32%")}>קרן</th>
+                    <th style={TH("center", "18%")}>ציון עקביות</th>
+                    <th style={TH("center", "22%")}>מגמה</th>
+                    <th style={TH("center", "16%")}>חודשים</th>
+                    <th style={TH("center", "12%")}></th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((row, i) => {
                     const isNA       = !row.result;
                     const isExpanded = expandedId === row.id;
-                    const borderBottom = (isExpanded || i < rows.length - 1) ? "1px solid var(--border)" : "none";
-                    const chartData  = isExpanded ? buildChartData(row.filteredMR, bmMRFiltered) : null;
-                    const tickInterval = chartData ? Math.max(0, Math.ceil(chartData.length / 8) - 1) : 0;
+                    const hasBorder  = i < rows.length - 1 || isExpanded;
+                    const chartData  = isExpanded
+                      ? buildChartData(row.filteredMR, bmMRFiltered)
+                      : null;
+                    const tickInterval = chartData
+                      ? Math.max(0, Math.ceil(chartData.length / 8) - 1)
+                      : 0;
 
                     return (
-                      <>
+                      <Fragment key={row.id}>
                         <tr
-                          key={row.id}
-                          style={{ borderBottom, backgroundColor: isExpanded ? "var(--bg-input)" : "transparent", opacity: isNA ? 0.4 : 1 }}
+                          className={isNA ? "" : "con-row-hover"}
+                          style={{
+                            borderBottom: hasBorder ? `0.5px solid ${BDR}` : "none",
+                            backgroundColor: isExpanded
+                              ? (isDark ? "rgba(27,58,47,0.12)" : "rgba(27,58,47,0.025)")
+                              : "transparent",
+                            opacity: isNA ? 0.25 : 1,
+                            transition: "background 0.15s",
+                          }}
                         >
-                          <td style={{ padding: "11px 16px", fontWeight: 500, color: "var(--text-primary)", textAlign: "right" }}>
+                          {/* Fund name */}
+                          <td style={{
+                            padding: "16px 20px",
+                            fontFamily: DM, fontWeight: 500, fontSize: 14,
+                            color: T1, textAlign: "right",
+                          }}>
                             {row.name}
                           </td>
 
                           {isNA ? (
-                            <td colSpan={7} style={{ padding: "11px 16px", textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>
+                            <td colSpan={4} style={{
+                              padding: "16px 20px", textAlign: "center",
+                              fontFamily: DM, fontSize: 11, color: T3,
+                            }}>
                               אין נתונים
                             </td>
                           ) : (
                             <>
-                              <td style={{ padding: "11px 16px", color: "var(--text-secondary)", textAlign: "center" }}>
-                                {row.sharedMonths}
-                              </td>
-                              <td style={{ padding: "11px 16px", textAlign: "center" }}>
-                                <span style={{ fontWeight: 700, fontSize: 14, color: scoreColor(row.result!.score) }}>
+                              {/* Score badge */}
+                              <td style={{ padding: "16px 20px", textAlign: "center" }}>
+                                <span style={{
+                                  display: "inline-block",
+                                  padding: "5px 16px",
+                                  borderRadius: 10,
+                                  fontFamily: CG,
+                                  fontSize: 14,
+                                  fontWeight: 500,
+                                  ...scoreBadgeStyle(row.result!.score),
+                                }}>
                                   {row.result!.score.toFixed(1)}%
                                 </span>
-                                <span style={{ fontSize: 10, color: "var(--text-muted)", marginRight: 5 }}>
-                                  ({row.result!.wins}/{row.result!.total})
-                                </span>
                               </td>
-                              <td style={{ padding: "11px 16px", textAlign: "center" }}>
-                                <span style={{ fontWeight: 500, color: row.result!.avgGap >= 0 ? "#059669" : "#dc2626" }}>
-                                  {row.result!.avgGap >= 0 ? "+" : ""}{(row.result!.avgGap * 100).toFixed(3)}%
-                                </span>
+
+                              {/* Sparkline */}
+                              <td style={{ padding: "16px 20px", textAlign: "center" }}>
+                                <Sparkline filteredMR={row.filteredMR} />
                               </td>
-                              <td style={{ padding: "11px 16px", textAlign: "center" }}>
-                                {row.result!.ir != null ? (
-                                  <span style={{ fontWeight: 600, color: irColor(row.result!.ir) }}>
-                                    {row.result!.ir.toFixed(3)}
-                                  </span>
-                                ) : <span style={{ color: "var(--text-muted)" }}>—</span>}
+
+                              {/* Months */}
+                              <td style={{
+                                padding: "16px 20px", textAlign: "center",
+                                fontFamily: DM, fontSize: 12, color: T2,
+                              }}>
+                                {row.sharedMonths}
                               </td>
-                              <td style={{ padding: "11px 16px", textAlign: "center", fontSize: 15, letterSpacing: 2 }}>
-                                {row.tags.length > 0 ? row.tags.join(" ") : (
-                                  <span style={{ color: "var(--text-muted)", fontSize: 11 }}>—</span>
-                                )}
-                              </td>
-                              <td style={{ padding: "11px 16px", textAlign: "center" }}>
-                                <span style={{
-                                  display: "inline-block", padding: "3px 10px", borderRadius: 6,
-                                  fontSize: 12, fontWeight: 700,
-                                  backgroundColor: row.result!.score >= 55 ? "#dcfce7" : row.result!.score >= 45 ? "#fef9c3" : "#fee2e2",
-                                  color:           row.result!.score >= 55 ? "#166534" : row.result!.score >= 45 ? "#92400e" : "#991b1b",
-                                }}>
-                                  {row.result!.score.toFixed(1)}
-                                </span>
-                              </td>
-                              <td style={{ padding: "11px 12px", textAlign: "center" }}>
+
+                              {/* Chevron */}
+                              <td style={{ padding: "16px 12px", textAlign: "center" }}>
                                 <button
                                   onClick={() => setExpandedId(isExpanded ? null : row.id)}
-                                  title={isExpanded ? "סגור גרף" : "הצג גרף"}
                                   style={{
-                                    background: "none", border: "1px solid var(--border)",
-                                    borderRadius: 5, cursor: "pointer", fontSize: 14, padding: "3px 7px",
-                                    color: isExpanded ? brand.primaryColor : "var(--text-secondary)",
-                                    backgroundColor: isExpanded ? (isDark ? "#1e2d2d" : "#f0fdf4") : "transparent",
-                                    transition: "all 0.15s",
+                                    background: "none", border: "none",
+                                    cursor: "pointer", padding: 4,
+                                    color: isExpanded ? G : T3,
+                                    transition: "color 0.15s, transform 0.2s",
+                                    display: "inline-flex", alignItems: "center",
+                                    transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
                                   }}
                                 >
-                                  📈
+                                  <svg width={14} height={14} viewBox="0 0 14 14" fill="none">
+                                    <path
+                                      d="M3 5L7 9L11 5"
+                                      stroke="currentColor"
+                                      strokeWidth={1.5}
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                  </svg>
                                 </button>
                               </td>
                             </>
                           )}
                         </tr>
 
-                        {/* Expanded chart row */}
-                        {isExpanded && chartData && (
-                          <tr key={`${row.id}-chart`} style={{ borderBottom: i < rows.length - 1 ? "1px solid var(--border)" : "none" }}>
-                            <td colSpan={8} style={{
-                              padding: "16px 24px 20px",
-                              backgroundColor: isDark ? "#111b1b" : "#f9fafb",
-                            }}>
-                              <div style={{ marginBottom: 10, fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>
-                                {row.name}
-                                <span style={{ fontWeight: 400, color: "var(--text-muted)", marginRight: 8 }}>vs {bmInfo.label}</span>
-                                <span style={{ fontWeight: 400, color: "var(--text-muted)", marginRight: 8 }}>— תשואה מצטברת</span>
-                              </div>
-                              {chartData.length >= 2 ? (
-                                <ResponsiveContainer width="100%" height={200}>
-                                  <LineChart data={chartData} margin={{ top: 4, right: 20, left: 0, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
-                                    <XAxis
-                                      dataKey="month"
-                                      tickFormatter={fmtMonth}
-                                      interval={tickInterval}
-                                      tick={{ fontSize: 10, fill: axisColor }}
-                                      stroke={gridColor}
-                                    />
-                                    <YAxis
-                                      tickFormatter={(v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(0)}%`}
-                                      tick={{ fontSize: 10, fill: axisColor }}
-                                      width={52}
-                                      stroke={gridColor}
-                                    />
-                                    <Tooltip
-                                      content={(props) => (
-                                        <ChartTooltip
-                                          active={props.active}
-                                          payload={props.payload as unknown as { value: number; color: string; name: string }[]}
-                                          label={props.label as string}
-                                          isDark={isDark}
-                                        />
-                                      )}
-                                    />
-                                    <Legend
-                                      formatter={(value) => (
-                                        <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{value}</span>
-                                      )}
-                                    />
-                                    <Line
-                                      type="monotone" dataKey="fund" name={row.name}
-                                      stroke={fundColor} strokeWidth={2} dot={false}
-                                    />
-                                    <Line
-                                      type="monotone" dataKey="bm" name={bmInfo.label}
-                                      stroke={bmColor} strokeWidth={2} dot={false} strokeDasharray="5 3"
-                                    />
-                                  </LineChart>
-                                </ResponsiveContainer>
-                              ) : (
-                                <div style={{ fontSize: 12, color: "var(--text-muted)", padding: "20px 0" }}>
-                                  אין מספיק נתונים לגרף
+                        {/* ── Expanded detail ────────────────────────── */}
+                        {isExpanded && (
+                          <tr key={`${row.id}-detail`} style={{
+                            borderBottom: i < rows.length - 1 ? `0.5px solid ${BDR}` : "none",
+                          }}>
+                            <td colSpan={5} style={{ padding: 0 }}>
+                              <div className="con-enter" style={{
+                                backgroundColor: DET,
+                                padding: "24px 28px",
+                              }}>
+                                {/* Head */}
+                                <div style={{
+                                  display: "flex", alignItems: "baseline",
+                                  gap: 10, marginBottom: 16,
+                                }}>
+                                  <span style={{
+                                    fontFamily: DM, fontSize: 14,
+                                    fontWeight: 600, color: T1,
+                                  }}>
+                                    {row.name}
+                                  </span>
+                                  <span style={{
+                                    fontFamily: DM, fontSize: 12, color: T3,
+                                  }}>
+                                    vs {bmInfo.label} — תשואה מצטברת
+                                  </span>
                                 </div>
-                              )}
-                              {/* ── Dynamic insight ── */}
-                              {chartData.length >= 2 && row.result && (() => {
-                                const last   = chartData[chartData.length - 1];
-                                const fundC  = last.fund;
-                                const bmC    = last.bm;
-                                const score  = row.result.score;   // 0–100
-                                const wins   = row.result.wins;
-                                const total  = row.result.total;
-                                if (fundC > bmC && score < 50) {
+
+                                {/* Chart canvas */}
+                                {chartData && chartData.length >= 2 ? (
+                                  <div style={{
+                                    backgroundColor: isDark ? "#1c2230" : "#FFFFFF",
+                                    borderRadius: 10,
+                                    border: `0.5px solid ${BDR}`,
+                                    padding: 16,
+                                    marginBottom: 14,
+                                  }}>
+                                    <ResponsiveContainer width="100%" height={200}>
+                                      <LineChart
+                                        data={chartData}
+                                        margin={{ top: 4, right: 20, left: 0, bottom: 0 }}
+                                      >
+                                        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                                        <XAxis
+                                          dataKey="month"
+                                          tickFormatter={fmtMonth}
+                                          interval={tickInterval}
+                                          tick={{ fontSize: 10, fill: axisColor }}
+                                          stroke={gridColor}
+                                        />
+                                        <YAxis
+                                          tickFormatter={(v: number) =>
+                                            `${v >= 0 ? "+" : ""}${v.toFixed(0)}%`
+                                          }
+                                          tick={{ fontSize: 10, fill: axisColor }}
+                                          width={52}
+                                          stroke={gridColor}
+                                        />
+                                        <Tooltip
+                                          content={(props) => (
+                                            <ChartTooltip
+                                              active={props.active}
+                                              payload={
+                                                props.payload as unknown as {
+                                                  value: number; color: string; name: string;
+                                                }[]
+                                              }
+                                              label={props.label as string}
+                                              isDark={isDark}
+                                            />
+                                          )}
+                                        />
+                                        <Line
+                                          type="monotone"
+                                          dataKey="fund"
+                                          name={row.name}
+                                          stroke={fundColor}
+                                          strokeWidth={2.5}
+                                          dot={false}
+                                        />
+                                        <Line
+                                          type="monotone"
+                                          dataKey="bm"
+                                          name={bmInfo.label}
+                                          stroke={bmColor}
+                                          strokeWidth={1.5}
+                                          dot={false}
+                                          strokeDasharray="6 4"
+                                        />
+                                      </LineChart>
+                                    </ResponsiveContainer>
+                                  </div>
+                                ) : (
+                                  <div style={{
+                                    fontSize: 12, color: T3,
+                                    padding: "20px 0", fontFamily: DM,
+                                  }}>
+                                    אין מספיק נתונים לגרף
+                                  </div>
+                                )}
+
+                                {/* Legend */}
+                                {chartData && chartData.length >= 2 && (
+                                  <div style={{
+                                    display: "flex", justifyContent: "center",
+                                    gap: 24, marginBottom: 16,
+                                  }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                      <div style={{
+                                        width: 20, height: 2,
+                                        backgroundColor: fundColor, borderRadius: 2,
+                                      }} />
+                                      <span style={{ fontFamily: DM, fontSize: 11, color: T2 }}>
+                                        {row.name}
+                                      </span>
+                                    </div>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                      <svg width={20} height={4} style={{ display: "block" }}>
+                                        <line
+                                          x1="0" y1="2" x2="20" y2="2"
+                                          stroke={bmColor} strokeWidth={1.5} strokeDasharray="4 2"
+                                        />
+                                      </svg>
+                                      <span style={{ fontFamily: DM, fontSize: 11, color: T2 }}>
+                                        {bmInfo.label}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Metrics */}
+                                {row.result && (
+                                  <div style={{
+                                    display: "grid",
+                                    gridTemplateColumns: "1fr 1fr 1fr",
+                                    gap: 12, marginBottom: 14,
+                                  }}>
+                                    {[
+                                      {
+                                        label: "פער ממוצע / חודש",
+                                        value: `${row.result.avgGap >= 0 ? "+" : ""}${(row.result.avgGap * 100).toFixed(3)}%`,
+                                        color: row.result.avgGap >= 0 ? "#059669" : "#DC2626",
+                                      },
+                                      {
+                                        label: "Information Ratio",
+                                        value: row.result.ir != null
+                                          ? row.result.ir.toFixed(3)
+                                          : "—",
+                                        color: irColor(row.result.ir),
+                                      },
+                                      {
+                                        label: "ניצחונות",
+                                        value: `${row.result.wins} / ${row.result.total}`,
+                                        color: T1,
+                                      },
+                                    ].map((m) => (
+                                      <div key={m.label} style={{
+                                        backgroundColor: isDark ? "#1c2230" : "#FFFFFF",
+                                        borderRadius: 10,
+                                        border: `0.5px solid ${BDR}`,
+                                        padding: "14px 16px",
+                                      }}>
+                                        <div style={{
+                                          fontSize: 10, fontFamily: DM, fontWeight: 500,
+                                          letterSpacing: "0.5px", textTransform: "uppercase",
+                                          color: T3, marginBottom: 8,
+                                        }}>
+                                          {m.label}
+                                        </div>
+                                        <div style={{
+                                          fontFamily: CG, fontSize: 16,
+                                          fontWeight: 500, color: m.color,
+                                        }}>
+                                          {m.value}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {/* Insight bar */}
+                                {chartData && chartData.length >= 2 && row.result && (() => {
+                                  const last  = chartData[chartData.length - 1];
+                                  const fundC = last.fund;
+                                  const bmC   = last.bm;
+                                  const score = row.result.score;
+                                  const wins  = row.result.wins;
+                                  const total = row.result.total;
+
+                                  const insightText =
+                                    fundC > bmC && score < 50
+                                      ? `הקרן הניבה תשואה מצטברת גבוהה מהבנצ׳מרק, אך עשתה זאת בצורה לא עקבית — ניצחה ב-${wins} מתוך ${total} חודשים בלבד.`
+                                      : fundC < bmC && score > 50
+                                        ? `הקרן ניצחה את הבנצ׳מרק ב-${wins} מתוך ${total} חודשים, אך התשואה המצטברת שלה נמוכה יותר — הפסדים בחודשים בודדים גדולים גררו את הממוצע למטה.`
+                                        : null;
+
+                                  if (!insightText) return null;
+
                                   return (
                                     <div style={{
-                                      marginTop: 10, padding: "9px 14px",
-                                      backgroundColor: isDark ? "#0f2318" : "#f0fdf4",
-                                      border: "1px solid #86efac",
-                                      borderRadius: 8, fontSize: 12,
-                                      color: isDark ? "#86efac" : "#166534",
-                                      direction: "rtl", lineHeight: 1.6,
+                                      borderRadius: 10,
+                                      background: "rgba(5,150,105,0.05)",
+                                      border: "0.5px solid rgba(5,150,105,0.12)",
+                                      color: isDark ? "#34d399" : "#065F46",
+                                      padding: "10px 16px",
+                                      fontSize: 12,
+                                      fontFamily: DM,
+                                      lineHeight: 1.6,
+                                      direction: "rtl",
                                     }}>
-                                      💡 הקרן הניבה תשואה מצטברת גבוהה מהבנצ׳מרק, אך עשתה זאת בצורה לא עקבית — ניצחה ב-{wins} מתוך {total} חודשים בלבד.
+                                      {insightText}
                                     </div>
                                   );
-                                }
-                                if (fundC < bmC && score > 50) {
-                                  return (
-                                    <div style={{
-                                      marginTop: 10, padding: "9px 14px",
-                                      backgroundColor: isDark ? "#1c1a08" : "#fefce8",
-                                      border: "1px solid #fbbf24",
-                                      borderRadius: 8, fontSize: 12,
-                                      color: isDark ? "#fbbf24" : "#92400e",
-                                      direction: "rtl", lineHeight: 1.6,
-                                    }}>
-                                      💡 הקרן ניצחה את הבנצ׳מרק ב-{wins} מתוך {total} חודשים, אך התשואה המצטברת שלה נמוכה יותר — הפסדים בחודשים בודדים גדולים גררו את הממוצע למטה.
-                                    </div>
-                                  );
-                                }
-                                return null;
-                              })()}
+                                })()}
+                              </div>
                             </td>
                           </tr>
                         )}
-                      </>
+                      </Fragment>
                     );
                   })}
                 </tbody>
@@ -794,12 +1082,17 @@ function ConsistencyContent() {
             </div>
           )}
 
-          {/* Footer note */}
+          {/* Footer */}
           {!loading && (
-            <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 10, textAlign: "right" }}>
-              * ציון כולל = עקביות vs בנצ'מרק בלבד (שלב א׳). עקביות vs קטגוריה — בקרוב.
-              &nbsp;&nbsp;|&nbsp;&nbsp;
-              נתונים חודשיים זמינים: {fundsWithData} קרנות מתוך {totalFunds} בקטגוריה זו.
+            <p style={{
+              fontSize: 10,
+              fontFamily: DM,
+              color: T3,
+              letterSpacing: "0.3px",
+              marginTop: 12,
+              textAlign: "right",
+            }}>
+              נתונים חודשיים זמינים: {fundsWithData} קרנות מתוך {totalFunds} בקטגוריה זו
             </p>
           )}
 
@@ -808,26 +1101,6 @@ function ConsistencyContent() {
     </ClientGate>
   );
 }
-
-/* ══════════════════════════════════════════════════════════════════════════ */
-/*  Style helpers                                                             */
-/* ══════════════════════════════════════════════════════════════════════════ */
-
-function thStyle(align: "right" | "center"): React.CSSProperties {
-  return {
-    padding: "10px 16px",
-    textAlign: align,
-    fontWeight: 600,
-    color: "var(--text-secondary)",
-    fontSize: 11,
-    whiteSpace: "nowrap",
-  };
-}
-
-const navLinkStyle: React.CSSProperties = {
-  fontSize: 12, color: "var(--text-secondary)", textDecoration: "none",
-  padding: "5px 10px", borderRadius: 6, border: "1px solid var(--border)",
-};
 
 /* ══════════════════════════════════════════════════════════════════════════ */
 /*  Export                                                                    */
