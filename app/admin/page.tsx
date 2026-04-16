@@ -1602,6 +1602,15 @@ function BrandingTab({ password, clientKey, onStatus }: { password: string; clie
             }}
           />
           <FeatureToggle
+            label="✨ AI One Pager לקרן"
+            description="הצג כפתור AI ליד כל קרן בטבלה הראשית — לחיצה פותחת סיכום מלא מבוסס AI (דורש ANTHROPIC_API_KEY)"
+            checked={form.features?.aiReport ?? false}
+            onChange={(v) => {
+              const feat = { ...(form.features || { comparison: true, chartPage: true }), aiReport: v };
+              setForm((prev) => prev ? { ...prev, features: feat } : prev);
+            }}
+          />
+          <FeatureToggle
             label="📱 העלאה מנייד"
             description="אפשר העלאת קבצים מנייד (PDF, תמונות)"
             checked={form.features?.mobileUpload ?? false}

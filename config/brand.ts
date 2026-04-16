@@ -3,6 +3,8 @@ export interface AppFeatures {
   comparisonMode?: "basic" | "advanced";
   chartPage: boolean;
   aiParser?: boolean;
+  /** One-pager AI report per fund (AI button in main table) */
+  aiReport?: boolean;
   mobileUpload?: boolean;
   desktopUpload?: boolean;
   excelUpload?: boolean;

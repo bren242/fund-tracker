@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { Category, Fund } from "@/lib/types";
 import { pct, num, returnColorInline, formatReportDate } from "@/lib/format";
 import FundOnePagerModal from "./FundOnePagerModal";
+import { useBrand } from "@/lib/useBrand";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type TimeRange = "ytd" | "12m" | "3y" | "5y" | "max" | "custom";
@@ -520,20 +521,27 @@ export default function FundTableV2({
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [openAccordions, setOpenAccordions]   = useState<Set<string>>(new Set());
 
-  // AI One-Pager: availability check + open modal
-  const [aiAvailable, setAiAvailable] = useState(false);
-  const [aiFundId, setAiFundId]       = useState<string | null>(null);
+  // Brand — read once per clientKey; used to gate aiReport feature flag
+  const brand = useBrand(clientKey || "");
+
+  // AI One-Pager: available only if (1) brand.features.aiReport is on AND
+  //               (2) ANTHROPIC_API_KEY is configured on the server
+  const [apiKeyAvailable, setApiKeyAvailable] = useState(false);
+  const [aiFundId, setAiFundId]               = useState<string | null>(null);
+  const aiFeatureOn = !!clientKey && (brand.features?.aiReport === true);
   useEffect(() => {
-    if (!clientKey) return;
+    if (!aiFeatureOn) return;
     let abort = false;
-    fetch(`/api/fund-report?check=true&client=${encodeURIComponent(clientKey)}`)
+    fetch(`/api/fund-report?check=true&client=${encodeURIComponent(clientKey!)}`)
       .then((r) => r.json())
       .then((d: { available?: boolean }) => {
-        if (!abort) setAiAvailable(!!d.available);
+        if (!abort) setApiKeyAvailable(!!d.available);
       })
       .catch(() => { /* silent — button simply won't render */ });
     return () => { abort = true; };
-  }, [clientKey]);
+  }, [clientKey, aiFeatureOn]);
+
+  const aiAvailable = aiFeatureOn && apiKeyAvailable;
 
   // Year-mode: activated when no fund has monthlyReturns data (e.g. NOX)
   const [isYearMode, setIsYearMode]     = useState(false);

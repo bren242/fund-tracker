@@ -349,8 +349,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ available: !!process.env.ANTHROPIC_API_KEY });
   }
 
-  const fundId = url.searchParams.get("fundId");
-  if (!fundId) return NextResponse.json({ error: "Missing fundId" }, { status: 400 });
+  // Accept either ?fundId=X (single) or ?fundIds=X,Y,Z (multi, future use).
+  // For now only the first / the single fund is processed.
+  // When multi-fund comparison is built, iterate fundIds instead.
+  const fundIdsParam = url.searchParams.get("fundIds");
+  const fundId =
+    url.searchParams.get("fundId") ||
+    (fundIdsParam ? fundIdsParam.split(",")[0].trim() : null);
+  if (!fundId) return NextResponse.json({ error: "Missing fundId or fundIds" }, { status: 400 });
 
   // 1. Load fund + category
   const fundsData = await storageRead<FundsData>(`funds:${clientKey}`, {
