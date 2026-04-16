@@ -1,9 +1,8 @@
 "use client";
 
 /**
- * FundOnePagerModal — Apple-grade premium one-pager
- * Fetches from /api/fund-report. Renders skeleton for AI sections.
- * Prints cleanly via window.print().
+ * FundOnePagerModal — premium one-pager (Round 3 redesign)
+ * Print: opens dedicated /fund-report/[id] tab via window.open().
  */
 
 import { useEffect, useState } from "react";
@@ -15,8 +14,8 @@ import { useBrand } from "@/lib/useBrand";
 
 /* ── Types ────────────────────────────────────────────────────────── */
 
-interface ChartPoint { month: string; fund: number; bm: number | null }
-interface AiNarrative {
+export interface ChartPoint { month: string; fund: number; bm: number | null }
+export interface AiNarrative {
   story: string; strengths: string[]; warnings: string[];
   character: string; verdict: string;
 }
@@ -25,8 +24,9 @@ interface TrendMetrics {
   consistency36: { score: number; wins: number; total: number } | null;
   avgGapLast6: number | null;
   avgGapPrev6: number | null;
+  trendLabel?: "שיפור" | "הידרדרות" | "יציבה" | null;
 }
-interface ReportPayload {
+export interface ReportPayload {
   cached: boolean; reportMonth: string;
   fund: {
     id: string; name: string; classification: string; manager: string;
@@ -58,21 +58,21 @@ const MONTH_HE: Record<string, string> = {
   "05": "מאי", "06": "יוני", "07": "יולי", "08": "אוג",
   "09": "ספט", "10": "אוק", "11": "נוב", "12": "דצמ",
 };
-const MONTH_HE_FULL: Record<string, string> = {
+export const MONTH_HE_FULL: Record<string, string> = {
   "01": "ינואר", "02": "פברואר", "03": "מרץ", "04": "אפריל",
   "05": "מאי", "06": "יוני", "07": "יולי", "08": "אוגוסט",
   "09": "ספטמבר", "10": "אוקטובר", "11": "נובמבר", "12": "דצמבר",
 };
-function fmtM(m: string): string {
+export function fmtM(m: string): string {
   const [y, mo] = m.split("-"); return `${MONTH_HE[mo] || mo} '${y.slice(2)}`;
 }
-function fmtML(m: string): string {
+export function fmtML(m: string): string {
   const [y, mo] = m.split("-"); return `${MONTH_HE_FULL[mo] || mo} ${y}`;
 }
-function pct(v: number | null | undefined, dp = 1): string {
+export function pct(v: number | null | undefined, dp = 1): string {
   if (v == null) return "—"; return (v * 100).toFixed(dp) + "%";
 }
-function pctS(v: number | null | undefined, dp = 1): string {
+export function pctS(v: number | null | undefined, dp = 1): string {
   if (v == null) return "—"; const s = pct(v, dp); return v > 0 ? "+" + s : s;
 }
 function retColor(v: number | null): string {
@@ -88,7 +88,7 @@ function consC(s: number | null): string {
 
 /* ── Skeleton ─────────────────────────────────────────────────────── */
 
-function Skel({ w = "100%", h = 14, r = 6 }: { w?: string | number; h?: number; r?: number }) {
+export function Skel({ w = "100%", h = 14, r = 6 }: { w?: string | number; h?: number; r?: number }) {
   return (
     <div style={{
       width: w, height: h, borderRadius: r,
@@ -146,18 +146,18 @@ export default function FundOnePagerModal({
         }
         .fund-onepager-overlay {
           position: fixed; inset: 0; z-index: 1000;
-          background: rgba(0,0,0,0.52);
+          background: rgba(0,0,0,0.6);
           display: flex; align-items: center; justify-content: center;
           padding: 16px;
           backdrop-filter: blur(6px);
           -webkit-backdrop-filter: blur(6px);
         }
         .fund-onepager-modal {
-          background: #F8F7F4;
+          background: #FFFFFF;
           border-radius: 20px;
           max-width: 740px; width: 100%;
           max-height: 94vh; overflow-y: auto;
-          padding: 36px 40px 40px;
+          padding: 0 40px 40px;
           box-shadow: 0 32px 80px rgba(0,0,0,0.22), 0 0 0 0.5px rgba(0,0,0,0.08);
           position: relative; direction: rtl;
         }
@@ -165,39 +165,22 @@ export default function FundOnePagerModal({
         .no-print {}
         .print-only { display: none !important; }
 
-        /* ── Print ── */
         @media print {
-          body > *:not(.fund-onepager-overlay) { display: none !important; }
-          .fund-onepager-overlay {
-            position: static !important; background: none !important;
-            display: block !important; padding: 0 !important;
-          }
-          .fund-onepager-modal {
-            position: static !important; max-width: 100% !important;
-            width: 100% !important; max-height: none !important;
-            overflow: visible !important; border-radius: 0 !important;
-            box-shadow: none !important; border: none !important;
-            padding: 0 !important; margin: 0 !important;
-            background: #fff !important;
-          }
           .no-print   { display: none !important; }
           .print-only { display: flex !important; }
-          .onepager-section {
-            break-inside: avoid; page-break-inside: avoid;
-          }
-          * {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          @page {
-            size: A4 portrait;
-            margin: 15mm 18mm 20mm 18mm;
-          }
         }
       `}</style>
 
       <div className="fund-onepager-overlay" onClick={onClose}>
         <div className="fund-onepager-modal" onClick={(e) => e.stopPropagation()}>
+
+          {/* Gradient accent bar */}
+          <div aria-hidden="true" style={{
+            height: 3,
+            background: `linear-gradient(90deg, ${primary}, ${accent})`,
+            margin: "0 -40px 32px",
+            borderRadius: "20px 20px 0 0",
+          }} />
 
           {/* Print-only header */}
           <div className="print-only" style={{ flexDirection: "column" }}>
@@ -217,12 +200,17 @@ export default function FundOnePagerModal({
 
           {/* Screen-only top bar */}
           <div className="no-print" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-            <div style={{ fontSize: 10, color: "#B8975A", letterSpacing: 2, fontWeight: 600, textTransform: "uppercase" }}>
-              ONE PAGER
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {logo && (
+                <img src={logo} alt="" style={{ height: 20, objectFit: "contain", opacity: 0.85 }} />
+              )}
+              <div style={{ fontSize: 10, color: accent, letterSpacing: 2, fontWeight: 600, textTransform: "uppercase" }}>
+                ONE PAGER
+              </div>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <button
-                onClick={() => window.print()}
+                onClick={() => window.open(`/fund-report/${fundId}?client=${clientKey}`, "_blank")}
                 disabled={!data}
                 style={{
                   fontSize: 11, padding: "5px 12px", borderRadius: 6,
@@ -251,12 +239,14 @@ export default function FundOnePagerModal({
           {/* Print-only footer */}
           {data && (
             <div className="print-only" style={{ flexDirection: "column", marginTop: 32 }}>
-              <div style={{
-                borderTop: "0.5px solid #ddd", paddingTop: 14, textAlign: "center",
-              }}>
+              <div style={{ borderTop: "0.5px solid #ddd", paddingTop: 14, textAlign: "center" }}>
                 <div style={{ fontSize: 7.5, color: "#bbb", lineHeight: 1.6, marginBottom: 8 }}>
                   {brand.footerDisclaimer || "המידע לצורך ניתוח בלבד ואינו מהווה ייעוץ השקעות. אין לראות במידע המלצה לרכישה או מכירה של ניירות ערך."}
                 </div>
+                {logo
+                  ? <img src={logo} alt="" style={{ height: 20, objectFit: "contain", marginBottom: 4 }} />
+                  : null
+                }
                 <div style={{ fontSize: 10, color: primary, letterSpacing: 2, fontWeight: 700 }}>
                   {brand.fullName || brand.name}
                 </div>
@@ -292,11 +282,8 @@ function SkeletonPage() {
       <Skel w="55%" h={10} />
       <Skel w="75%" h={30} />
       <Skel w="40%" h={12} />
-      {/* KPI strip */}
       <div style={{ height: 90, background: "#fff", borderRadius: 14, border: "0.5px solid #e5e5e5" }} />
-      {/* Chart */}
       <Skel h={230} />
-      {/* Story */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "24px 0" }}>
         <Skel w="90%" h={18} /><Skel w="80%" h={18} /><Skel w="65%" h={18} />
       </div>
@@ -304,29 +291,43 @@ function SkeletonPage() {
   );
 }
 
-/* ── Body ─────────────────────────────────────────────────────────── */
+/* ── Body (exported for standalone print page) ────────────────────── */
 
-function Body({ data, primary, accent, brand }: {
+export function Body({ data, primary, accent, brand }: {
   data: ReportPayload; primary: string; accent: string;
   brand: ReturnType<typeof useBrand>;
 }) {
   const f = data.fund;
   const m = data.metrics;
+  const logo = brand.logoLight || brand.logo || "";
+
+  const kpiCards = [
+    { label: "תשואה מצטברת", value: m.cumulative != null ? pctS(m.cumulative) : "—", color: retColor(m.cumulative), sub: null, topBorder: "#059669" },
+    { label: "שארפ",          value: m.sharpe   != null ? m.sharpe.toFixed(2)  : "—", color: sharpeC(m.sharpe),     sub: null, topBorder: primary   },
+    { label: "עקביות",        value: m.consistencyScore != null ? `${m.consistencyScore.toFixed(0)}%` : "—", color: consC(m.consistencyScore), sub: m.consistencyTotal ? `${m.consistencyWins}/${m.consistencyTotal} חודשים` : null, topBorder: accent },
+    { label: "סטיית תקן",     value: pct(m.stdDev),                                     color: "#1a1a1a",             sub: null, topBorder: "#94A3B8" },
+  ];
 
   return (
     <>
       {/* ── Hero ── */}
       <div className="onepager-section" style={{ marginBottom: 28 }}>
-        {/* Category label above name */}
         <div style={{ fontSize: 10, letterSpacing: 1.5, textTransform: "uppercase", color: accent, fontWeight: 600, marginBottom: 8 }}>
           {data.category.name}
         </div>
-        {/* Fund name */}
-        <div style={{ fontSize: 32, fontWeight: 700, color: primary, lineHeight: 1.15, marginBottom: 8 }}>
-          {f.name}
+        {/* Fund name with gold underline */}
+        <div style={{ marginBottom: 10 }}>
+          <span style={{
+            fontSize: 36, fontWeight: 700, color: primary, lineHeight: 1.2,
+            display: "inline",
+            borderBottom: `2px solid ${accent}`,
+            paddingBottom: 3,
+          }}>
+            {f.name}
+          </span>
         </div>
         {/* Meta row */}
-        <div style={{ fontSize: 12, color: "#999", display: "flex", flexWrap: "wrap", gap: "3px 10px", marginBottom: data.ai?.character ? 10 : 0 }}>
+        <div style={{ fontSize: 12, color: "#999", display: "flex", flexWrap: "wrap", gap: "3px 10px", marginBottom: (data.ai?.character || !data.aiError) ? 10 : 0 }}>
           {f.manager && <span>{f.manager}</span>}
           {f.manager && <span>•</span>}
           <span>{f.currency}</span>
@@ -335,7 +336,10 @@ function Body({ data, primary, accent, brand }: {
         </div>
         {/* Character from AI */}
         {data.ai?.character ? (
-          <div style={{ fontSize: 14, fontStyle: "italic", color: primary, fontWeight: 400, marginTop: 6 }}>
+          <div style={{
+            fontSize: 14, color: primary, fontWeight: 400, marginTop: 8,
+            background: `rgba(27,58,47,0.04)`, padding: "8px 12px", borderRadius: 6,
+          }}>
             {data.ai.character}
           </div>
         ) : !data.aiError && (
@@ -343,25 +347,21 @@ function Body({ data, primary, accent, brand }: {
         )}
       </div>
 
-      {/* ── KPI strip — single card with dividers ── */}
+      {/* ── KPI strip — single card with colored top borders ── */}
       <div className="onepager-section" style={{ marginBottom: 28 }}>
         <div style={{
           display: "grid", gridTemplateColumns: "repeat(4, 1fr)",
           background: "#fff", borderRadius: 14, border: "0.5px solid #e5e5e5",
           overflow: "hidden",
         }}>
-          {[
-            { label: "תשואה מצטברת", value: m.cumulative != null ? pctS(m.cumulative) : "—", color: retColor(m.cumulative), sub: null },
-            { label: "שארפ", value: m.sharpe != null ? m.sharpe.toFixed(2) : "—", color: sharpeC(m.sharpe), sub: null },
-            { label: "עקביות", value: m.consistencyScore != null ? `${m.consistencyScore.toFixed(0)}%` : "—", color: consC(m.consistencyScore), sub: m.consistencyTotal ? `${m.consistencyWins}/${m.consistencyTotal} חודשים` : null },
-            { label: "סטיית תקן", value: pct(m.stdDev), color: "#1a1a1a", sub: null },
-          ].map((c, i) => (
+          {kpiCards.map((c, i) => (
             <div key={i} style={{
               padding: "18px 14px", textAlign: "center",
               borderInlineStart: i > 0 ? "0.5px solid #eee" : "none",
+              borderTop: `4px solid ${c.topBorder}`,
             }}>
               <div style={{ fontSize: 10, color: "#999", textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 500, marginBottom: 6 }}>{c.label}</div>
-              <div style={{ fontSize: 30, fontWeight: 300, color: c.color, fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>{c.value}</div>
+              <div style={{ fontSize: 30, fontWeight: 500, color: c.color, fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>{c.value}</div>
               {c.sub && <div style={{ fontSize: 10, color: "#bbb", marginTop: 4 }}>{c.sub}</div>}
             </div>
           ))}
@@ -374,6 +374,7 @@ function Body({ data, primary, accent, brand }: {
           <div style={{
             background: "#fff", borderRadius: 14, padding: "20px 16px 10px",
             border: "0.5px solid #e5e5e5",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
           }}>
             <div style={{ fontSize: 10, letterSpacing: 0.5, textTransform: "uppercase", color: "#aaa", fontWeight: 500, textAlign: "center", marginBottom: 14 }}>
               תשואה מצטברת מול {data.bmLabel !== "—" ? data.bmLabel : "בנצ׳מרק"}
@@ -400,18 +401,22 @@ function Body({ data, primary, accent, brand }: {
       )}
 
       {/* ── AI story ── */}
-      <div className="onepager-section" style={{ marginBottom: 32, textAlign: "center" }}>
-        <div style={{ fontSize: 10, color: accent, textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600, marginBottom: 14 }}>ניתוח AI</div>
+      <div className="onepager-section" style={{ marginBottom: 32 }}>
+        <div style={{ fontSize: 10, color: accent, textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600, marginBottom: 14, textAlign: "center" }}>ניתוח AI</div>
         {data.ai ? (
-          <div style={{ fontSize: 16, fontWeight: 300, lineHeight: 1.75, color: "#1a1a1a", padding: "0 8px", maxWidth: 580, margin: "0 auto" }}>
+          <div style={{
+            fontSize: 15, fontWeight: 400, lineHeight: 1.8, color: "#1a1a1a",
+            paddingInlineEnd: 16, borderInlineEnd: `3px solid ${primary}`,
+            textAlign: "right",
+          }}>
             {data.ai.story}
           </div>
         ) : data.aiError ? (
-          <div style={{ fontSize: 12, color: "#aaa", fontStyle: "italic" }}>
+          <div style={{ fontSize: 12, color: "#aaa", fontStyle: "italic", textAlign: "center" }}>
             הניתוח המילולי אינו זמין כרגע{data.aiError !== "AI not configured" ? ` (${data.aiError})` : ""}.
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 520, margin: "0 auto" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <Skel h={16} /><Skel w="90%" h={16} /><Skel w="78%" h={16} /><Skel w="60%" h={16} />
           </div>
         )}
@@ -473,13 +478,17 @@ function Body({ data, primary, accent, brand }: {
             ].map((r, i) => {
               const total = data.ranks.totalInCategory;
               const isTop3 = r.rank != null && r.rank <= 3;
-              const rc = r.rank === 1 ? "#059669" : r.rank != null && r.rank <= 3 ? "#B8975A" : r.rank != null && r.rank > Math.ceil(total / 2) ? "#DC2626" : primary;
+              const isLast = r.rank != null && r.rank === total;
+              const rc = r.rank === 1 ? "#059669"
+                : r.rank != null && r.rank <= 3 ? "#B8975A"
+                : isLast ? "#DC2626"
+                : primary;
               return (
                 <div key={i} style={{
                   textAlign: "center", padding: "18px 10px",
                   borderInlineStart: i > 0 ? "0.5px solid #eee" : "none",
                 }}>
-                  <div style={{ fontSize: 30, fontWeight: 300, color: rc, fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
+                  <div style={{ fontSize: 30, fontWeight: 500, color: rc, fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
                     {r.rank != null ? r.rank : "—"}
                   </div>
                   {r.rank != null && <div style={{ fontSize: 10, color: "#bbb", marginTop: 2 }}>מתוך {total}</div>}
@@ -509,14 +518,17 @@ function Body({ data, primary, accent, brand }: {
 
       {/* ── Verdict ── */}
       <div className="onepager-section" style={{ marginBottom: 28, textAlign: "center" }}>
-        {/* Gold divider */}
         <div style={{ width: 40, height: 2, background: accent, margin: "0 auto 12px", borderRadius: 1 }} />
-        <div style={{ fontSize: 10, color: accent, textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600, marginBottom: 10 }}>
+        <div style={{ fontSize: 10, color: accent, textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600, marginBottom: 16 }}>
           שורה תחתונה
         </div>
         {data.ai?.verdict ? (
-          <div style={{ fontSize: 17, fontWeight: 400, color: primary, lineHeight: 1.6, maxWidth: 560, margin: "0 auto" }}>
-            {data.ai.verdict}
+          <div style={{ maxWidth: 560, margin: "0 auto" }}>
+            <div style={{ fontSize: 28, color: accent, lineHeight: 0.8, marginBottom: 8, fontFamily: "serif" }}>״</div>
+            <div style={{ fontSize: 18, fontWeight: 500, color: primary, lineHeight: 1.65 }}>
+              {data.ai.verdict}
+            </div>
+            <div style={{ fontSize: 28, color: accent, lineHeight: 0.8, marginTop: 8, fontFamily: "serif" }}>״</div>
           </div>
         ) : !data.aiError ? (
           <div style={{ maxWidth: 480, margin: "0 auto" }}>
@@ -531,11 +543,14 @@ function Body({ data, primary, accent, brand }: {
         textAlign: "center", fontSize: 9, color: "#bbb", lineHeight: 1.7,
       }}>
         {brand.footerDisclaimer || "המידע לצורך ניתוח בלבד ואינו מהווה ייעוץ השקעות."}
-        <div style={{ marginTop: 3, fontSize: 10, letterSpacing: 1.5, color: primary, fontWeight: 600 }}>
-          {brand.fullName || brand.name}
+        <div style={{ marginTop: 8 }}>
+          {logo && <img src={logo} alt="" style={{ height: 20, objectFit: "contain", display: "block", margin: "0 auto 4px" }} />}
+          <div style={{ fontSize: 10, letterSpacing: 2, color: primary, fontWeight: 600 }}>
+            {brand.fullName || brand.name}
+          </div>
         </div>
         {data.reportMonth && (
-          <div style={{ marginTop: 1, fontSize: 9, color: "#ccc" }}>
+          <div style={{ marginTop: 3, fontSize: 9, color: "#ccc" }}>
             נתוני {fmtML(data.reportMonth)}
             {data.cached && <span style={{ marginInlineStart: 8, opacity: 0.6 }}>(cached)</span>}
           </div>
@@ -552,6 +567,7 @@ function ExtremeCard({ title, month, value, color, bg, borderColor, extra }: {
   color: string; bg: string; borderColor: string;
   extra?: React.ReactNode;
 }) {
+  const isUp = value >= 0;
   return (
     <div style={{
       background: bg, borderRadius: 12, padding: "16px 18px",
@@ -560,8 +576,11 @@ function ExtremeCard({ title, month, value, color, bg, borderColor, extra }: {
     }}>
       <div style={{ fontSize: 10, color: "#aaa", textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 500 }}>{title}</div>
       <div style={{ fontSize: 12, color: "#555", marginTop: 8, fontWeight: 500 }}>{fmtML(month)}</div>
-      <div style={{ fontSize: 34, fontWeight: 300, color, marginTop: 2, fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
-        {pctS(value)}
+      <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 4 }}>
+        <span style={{ fontSize: 16, color, lineHeight: 1, fontWeight: 600 }}>{isUp ? "↑" : "↓"}</span>
+        <div style={{ fontSize: 32, fontWeight: 500, color, fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
+          {pctS(value)}
+        </div>
       </div>
       {extra}
     </div>

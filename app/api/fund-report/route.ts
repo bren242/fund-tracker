@@ -7,6 +7,9 @@
  *
  * Cache key: `fund-report:{clientKey}:{fundId}:{reportMonth}`
  * (reportMonth = fund.lastUpdated or current month)
+ *
+ * Round 4: API computes everything. AI only formats.
+ * AI receives "=== עובדות מחושבות ===" block — no raw monthly returns.
  */
 
 export const maxDuration = 60;
@@ -44,6 +47,7 @@ interface TrendMetrics {
   consistency36: { score: number; wins: number; total: number } | null;
   avgGapLast6: number | null;   // decimal — avg (fund−bm) over last 6 shared months
   avgGapPrev6: number | null;   // decimal — avg (fund−bm) over prior 6 shared months
+  trendLabel: "שיפור" | "הידרדרות" | "יציבה" | null;
 }
 
 interface OnePagerPayload {
@@ -89,45 +93,36 @@ interface OnePagerPayload {
 }
 
 /* ──────────────────────────────────────────────────────────────────── */
-/*  Anthropic prompt                                                     */
+/*  System prompt — Round 4: AI only formats, API computes              */
 /* ──────────────────────────────────────────────────────────────────── */
 
 const SYSTEM_PROMPT = `אתה אנליסט השקעות בכיר בישראל. אתה כותב סיכומי קרנות ליועצי השקעות.
 
-כללים:
-- כתוב בעברית בלבד
-- פרש מספרים — אל תחזור עליהם יבשים
-- השתמש בשפה של אנליסט מקצועי, לא שיווקית
-- היה ישיר וחד — לא פתיחות מנומסות
-- זהה דפוסים שטבלה לא יכולה להראות
-- אם יש דגל אדום — אמור את זה בבירור
+כלל ברזל: ה-API חישב הכל. אתה רק מנסח.
+- אל תחשב מספרים בעצמך — השתמש אך ורק במה שנשלח לך
+- אל תמציא ערכים שלא מופיעים ב"עובדות מחושבות"
+- כשנשלח "מגמה: שיפור / הידרדרות / יציבה" — השתמש בה כפי שהיא, אל תפרש מחדש
+- כל מספר שתכתוב חייב להיות מהעובדות המחושבות שנשלחו
 
-חשוב מאוד — טון:
-- לעולם לא להמליץ פעולה: לא "תעביר", לא "תשקול", לא "מומלץ", לא "כדאי"
+טון:
+- אנליסט מקצועי, לא שיווקי
+- גוף שלישי על הקרן: "הקרן מציגה", "המנהל מפגין"
+- לעולם לא להמליץ פעולה: לא "תעביר", לא "מומלץ", לא "כדאי"
+- אם יש דגל אדום — אמור את זה בבירור
 - תאר מצב ופרופיל: "מתאים לפרופיל של משקיע שמעדיף...", "פחות מתאים למי שמחפש..."
-- דבר בגוף שלישי על הקרן — "הקרן מציגה", "המנהל מפגין"
-- אתה לא יועץ ולא ממליץ — אתה מנתח ומתאר
 
 ב-verdict (שורה תחתונה):
 - לא "תקנה" / "תמכור" / "תעביר"
 - כן: "קרן עם פרופיל הגנתי שמתאימה למשקיע שמעדיף יציבות על פני תשואה מקסימלית"
 - כן: "ביצועים יורדים ב-3 חודשים אחרונים דורשים מעקב צמוד"
 
-כשאתה מקבל נתוני מגמות — השתמש בהם. זהה:
-- האם העקביות משתפרת או מידרדרת לאורך זמן?
-- האם הפער מול הבנצ'מרק גדל או מצטמצם בחודשים האחרונים?
-- האם יש שינוי אופי (מהגנתית לאגרסיבית או להפך)?
-- האם השנה האחרונה שונה מהכלל?
-
-אם יש מגמה ברורה — אמור את זה בביטחון. אם אין — אל תמציא מגמה.
-
 החזר JSON בלבד, בלי markdown, בלי backticks, בפורמט הבא:
 {
-  "story": "פסקה של 3-4 משפטים שמספרת את סיפור הקרן. לא חוזרת על מספרים — מפרשת אותם.",
+  "story": "פסקה של 3-4 משפטים שמספרת את סיפור הקרן. מפרשת — לא חוזרת על מספרים יבשים.",
   "strengths": ["חוזקה 1", "חוזקה 2", "חוזקה 3"],
   "warnings": ["נקודת תשומת לב 1", "נקודת תשומת לב 2"],
-  "character": "משפט אחד שמאפיין את אופי הקרן — לדוגמה: הגנתית, אגרסיבית, עקבית, תנודתית",
-  "verdict": "משפט סיכום אחד — תיאור הפרופיל של הקרן ולמי היא מתאימה. לעולם לא המלצה לפעולה."
+  "character": "משפט אחד שמאפיין את אופי הקרן — הגנתית, אגרסיבית, עקבית, תנודתית",
+  "verdict": "משפט סיכום — תיאור הפרופיל ולמי הקרן מתאימה. לעולם לא המלצה לפעולה."
 }`;
 
 /* ──────────────────────────────────────────────────────────────────── */
@@ -136,7 +131,8 @@ const SYSTEM_PROMPT = `אתה אנליסט השקעות בכיר בישראל. �
 
 function fmtPct(v: number | null | undefined, dp = 2): string {
   if (v === null || v === undefined) return "לא ידוע";
-  return (v * 100).toFixed(dp) + "%";
+  const sign = v > 0 ? "+" : "";
+  return sign + (v * 100).toFixed(dp) + "%";
 }
 function fmtNum(v: number | null | undefined, dp = 2): string {
   if (v === null || v === undefined) return "לא ידוע";
@@ -153,7 +149,7 @@ function mean(arr: number[]): number {
 }
 
 /* ──────────────────────────────────────────────────────────────────── */
-/*  Time-range filter (mirrors consistency page logic)                   */
+/*  Time-range filter                                                    */
 /* ──────────────────────────────────────────────────────────────────── */
 
 function filterByTimeRange(
@@ -165,6 +161,21 @@ function filterByTimeRange(
   const cutoff = new Date(today.getFullYear(), today.getMonth() - n, 1);
   const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, "0")}`;
   return Object.fromEntries(Object.entries(mr).filter(([m]) => m >= cutoffStr));
+}
+
+/* ──────────────────────────────────────────────────────────────────── */
+/*  Trend label (pre-computed, sent to AI verbatim)                     */
+/* ──────────────────────────────────────────────────────────────────── */
+
+function calcTrendLabel(
+  avgGapLast6: number | null,
+  avgGapPrev6: number | null,
+): "שיפור" | "הידרדרות" | "יציבה" | null {
+  if (avgGapLast6 === null || avgGapPrev6 === null) return null;
+  const diff = avgGapLast6 - avgGapPrev6;
+  if (diff > 0.002) return "שיפור";
+  if (diff < -0.002) return "הידרדרות";
+  return "יציבה";
 }
 
 /* ──────────────────────────────────────────────────────────────────── */
@@ -227,12 +238,15 @@ function rank<T extends Fund>(
   return { rank: idx >= 0 ? idx + 1 : null, total: scored.length };
 }
 
-/** Compute trend metrics: consistency for 12m/36m + avg gap last6 vs prev6. */
+/** Compute trend metrics: consistency 12m/36m + avg gap last/prev 6 + trendLabel */
 function calcTrends(
   fundMR: Record<string, number> | undefined,
   bmMR:   Record<string, number> | null,
 ): TrendMetrics {
-  const empty: TrendMetrics = { consistency12: null, consistency36: null, avgGapLast6: null, avgGapPrev6: null };
+  const empty: TrendMetrics = {
+    consistency12: null, consistency36: null,
+    avgGapLast6: null, avgGapPrev6: null, trendLabel: null,
+  };
   if (!fundMR || !bmMR) return empty;
 
   const f12 = filterByTimeRange(fundMR, "12m");
@@ -243,7 +257,6 @@ function calcTrends(
   const b36 = filterByTimeRange(bmMR,   "36m");
   const c36  = calcConsistencyVsBenchmark(f36, b36, 12);
 
-  // Shared months, sorted
   const shared = Object.keys(fundMR).filter((m) => m in bmMR).sort();
   const last6  = shared.slice(-6);
   const prev6  = shared.slice(-12, -6);
@@ -260,108 +273,123 @@ function calcTrends(
     consistency36: c36 ? { score: c36.score, wins: c36.wins, total: c36.total } : null,
     avgGapLast6,
     avgGapPrev6,
+    trendLabel: calcTrendLabel(avgGapLast6, avgGapPrev6),
   };
 }
 
 /* ──────────────────────────────────────────────────────────────────── */
-/*  Build user prompt from payload (structured)                          */
+/*  Build facts prompt — Round 4: pre-computed, no raw monthly data     */
 /* ──────────────────────────────────────────────────────────────────── */
 
-function buildPromptFromContext(
+function buildFactsPrompt(
   fund: Fund,
   category: Category,
   payload: OnePagerPayload,
   fundMR: Record<string, number> | undefined,
   bmMR: Record<string, number> | null,
 ): string {
-  const lines: string[] = [];
+  const lines: string[] = ["=== עובדות מחושבות ===", ""];
+
+  // Fund identity
   lines.push(`קרן: ${fund.name}`);
   lines.push(`קטגוריה: ${category.name}`);
-  lines.push(`מנהל: ${fund.manager || "לא ידוע"}`);
+  if (fund.manager) lines.push(`מנהל: ${fund.manager}`);
   lines.push(`מטבע: ${fund.currency || "ILS"}`);
   if (fund.aumMillions != null) lines.push(`AUM: ${fund.aumMillions.toLocaleString("he-IL")} מיליון`);
-  if (fund.startDate)            lines.push(`הוקמה: ${fund.startDate}`);
-
+  if (fund.startDate)           lines.push(`הוקמה: ${fund.startDate}`);
   lines.push("");
-  lines.push("תשואות שנתיות:");
+
+  // Annual returns
   const yrs: Array<[string, number | null]> = [
     ["2019", fund.returns.y2019], ["2020", fund.returns.y2020],
     ["2021", fund.returns.y2021], ["2022", fund.returns.y2022],
     ["2023", fund.returns.y2023], ["2024", fund.returns.y2024],
     ["2025", fund.returns.y2025], ["YTD 2026", fund.returns.ytd2026],
   ];
-  lines.push(yrs.filter(([, v]) => v != null).map(([lbl, v]) => `${lbl}: ${fmtPct(v)}`).join(", "));
+  const yrStr = yrs.filter(([, v]) => v != null).map(([lbl, v]) => `${lbl}: ${fmtPct(v)}`).join(", ");
+  if (yrStr) { lines.push(`תשואות שנתיות: ${yrStr}`); lines.push(""); }
 
-  lines.push("");
-  lines.push("מדדים כלליים:");
-  lines.push(`- תשואה מצטברת: ${fmtPct(payload.metrics.cumulative)}`);
-  lines.push(`- ממוצע שנתי: ${fmtPct(payload.metrics.avgAnnualReturn)}`);
+  // Core metrics
+  lines.push("מדדים:");
+  lines.push(`- תשואה מצטברת (כל הזמן): ${fmtPct(payload.metrics.cumulative)}`);
+  if (payload.metrics.avgAnnualReturn != null)
+    lines.push(`- ממוצע שנתי: ${fmtPct(payload.metrics.avgAnnualReturn)}`);
   lines.push(`- סטיית תקן: ${fmtPct(payload.metrics.stdDev)}`);
-  lines.push(`- שארפ כולל: ${fmtNum(payload.metrics.sharpe)}`);
+  lines.push(`- שארפ: ${fmtNum(payload.metrics.sharpe)}`);
+  lines.push("");
+
+  // Consistency vs benchmark
   if (payload.metrics.consistencyScore != null) {
-    lines.push(`- עקביות מול בנצ'מרק (כל התקופה): ${payload.metrics.consistencyScore.toFixed(1)}% (${payload.metrics.consistencyWins}/${payload.metrics.consistencyTotal} חודשים)`);
-  }
-  if (payload.metrics.consistencyIR != null) {
-    lines.push(`- Information Ratio (כל התקופה): ${payload.metrics.consistencyIR.toFixed(2)}`);
-  }
-  if (payload.metrics.consistencyAvgGap != null) {
-    lines.push(`- פער ממוצע חודשי (כל התקופה): ${fmtPct(payload.metrics.consistencyAvgGap, 3)}`);
+    lines.push(`עקביות מול בנצ'מרק (כל התקופה): ${payload.metrics.consistencyWins}/${payload.metrics.consistencyTotal} חודשים = ${payload.metrics.consistencyScore.toFixed(1)}%`);
+    if (payload.metrics.consistencyIR != null)
+      lines.push(`Information Ratio (כל התקופה): ${payload.metrics.consistencyIR.toFixed(2)}`);
+    lines.push("");
   }
 
-  // Trend metrics
+  // Shared months cumulative comparison
+  if (fundMR && bmMR) {
+    const shared = Object.keys(fundMR).filter((m) => m in bmMR).sort();
+    if (shared.length >= 6) {
+      const fundCumShared = shared.reduce((acc, m) => acc * (1 + fundMR[m]), 1) - 1;
+      const bmCumShared   = shared.reduce((acc, m) => acc * (1 + bmMR[m]),   1) - 1;
+      lines.push(`תשואה מצטברת על ${shared.length} חודשים משותפים עם בנצ'מרק:`);
+      lines.push(`- קרן: ${fmtPct(fundCumShared)}`);
+      lines.push(`- בנצ'מרק: ${fmtPct(bmCumShared)}`);
+      lines.push(`- עדיפות קרן על בנצ'מרק: ${fmtPct(fundCumShared - bmCumShared)}`);
+      lines.push("");
+    }
+  }
+
+  // Trend (pre-computed label — AI must use as-is)
   const t = payload.trends;
-  if (t.consistency12 || t.consistency36 || t.avgGapLast6 != null || t.avgGapPrev6 != null) {
+  if (t.trendLabel) {
+    lines.push(`מגמה (ביצועים מול בנצ'מרק): ${t.trendLabel}`);
+    if (t.avgGapLast6 != null)
+      lines.push(`- פער ממוצע חודשי, 6 חודשים אחרונים: ${fmtPct(t.avgGapLast6, 3)}`);
+    if (t.avgGapPrev6 != null)
+      lines.push(`- פער ממוצע חודשי, 6 חודשים קודמים: ${fmtPct(t.avgGapPrev6, 3)}`);
     lines.push("");
-    lines.push("מגמות (חשוב — השתמש בזה לזיהוי שיפור/הידרדרות):");
-    if (t.consistency12) {
-      lines.push(`- עקביות 12 חודשים אחרונים: ${t.consistency12.score.toFixed(1)}% (${t.consistency12.wins}/${t.consistency12.total})`);
-    }
-    if (t.consistency36) {
-      lines.push(`- עקביות 36 חודשים אחרונים: ${t.consistency36.score.toFixed(1)}% (${t.consistency36.wins}/${t.consistency36.total})`);
-    }
-    if (t.avgGapLast6 != null) {
-      lines.push(`- פער ממוצע חודשי — 6 חודשים אחרונים: ${fmtPct(t.avgGapLast6, 3)}`);
-    }
-    if (t.avgGapPrev6 != null) {
-      lines.push(`- פער ממוצע חודשי — 6 חודשים קודמים: ${fmtPct(t.avgGapPrev6, 3)}`);
-    }
   }
 
+  // Wins/losses last 6 shared months
+  if (fundMR && bmMR) {
+    const shared = Object.keys(fundMR).filter((m) => m in bmMR).sort();
+    const last6shared = shared.slice(-6);
+    if (last6shared.length >= 3) {
+      const wins   = last6shared.filter((m) => fundMR[m] > bmMR[m]).length;
+      const losses = last6shared.length - wins;
+      lines.push(`ביצועים 6 חודשים אחרונים מול בנצ'מרק: ${wins} ניצחונות, ${losses} הפסדים`);
+    }
+    if (t.consistency12)
+      lines.push(`עקביות 12 חודשים אחרונים: ${t.consistency12.wins}/${t.consistency12.total} = ${t.consistency12.score.toFixed(1)}%`);
+    if (t.consistency36)
+      lines.push(`עקביות 36 חודשים אחרונים: ${t.consistency36.wins}/${t.consistency36.total} = ${t.consistency36.score.toFixed(1)}%`);
+    if (t.consistency12 || t.consistency36 || last6shared.length >= 3) lines.push("");
+  }
+
+  // Extremes
   if (payload.extremes.bestMonth) {
-    lines.push("");
-    lines.push(`חודש שיא: ${fmtMonthHe(payload.extremes.bestMonth.month)} (${fmtPct(payload.extremes.bestMonth.value)})`);
+    lines.push(`חודש שיא: ${fmtMonthHe(payload.extremes.bestMonth.month)}, תשואה ${fmtPct(payload.extremes.bestMonth.value)}`);
   }
   if (payload.extremes.worstMonth) {
-    lines.push(`חודש שפל: ${fmtMonthHe(payload.extremes.worstMonth.month)} (${fmtPct(payload.extremes.worstMonth.value)})`);
-    if (payload.extremes.worstMonth.bmValue !== null) {
-      lines.push(`BM בחודש שפל: ${fmtPct(payload.extremes.worstMonth.bmValue)}`);
-      if (payload.extremes.worstMonth.defenseRatio !== null) {
-        lines.push(`הגנה יחסית: ${(payload.extremes.worstMonth.defenseRatio * 100).toFixed(0)}%`);
-      }
-    }
+    lines.push(`חודש שפל: ${fmtMonthHe(payload.extremes.worstMonth.month)}, תשואה ${fmtPct(payload.extremes.worstMonth.value)}`);
+    if (payload.extremes.worstMonth.bmValue !== null)
+      lines.push(`בנצ'מרק בחודש שפל: ${fmtPct(payload.extremes.worstMonth.bmValue)}`);
+    if (payload.extremes.worstMonth.defenseRatio !== null && payload.extremes.worstMonth.defenseRatio > 0)
+      lines.push(`הגנה יחסית בחודש שפל: ${(payload.extremes.worstMonth.defenseRatio * 100).toFixed(0)}%`);
   }
+  if (payload.extremes.bestMonth || payload.extremes.worstMonth) lines.push("");
 
+  // Rankings
   if (payload.ranks.totalInCategory > 1) {
-    lines.push("");
     lines.push(`מיקום בקטגוריה (${payload.ranks.totalInCategory} קרנות):`);
-    if (payload.ranks.byCumulative  != null) lines.push(`- תשואה מצטברת: מקום ${payload.ranks.byCumulative} מתוך ${payload.ranks.totalInCategory}`);
-    if (payload.ranks.bySharpe      != null) lines.push(`- שארפ: מקום ${payload.ranks.bySharpe} מתוך ${payload.ranks.totalInCategory}`);
-    if (payload.ranks.byConsistency != null) lines.push(`- עקביות: מקום ${payload.ranks.byConsistency} מתוך ${payload.ranks.totalInCategory}`);
+    if (payload.ranks.byCumulative  != null) lines.push(`- תשואה מצטברת: מקום ${payload.ranks.byCumulative}`);
+    if (payload.ranks.bySharpe      != null) lines.push(`- שארפ: מקום ${payload.ranks.bySharpe}`);
+    if (payload.ranks.byConsistency != null) lines.push(`- עקביות: מקום ${payload.ranks.byConsistency}`);
+    lines.push("");
   }
 
-  if (fundMR) {
-    const last6 = Object.keys(fundMR).sort().slice(-6);
-    if (last6.length > 0) {
-      lines.push("");
-      lines.push("תשואות 6 חודשים אחרונים (קרן | בנצ'מרק):");
-      for (const m of last6) {
-        const fv = fundMR[m];
-        const bv = bmMR?.[m];
-        lines.push(`- ${fmtMonthHe(m)}: ${fmtPct(fv)} | ${bv != null ? fmtPct(bv) : "—"}`);
-      }
-    }
-  }
-
+  lines.push("=== סוף עובדות ===");
   return lines.join("\n");
 }
 
@@ -560,8 +588,8 @@ export async function GET(req: NextRequest) {
     ai: null,
   };
 
-  // 5. Call Anthropic
-  const userPrompt = buildPromptFromContext(fund, category, payload, fundMR, bmMR);
+  // 5. Call Anthropic with facts-only prompt
+  const userPrompt = buildFactsPrompt(fund, category, payload, fundMR, bmMR);
   const aiResult   = await callAnthropic(userPrompt);
 
   if (aiResult.ok) {
