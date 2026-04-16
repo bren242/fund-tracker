@@ -39,6 +39,13 @@ interface ChartPoint {
   bm: number | null;
 }
 
+interface TrendMetrics {
+  consistency12: { score: number; wins: number; total: number } | null;
+  consistency36: { score: number; wins: number; total: number } | null;
+  avgGapLast6: number | null;   // decimal — avg (fund−bm) over last 6 shared months
+  avgGapPrev6: number | null;   // decimal — avg (fund−bm) over prior 6 shared months
+}
+
 interface OnePagerPayload {
   cached: boolean;
   reportMonth: string;
@@ -58,12 +65,13 @@ interface OnePagerPayload {
     sharpe: number | null;
     stdDev: number | null;
     avgAnnualReturn: number | null;
-    consistencyScore: number | null;   // 0–100
+    consistencyScore: number | null;
     consistencyWins: number | null;
     consistencyTotal: number | null;
     consistencyIR: number | null;
     consistencyAvgGap: number | null;
   };
+  trends: TrendMetrics;
   extremes: {
     bestMonth:  { month: string; value: number } | null;
     worstMonth: { month: string; value: number; bmValue: number | null; defenseRatio: number | null } | null;
@@ -88,11 +96,30 @@ const SYSTEM_PROMPT = `אתה אנליסט השקעות בכיר בישראל. �
 
 כללים:
 - כתוב בעברית בלבד
-- אל תחזור על מספרים יבשים — פרש אותם
-- השתמש בשפה של יועץ השקעות, לא אנליסט כמותי
+- פרש מספרים — אל תחזור עליהם יבשים
+- השתמש בשפה של אנליסט מקצועי, לא שיווקית
 - היה ישיר וחד — לא פתיחות מנומסות
 - זהה דפוסים שטבלה לא יכולה להראות
 - אם יש דגל אדום — אמור את זה בבירור
+
+חשוב מאוד — טון:
+- לעולם לא להמליץ פעולה: לא "תעביר", לא "תשקול", לא "מומלץ", לא "כדאי"
+- תאר מצב ופרופיל: "מתאים לפרופיל של משקיע שמעדיף...", "פחות מתאים למי שמחפש..."
+- דבר בגוף שלישי על הקרן — "הקרן מציגה", "המנהל מפגין"
+- אתה לא יועץ ולא ממליץ — אתה מנתח ומתאר
+
+ב-verdict (שורה תחתונה):
+- לא "תקנה" / "תמכור" / "תעביר"
+- כן: "קרן עם פרופיל הגנתי שמתאימה למשקיע שמעדיף יציבות על פני תשואה מקסימלית"
+- כן: "ביצועים יורדים ב-3 חודשים אחרונים דורשים מעקב צמוד"
+
+כשאתה מקבל נתוני מגמות — השתמש בהם. זהה:
+- האם העקביות משתפרת או מידרדרת לאורך זמן?
+- האם הפער מול הבנצ'מרק גדל או מצטמצם בחודשים האחרונים?
+- האם יש שינוי אופי (מהגנתית לאגרסיבית או להפך)?
+- האם השנה האחרונה שונה מהכלל?
+
+אם יש מגמה ברורה — אמור את זה בביטחון. אם אין — אל תמציא מגמה.
 
 החזר JSON בלבד, בלי markdown, בלי backticks, בפורמט הבא:
 {
@@ -100,8 +127,12 @@ const SYSTEM_PROMPT = `אתה אנליסט השקעות בכיר בישראל. �
   "strengths": ["חוזקה 1", "חוזקה 2", "חוזקה 3"],
   "warnings": ["נקודת תשומת לב 1", "נקודת תשומת לב 2"],
   "character": "משפט אחד שמאפיין את אופי הקרן — לדוגמה: הגנתית, אגרסיבית, עקבית, תנודתית",
-  "verdict": "משפט סיכום אחד — שורה תחתונה ליועץ"
+  "verdict": "משפט סיכום אחד — תיאור הפרופיל של הקרן ולמי היא מתאימה. לעולם לא המלצה לפעולה."
 }`;
+
+/* ──────────────────────────────────────────────────────────────────── */
+/*  Format helpers                                                       */
+/* ──────────────────────────────────────────────────────────────────── */
 
 function fmtPct(v: number | null | undefined, dp = 2): string {
   if (v === null || v === undefined) return "לא ידוע";
@@ -115,6 +146,25 @@ function fmtMonthHe(ym: string): string {
   const names = ["ינו", "פבר", "מרץ", "אפר", "מאי", "יוני", "יולי", "אוג", "ספט", "אוק", "נוב", "דצמ"];
   const [y, m] = ym.split("-");
   return `${names[parseInt(m, 10) - 1] || m} ${y}`;
+}
+function mean(arr: number[]): number {
+  if (arr.length === 0) return 0;
+  return arr.reduce((s, v) => s + v, 0) / arr.length;
+}
+
+/* ──────────────────────────────────────────────────────────────────── */
+/*  Time-range filter (mirrors consistency page logic)                   */
+/* ──────────────────────────────────────────────────────────────────── */
+
+function filterByTimeRange(
+  mr: Record<string, number>,
+  range: "12m" | "36m" | "60m"
+): Record<string, number> {
+  const n = parseInt(range, 10);
+  const today = new Date();
+  const cutoff = new Date(today.getFullYear(), today.getMonth() - n, 1);
+  const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, "0")}`;
+  return Object.fromEntries(Object.entries(mr).filter(([m]) => m >= cutoffStr));
 }
 
 /* ──────────────────────────────────────────────────────────────────── */
@@ -143,9 +193,7 @@ function buildChartData(
   return months.map((month) => {
     fundCum = (1 + fundCum) * (1 + fundMR[month]) - 1;
     const hasBm = bmMR && month in bmMR;
-    if (hasBm) {
-      bmCum = (1 + bmCum) * (1 + bmMR![month]) - 1;
-    }
+    if (hasBm) bmCum = (1 + bmCum) * (1 + bmMR![month]) - 1;
     return {
       month,
       fund: parseFloat((fundCum * 100).toFixed(2)),
@@ -154,19 +202,17 @@ function buildChartData(
   });
 }
 
-/** Find highest/lowest monthly return. */
 function findExtremes(mr: Record<string, number> | undefined) {
   if (!mr) return { best: null as null | { month: string; value: number }, worst: null as null | { month: string; value: number } };
   const entries = Object.entries(mr);
   if (entries.length === 0) return { best: null, worst: null };
   const sorted = [...entries].sort((a, b) => a[1] - b[1]);
   return {
-    worst: { month: sorted[0][0], value: sorted[0][1] },
-    best:  { month: sorted[sorted.length - 1][0], value: sorted[sorted.length - 1][1] },
+    worst: { month: sorted[0][0],                   value: sorted[0][1] },
+    best:  { month: sorted[sorted.length - 1][0],   value: sorted[sorted.length - 1][1] },
   };
 }
 
-/** Rank of a fund within a category by a sortable metric (higher = better). null if insufficient data. */
 function rank<T extends Fund>(
   allFunds: T[],
   targetId: string,
@@ -181,76 +227,40 @@ function rank<T extends Fund>(
   return { rank: idx >= 0 ? idx + 1 : null, total: scored.length };
 }
 
-async function callAnthropic(userPrompt: string): Promise<{ ok: true; narrative: AiNarrative } | { ok: false; error: string }> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return { ok: false, error: "AI not configured" };
+/** Compute trend metrics: consistency for 12m/36m + avg gap last6 vs prev6. */
+function calcTrends(
+  fundMR: Record<string, number> | undefined,
+  bmMR:   Record<string, number> | null,
+): TrendMetrics {
+  const empty: TrendMetrics = { consistency12: null, consistency36: null, avgGapLast6: null, avgGapPrev6: null };
+  if (!fundMR || !bmMR) return empty;
 
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-5",
-        max_tokens: 1500,
-        temperature: 0.3,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: userPrompt }],
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
+  const f12 = filterByTimeRange(fundMR, "12m");
+  const b12 = filterByTimeRange(bmMR,   "12m");
+  const c12  = calcConsistencyVsBenchmark(f12, b12, 6);
 
-    if (!res.ok) {
-      const errText = await res.text().catch(() => "unknown");
-      console.error("Anthropic error:", res.status, errText);
-      return { ok: false, error: `AI service error (${res.status})` };
-    }
+  const f36 = filterByTimeRange(fundMR, "36m");
+  const b36 = filterByTimeRange(bmMR,   "36m");
+  const c36  = calcConsistencyVsBenchmark(f36, b36, 12);
 
-    const data = await res.json();
-    const text: string = data?.content?.[0]?.text ?? "";
-    // Strip possible markdown fences
-    const cleaned = text.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
+  // Shared months, sorted
+  const shared = Object.keys(fundMR).filter((m) => m in bmMR).sort();
+  const last6  = shared.slice(-6);
+  const prev6  = shared.slice(-12, -6);
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(cleaned);
-    } catch (e) {
-      console.error("AI JSON parse failed:", e, "raw:", text.slice(0, 500));
-      return { ok: false, error: "AI response not parseable as JSON" };
-    }
+  const avgGapLast6 = last6.length >= 3
+    ? mean(last6.map((m) => fundMR[m] - bmMR[m]))
+    : null;
+  const avgGapPrev6 = prev6.length >= 3
+    ? mean(prev6.map((m) => fundMR[m] - bmMR[m]))
+    : null;
 
-    const p = parsed as Partial<AiNarrative>;
-    if (
-      typeof p.story !== "string" ||
-      !Array.isArray(p.strengths) ||
-      !Array.isArray(p.warnings) ||
-      typeof p.character !== "string" ||
-      typeof p.verdict !== "string"
-    ) {
-      return { ok: false, error: "AI response missing required fields" };
-    }
-
-    return {
-      ok: true,
-      narrative: {
-        story:     p.story,
-        strengths: p.strengths.filter((s) => typeof s === "string").slice(0, 4),
-        warnings:  p.warnings.filter((s) => typeof s === "string").slice(0, 4),
-        character: p.character,
-        verdict:   p.verdict,
-      },
-    };
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("Anthropic fetch error:", msg);
-    return { ok: false, error: msg.includes("abort") ? "AI timeout" : "AI fetch failed" };
-  }
+  return {
+    consistency12: c12 ? { score: c12.score, wins: c12.wins, total: c12.total } : null,
+    consistency36: c36 ? { score: c36.score, wins: c36.wins, total: c36.total } : null,
+    avgGapLast6,
+    avgGapPrev6,
+  };
 }
 
 /* ──────────────────────────────────────────────────────────────────── */
@@ -283,19 +293,38 @@ function buildPromptFromContext(
   lines.push(yrs.filter(([, v]) => v != null).map(([lbl, v]) => `${lbl}: ${fmtPct(v)}`).join(", "));
 
   lines.push("");
-  lines.push("מדדים:");
+  lines.push("מדדים כלליים:");
   lines.push(`- תשואה מצטברת: ${fmtPct(payload.metrics.cumulative)}`);
   lines.push(`- ממוצע שנתי: ${fmtPct(payload.metrics.avgAnnualReturn)}`);
   lines.push(`- סטיית תקן: ${fmtPct(payload.metrics.stdDev)}`);
-  lines.push(`- שארפ: ${fmtNum(payload.metrics.sharpe)}`);
+  lines.push(`- שארפ כולל: ${fmtNum(payload.metrics.sharpe)}`);
   if (payload.metrics.consistencyScore != null) {
-    lines.push(`- עקביות מול בנצ'מרק: ${payload.metrics.consistencyScore.toFixed(1)}% (${payload.metrics.consistencyWins}/${payload.metrics.consistencyTotal} חודשים)`);
+    lines.push(`- עקביות מול בנצ'מרק (כל התקופה): ${payload.metrics.consistencyScore.toFixed(1)}% (${payload.metrics.consistencyWins}/${payload.metrics.consistencyTotal} חודשים)`);
   }
   if (payload.metrics.consistencyIR != null) {
-    lines.push(`- Information Ratio: ${payload.metrics.consistencyIR.toFixed(2)}`);
+    lines.push(`- Information Ratio (כל התקופה): ${payload.metrics.consistencyIR.toFixed(2)}`);
   }
   if (payload.metrics.consistencyAvgGap != null) {
-    lines.push(`- פער ממוצע חודשי מול בנצ'מרק: ${fmtPct(payload.metrics.consistencyAvgGap, 3)}`);
+    lines.push(`- פער ממוצע חודשי (כל התקופה): ${fmtPct(payload.metrics.consistencyAvgGap, 3)}`);
+  }
+
+  // Trend metrics
+  const t = payload.trends;
+  if (t.consistency12 || t.consistency36 || t.avgGapLast6 != null || t.avgGapPrev6 != null) {
+    lines.push("");
+    lines.push("מגמות (חשוב — השתמש בזה לזיהוי שיפור/הידרדרות):");
+    if (t.consistency12) {
+      lines.push(`- עקביות 12 חודשים אחרונים: ${t.consistency12.score.toFixed(1)}% (${t.consistency12.wins}/${t.consistency12.total})`);
+    }
+    if (t.consistency36) {
+      lines.push(`- עקביות 36 חודשים אחרונים: ${t.consistency36.score.toFixed(1)}% (${t.consistency36.wins}/${t.consistency36.total})`);
+    }
+    if (t.avgGapLast6 != null) {
+      lines.push(`- פער ממוצע חודשי — 6 חודשים אחרונים: ${fmtPct(t.avgGapLast6, 3)}`);
+    }
+    if (t.avgGapPrev6 != null) {
+      lines.push(`- פער ממוצע חודשי — 6 חודשים קודמים: ${fmtPct(t.avgGapPrev6, 3)}`);
+    }
   }
 
   if (payload.extremes.bestMonth) {
@@ -337,6 +366,83 @@ function buildPromptFromContext(
 }
 
 /* ──────────────────────────────────────────────────────────────────── */
+/*  Anthropic call                                                       */
+/* ──────────────────────────────────────────────────────────────────── */
+
+async function callAnthropic(
+  userPrompt: string,
+): Promise<{ ok: true; narrative: AiNarrative } | { ok: false; error: string }> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return { ok: false, error: "AI not configured" };
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-5",
+        max_tokens: 1500,
+        temperature: 0.3,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userPrompt }],
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "unknown");
+      console.error("Anthropic error:", res.status, errText);
+      return { ok: false, error: `AI service error (${res.status})` };
+    }
+
+    const data = await res.json();
+    const text: string = data?.content?.[0]?.text ?? "";
+    const cleaned = text.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch (e) {
+      console.error("AI JSON parse failed:", e, "raw:", text.slice(0, 500));
+      return { ok: false, error: "AI response not parseable as JSON" };
+    }
+
+    const p = parsed as Partial<AiNarrative>;
+    if (
+      typeof p.story !== "string" ||
+      !Array.isArray(p.strengths) ||
+      !Array.isArray(p.warnings) ||
+      typeof p.character !== "string" ||
+      typeof p.verdict !== "string"
+    ) {
+      return { ok: false, error: "AI response missing required fields" };
+    }
+
+    return {
+      ok: true,
+      narrative: {
+        story:     p.story,
+        strengths: p.strengths.filter((s) => typeof s === "string").slice(0, 4),
+        warnings:  p.warnings.filter((s) => typeof s === "string").slice(0, 4),
+        character: p.character,
+        verdict:   p.verdict,
+      },
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("Anthropic fetch error:", msg);
+    return { ok: false, error: msg.includes("abort") ? "AI timeout" : "AI fetch failed" };
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────── */
 /*  Route handler                                                        */
 /* ──────────────────────────────────────────────────────────────────── */
 
@@ -344,14 +450,12 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const clientKey = getClientKeyFromRequest(req.url);
 
-  // Feature ping — used by UI to decide if button should render
+  // Feature ping
   if (url.searchParams.get("check") === "true") {
     return NextResponse.json({ available: !!process.env.ANTHROPIC_API_KEY });
   }
 
-  // Accept either ?fundId=X (single) or ?fundIds=X,Y,Z (multi, future use).
-  // For now only the first / the single fund is processed.
-  // When multi-fund comparison is built, iterate fundIds instead.
+  // Accept ?fundId=X (single) or ?fundIds=X,Y,Z (multi — future use, processes first)
   const fundIdsParam = url.searchParams.get("fundIds");
   const fundId =
     url.searchParams.get("fundId") ||
@@ -390,7 +494,6 @@ export async function GET(req: NextRequest) {
   const fundMR = fund.monthlyReturns;
   const cumulative = calcCumulative(fundMR);
 
-  // Benchmark blend for this category
   const blend = getBenchmarkForCategory(category.id);
   const benchmarks = await storageRead<Benchmark[]>(`benchmarks:${clientKey}`, []);
   const bmMR: Record<string, number> | null = blend
@@ -404,49 +507,38 @@ export async function GET(req: NextRequest) {
       }).join(" + ")
     : "—";
 
-  // Consistency vs benchmark
   const consistency = (bmMR && fundMR) ? calcConsistencyVsBenchmark(fundMR, bmMR, 6) : null;
+  const trends      = calcTrends(fundMR, bmMR);
 
-  // Extremes
   const { best, worst } = findExtremes(fundMR);
   const worstBmValue   = worst && bmMR ? (bmMR[worst.month] ?? null) : null;
-  // defense: when both negative, (fund loss less severe than bm loss) → >0
-  const defenseRatio = (worst && worstBmValue !== null && worstBmValue < 0)
+  const defenseRatio   = (worst && worstBmValue !== null && worstBmValue < 0)
     ? Math.round((1 - worst.value / worstBmValue) * 100) / 100
     : null;
 
-  // Ranks within category
   const allInCategory = category.funds;
   const rCum  = rank(allInCategory, fundId, (f) => calcCumulative(f.monthlyReturns));
   const rShar = rank(allInCategory, fundId, (f) => f.sharpe ?? null);
   const rCons = rank(allInCategory, fundId, (f) => {
     if (!bmMR || !f.monthlyReturns) return null;
-    const c = calcConsistencyVsBenchmark(f.monthlyReturns, bmMR, 6);
-    return c?.score ?? null;
+    return calcConsistencyVsBenchmark(f.monthlyReturns, bmMR, 6)?.score ?? null;
   });
 
-  // Chart data
   const chart = buildChartData(fundMR, bmMR);
 
-  // 4. Build payload (without AI yet)
+  // 4. Build payload
   const payload: OnePagerPayload = {
     cached: false,
     reportMonth,
     fund: {
-      id: fund.id,
-      name: fund.name,
-      classification: fund.classification,
-      manager: fund.manager,
-      currency: fund.currency || "ILS",
-      aumMillions: fund.aumMillions,
-      startDate: fund.startDate,
+      id: fund.id, name: fund.name, classification: fund.classification,
+      manager: fund.manager, currency: fund.currency || "ILS",
+      aumMillions: fund.aumMillions, startDate: fund.startDate,
       lastUpdated: fund.lastUpdated ?? null,
     },
     category: { id: category.id, name: category.name },
     metrics: {
-      cumulative,
-      sharpe: fund.sharpe,
-      stdDev: fund.stdDev,
+      cumulative, sharpe: fund.sharpe, stdDev: fund.stdDev,
       avgAnnualReturn: fund.avgAnnualReturn,
       consistencyScore:  consistency?.score ?? null,
       consistencyWins:   consistency?.wins  ?? null,
@@ -454,20 +546,14 @@ export async function GET(req: NextRequest) {
       consistencyIR:     consistency?.ir    ?? null,
       consistencyAvgGap: consistency?.avgGap ?? null,
     },
+    trends,
     extremes: {
-      bestMonth:  best ? { month: best.month,  value: best.value }  : null,
-      worstMonth: worst ? {
-        month: worst.month,
-        value: worst.value,
-        bmValue: worstBmValue,
-        defenseRatio,
-      } : null,
+      bestMonth:  best  ? { month: best.month,  value: best.value  } : null,
+      worstMonth: worst ? { month: worst.month, value: worst.value, bmValue: worstBmValue, defenseRatio } : null,
     },
     ranks: {
       totalInCategory: rCum.total || allInCategory.length,
-      byCumulative:  rCum.rank,
-      bySharpe:      rShar.rank,
-      byConsistency: rCons.rank,
+      byCumulative: rCum.rank, bySharpe: rShar.rank, byConsistency: rCons.rank,
     },
     bmLabel,
     chart,
@@ -476,11 +562,10 @@ export async function GET(req: NextRequest) {
 
   // 5. Call Anthropic
   const userPrompt = buildPromptFromContext(fund, category, payload, fundMR, bmMR);
-  const aiResult = await callAnthropic(userPrompt);
+  const aiResult   = await callAnthropic(userPrompt);
 
   if (aiResult.ok) {
     payload.ai = aiResult.narrative;
-    // Persist to cache only on success
     await storageWrite(cacheKey, payload);
   } else {
     payload.aiError = aiResult.error;
@@ -489,30 +574,17 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(payload);
 }
 
-/**
- * POST /api/fund-report?action=clear
- * body: { fundId?: string }    — clears all cache entries for that fund,
- *                                 or all entries if no fundId provided.
- *
- * Admin-only (reuses the funds admin password).
- */
 export async function POST(req: NextRequest) {
   const url = new URL(req.url);
   const clientKey = getClientKeyFromRequest(req.url);
   if (url.searchParams.get("action") !== "clear") {
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   }
-
-  // Password check (same scheme as funds route)
   const password = req.headers.get("x-admin-password") || "";
   const fundsData = await storageRead<Record<string, unknown>>(`funds:${clientKey}`, {});
   const adminPass = (fundsData.adminPassword as string) || "admin2026";
   if (password !== "super2026" && password !== adminPass) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
-  // KV doesn't easily enumerate keys from the storage abstraction.
-  // For now we rely on time-bucketing: caches auto-invalidate when
-  // fund.lastUpdated changes (→ different cache key). This is intentional.
   return NextResponse.json({ success: true, note: "Caches are keyed by reportMonth; they rotate automatically when lastUpdated changes." });
 }
