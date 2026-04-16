@@ -506,7 +506,7 @@ export async function GET(req: NextRequest) {
   }
 
   const reportMonth = fund.lastUpdated || currentMonthKey();
-  const cacheKey = `fund-report:${clientKey}:${fundId}:${reportMonth}`;
+  const cacheKey = `fund-report:v2:${clientKey}:${fundId}:${reportMonth}`;
 
   // 2. Check cache
   const force = url.searchParams.get("force") === "true";

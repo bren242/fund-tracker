@@ -2,14 +2,26 @@
 
 /**
  * /fund-report/[id] — Standalone print page for fund one-pager.
- * Opened in a new tab by the modal's print button.
+ * Opened in a new tab from the modal's print button.
+ * Dynamically imports Body/Skel (ssr:false) to avoid recharts SSR crash.
  * Auto-triggers print dialog after data loads.
  */
 
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import { useBrand } from "@/lib/useBrand";
-import { Body, Skel, ReportPayload } from "@/components/FundOnePagerModal";
+import type { ReportPayload } from "@/components/FundOnePagerModal";
+
+/* Dynamic imports — ssr:false prevents recharts from running on server */
+const Body = dynamic(
+  () => import("@/components/FundOnePagerModal").then((m) => ({ default: m.Body })),
+  { ssr: false, loading: () => null },
+);
+const Skel = dynamic(
+  () => import("@/components/FundOnePagerModal").then((m) => ({ default: m.Skel })),
+  { ssr: false, loading: () => null },
+);
 
 /* ── Inner page (needs useSearchParams → must be inside Suspense) ─── */
 
@@ -39,7 +51,7 @@ function PrintPageInner() {
       .catch((e: Error) => setError(e.message));
   }, [fundId, clientKey]);
 
-  // Auto-print once data is ready
+  /* Auto-print once data is ready (500ms delay for styles to settle) */
   useEffect(() => {
     if (!data) return;
     const t = setTimeout(() => window.print(), 500);
@@ -49,6 +61,7 @@ function PrintPageInner() {
   return (
     <>
       <style>{`
+        /* Skeleton animation — required because Body is dynamically imported */
         @keyframes opSkel {
           0%   { background-position: 200% 0 }
           100% { background-position: -200% 0 }
@@ -68,7 +81,7 @@ function PrintPageInner() {
         }
         .print-btn-bar {
           position: sticky; top: 0; z-index: 10;
-          background: #fff; padding: 12px 0 0;
+          background: #fff; padding: 12px 0 4px;
           display: flex; justify-content: flex-start;
           margin-bottom: 4px;
         }
@@ -79,16 +92,23 @@ function PrintPageInner() {
           font-size: 13px; font-weight: 600;
           cursor: pointer; letter-spacing: 0.3px;
         }
+        /* print-header / print-footer: hidden on screen, shown in print */
+        .print-ph { display: none; }
+        .print-pf { display: none; }
+
         @media print {
           body { background: #fff; }
           .print-btn-bar { display: none !important; }
+          /* Hide Body's screen-only disclaimer section */
+          .no-print { display: none !important; }
+          .print-ph { display: flex !important; }
+          .print-pf { display: flex !important; }
           .print-page-shell {
             margin: 0 !important; border-radius: 0 !important;
-            box-shadow: none !important; padding: 0 18mm 0 !important;
+            box-shadow: none !important;
+            padding: 0 18mm !important;
             max-width: 100% !important;
           }
-          .print-header { display: flex !important; }
-          .print-footer { display: flex !important; }
           * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
@@ -105,7 +125,7 @@ function PrintPageInner() {
         <div aria-hidden="true" style={{
           height: 3,
           background: `linear-gradient(90deg, ${primary}, ${accent})`,
-          margin: "0 -40px 0",
+          margin: "0 -40px",
           borderRadius: "12px 12px 0 0",
         }} />
 
@@ -116,12 +136,11 @@ function PrintPageInner() {
           </button>
         </div>
 
-        {/* Print header (shown on print) */}
-        <div className="print-header" style={{
-          display: "none",
+        {/* Print header */}
+        <div className="print-ph" style={{
           justifyContent: "space-between", alignItems: "center",
           paddingBottom: 16, borderBottom: `0.5px solid #ddd`,
-          marginBottom: 28, marginTop: 8,
+          marginBottom: 28, marginTop: 4,
         }}>
           {logo
             ? <img src={logo} alt="" style={{ height: 26, objectFit: "contain" }} />
@@ -132,7 +151,7 @@ function PrintPageInner() {
           </div>
         </div>
 
-        {/* Content */}
+        {/* Error state */}
         {error && (
           <div style={{ padding: "60px 20px", textAlign: "center" }}>
             <div style={{ fontSize: 30, marginBottom: 10 }}>⚠️</div>
@@ -141,28 +160,27 @@ function PrintPageInner() {
           </div>
         )}
 
+        {/* Loading skeleton */}
         {!data && !error && (
           <div style={{ display: "flex", flexDirection: "column", gap: 20, paddingTop: 12 }}>
             <Skel w="55%" h={10} />
             <Skel w="75%" h={32} />
             <Skel w="40%" h={12} />
-            <div style={{ height: 90, background: "#f7f7f7", borderRadius: 14 }} />
-            <Skel h={230} />
+            <div style={{ height: 90, background: "#f0f0f0", borderRadius: 14 }} />
+            <Skel h={200} />
             <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 8 }}>
               <Skel w="90%" h={18} /><Skel w="80%" h={18} /><Skel w="65%" h={18} />
             </div>
           </div>
         )}
 
+        {/* Content */}
         {data && (
           <>
             <Body data={data} primary={primary} accent={accent} brand={brand} />
 
             {/* Print footer */}
-            <div className="print-footer" style={{
-              display: "none",
-              flexDirection: "column", marginTop: 32,
-            }}>
+            <div className="print-pf" style={{ flexDirection: "column", marginTop: 32 }}>
               <div style={{ borderTop: "0.5px solid #ddd", paddingTop: 14, textAlign: "center" }}>
                 <div style={{ fontSize: 7.5, color: "#bbb", lineHeight: 1.6, marginBottom: 8 }}>
                   {brand.footerDisclaimer || "המידע לצורך ניתוח בלבד ואינו מהווה ייעוץ השקעות. אין לראות במידע המלצה לרכישה או מכירה של ניירות ערך."}
@@ -188,7 +206,7 @@ function PrintPageInner() {
 export default function FundReportPrintPage() {
   return (
     <Suspense fallback={
-      <div style={{ direction: "rtl", padding: "60px 24px", textAlign: "center", color: "#aaa" }}>
+      <div style={{ direction: "rtl", padding: "60px 24px", textAlign: "center", color: "#888", fontFamily: "sans-serif" }}>
         טוען דוח...
       </div>
     }>
