@@ -28,20 +28,11 @@ const CATEGORIES = [
   { id: "multi-strategy", label: "Multi Strategy" },
 ];
 
-const ROLLING_RANGES = [
+const TIME_RANGES = [
   { id: "12m", label: "12M" },
-  { id: "24m", label: "24M" },
   { id: "36m", label: "36M" },
   { id: "60m", label: "60M" },
-];
-
-const CALENDAR_RANGES = [
-  { id: "2020", label: "2020" },
-  { id: "2021", label: "2021" },
-  { id: "2022", label: "2022" },
-  { id: "2023", label: "2023" },
-  { id: "2024", label: "2024" },
-  { id: "all",  label: "מ-2020" },
+  { id: "all", label: "מ-2020" },
 ];
 
 /* ══════════════════════════════════════════════════════════════════════════ */
@@ -450,83 +441,27 @@ function ConsistencyContent() {
             })}
           </div>
 
-          {/* Time range card */}
-          <div style={{
-            backgroundColor: "var(--bg-surface)",
-            borderRadius: 12,
-            border: "1px solid var(--border)",
-            padding: "14px 20px",
-            marginBottom: 10,
-            display: "flex",
-            alignItems: "stretch",
-          }}>
-            {/* Rolling */}
-            <div style={{ flex: 1, paddingLeft: 20 }}>
-              <div style={{
-                fontSize: 10, fontWeight: 500,
-                letterSpacing: "0.5px", textTransform: "uppercase",
-                color: "var(--text-muted)", marginBottom: 8,
-              }}>
-                מתגלגל
-              </div>
-              <div style={{ display: "flex", gap: 4 }}>
-                {ROLLING_RANGES.map((r) => {
-                  const active = timeRange === r.id;
-                  return (
-                    <button key={r.id}
-                      onClick={() => { setTimeRange(active ? "all" : r.id); setExpandedId(null); }}
-                      style={{
-                        padding: "5px 12px",
-                        borderRadius: 6,
-                        fontSize: 11,
-                        cursor: "pointer",
-                        transition: "background 0.12s, color 0.12s",
-                        backgroundColor: active ? G : "transparent",
-                        color: active ? "#fff" : "var(--text-secondary)",
-                        border: "none",
-                      }}
-                    >{r.label}</button>
-                  );
-                })}
-              </div>
-            </div>
-            {/* Divider */}
-            <div style={{
-              width: "0.5px",
-              backgroundColor: "var(--border)",
-              margin: "0 4px",
-              flexShrink: 0,
-            }} />
-            {/* Calendar */}
-            <div style={{ flex: 2, paddingRight: 20 }}>
-              <div style={{
-                fontSize: 10, fontWeight: 500,
-                letterSpacing: "0.5px", textTransform: "uppercase",
-                color: "var(--text-muted)", marginBottom: 8,
-              }}>
-                קלנדרי
-              </div>
-              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                {CALENDAR_RANGES.map((r) => {
-                  const active = timeRange === r.id;
-                  return (
-                    <button key={r.id}
-                      onClick={() => { setTimeRange(r.id); setExpandedId(null); }}
-                      style={{
-                        padding: "5px 12px",
-                        borderRadius: 6,
-                        fontSize: 11,
-                        cursor: "pointer",
-                        transition: "background 0.12s, color 0.12s",
-                        backgroundColor: active ? G : "transparent",
-                        color: active ? "#fff" : "var(--text-secondary)",
-                        border: "none",
-                      }}
-                    >{r.label}</button>
-                  );
-                })}
-              </div>
-            </div>
+          {/* Time range */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+            {TIME_RANGES.map((r) => {
+              const active = timeRange === r.id;
+              return (
+                <button key={r.id}
+                  onClick={() => { setTimeRange(r.id); setExpandedId(null); }}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: 100,
+                    fontSize: 12,
+                    fontWeight: active ? 500 : 400,
+                    cursor: "pointer",
+                    transition: "all 0.12s",
+                    backgroundColor: active ? G : "var(--bg-surface)",
+                    color: active ? "#fff" : "var(--text-secondary)",
+                    border: active ? `1px solid ${G}` : "1px solid var(--border)",
+                  }}
+                >{r.label}</button>
+              );
+            })}
           </div>
 
           {/* Benchmark bar */}
@@ -894,12 +829,12 @@ function ConsistencyContent() {
                                       }}>
                                         <div style={{
                                           fontSize: 10, fontWeight: 500,
-                                          letterSpacing: "0.5px", textTransform: "uppercase",
+                                          letterSpacing: "0.4px", textTransform: "uppercase",
                                           color: "var(--text-muted)", marginBottom: 8,
                                         }}>
                                           {m.label}
                                         </div>
-                                        <div style={{ fontSize: 16, fontWeight: 700, color: m.color }}>
+                                        <div style={{ fontSize: 16, fontWeight: 600, color: m.color }}>
                                           {m.value}
                                         </div>
                                       </div>
