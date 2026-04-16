@@ -21,10 +21,13 @@ const MONTH_HE_FULL: Record<string, string> = {
   "09": "ספטמבר", "10": "אוקטובר", "11": "נובמבר", "12": "דצמבר",
 };
 
-/** "YYYY-MM" → "ינואר 2026" */
-function fmtLastUpdated(ym: string): string {
-  const [yyyy, mm] = ym.split("-");
-  return `${MONTH_HE_FULL[mm] ?? mm} ${yyyy}`;
+/** Prefer manual lastUpdated ("YYYY-MM"), fall back to lastReportDate */
+function fmtUpdateCell(fund: Fund): string {
+  if (fund.lastUpdated && /^\d{4}-\d{2}$/.test(fund.lastUpdated)) {
+    const [yyyy, mm] = fund.lastUpdated.split("-");
+    return `${mm}/${yyyy}`;
+  }
+  return formatReportDate(fund.lastReportDate);
 }
 
 const YEAR_OPTIONS: { key: YearKey; label: string }[] = [
@@ -413,11 +416,6 @@ function FundRowV2({
             {fund.classification && (
               <div style={{ color: "#86868B", fontSize: 12, fontWeight: 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fund.classification}</div>
             )}
-            {fund.lastUpdated && (
-              <div style={{ color: "var(--text-muted)", fontSize: 11 }}>
-                עודכן: {fmtLastUpdated(fund.lastUpdated)}
-              </div>
-            )}
           </div>
           {fund.currency && (
             <span style={{
@@ -442,7 +440,7 @@ function FundRowV2({
 
       {/* Last report date */}
       <td style={{ ...cell, fontSize: 13, color: "#AEAEB2" }}>
-        {formatReportDate(fund.lastReportDate)}
+        {fmtUpdateCell(fund)}
       </td>
 
       {/* Monthly return */}

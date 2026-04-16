@@ -166,6 +166,31 @@ function AdminContent() {
     setData({ ...data, lastUpdated: dateStr });
   };
 
+  /** Sync local state after per-fund lastUpdated PATCH succeeds.
+   * Does NOT mark dirty — server already persisted the value via PATCH.
+   * Without this, a later global handleSave would overwrite the PATCH value
+   * with the stale React state (→ reset to current-month default). */
+  const applyFundLastUpdatedLocal = (
+    categoryId: string,
+    fundId: string,
+    lastUpdated: string,
+    lastUpdatedAt: string,
+  ) => {
+    if (!data) return;
+    setData({
+      ...data,
+      categories: data.categories.map((cat) => {
+        if (cat.id !== categoryId) return cat;
+        return {
+          ...cat,
+          funds: cat.funds.map((fund) =>
+            fund.id === fundId ? { ...fund, lastUpdated, lastUpdatedAt } : fund,
+          ),
+        };
+      }),
+    });
+  };
+
   const handleSave = async () => {
     if (!data || saving) return;
     setSaving(true);
@@ -413,7 +438,7 @@ function AdminContent() {
       {/* Tab content */}
       <div style={{ maxWidth: 1400, margin: "0 auto", padding: "20px 24px" }}>
         {activeTab === "data" && (
-          <MonthlyDataTab data={data} updateFund={updateFund} onUpdateDate={updateLastUpdated} password={passwordRef.current} clientKey={clientKey} />
+          <MonthlyDataTab data={data} updateFund={updateFund} onUpdateDate={updateLastUpdated} onApplyFundLastUpdated={applyFundLastUpdatedLocal} password={passwordRef.current} clientKey={clientKey} />
         )}
         {activeTab === "funds" && (
           <FundManagementTab
@@ -509,10 +534,11 @@ function AdminContent() {
 /* ================================================================== */
 /*  Monthly Data Tab                                                   */
 /* ================================================================== */
-function MonthlyDataTab({ data, updateFund, onUpdateDate, password, clientKey }: {
+function MonthlyDataTab({ data, updateFund, onUpdateDate, onApplyFundLastUpdated, password, clientKey }: {
   data: FundsData;
   updateFund: (catId: string, fundId: string, field: string, value: string) => void;
   onUpdateDate: (dateStr: string) => void;
+  onApplyFundLastUpdated: (categoryId: string, fundId: string, lastUpdated: string, lastUpdatedAt: string) => void;
   password: string;
   clientKey: string;
 }) {
@@ -604,7 +630,7 @@ function MonthlyDataTab({ data, updateFund, onUpdateDate, password, clientKey }:
                 </thead>
                 <tbody>
                   {visibleFunds.map((fund, idx) => (
-                    <MonthlyRow key={fund.id} fund={fund} categoryId={cat.id} odd={idx % 2 === 1} onUpdate={updateFund} password={password} clientKey={clientKey} />
+                    <MonthlyRow key={fund.id} fund={fund} categoryId={cat.id} odd={idx % 2 === 1} onUpdate={updateFund} onApplyLastUpdated={onApplyFundLastUpdated} password={password} clientKey={clientKey} />
                   ))}
                 </tbody>
               </table>
@@ -627,9 +653,10 @@ function thStyle(width?: number): React.CSSProperties {
   };
 }
 
-function MonthlyRow({ fund, categoryId, odd, onUpdate, password, clientKey }: {
+function MonthlyRow({ fund, categoryId, odd, onUpdate, onApplyLastUpdated, password, clientKey }: {
   fund: Fund; categoryId: string; odd: boolean;
   onUpdate: (catId: string, fundId: string, field: string, value: string) => void;
+  onApplyLastUpdated: (categoryId: string, fundId: string, lastUpdated: string, lastUpdatedAt: string) => void;
   password: string; clientKey: string;
 }) {
   const monthlyDisplay = fund.monthlyReturn !== null ? (fund.monthlyReturn * 100).toFixed(2) : "";
@@ -690,14 +717,20 @@ function MonthlyRow({ fund, categoryId, odd, onUpdate, password, clientKey }: {
 
   async function handleSaveLastUpdated() {
     if (!monthInput) return;
+    // Guard: the server expects strict "YYYY-MM" format
+    if (!/^\d{4}-\d{2}$/.test(monthInput)) return;
     setMonthSaving(true);
+    const valueToSave = monthInput; // freeze — avoid closure races
     const res = await fetch(`/api/funds?action=set-last-updated&client=${encodeURIComponent(clientKey)}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", "x-admin-password": password },
-      body: JSON.stringify({ fundId: fund.id, lastUpdated: monthInput }),
+      body: JSON.stringify({ fundId: fund.id, lastUpdated: valueToSave }),
     });
     setMonthSaving(false);
     if (res.ok) {
+      // Sync parent state so a later global handleSave (PUT) doesn't
+      // overwrite the PATCH value with stale React state
+      onApplyLastUpdated(categoryId, fund.id, valueToSave, new Date().toISOString());
       setMonthSaved(true);
       setTimeout(() => setMonthSaved(false), 2000);
     }
