@@ -111,6 +111,14 @@ function getYearReturn(fund: Fund, year: YearKey): number | null {
   return fund.returns[key] ?? null;
 }
 
+/** ממוצע שנתי מ-y2020 עד y2025 — שנים עם ערך בלבד (YTD לא נכלל) */
+function calcAnnualAvgFromReturns(fund: Fund): number | null {
+  const keys: (keyof Fund["returns"])[] = ["y2020", "y2021", "y2022", "y2023", "y2024", "y2025"];
+  const vals = keys.map(k => fund.returns[k]).filter((v): v is number => v != null);
+  if (vals.length === 0) return null;
+  return vals.reduce((a, b) => a + b, 0) / vals.length;
+}
+
 function sharpeColor(s: number | null): string {
   if (s === null) return "var(--text-muted)";
   if (s >= 1)   return "#059669";
@@ -330,7 +338,7 @@ function AccordionPanel({ fund }: { fund: Fund }) {
 // ── Fund Row ───────────────────────────────────────────────────────────────
 function FundRowV2({
   fund, even, comparisonEnabled, isSelected, onToggle, selectionDisabled,
-  accentColor, periodReturn, isOpen, onToggleAccordion, isFirst,
+  accentColor, periodReturn, annualAvg, isOpen, onToggleAccordion, isFirst,
 }: {
   fund: Fund;
   even: boolean;
@@ -340,6 +348,7 @@ function FundRowV2({
   selectionDisabled?: boolean;
   accentColor?: string;
   periodReturn: number | null;
+  annualAvg?: number | null;
   isOpen: boolean;
   onToggleAccordion: () => void;
   isFirst?: boolean;
@@ -433,8 +442,10 @@ function FundRowV2({
         {pct(periodReturn)}
       </td>
 
-      {/* Avg annual */}
-      <td style={{ ...cell, fontSize: 15, fontWeight: 500, color: returnColorInline(fund.avgAnnualReturn) }}>{pct(fund.avgAnnualReturn)}</td>
+      {/* Avg annual — in yearMode computed from y2020-y2025, otherwise stored field */}
+      {(() => { const v = annualAvg !== undefined ? annualAvg : fund.avgAnnualReturn; return (
+        <td style={{ ...cell, fontSize: 15, fontWeight: 500, color: returnColorInline(v) }}>{pct(v)}</td>
+      ); })()}
 
       {/* Sharpe with dot */}
       <td style={{ ...cell, fontSize: 14, fontWeight: 400, color: "#555" }}>
@@ -761,6 +772,10 @@ export default function FundTableV2({
                       const periodReturn = isYearMode
                         ? getYearReturn(fund, selectedYear)
                         : calcRangeReturn(fund.monthlyReturns, rangeFrom, rangeTo);
+                      // yearMode: ממוצע שנתי מ-y2020–y2025 (לא תלוי monthlyReturns)
+                      const annualAvg = isYearMode
+                        ? calcAnnualAvgFromReturns(fund)
+                        : undefined;
 
                       rows.push(
                         <FundRowV2
@@ -773,6 +788,7 @@ export default function FundTableV2({
                           selectionDisabled={selectionDisabled}
                           accentColor={accentColor}
                           periodReturn={periodReturn}
+                          annualAvg={annualAvg}
                           isOpen={isOpen}
                           onToggleAccordion={() => toggleAccordion(fund.id)}
                           isFirst={fi === 0}
