@@ -72,10 +72,12 @@ function PrintPageInner() {
           background: #f0ede8;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
+        /* Hide app header/nav — this is a dedicated print page */
+        header, nav, [data-app-header] { display: none !important; }
         .print-page-shell {
           max-width: 740px; margin: 32px auto;
           background: #fff; border-radius: 12px;
-          padding: 0 40px 48px;
+          padding: 0 40px 32px;
           box-shadow: 0 4px 24px rgba(0,0,0,0.12);
           direction: rtl;
         }
@@ -97,6 +99,7 @@ function PrintPageInner() {
         .print-pf { display: none; }
 
         @media print {
+          header, nav, [data-app-header] { display: none !important; }
           body { background: #fff; }
           .print-btn-bar { display: none !important; }
           /* Hide Body's screen-only disclaimer section */
@@ -106,16 +109,18 @@ function PrintPageInner() {
           .print-page-shell {
             margin: 0 !important; border-radius: 0 !important;
             box-shadow: none !important;
-            padding: 0 18mm !important;
+            padding: 0 18mm 0 !important;
             max-width: 100% !important;
           }
+          /* Tighten section spacing to fit 2 pages */
+          .onepager-section { margin-bottom: 18px !important; }
           * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
           @page {
             size: A4 portrait;
-            margin: 15mm 0 20mm 0;
+            margin: 12mm 0 12mm 0;
           }
         }
       `}</style>
@@ -180,7 +185,7 @@ function PrintPageInner() {
             <Body data={data} primary={primary} accent={accent} brand={brand} />
 
             {/* Print footer */}
-            <div className="print-pf" style={{ flexDirection: "column", marginTop: 32 }}>
+            <div className="print-pf" style={{ flexDirection: "column", marginTop: 16 }}>
               <div style={{ borderTop: "0.5px solid #ddd", paddingTop: 14, textAlign: "center" }}>
                 <div style={{ fontSize: 7.5, color: "#bbb", lineHeight: 1.6, marginBottom: 8 }}>
                   {brand.footerDisclaimer || "המידע לצורך ניתוח בלבד ואינו מהווה ייעוץ השקעות. אין לראות במידע המלצה לרכישה או מכירה של ניירות ערך."}

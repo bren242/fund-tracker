@@ -108,6 +108,7 @@ export default function AppHeader({ fundCount = 84 }: AppHeaderProps) {
 
   return (
     <div
+      data-app-header="true"
       onMouseLeave={() => setHoveredTab(null)}
       style={{ position: "sticky", top: 0, zIndex: 100 }}
     >
