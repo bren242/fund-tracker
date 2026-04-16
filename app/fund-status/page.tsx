@@ -133,6 +133,8 @@ function FundStatusContent() {
         if (fund.active === false) continue;
         const lk = getLatestKey(fund);
         const rdk = fund.lastReportDate ?? null;
+        // Prefer lastUpdated (set by indications save) over lastReportDate for display
+        const displayDate = fund.lastUpdated ?? rdk;
         const mismatch = !!lk && !!rdk && toYYYYMM(lk) !== toYYYYMM(rdk);
         const reportingDelay = fund.reportingDelay ?? false;
         out.push({
@@ -142,7 +144,7 @@ function FundStatusContent() {
           currency: fund.currency ?? "—",
           latestMonth: lk ? fmtKey(lk) : null,
           latestKey: lk,
-          reportDateKey: rdk,
+          reportDateKey: displayDate,
           mismatch,
           reportingDelay,
           status: reportingDelay ? "delay" : computeStatus(fund, expected),

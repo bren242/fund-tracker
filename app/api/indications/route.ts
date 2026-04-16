@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClientKeyFromRequest } from "@/lib/clientKey";
 import { storageRead, storageWrite } from "@/lib/storage";
-import { Indication } from "@/lib/types";
+import { FundsData, Indication } from "@/lib/types";
 
 const SUPER_ADMIN_PASSWORD = "super2026";
 const DEFAULT_ADMIN_PASSWORD = "admin2026";
@@ -14,6 +14,49 @@ async function getAdminPassword(clientKey: string): Promise<string> {
 function isAuthorized(req: NextRequest, adminPassword: string): boolean {
   const pw = req.headers.get("x-admin-password") || "";
   return pw === SUPER_ADMIN_PASSWORD || pw === adminPassword;
+}
+
+/** Convert "MM/YYYY" → "YYYY-MM" */
+function toMonthKey(reportMonth: string): string {
+  const [mm, yyyy] = reportMonth.split("/");
+  return `${yyyy}-${mm}`;
+}
+
+/**
+ * Update fund.lastUpdated + fund.lastUpdatedAt in the funds KV blob.
+ * Also bumps fundsData.lastUpdated (the global date used in reports/print).
+ */
+async function stampFundUpdate(
+  clientKey: string,
+  fundId: string,
+  reportMonth: string
+): Promise<void> {
+  const monthKey = toMonthKey(reportMonth);   // "YYYY-MM"
+  const now = new Date().toISOString();
+
+  const fundsData = await storageRead<FundsData>(`funds:${clientKey}`, {
+    lastUpdated: "",
+    categories: [],
+  });
+
+  let updated = false;
+  for (const cat of fundsData.categories) {
+    for (const fund of cat.funds) {
+      if (fund.id === fundId) {
+        fund.lastUpdated   = monthKey;
+        fund.lastUpdatedAt = now;
+        updated = true;
+        break;
+      }
+    }
+    if (updated) break;
+  }
+
+  if (updated) {
+    // Also bump the global date so the print report reflects the latest save
+    fundsData.lastUpdated = `${monthKey}-01`;
+    await storageWrite(`funds:${clientKey}`, fundsData);
+  }
 }
 
 export async function GET(req: NextRequest) {
@@ -74,6 +117,9 @@ export async function POST(req: NextRequest) {
   indications.push(indication);
   await storageWrite(`indications:${clientKey}`, indications);
 
+  // Stamp per-fund lastUpdated + bump global date
+  await stampFundUpdate(clientKey, fundId, reportMonth);
+
   return NextResponse.json(indication, { status: 201 });
 }
 
@@ -99,10 +145,15 @@ export async function PUT(req: NextRequest) {
   }
 
   if (monthReturn !== undefined) indications[idx].monthReturn = monthReturn;
-  if (ytd !== undefined) indications[idx].ytd = ytd;
+  if (ytd       !== undefined) indications[idx].ytd        = ytd;
   if (reportMonth !== undefined) indications[idx].reportMonth = reportMonth;
 
   await storageWrite(`indications:${clientKey}`, indications);
+
+  // Stamp per-fund date with the updated reportMonth
+  const effectiveMonth = reportMonth ?? indications[idx].reportMonth;
+  await stampFundUpdate(clientKey, indications[idx].fundId, effectiveMonth);
+
   return NextResponse.json(indications[idx]);
 }
 

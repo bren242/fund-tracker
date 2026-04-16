@@ -25,6 +25,8 @@ export interface Fund {
   currency?: "ILS" | "USD";
   monthlyReturns?: Record<string, number>;
   monthlyDirection?: "LTR" | "RTL" | null;
+  lastUpdated?: string;    // "YYYY-MM" — set when indication is saved
+  lastUpdatedAt?: string;  // ISO timestamp — set when indication is saved
 }
 
 export interface Category {
