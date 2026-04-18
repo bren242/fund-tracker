@@ -102,6 +102,33 @@ function ReportContent() {
     <div style={{ minHeight: "100vh", ...brandCssVars(brand.primaryColor, brand.accentColor) } as React.CSSProperties}>
       {/* ============ SCREEN VERSION (hidden in print) ============ */}
       <div className="no-print">
+
+        {/* Print button bar */}
+        <div style={{
+          display: "flex", justifyContent: "flex-end",
+          padding: "8px 20px 0",
+        }}>
+          <button
+            onClick={() => window.print()}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "6px 14px", borderRadius: 8,
+              border: `1px solid ${brand.primaryColor || "#1B3A2F"}`,
+              backgroundColor: "transparent",
+              color: brand.primaryColor || "#1B3A2F",
+              fontSize: 12, fontWeight: 600, cursor: "pointer",
+              transition: "background 0.15s",
+            }}
+            onMouseOver={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = (brand.primaryColor || "#1B3A2F") + "12"; }}
+            onMouseOut={(e)  => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+            </svg>
+            הדפסה
+          </button>
+        </div>
+
         {/* Screen table */}
         <div style={{ width: "100%" }}>
           <FundTableV2

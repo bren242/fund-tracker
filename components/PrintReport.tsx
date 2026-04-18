@@ -111,7 +111,9 @@ export default function PrintReport({ categories, lastUpdated, brand, printYears
     }
   }
 
-  const currentYear = new Date().getFullYear();
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const printDate = now.toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit", year: "numeric" });
 
   const thBase: React.CSSProperties = {
     padding: "4px 4px 5px",
@@ -201,6 +203,7 @@ export default function PrintReport({ categories, lastUpdated, brand, printYears
           {brand.fullName ? `© ${currentYear} ${brand.fullName}. כל הזכויות שמורות` : `© ${currentYear}`}
           {brand.version ? ` | גרסה ${brand.version}` : ""}
           {brand.showCredit && brand.creditText ? ` | ${brand.creditText}` : ""}
+          {` | תאריך הדפסה: ${printDate}`}
         </div>
       </div>
     </div>
