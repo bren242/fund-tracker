@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useClientKey, withClient } from "@/lib/useClientKey";
 import { useBrand } from "@/lib/useBrand";
 import { Indication, Fund, Category } from "@/lib/types";
@@ -27,8 +27,10 @@ function pct(v: number) {
 function IndicationsContent() {
   const clientKey = useClientKey();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const brand = useBrand(clientKey);
   const passwordRef = useRef<string>("");
+  const autoFundId = searchParams.get("fund");
 
   const [funds, setFunds] = useState<Fund[]>([]);
   const [indications, setIndications] = useState<Indication[]>([]);
@@ -83,6 +85,13 @@ function IndicationsContent() {
       router.replace(withClient("/", clientKey));
     }
   }, [brand, clientKey, router]);
+
+  // Auto-select fund when navigated from fund-status (?fund=<id>)
+  useEffect(() => {
+    if (!autoFundId || funds.length === 0 || selectedFund) return;
+    const match = funds.find((f) => f.id === autoFundId);
+    if (match) selectFund(match);
+  }, [autoFundId, funds]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filteredFunds = funds.filter((f) =>
     f.name.toLowerCase().includes(search.toLowerCase())

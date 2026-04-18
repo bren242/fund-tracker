@@ -190,7 +190,7 @@ function FundStatusContent() {
 
   const primary = brand.primaryColor || "#1B3A2F";
   const accent  = brand.accentColor  || "#B8975A";
-  const COL = "1fr 100px 110px 120px 140px 60px 100px";
+  const COL = "1fr 100px 110px 120px 140px 60px 190px";
 
   const STAT_CARDS = [
     { label: "סה״כ קרנות",           value: counts.total,                                  color: primary,    border: primary },
@@ -427,14 +427,14 @@ function FundStatusContent() {
                   </div>
 
                   {/* פעולה */}
-                  <div>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                     {row.status !== "updated" && (
                       <button
                         onClick={() => router.push(
                           withClient(`/upload?fundId=${encodeURIComponent(row.id)}&fundName=${encodeURIComponent(row.name)}`, clientKey)
                         )}
                         style={{
-                          padding: "5px 14px", borderRadius: 8, border: "none", cursor: "pointer",
+                          padding: "5px 12px", borderRadius: 8, border: "none", cursor: "pointer",
                           backgroundColor: primary, color: "#fff",
                           fontSize: 11, fontWeight: 600,
                           transition: "opacity 0.15s", whiteSpace: "nowrap",
@@ -443,6 +443,24 @@ function FundStatusContent() {
                         onMouseOut={(e) => (e.currentTarget.style.opacity = "1")}
                       >
                         העלה דוח
+                      </button>
+                    )}
+                    {row.status !== "updated" && (
+                      <button
+                        onClick={() => router.push(
+                          withClient(`/indications?fund=${encodeURIComponent(row.id)}`, clientKey)
+                        )}
+                        style={{
+                          padding: "5px 12px", borderRadius: 8, cursor: "pointer",
+                          backgroundColor: "transparent", color: primary,
+                          border: `1px solid ${primary}`,
+                          fontSize: 11, fontWeight: 600,
+                          transition: "opacity 0.15s", whiteSpace: "nowrap",
+                        }}
+                        onMouseOver={(e) => (e.currentTarget.style.opacity = "0.7")}
+                        onMouseOut={(e) => (e.currentTarget.style.opacity = "1")}
+                      >
+                        עדכן ידנית
                       </button>
                     )}
                   </div>
