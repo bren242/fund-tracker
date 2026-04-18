@@ -65,7 +65,7 @@ const fieldLabel = (key: string): string => {
     manager: "מנהל",
     classification: "סיווג",
     sharpe: "שארפ",
-    stdDev: "סט״ד",
+    stdDev: "סטיית תקן",
   };
   if (staticLabels[key]) return staticLabels[key];
   const yearMatch = key.match(/^returns\.y(\d{4})$/);

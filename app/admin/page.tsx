@@ -2090,7 +2090,7 @@ function FundModal({ title, categories, selectedCategory, existingFund, onCatego
               style={{ ...fieldStyle, textAlign: "center" }} dir="ltr" placeholder="—" />
           </div>
           <div>
-            <label style={labelStyle}>סט״ד (%)</label>
+            <label style={labelStyle}>סטיית תקן (%)</label>
             <input value={form.stdDev} onChange={(e) => update("stdDev", e.target.value)}
               style={{ ...fieldStyle, textAlign: "center" }} dir="ltr" placeholder="—" />
           </div>
