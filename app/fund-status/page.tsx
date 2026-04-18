@@ -41,9 +41,11 @@ function toYYYYMM(s: string | null | undefined): string | null {
 type StatusKey = "updated" | "warning" | "old" | "delay";
 
 function computeStatus(fund: Fund, expected: string): StatusKey {
-  const latest = getLatestKey(fund);
-  if (!latest) return "old";
-  const behind = monthsBehind(latest, expected);
+  // Prefer lastUpdated (set by both indications/manual entry AND AI parser).
+  // Fall back to latest monthlyReturns key (GREEN parser path without lastUpdated).
+  const effectiveKey = fund.lastUpdated ?? getLatestKey(fund);
+  if (!effectiveKey) return "old";
+  const behind = monthsBehind(effectiveKey, expected);
   if (behind <= 0) return "updated";
   if (behind === 1) return "warning";
   return "old";
@@ -57,8 +59,8 @@ function shortCategory(cat: string): string {
   return cat;
 }
 
-function statusFromRow(row: { latestKey: string | null }, expected: string): StatusKey {
-  const latest = row.latestKey;
+function statusFromRow(row: { effectiveKey: string | null }, expected: string): StatusKey {
+  const latest = row.effectiveKey;
   if (!latest) return "old";
   const behind = monthsBehind(latest, expected);
   if (behind <= 0) return "updated";
@@ -96,6 +98,7 @@ interface FundRow {
   currency: string;
   latestMonth: string | null;
   latestKey: string | null;
+  effectiveKey: string | null;
   reportDateKey: string | null;
   mismatch: boolean;
   reportingDelay: boolean;
@@ -132,6 +135,7 @@ function FundStatusContent() {
       for (const fund of cat.funds) {
         if (fund.active === false) continue;
         const lk = getLatestKey(fund);
+        const effectiveKey = fund.lastUpdated ?? lk;
         const rdk = fund.lastReportDate ?? null;
         // Prefer lastUpdated (set by indications save) over lastReportDate for display
         const displayDate = fund.lastUpdated ?? rdk;
@@ -144,6 +148,7 @@ function FundStatusContent() {
           currency: fund.currency ?? "—",
           latestMonth: lk ? fmtKey(lk) : null,
           latestKey: lk,
+          effectiveKey,
           reportDateKey: displayDate,
           mismatch,
           reportingDelay,
