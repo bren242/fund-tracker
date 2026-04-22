@@ -167,8 +167,8 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v24: remove pre-fill, fixed year range 2019-2026, all X cells
   // v27: single-pass only (removed buildDynamicStructuredPrompt second API call)
   // v47: validation fix — effectiveReportMonth prevents valid months from being excluded
-  // v51: row_label field in raw format + code-level isBenchmarkRow filter in mapRawTablesToFields
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 51) return null;
+  // v52: YTD alias normalization fix (סה"כ→סהכ); fund-name-as-annual-column prompt; benchmark cols excluded
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 52) return null;
 
   return cached.result;
 }
@@ -877,7 +877,7 @@ const MONTH_ALIASES: Record<string, number> = {
   '09': 9, '10': 10, '11': 11, '12': 12,
 };
 
-const YTD_ALIASES = ['ytd','שנתי','שנתית','מצטבר','מתחילת השנה','מה״ש','annual','סה"כ שנתי','סהכ שנתי','סה"כ','total annual'];
+const YTD_ALIASES = ['ytd','שנתי','שנתית','מצטבר','מתחילת השנה','מה״ש','annual','סה"כ שנתי','סהכ שנתי','סה"כ','סהכ','total annual','total','fund return','fund total'];
 // Note: 'dec','december','דצמבר',"דצמ'" removed — December is a month, not YTD
 const ITD_ALIASES = ['itd','מהקמה','מאז הקמה','since inception','inception','מהקמה:'];
 const USD_ALIASES = ['$','($)','דולר','דולרי','דולרית','usd','dollar'];
@@ -939,8 +939,9 @@ function mapRawTablesToFields(tables: RawTable[]): MappedEntry[] {
 
     const headerMap: ('ytd' | 'itd' | number | 'year' | null)[] = table.headers.map(h => {
       const norm = normalizeHeader(h);
-      if (YTD_ALIASES.some(a => norm === a.toLowerCase())) return 'ytd';
-      if (ITD_ALIASES.some(a => norm === a.toLowerCase())) return 'itd';
+      // normalizeHeader applied to BOTH sides — fixes ״/׳ quote mismatch (e.g. סה"כ vs סהכ)
+      if (YTD_ALIASES.some(a => norm === normalizeHeader(a))) return 'ytd';
+      if (ITD_ALIASES.some(a => norm === normalizeHeader(a))) return 'itd';
       if (/^\d{4}$/.test(norm)) return 'year';
       const monthNum = MONTH_ALIASES[norm] ?? MONTH_ALIASES[h.trim()] ?? MONTH_ALIASES[h.trim().toLowerCase()];
       if (monthNum) return monthNum;
@@ -1144,7 +1145,12 @@ If the label column contains "קרן טריו" and "ת״א 125" alternating each
 
 STEP 6 — IDENTIFY COLUMN TYPES:
 - Month columns: named after months (ינו׳, פבר׳, jan, feb, etc.) → monthly return values
-- Annual column: named שנתי, סה"כ, annual, yearly, total → yearly return (NOT a month)
+- Annual column: named שנתי, סה"כ, annual, yearly, total, YTD → yearly return (NOT a month)
+  SPECIAL CASE: Some funds label the annual column with the FUND NAME itself (e.g. "Tulip", "Trio", "Vertical").
+  If a column appears after all 12 month columns and contains one value per row (annual-scale returns, often 10%–50%),
+  but is named with what looks like a fund name — write its header as "YTD" in your output.
+  Do NOT include this column in headers[] under its original name; replace it with "YTD".
+- Benchmark columns: named TA 125, TA 100, SME 60, מדד, benchmark, index → IGNORE entirely. Do not include in headers[].
 - ITD column: named ITD, מהקמה, מצטבר → IGNORE completely. Do not extract, do not map to any field. Skip entirely.
 
 STEP 7 — NEGATIVE NUMBERS:
@@ -2968,7 +2974,7 @@ export async function POST(req: NextRequest) {
         resultObj.validation = result.validation;
         resultObj.validationStatus = result.validationStatus;
       }
-      resultObj._cacheVersion = 51;
+      resultObj._cacheVersion = 52;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
