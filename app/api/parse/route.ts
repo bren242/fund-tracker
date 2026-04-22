@@ -167,7 +167,8 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v24: remove pre-fill, fixed year range 2019-2026, all X cells
   // v27: single-pass only (removed buildDynamicStructuredPrompt second API call)
   // v47: validation fix — effectiveReportMonth prevents valid months from being excluded
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 49) return null;
+  // v50: benchmark row filter — explicit STEP for multi-row-per-year tables (ת"א 100/125)
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 50) return null;
 
   return cached.result;
 }
@@ -560,12 +561,20 @@ STEP 2 — MAP COLUMNS BY HEADER TEXT: Build a column→meaning mapping using th
   - "דצמ" or "דצמבר" or "Dec" → month 12
   OTHER:
   - A 4-digit year like "2020", "2025" → row year identifier column
-STEP 3 — READ ROWS BY MAPPING: For each data row:
+STEP 3 — IDENTIFY ROW LABELS (multi-row-per-year tables):
+  Some tables show TWO rows per year: one for the fund and one for a benchmark index.
+  These rows share the same year but have a label in a dedicated label column (next to the year column).
+  FUND rows → label contains the fund name: "קרן טריו", "Trio", "TRIO", or similar
+  BENCHMARK rows → label contains: "ת״א 125", "ת״א 100", "ת"א 125", "ת"א 100", "מדד", "benchmark", "index", "אג"ח", any index name
+  RULE: Extract ONLY the fund-row for each year. SKIP all benchmark rows entirely.
+  Do NOT mix values from a fund row with values from a benchmark row for the same year.
+
+STEP 4 — READ ROWS BY MAPPING: For each FUND row (skipping benchmark rows):
   - Identify the row's year from the year-identifier column
   - Read the annual return from the column mapped to "שנתי"/"Annual" OR "YTD"/"מצטבר"/"מתחילת השנה" — these are the same thing. Extract as returns.yYYYY.
   - Read monthly returns from columns mapped to month headers
   - IGNORE columns labeled "ITD", "מהקמה", "מאז הקמה", "Inception" — NEVER extract these values
-STEP 4 — VALIDATE:
+STEP 5 — VALIDATE:
   - The annual value must come from "שנתי", "YTD", or "מצטבר" columns.
   - NEVER use ITD as annual return. ITD is cumulative since inception and is always wrong for annual.
   - Any column labeled "ITD" / "מהקמה" / "מאז הקמה" / "Since Inception" / "Inception" → ignore completely, never extract
@@ -1091,25 +1100,40 @@ WRONG (never do this):
 Row=2017, Col=January → 1.49% ← shifted from February
 Row=2026, Col=January → 0.60% ← shifted from February
 
-STEP 5 — IDENTIFY COLUMN TYPES:
+STEP 5 — MULTI-ROW-PER-YEAR TABLES (fund vs. benchmark rows):
+Some performance tables show TWO rows per year — one for the fund and one for a benchmark index.
+These rows share the same year value but differ in a row-label column.
+
+HOW TO IDENTIFY the row-label column:
+- It is a narrow column adjacent to the year column (usually to its left in RTL tables)
+- It contains TEXT labels, NOT numbers: fund name OR index/benchmark name
+- It repeats on every row
+
+FUND rows → label contains: "קרן [name]", "Trio", "TRIO", the fund name, or similar
+BENCHMARK rows → label contains: "ת״א 125", "ת״א 100", "ת"א 125", "ת"א 100", "מדד", "benchmark", "index", "אג״ח", "אג"ח", or any stock-index name
+
+RULE: Extract ONLY the row labeled with the FUND name. SKIP every benchmark row entirely — do not include any of its cell values.
+Do NOT mix fund-row values with benchmark-row values.
+If the label column contains "קרן טריו" and "ת״א 125" alternating each year → extract only "קרן טריו" rows.
+
+STEP 6 — IDENTIFY COLUMN TYPES:
 - Month columns: named after months (ינו׳, פבר׳, jan, feb, etc.) → monthly return values
 - Annual column: named שנתי, סה"כ, annual, yearly, total → yearly return (NOT a month)
 - ITD column: named ITD, מהקמה, מצטבר → IGNORE completely. Do not extract, do not map to any field. Skip entirely.
-- Benchmark rows: rows labeled מדד, ת"א 125, אג"ח, benchmark, index → IGNORE entirely
 
-STEP 6 — NEGATIVE NUMBERS:
+STEP 7 — NEGATIVE NUMBERS:
 - "-5.3%" → "-5.3"
 - "(5.3%)" → "-5.3" (parentheses = negative)
 - Empty cell or dash → null
 - If a cell value contains asterisk (*) or superscript (e/E), extract only the numeric value. Example: *3.01% → 3.01%, 2.5%e → 2.5%
 
-STEP 7 — COLUMN INDEX ROWS:
+STEP 8 — COLUMN INDEX ROWS:
 Some tables have a numeric row above the headers (e.g. "1 2 3 4 5 6 7 8 9 10 11 12").
 This is a column index row, NOT a data row and NOT a header row.
 IGNORE it completely. Read headers from the actual text row (Jan, Feb, Mar... or ינו׳, פבר׳...).
 
 RULES:
-- Extract ONLY the fund's own rows. IGNORE benchmark/index rows completely.
+- Extract ONLY the fund's own rows. IGNORE all benchmark/index rows completely (ת"א 100, ת"א 125, מדד, benchmark, index, אג"ח).
 - Copy values EXACTLY. No translation. No interpretation.
 - Numbers without % sign: write as-is (e.g. "3.28" not "3.28%")
 - Return ONLY valid JSON. No explanation.
@@ -2918,7 +2942,7 @@ export async function POST(req: NextRequest) {
         resultObj.validation = result.validation;
         resultObj.validationStatus = result.validationStatus;
       }
-      resultObj._cacheVersion = 49;
+      resultObj._cacheVersion = 50;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
