@@ -167,8 +167,8 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v24: remove pre-fill, fixed year range 2019-2026, all X cells
   // v27: single-pass only (removed buildDynamicStructuredPrompt second API call)
   // v47: validation fix — effectiveReportMonth prevents valid months from being excluded
-  // v50: benchmark row filter — explicit STEP for multi-row-per-year tables (ת"א 100/125)
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 50) return null;
+  // v51: row_label field in raw format + code-level isBenchmarkRow filter in mapRawTablesToFields
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 51) return null;
 
   return cached.result;
 }
@@ -887,7 +887,7 @@ interface RawTable {
   currency_label: string | null;
   table_label: string | null;
   headers: string[];
-  rows: { year: string; cells: (string | null)[] }[];
+  rows: { year: string; row_label?: string | null; cells: (string | null)[] }[];
 }
 
 interface MappedEntry {
@@ -908,11 +908,27 @@ function detectCurrency(label: string | null): 'ILS' | 'USD' | null {
   return null;
 }
 
-const BENCHMARK_LABEL_KEYWORDS = ['מדד', 'benchmark', 'index', 'כללי'];
+const BENCHMARK_LABEL_KEYWORDS = ['מדד', 'benchmark', 'index', 'כללי', 'ת"א', 'ת״א', "ת'א"];
 
 function isBenchmarkTable(table: RawTable): boolean {
   const label = (table.table_label ?? '').toLowerCase();
   return BENCHMARK_LABEL_KEYWORDS.some(kw => label.includes(kw.toLowerCase()));
+}
+
+/** Returns true if the row's label identifies it as a benchmark/index row (not the fund itself) */
+function isBenchmarkRow(rowLabel: string | null | undefined): boolean {
+  if (!rowLabel) return false;
+  const l = rowLabel.toLowerCase().replace(/[״׳'"]/g, '').replace(/\s+/g, ' ').trim();
+  // Explicit benchmark patterns
+  const benchmarkPatterns = [
+    'מדד', 'benchmark', 'index', 'כללי',
+    'ת"א', 'ת״א', "ת'א",         // TA-125, TA-100 variants
+    'תא 125', 'תא 100', 'תא125', 'תא100',
+    'ta 125', 'ta 100', 'ta125', 'ta100',
+    'ta-125', 'ta-100',
+    'אג"ח', 'אגח',               // bond index
+  ];
+  return benchmarkPatterns.some(p => l.includes(p.toLowerCase().replace(/[״׳'"]/g, '')));
 }
 
 function mapRawTablesToFields(tables: RawTable[]): MappedEntry[] {
@@ -934,6 +950,9 @@ function mapRawTablesToFields(tables: RawTable[]): MappedEntry[] {
     for (const row of table.rows) {
       const year = row.year?.trim();
       if (!year || !/^\d{4}$/.test(year)) continue;
+
+      // Code-level benchmark-row filter — independent of AI judgment
+      if (isBenchmarkRow(row.row_label)) continue;
 
       let ytdValue: number | null = null;
       let hasDecember = false;
@@ -1025,6 +1044,7 @@ For each table return:
   "rows": [
     {
       "year": "the 4-digit year for this row",
+      "row_label": "the text label of this row if a label column exists — e.g. 'קרן טריו', 'ת״א 125', 'Trio', null if no label column",
       "cells": ["cell values from RIGHT to LEFT, matching headers order"]
     }
   ]
@@ -1032,12 +1052,18 @@ For each table return:
 
 Return JSON: { "tables": [...] }
 
-STEP 1 — IDENTIFY THE YEAR COLUMN:
-Before reading headers, scan ALL columns and find the one where every non-empty cell contains a 4-digit number between 1990 and 2040. That is the year column.
-- This column may be labeled "**", "*", empty, "שנה", "year", or anything else.
-- Use its values as the "year" field for each row.
-- Do NOT include this column in headers[] or cells[].
-- If no such column exists, infer year from row context.
+STEP 1 — IDENTIFY THE YEAR COLUMN AND LABEL COLUMN:
+Scan ALL columns before reading data:
+A. YEAR COLUMN: the column where every non-empty cell is a 4-digit number (1990–2040).
+   - May be labeled "**", "*", empty, "שנה", "year", or anything.
+   - Use its value as the "year" field for each row.
+   - Do NOT include in headers[] or cells[].
+   - If the year appears only once for two rows (shared), assign the same year to both rows.
+B. LABEL COLUMN: a column containing text names like "קרן טריו", "Trio", "ת״א 125", "ת״א 100", fund name, index name.
+   - This column identifies which entity each row belongs to.
+   - Use its value as the "row_label" field for each row.
+   - Do NOT include in headers[] or cells[].
+   - If no such column exists, set row_label to null.
 
 STEP 2 — DETERMINE TABLE DIRECTION:
 - If the year column is on the RIGHT side → table is RTL. Read headers and cells right to left.
@@ -2942,7 +2968,7 @@ export async function POST(req: NextRequest) {
         resultObj.validation = result.validation;
         resultObj.validationStatus = result.validationStatus;
       }
-      resultObj._cacheVersion = 50;
+      resultObj._cacheVersion = 51;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
