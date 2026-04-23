@@ -2929,6 +2929,10 @@ export async function POST(req: NextRequest) {
                 if (pass2Corrections.length > 0) {
                   result.corrections = [...(result.corrections || []), ...pass2Corrections];
                 }
+                // Remap future months to previous year (year-rollover fix)
+                for (const entry of mappedEntries) {
+                  remapFutureMonths(entry.fields, result.reportMonth ?? null);
+                }
                 result.dualCurrencyData = mappedEntries.map(e => ({
                   returnBasis: e.returnBasis ?? 'ILS',
                   fields: e.fields,
