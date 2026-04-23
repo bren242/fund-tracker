@@ -168,7 +168,7 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v27: single-pass only (removed buildDynamicStructuredPrompt second API call)
   // v47: validation fix — effectiveReportMonth prevents valid months from being excluded
   // v52: YTD alias normalization fix (סה"כ→סהכ); fund-name-as-annual-column prompt; benchmark cols excluded
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 54) return null;
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 55) return null;
 
   return cached.result;
 }
@@ -602,7 +602,7 @@ FIELDS TO EXTRACT (only these):
   A table with 5 years of monthly data should produce ~60 monthly entries.
   Empty cells (—, -, blank) should be skipped, not set to 0.
   Footnote markers (*, **, e, ᵉ, †) attached to a number are annotations — strip them and extract the numeric value. Example: **7.4% → 0.074, 1.68%ᵉ → 0.0168.
-  PARTIAL YEAR WARNING: For the current/partial year (e.g. 2026), extract ALL months that have actual values — not just the reportMonth. If the table shows January=2.65%, February=-0.73%, March=0.01% for 2026, ALL THREE must appear: "2026-01", "2026-02", "2026-03". Do NOT reduce the current year to only the reportMonth entry.
+  PARTIAL YEAR WARNING: For the current/partial year (e.g. 2026), extract ALL months that have actual values IN THE 2026 ROW — not just the reportMonth. If the 2026 row shows January=2.65%, February=-0.73%, March=0.01%, ALL THREE must appear: "2026-01", "2026-02", "2026-03". Do NOT reduce the current year to only the reportMonth entry. CRITICAL: Do NOT assign months from the 2025 row to 2026 keys. Each table row's year label determines the key year — months in the 2025 row are always "2025-XX", never "2026-XX".
 CRITICAL — NO HALLUCINATION:
 Extract ONLY months that explicitly appear in the document with actual values.
 The current date is ${new Date().toISOString().split('T')[0]}.
@@ -1488,6 +1488,37 @@ function fixMonthShiftError(fields: ParsedField[], year: string): ParsedField[] 
   return fields;
 }
 
+/**
+ * Remap monthly fields that fall beyond reportMonth in the same year → previous year.
+ * Example: reportMonth=2026-01, field 2026-02..12 → remap to 2025-02..12.
+ * This fixes the year-rollover bug where the LLM assigns previous-year months to the current year.
+ */
+function remapFutureMonths(fields: ParsedField[], reportMonth: string | null): void {
+  if (!reportMonth) return;
+  const rm = reportMonth.match(/^(\d{4})-(\d{2})$/);
+  if (!rm) return;
+  const reportYear = parseInt(rm[1], 10);
+  const reportMonthNum = parseInt(rm[2], 10);
+
+  const existingKeys = new Set(fields.map((f) => f.key));
+
+  for (const f of fields) {
+    const m = f.key.match(/^monthlyReturns\.(\d{4})-(0[1-9]|1[0-2])$/);
+    if (!m) continue;
+    const year = parseInt(m[1], 10);
+    const month = parseInt(m[2], 10);
+    if (year !== reportYear) continue;
+    if (month <= reportMonthNum) continue;
+    // Month is beyond reportMonth in the same year — must belong to previous year
+    const prevYearKey = `monthlyReturns.${year - 1}-${m[2]}`;
+    if (!existingKeys.has(prevYearKey)) {
+      existingKeys.delete(f.key);
+      f.key = prevYearKey;
+      existingKeys.add(prevYearKey);
+    }
+  }
+}
+
 /** Parse Claude response JSON → structured result */
 function parseCloudeResponse(
   content: string,
@@ -1674,6 +1705,14 @@ function parseCloudeResponse(
   if (dualCurrencyData) {
     for (const entry of dualCurrencyData) {
       fixAnnualJanSwapPerYear(entry.fields, corrections, entry.returnBasis || "");
+    }
+  }
+
+  // Remap future monthly fields to previous year (fixes year-rollover bug)
+  remapFutureMonths(sanitizedFields, reportMonth);
+  if (dualCurrencyData) {
+    for (const entry of dualCurrencyData) {
+      remapFutureMonths(entry.fields, reportMonth);
     }
   }
 
@@ -2977,7 +3016,7 @@ export async function POST(req: NextRequest) {
         resultObj.validation = result.validation;
         resultObj.validationStatus = result.validationStatus;
       }
-      resultObj._cacheVersion = 54;
+      resultObj._cacheVersion = 55;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
