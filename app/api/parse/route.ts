@@ -168,7 +168,7 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v27: single-pass only (removed buildDynamicStructuredPrompt second API call)
   // v47: validation fix — effectiveReportMonth prevents valid months from being excluded
   // v52: YTD alias normalization fix (סה"כ→סהכ); fund-name-as-annual-column prompt; benchmark cols excluded
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 52) return null;
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 53) return null;
 
   return cached.result;
 }
@@ -601,6 +601,7 @@ FIELDS TO EXTRACT (only these):
   Do NOT limit to the last 12 months. Do NOT skip older years. Extract the COMPLETE monthly history.
   A table with 5 years of monthly data should produce ~60 monthly entries.
   Empty cells (—, -, blank) should be skipped, not set to 0.
+  PARTIAL YEAR WARNING: For the current/partial year (e.g. 2026), extract ALL months that have actual values — not just the reportMonth. If the table shows January=2.65%, February=-0.73%, March=0.01% for 2026, ALL THREE must appear: "2026-01", "2026-02", "2026-03". Do NOT reduce the current year to only the reportMonth entry.
 CRITICAL — NO HALLUCINATION:
 Extract ONLY months that explicitly appear in the document with actual values.
 The current date is ${new Date().toISOString().split('T')[0]}.
@@ -2974,7 +2975,7 @@ export async function POST(req: NextRequest) {
         resultObj.validation = result.validation;
         resultObj.validationStatus = result.validationStatus;
       }
-      resultObj._cacheVersion = 52;
+      resultObj._cacheVersion = 53;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
