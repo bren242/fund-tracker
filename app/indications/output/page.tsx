@@ -24,11 +24,12 @@ function GreenLogoInline() {
 }
 
 /* ── Shared card content (used in hidden div + modal mirror) */
-function CardContent({ selectedList, primary, accent, reportMonth }: {
+function CardContent({ selectedList, primary, accent, reportMonth, footerDisclaimer }: {
   selectedList: Indication[];
   primary: string;
   accent: string;
   reportMonth: string;
+  footerDisclaimer?: string;
 }) {
   return (
     <div style={{ width: 1080, backgroundColor: "#f5f0e8", fontFamily: "Arial, sans-serif", direction: "rtl" }}>
@@ -105,6 +106,15 @@ function CardContent({ selectedList, primary, accent, reportMonth }: {
       <div style={{ backgroundColor: "#1B3A2F", padding: "10px 40px", textAlign: "center" }}>
         <div style={{ color: "#a0b8a8", fontSize: 11 }}>נתונים אינדיקטיביים בלבד · GREEN Wealth Management</div>
       </div>
+
+      {/* Disclaimer */}
+      {footerDisclaimer && (
+        <div style={{ backgroundColor: "#f5f0e8", padding: "10px 40px 14px", borderTop: "1px solid #c8bfa8" }}>
+          <div style={{ fontSize: 8, color: "#7a6a55", lineHeight: 1.6, direction: "rtl", whiteSpace: "pre-line" }}>
+            {footerDisclaimer}
+          </div>
+        </div>
+      )}
 
     </div>
   );
@@ -312,19 +322,12 @@ function OutputContent() {
             בחר לפחות קרן אחת לייצוא
           </div>
         )}
-
-        {/* Disclaimer */}
-        {brand.footerDisclaimer && (
-          <div style={{ marginTop: 8, backgroundColor: "var(--bg-surface-alt)", borderRadius: 8, padding: "12px 18px", fontSize: 10, color: "var(--text-muted)", lineHeight: 1.6, border: "1px solid var(--border)", whiteSpace: "pre-line" }} dir="rtl">
-            {brand.footerDisclaimer}
-          </div>
-        )}
       </div>
 
       {/* Hidden card for html2canvas — 1080px, off-screen */}
       <div style={{ position: "absolute", left: -9999, top: 0, width: 1080, pointerEvents: "none" }}>
         <div ref={cardRef} style={{ width: 1080 }}>
-          <CardContent selectedList={selectedList} primary={PRIMARY} accent={ACCENT} reportMonth={reportMonth} />
+          <CardContent selectedList={selectedList} primary={PRIMARY} accent={ACCENT} reportMonth={reportMonth} footerDisclaimer={brand.footerDisclaimer} />
         </div>
       </div>
 
@@ -360,7 +363,7 @@ function OutputContent() {
                   position: "absolute", top: 0, right: 0,
                 }}>
                   {/* Mirror of hidden card */}
-                  <CardContent selectedList={selectedList} primary={PRIMARY} accent={ACCENT} reportMonth={reportMonth} />
+                  <CardContent selectedList={selectedList} primary={PRIMARY} accent={ACCENT} reportMonth={reportMonth} footerDisclaimer={brand.footerDisclaimer} />
                 </div>
               </div>
             </div>
