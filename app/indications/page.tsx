@@ -489,6 +489,13 @@ function IndicationsContent() {
             אין אינדיקציות עדיין — הזן קרן ראשונה למעלה
           </div>
         )}
+
+        {/* Disclaimer */}
+        {brand.footerDisclaimer && (
+          <div style={{ marginTop: 32, backgroundColor: "var(--bg-surface-alt)", borderRadius: 8, padding: "12px 18px", fontSize: 10, color: "var(--text-muted)", lineHeight: 1.6, border: "1px solid var(--border)", whiteSpace: "pre-line" }} dir="rtl">
+            {brand.footerDisclaimer}
+          </div>
+        )}
       </div>
     </div>
   );
