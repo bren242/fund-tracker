@@ -13,7 +13,8 @@
  *   calcOverallScore(bm, cat)                    → OverallScore | null
  */
 
-import { Fund, Benchmark } from "./types";
+import { Fund, Benchmark, FundsData } from "./types";
+import { monthlyCategoryAverage } from "./category-average";
 
 /* ══════════════════════════════════════════════════════════════════════════ */
 /*  Types                                                                     */
@@ -233,7 +234,59 @@ export function buildCategoryAvgReturns(funds: Fund[]): Record<string, number> {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════ */
-/*  5. calcOverallScore                                                        */
+/*  5. consistencyVsCategory                                                   */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+export interface CategoryConsistencyResult {
+  /** חודשים שבהם הקרן עקפה את ממוצע הקטגוריה */
+  monthsAboveCategory: number;
+  /** חודשים שבהם הקרן הייתה מתחת לממוצע הקטגוריה */
+  monthsBelowCategory: number;
+  /** סה"כ חודשים שבהם גם לקרן וגם לממוצע הקטגוריה יש נתון */
+  totalMonths: number;
+  /** אחוז החודשים שהקרן עקפה את הקטגוריה (0–100, 2 d.p.) */
+  percentageAbove: number;
+  /** true אם יש פחות מ-12 חודשי השוואה משותפים */
+  insufficientData: boolean;
+}
+
+/**
+ * מחשב לכל חודש שיש לקרן האם ביצועיה מעל ממוצע הקטגוריה.
+ * משתמש ב-monthlyCategoryAverage (מינימום 3 קרנות בקטגוריה לכל חודש).
+ * חודשים שבהם אין מספיק נתוני קטגוריה מדולגים.
+ */
+export function consistencyVsCategory(
+  fund: Fund,
+  fundsData: FundsData,
+  categoryId: string
+): CategoryConsistencyResult {
+  const fundReturns = fund.monthlyReturns ?? {};
+  const months = Object.keys(fundReturns).sort();
+
+  let above = 0;
+  let below = 0;
+  let total = 0;
+
+  for (const m of months) {
+    const catAvg = monthlyCategoryAverage(fundsData, categoryId, m);
+    if (catAvg == null) continue; // פחות מ-3 קרנות בקטגוריה לחודש זה
+    total++;
+    if (fundReturns[m] > catAvg) above++;
+    else below++;
+  }
+
+  return {
+    monthsAboveCategory: above,
+    monthsBelowCategory: below,
+    totalMonths: total,
+    percentageAbove:
+      total > 0 ? Math.round((above / total) * 10_000) / 100 : 0,
+    insufficientData: total < 12,
+  };
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  6. calcOverallScore                                                        */
 /* ══════════════════════════════════════════════════════════════════════════ */
 
 /**

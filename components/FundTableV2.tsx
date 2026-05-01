@@ -350,7 +350,7 @@ function AccordionPanel({ fund }: { fund: Fund }) {
 function FundRowV2({
   fund, even, comparisonEnabled, isSelected, onToggle, selectionDisabled,
   accentColor, periodReturn, annualAvg, isOpen, onToggleAccordion, isFirst,
-  aiAvailable, onOpenAi,
+  aiAvailable, onOpenAi, consistencyHref,
 }: {
   fund: Fund;
   even: boolean;
@@ -366,6 +366,8 @@ function FundRowV2({
   isFirst?: boolean;
   aiAvailable?: boolean;
   onOpenAi?: (fundId: string) => void;
+  /** Link to the per-fund consistency page. When provided, shows a "📊" button. */
+  consistencyHref?: string;
 }) {
   const [hovered, setHovered] = useState(false);
   const bg = even ? "#ffffff" : "#fafafa";
@@ -450,6 +452,26 @@ function FundRowV2({
                 transition: "all 0.15s", lineHeight: 1.4,
               }}
             >AI</button>
+          )}
+          {consistencyHref && (
+            <a
+              className="no-print"
+              href={consistencyHref}
+              title="עקביות קרן"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                fontSize: 10, fontWeight: 700, flexShrink: 0,
+                padding: "2px 7px", borderRadius: 4,
+                border: "1px solid var(--border)",
+                background: hovered ? "rgba(27,58,47,0.06)" : "transparent",
+                color: hovered ? "var(--text-primary)" : "var(--text-secondary)",
+                cursor: "pointer", letterSpacing: 0.3,
+                transition: "all 0.15s", lineHeight: 1.4,
+                textDecoration: "none", display: "inline-flex", alignItems: "center",
+              }}
+            >
+              עקביות
+            </a>
           )}
           <span style={{
             fontSize: 10, color: "var(--text-muted)", flexShrink: 0,
@@ -849,6 +871,13 @@ export default function FundTableV2({
                           isFirst={fi === 0}
                           aiAvailable={aiAvailable && !!clientKey}
                           onOpenAi={setAiFundId}
+                          consistencyHref={
+                            clientKey
+                              ? (clientKey === "green"
+                                  ? `/green/consistency?fund=${fund.id}`
+                                  : `/consistency?fund=${fund.id}&client=${clientKey}`)
+                              : undefined
+                          }
                         />
                       );
                       if (isOpen) {

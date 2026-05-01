@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect, Suspense, Fragment } from "react";
+import { useState, useMemo, useEffect, useCallback, Suspense, Fragment } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -262,11 +263,536 @@ function ChartTooltip({ active, payload, label, isDark }: {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════ */
+/*  Per-fund view — types, helpers, sub-components                           */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+interface FundConsistencyData {
+  fund: { id: string; name: string; classification: string; lastReportDate: string | null };
+  category: { id: string; name: string; fundsCount: number; fundsWithMonthlyData: number };
+  endMonth: string;
+  ir: number | null;
+  vsBenchmark: {
+    monthsAbove: number; monthsBelow: number; totalMonths: number;
+    percentageAbove: number; benchmarkName: string; insufficientData: boolean;
+  };
+  vsCategory: {
+    monthsAbove: number; monthsBelow: number; totalMonths: number;
+    percentageAbove: number; insufficientData: boolean;
+  };
+  monthly:    { fundReturn: number | null; categoryAvg: number | null; diff: number | null };
+  ytd:        { fundReturn: number | null; categoryAvg: number | null; diff: number | null; fromMonth: string };
+  rolling24m: { fundReturn: number | null; categoryAvg: number | null; diff: number | null; fromMonth: string };
+}
+
+const MONTHS_HE = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
+const CURRENT_YEAR = new Date().getFullYear();
+const FUND_YEARS   = Array.from({ length: CURRENT_YEAR - 2019 }, (_, i) => CURRENT_YEAR - i);
+
+function fmtPct(v: number | null, decimals = 1): string {
+  if (v == null) return "—";
+  const pct = v * 100;
+  return `${pct >= 0 ? "+" : ""}${pct.toFixed(decimals)}%`;
+}
+function fmtIR(v: number | null): string {
+  if (v == null) return "—";
+  return `${v >= 0 ? "+" : ""}${v.toFixed(2)}`;
+}
+function diffColor(v: number | null): string {
+  if (v == null) return "var(--text-muted)";
+  return v > 0 ? "#059669" : v < 0 ? "#DC2626" : "var(--text-secondary)";
+}
+function fundIRColor(ir: number | null): string {
+  if (ir == null) return "var(--text-muted)";
+  if (ir > 0.5)   return "#059669";
+  if (ir > 0)     return "#D97706";
+  return "#DC2626";
+}
+function scoreBgFund(score: number): { bg: string; color: string } {
+  if (score >= 60) return { bg: "rgba(5,150,105,0.10)",  color: "#065F46" };
+  if (score >= 45) return { bg: "rgba(217,119,6,0.10)",  color: "#92400E" };
+  return                  { bg: "rgba(220,38,38,0.10)",  color: "#991B1B" };
+}
+
+function ScoreRing({ pct, color }: { pct: number; color: string }) {
+  const r = 26, circ = 2 * Math.PI * r;
+  const dash = (pct / 100) * circ;
+  return (
+    <svg width={64} height={64} viewBox="0 0 64 64" style={{ display: "block", margin: "0 auto 8px" }}>
+      <circle cx={32} cy={32} r={r} fill="none" stroke="var(--border)" strokeWidth={5} />
+      <circle
+        cx={32} cy={32} r={r} fill="none" stroke={color} strokeWidth={5}
+        strokeDasharray={`${dash} ${circ - dash}`}
+        strokeDashoffset={circ / 4}
+        strokeLinecap="round"
+        style={{ transform: "rotate(-90deg) scaleX(-1)", transformOrigin: "32px 32px" }}
+      />
+      <text x={32} y={37} textAnchor="middle" fontSize={11} fontWeight={700} fill={color}>
+        {Math.round(pct)}%
+      </text>
+    </svg>
+  );
+}
+
+function MetricCard({
+  label, fundReturn, categoryAvg, diff, fromLabel,
+}: {
+  label: string; fundReturn: number | null;
+  categoryAvg: number | null; diff: number | null; fromLabel?: string;
+}) {
+  const hasData = fundReturn != null || categoryAvg != null;
+  return (
+    <div style={{
+      borderRadius: 14, padding: "20px 20px 18px",
+      backgroundColor: "var(--bg-surface)",
+      border: "1px solid var(--border)",
+      boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+    }}>
+      <div style={{
+        fontSize: 10, fontWeight: 600, letterSpacing: "0.7px",
+        textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 12,
+      }}>
+        {label}
+        {fromLabel && (
+          <span style={{ marginRight: 6, fontWeight: 400, textTransform: "none", fontSize: 9 }}>
+            ({fromLabel})
+          </span>
+        )}
+      </div>
+      {!hasData ? (
+        <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 12, padding: "8px 0" }}>
+          אין נתונים מספיקים
+        </div>
+      ) : (
+        <>
+          <div style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", lineHeight: 1.1, marginBottom: 4 }}>
+            {fmtPct(fundReturn)}
+          </div>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 6 }}>
+            ממוצע קטגוריה: {fmtPct(categoryAvg)}
+          </div>
+          <div style={{
+            fontSize: 13, fontWeight: 600, color: diffColor(diff),
+            paddingTop: 8, borderTop: "1px solid var(--border)",
+          }}>
+            {diff != null ? <>{fmtPct(diff)} מול קטגוריה</> : "—"}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ── Per-fund detail view ───────────────────────────────────────────────── */
+
+function FundDetailView({
+  fundId, clientKey,
+}: { fundId: string; clientKey: string }) {
+  const brand     = useBrand(clientKey);
+  const { theme } = useTheme();
+  const isDark    = theme === "dark";
+
+  const [data,         setData]         = useState<FundConsistencyData | null>(null);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState<string | null>(null);
+  const [endMonth,     setEndMonth]     = useState<string | null>(null);
+  const [selectedYear, setSelectedYear] = useState<number>(CURRENT_YEAR);
+  const [selectedMon,  setSelectedMon]  = useState<number>(new Date().getMonth() + 1);
+  const [initialized,  setInitialized]  = useState(false);
+
+  /* AI analysis */
+  const [aiText,    setAiText]    = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError,   setAiError]   = useState(false);
+
+  const fetchData = useCallback(async (month: string) => {
+    if (!fundId || !month) return;
+    setLoading(true); setError(null);
+    try {
+      const res = await fetch(
+        `/api/consistency-data?fundId=${encodeURIComponent(fundId)}&endMonth=${month}&client=${encodeURIComponent(clientKey)}`
+      );
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error((j as { error?: string }).error || `HTTP ${res.status}`);
+      }
+      const json: FundConsistencyData = await res.json();
+      setData(json);
+      if (!initialized && json.fund.lastReportDate) {
+        const [y, m] = json.fund.lastReportDate.split("-").map(Number);
+        setSelectedYear(y); setSelectedMon(m);
+        setEndMonth(`${y}-${String(m).padStart(2, "0")}`);
+        setInitialized(true);
+        return;
+      }
+      setInitialized(true);
+    } catch (e) { setError((e as Error).message); }
+    finally { setLoading(false); }
+  }, [clientKey, fundId, initialized]);
+
+  useEffect(() => {
+    if (!fundId) return;
+    const now = new Date();
+    const def = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    setEndMonth(def);
+  }, [fundId]);
+
+  useEffect(() => { if (endMonth) fetchData(endMonth); }, [endMonth]); // eslint-disable-line
+
+  /* Fire AI analysis once main data is ready and endMonth is in sync */
+  useEffect(() => {
+    if (!data || loading) return;
+    // Skip if data is from a different endMonth (during initial snap-to-lastReportDate)
+    if (endMonth && data.endMonth !== endMonth) return;
+    setAiText(null);
+    setAiError(false);
+    setAiLoading(true);
+    fetch("/api/consistency-ai", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify(data),
+    })
+      .then((r) => r.json())
+      .then((j: { analysis?: string }) => {
+        if (j.analysis) setAiText(j.analysis);
+        else setAiError(true);
+      })
+      .catch(() => setAiError(true))
+      .finally(() => setAiLoading(false));
+  }, [data, loading, endMonth]); // eslint-disable-line
+
+  const maxYear  = data?.fund.lastReportDate ? parseInt(data.fund.lastReportDate.split("-")[0]) : CURRENT_YEAR;
+  const maxMonth = data?.fund.lastReportDate ? parseInt(data.fund.lastReportDate.split("-")[1]) : 12;
+
+  const handleApply = () => {
+    setEndMonth(`${selectedYear}-${String(selectedMon).padStart(2, "0")}`);
+  };
+  const handleReset = () => {
+    if (data?.fund.lastReportDate) {
+      const [y, mo] = data.fund.lastReportDate.split("-").map(Number);
+      setSelectedYear(y); setSelectedMon(mo);
+      setEndMonth(`${y}-${String(mo).padStart(2, "0")}`);
+    }
+  };
+
+  const cardSt: React.CSSProperties = {
+    borderRadius: 16, padding: "24px 22px",
+    backgroundColor: "var(--bg-surface)",
+    border: "1px solid var(--border)",
+    boxShadow: "0 1px 6px rgba(0,0,0,0.05)",
+    display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center",
+  };
+
+  const selSt: React.CSSProperties = {
+    padding: "6px 10px", borderRadius: 8, fontSize: 13,
+    border: "1px solid var(--border)", backgroundColor: "var(--bg-input)",
+    color: "var(--text-primary)", cursor: "pointer",
+  };
+
+  return (
+    <div style={{
+      ...brandCssVars(brand.primaryColor, brand.accentColor) as React.CSSProperties,
+      minHeight: "100vh", backgroundColor: "var(--bg-page)",
+    }}>
+      <style>{`
+        @keyframes fadeUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+        .con-fade { animation: fadeUp 0.35s ease both; }
+        .con-fade-1 { animation-delay: 0.05s; }
+        .con-fade-2 { animation-delay: 0.10s; }
+        .con-fade-3 { animation-delay: 0.15s; }
+        .con-fade-4 { animation-delay: 0.20s; }
+      `}</style>
+
+      <div style={{ maxWidth: 960, margin: "0 auto", padding: "28px 24px 56px" }}>
+
+        {/* Back link */}
+        <a
+          href={`/${clientKey}/consistency`}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            fontSize: 12, color: "var(--text-muted)", textDecoration: "none",
+            marginBottom: 16,
+          }}
+        >
+          ← חזרה לרשימה
+        </a>
+
+        {/* Header */}
+        {data && (
+          <div style={{ marginBottom: 20 }}>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 2px" }}>
+              {data.fund.name}
+            </h1>
+            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>
+              {data.fund.classification} · {data.category.name}
+            </p>
+          </div>
+        )}
+
+        {/* Period selector */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+          padding: "12px 16px", borderRadius: 10,
+          backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
+          marginBottom: 24,
+        }}>
+          <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>תקופה:</span>
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            style={selSt}
+          >
+            {FUND_YEARS.filter((y) => y <= maxYear).map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+          <select
+            value={selectedMon}
+            onChange={(e) => setSelectedMon(Number(e.target.value))}
+            style={selSt}
+          >
+            {MONTHS_HE.map((name, i) => {
+              const mon = i + 1;
+              const disabled = selectedYear === maxYear && mon > maxMonth;
+              return (
+                <option key={mon} value={mon} disabled={disabled}>{name}</option>
+              );
+            })}
+          </select>
+          <button
+            onClick={handleApply}
+            style={{
+              padding: "6px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600,
+              backgroundColor: brand.primaryColor || "#1B3A2F", color: "#fff",
+              border: "none", cursor: "pointer",
+            }}
+          >
+            הצג
+          </button>
+          {data?.fund.lastReportDate && (
+            <button
+              onClick={handleReset}
+              style={{
+                padding: "6px 14px", borderRadius: 8, fontSize: 12,
+                backgroundColor: "transparent", color: "var(--text-secondary)",
+                border: "1px solid var(--border)", cursor: "pointer",
+              }}
+            >
+              דו"ח אחרון
+            </button>
+          )}
+          {endMonth && (
+            <span style={{ fontSize: 11, color: "var(--text-muted)", marginRight: "auto" }}>
+              חלון: 24 חודשים עד {endMonth}
+            </span>
+          )}
+        </div>
+
+        {/* Loading / Error */}
+        {loading && (
+          <div style={{ textAlign: "center", padding: 48, color: "var(--text-muted)" }}>
+            טוען...
+          </div>
+        )}
+        {error && (
+          <div style={{ textAlign: "center", padding: 24, color: "#DC2626", fontSize: 13 }}>
+            שגיאה: {error}
+          </div>
+        )}
+
+        {!loading && !error && data && (
+          <>
+            {/* Score cards */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
+              {/* IR */}
+              <div className="con-fade con-fade-1" style={cardSt}>
+                <div style={{
+                  fontSize: 10, fontWeight: 600, letterSpacing: "0.7px",
+                  textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 8,
+                }}>
+                  Information Ratio
+                </div>
+                <div style={{
+                  fontSize: 48, fontWeight: 700, lineHeight: 1,
+                  color: fundIRColor(data.ir), marginBottom: 6,
+                }}>
+                  {fmtIR(data.ir)}
+                </div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.5 }}>
+                  {data.ir == null ? "אין מספיק נתונים" :
+                    data.ir > 0.5 ? "עקביות גבוהה מעל הבנצ׳מרק" :
+                    data.ir > 0   ? "עקביות מתונה מעל הבנצ׳מרק" :
+                                    "מתחת לבנצ׳מרק בממוצע"}
+                </div>
+              </div>
+
+              {/* vs Benchmark */}
+              <div className="con-fade con-fade-2" style={cardSt}>
+                <div style={{
+                  fontSize: 10, fontWeight: 600, letterSpacing: "0.7px",
+                  textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 8,
+                }}>
+                  מול בנצ׳מרק
+                </div>
+                {data.vsBenchmark.insufficientData ? (
+                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>אין מספיק נתונים</div>
+                ) : (
+                  <>
+                    <ScoreRing
+                      pct={data.vsBenchmark.percentageAbove}
+                      color={scoreBgFund(data.vsBenchmark.percentageAbove).color}
+                    />
+                    <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                      {data.vsBenchmark.monthsAbove} / {data.vsBenchmark.totalMonths} חודשים
+                    </div>
+                    <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 4 }}>
+                      {data.vsBenchmark.benchmarkName}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* vs Category */}
+              <div className="con-fade con-fade-3" style={cardSt}>
+                <div style={{
+                  fontSize: 10, fontWeight: 600, letterSpacing: "0.7px",
+                  textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 8,
+                }}>
+                  מול קטגוריה
+                </div>
+                {data.vsCategory.insufficientData ? (
+                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>אין מספיק נתונים</div>
+                ) : (
+                  <>
+                    <ScoreRing
+                      pct={data.vsCategory.percentageAbove}
+                      color={scoreBgFund(data.vsCategory.percentageAbove).color}
+                    />
+                    <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                      {data.vsCategory.monthsAbove} / {data.vsCategory.totalMonths} חודשים
+                    </div>
+                    <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 4 }}>
+                      {data.category.fundsWithMonthlyData} / {data.category.fundsCount} קרנות עם נתונים
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Metric cards */}
+            <div className="con-fade con-fade-4" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
+              <MetricCard
+                label="חודשי"
+                fundReturn={data.monthly.fundReturn}
+                categoryAvg={data.monthly.categoryAvg}
+                diff={data.monthly.diff}
+              />
+              <MetricCard
+                label="מצטבר מתחילת שנה"
+                fundReturn={data.ytd.fundReturn}
+                categoryAvg={data.ytd.categoryAvg}
+                diff={data.ytd.diff}
+                fromLabel={`מ-${data.ytd.fromMonth}`}
+              />
+              <MetricCard
+                label="Rolling 24M"
+                fundReturn={data.rolling24m.fundReturn}
+                categoryAvg={data.rolling24m.categoryAvg}
+                diff={data.rolling24m.diff}
+                fromLabel={`מ-${data.rolling24m.fromMonth}`}
+              />
+            </div>
+
+            {/* AI analysis card */}
+            <div style={{
+              borderRadius: 14,
+              padding: "24px 28px 20px",
+              backgroundColor: "var(--bg-surface)",
+              border: "1px solid var(--border)",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+              marginBottom: 20,
+            }}>
+              <div style={{
+                fontSize: 10, fontWeight: 600, letterSpacing: "0.7px",
+                textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 14,
+              }}>
+                ניתוח AI
+              </div>
+
+              {aiLoading && (
+                <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--text-muted)", fontSize: 13 }}>
+                  <svg width={16} height={16} viewBox="0 0 16 16" style={{ flexShrink: 0 }}>
+                    <style>{`@keyframes ai-spin { to { transform: rotate(360deg); } }`}</style>
+                    <circle
+                      cx={8} cy={8} r={6}
+                      fill="none" stroke="currentColor" strokeWidth={2}
+                      strokeDasharray="20 18"
+                      style={{ transformOrigin: "8px 8px", animation: "ai-spin 0.8s linear infinite" }}
+                    />
+                  </svg>
+                  מנתח...
+                </div>
+              )}
+
+              {!aiLoading && aiError && (
+                <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                  ניתוח לא זמין כרגע
+                </div>
+              )}
+
+              {!aiLoading && aiText && (
+                <p style={{
+                  fontSize: 14, lineHeight: 1.8,
+                  color: "var(--text-secondary)",
+                  margin: 0,
+                  direction: "rtl",
+                }}>
+                  {aiText}
+                </p>
+              )}
+
+              <div style={{
+                fontSize: 10, color: "var(--text-muted)",
+                marginTop: 16, paddingTop: 12,
+                borderTop: "1px solid var(--border)",
+                lineHeight: 1.5,
+              }}>
+                המידע לצורך ניתוח בלבד ואינו מהווה ייעוץ השקעות.
+              </div>
+            </div>
+
+            <p style={{ fontSize: 10, color: "var(--text-muted)", textAlign: "right", lineHeight: 1.6 }}>
+              כל החישובים מבוססים על חלון Rolling 24 חודשים המסתיים ב-{endMonth}.{" "}
+              ממוצע קטגוריה מחושב מינימום 3 קרנות עם נתונים חודשיים לכל חודש.
+            </p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
 /*  Main content                                                              */
 /* ══════════════════════════════════════════════════════════════════════════ */
 
+/* Router: dispatches to fund detail view or leaderboard */
 function ConsistencyContent() {
   const clientKey = useClientKey();
+  const params    = useSearchParams();
+  const fundId    = params.get("fund") ?? "";
+
+  if (fundId) {
+    return (
+      <ClientGate clientKey={clientKey}>
+        <FundDetailView fundId={fundId} clientKey={clientKey} />
+      </ClientGate>
+    );
+  }
+
+  return <LeaderboardView clientKey={clientKey} />;
+}
+
+function LeaderboardView({ clientKey }: { clientKey: string }) {
   const brand     = useBrand(clientKey);
   const { theme } = useTheme();
   const isDark    = theme === "dark";
