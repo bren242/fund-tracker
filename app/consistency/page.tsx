@@ -1,7 +1,14 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback, Suspense, Fragment } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useMemo, useEffect, useCallback, useRef, Suspense, Fragment } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import {
+  Combobox,
+  ComboboxInput,
+  ComboboxButton,
+  ComboboxOptions,
+  ComboboxOption,
+} from "@headlessui/react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -382,6 +389,353 @@ function MetricCard({
   );
 }
 
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  Fund selector (searchable combobox)                                       */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+interface FundOption {
+  id:           string;
+  name:         string;
+  categoryId:   string;
+  categoryName: string;
+}
+
+function FundSelector({
+  currentFundId,
+  clientKey,
+  primaryColor,
+}: {
+  currentFundId: string;
+  clientKey:     string;
+  primaryColor:  string;
+}) {
+  const router    = useRouter();
+  const [query,    setQuery]    = useState("");
+  const [allFunds, setAllFunds] = useState<FundOption[]>([]);
+
+  useEffect(() => {
+    fetch(`/api/funds?client=${encodeURIComponent(clientKey)}`)
+      .then((r) => r.json())
+      .then((data: { categories?: { id: string; name: string; funds: { id: string; name: string }[] }[] }) => {
+        const list: FundOption[] = [];
+        for (const cat of data.categories ?? []) {
+          for (const fund of cat.funds) {
+            list.push({ id: fund.id, name: fund.name, categoryId: cat.id, categoryName: cat.name });
+          }
+        }
+        setAllFunds(list);
+      })
+      .catch(() => {});
+  }, [clientKey]);
+
+  const current = useMemo(
+    () => allFunds.find((f) => f.id === currentFundId) ?? null,
+    [allFunds, currentFundId]
+  );
+
+  const filtered = useMemo(() => {
+    if (!query) return allFunds;
+    const q = query.toLowerCase();
+    return allFunds.filter(
+      (f) => f.name.toLowerCase().includes(q) || f.categoryName.toLowerCase().includes(q)
+    );
+  }, [allFunds, query]);
+
+  const groups = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; funds: FundOption[] }>();
+    for (const f of filtered) {
+      if (!map.has(f.categoryId)) map.set(f.categoryId, { id: f.categoryId, name: f.categoryName, funds: [] });
+      map.get(f.categoryId)!.funds.push(f);
+    }
+    return [...map.values()];
+  }, [filtered]);
+
+  const G = primaryColor || "#1B3A2F";
+
+  return (
+    <div style={{ position: "relative", width: 280, flexShrink: 0 }}>
+      <Combobox
+        immediate
+        value={current}
+        onChange={(fund: FundOption | null) => {
+          if (fund && fund.id !== currentFundId) {
+            router.push(`/${clientKey}/consistency?fund=${fund.id}`);
+          }
+        }}
+      >
+        <div style={{ position: "relative" }}>
+          <ComboboxInput<FundOption | null>
+            displayValue={(fund: FundOption | null) => fund?.name ?? ""}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
+            placeholder="חפש קרן..."
+            style={{
+              width: "100%",
+              padding: "6px 32px 6px 10px",
+              fontSize: 13,
+              borderRadius: 8,
+              border: "1px solid var(--border)",
+              backgroundColor: "var(--bg-input)",
+              color: "var(--text-primary)",
+              outline: "none",
+              direction: "rtl",
+              boxSizing: "border-box" as const,
+            }}
+          />
+          <ComboboxButton
+            style={{
+              position: "absolute", left: 8, top: "50%",
+              transform: "translateY(-50%)",
+              background: "none", border: "none",
+              cursor: "pointer", padding: 2,
+              color: "var(--text-muted)",
+            }}
+          >
+            <svg width={12} height={12} viewBox="0 0 12 12" fill="none">
+              <path d="M2 4L6 8L10 4" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </ComboboxButton>
+        </div>
+
+        <ComboboxOptions
+          anchor={{ to: "bottom start", gap: 4 }}
+          style={{
+            zIndex: 999,
+            minWidth: "280px",
+            maxHeight: 340,
+            overflowY: "auto",
+            borderRadius: 10,
+            border: "1px solid var(--border)",
+            backgroundColor: "var(--bg-surface)",
+            boxShadow: "0 6px 24px rgba(0,0,0,0.14)",
+            padding: "4px 0",
+          }}
+        >
+          {groups.length === 0 ? (
+            <div style={{ padding: "10px 14px", fontSize: 12, color: "var(--text-muted)", textAlign: "right" }}>
+              לא נמצאו קרנות
+            </div>
+          ) : (
+            groups.map((group, gi) => (
+              <Fragment key={group.id}>
+                <div style={{
+                  padding: "6px 14px 4px",
+                  fontSize: 9, fontWeight: 700, letterSpacing: "0.6px",
+                  textTransform: "uppercase", color: "var(--text-muted)",
+                  direction: "rtl",
+                  borderTop: gi > 0 ? "1px solid var(--border)" : "none",
+                  marginTop: gi > 0 ? 4 : 0,
+                }}>
+                  {group.name}
+                </div>
+                {group.funds.map((fund) => (
+                  <ComboboxOption key={fund.id} value={fund}>
+                    {({ focus, selected }: { focus: boolean; selected: boolean }) => (
+                      <div style={{
+                        padding: "8px 14px",
+                        cursor: "pointer",
+                        backgroundColor: focus ? "rgba(27,58,47,0.06)" : "transparent",
+                        direction: "rtl",
+                        borderRadius: 4,
+                        margin: "1px 4px",
+                      }}>
+                        <div style={{
+                          fontSize: 13,
+                          fontWeight: selected ? 600 : 400,
+                          color: selected ? G : "var(--text-primary)",
+                        }}>
+                          {selected ? `✓ ${fund.name}` : fund.name}
+                        </div>
+                      </div>
+                    )}
+                  </ComboboxOption>
+                ))}
+              </Fragment>
+            ))
+          )}
+        </ComboboxOptions>
+      </Combobox>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  Compare-funds modal (inside detail view)                                  */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+function CompareModal({
+  currentFund,
+  categoryId,
+  categoryName,
+  clientKey,
+  primaryColor,
+  onClose,
+}: {
+  currentFund:   { id: string; name: string };
+  categoryId:    string;
+  categoryName:  string;
+  clientKey:     string;
+  primaryColor:  string;
+  onClose:       () => void;
+}) {
+  const router  = useRouter();
+  const G       = primaryColor || "#1B3A2F";
+  const [funds, setFunds]       = useState<{ id: string; name: string }[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    fetch(`/api/funds?client=${encodeURIComponent(clientKey)}`)
+      .then((r) => r.json())
+      .then((data: { categories?: { id: string; funds: { id: string; name: string }[] }[] }) => {
+        const cat = data.categories?.find((c) => c.id === categoryId);
+        setFunds(cat?.funds.filter((f) => f.id !== currentFund.id) ?? []);
+      })
+      .catch(() => {});
+  }, [clientKey, categoryId, currentFund.id]);
+
+  const toggleFund = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) { next.delete(id); } else {
+        if (next.size < 3) next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleCompare = () => {
+    if (selected.size === 0) return;
+    const ids = [currentFund.id, ...selected].join(",");
+    router.push(`/${clientKey}/consistency/compare?funds=${ids}`);
+    onClose();
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed", inset: 0, zIndex: 500,
+        backgroundColor: "rgba(0,0,0,0.45)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 24,
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div style={{
+        backgroundColor: "var(--bg-surface)",
+        borderRadius: 14,
+        border: "1px solid var(--border)",
+        width: "100%", maxWidth: 460,
+        boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+        overflow: "hidden",
+      }}>
+        {/* Modal header */}
+        <div style={{
+          padding: "18px 20px 14px",
+          borderBottom: "1px solid var(--border)",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+        }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>
+              השווה לקרנות נוספות
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+              {categoryName} · עד 3 קרנות נוספות
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: 18, lineHeight: 1, padding: 4 }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Current fund (locked) */}
+        <div style={{ padding: "10px 20px 6px" }}>
+          <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", letterSpacing: "0.5px", textTransform: "uppercase", marginBottom: 6 }}>
+            קרן נוכחית
+          </div>
+          <div style={{
+            padding: "8px 12px", borderRadius: 8,
+            backgroundColor: `${G}14`, border: `1px solid ${G}30`,
+            fontSize: 13, fontWeight: 600, color: G, direction: "rtl",
+          }}>
+            {currentFund.name}
+          </div>
+        </div>
+
+        {/* Fund list */}
+        <div style={{ padding: "8px 20px 4px" }}>
+          <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", letterSpacing: "0.5px", textTransform: "uppercase", marginBottom: 6 }}>
+            בחר קרנות להשוואה ({selected.size}/3)
+          </div>
+          <div style={{ maxHeight: 280, overflowY: "auto" }}>
+            {funds.map((f) => {
+              const isSel = selected.has(f.id);
+              const isDisabled = !isSel && selected.size >= 3;
+              return (
+                <label
+                  key={f.id}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "9px 8px", borderRadius: 8, cursor: isDisabled ? "not-allowed" : "pointer",
+                    direction: "rtl",
+                    opacity: isDisabled ? 0.45 : 1,
+                    backgroundColor: isSel ? `${G}10` : "transparent",
+                    transition: "background 0.12s",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSel}
+                    disabled={isDisabled}
+                    onChange={() => toggleFund(f.id)}
+                    style={{ accentColor: G, width: 15, height: 15, cursor: isDisabled ? "not-allowed" : "pointer", flexShrink: 0 }}
+                  />
+                  <span style={{ fontSize: 13, color: "var(--text-primary)", fontWeight: isSel ? 500 : 400 }}>
+                    {f.name}
+                  </span>
+                </label>
+              );
+            })}
+            {funds.length === 0 && (
+              <div style={{ fontSize: 12, color: "var(--text-muted)", padding: "12px 0", textAlign: "center" }}>
+                אין קרנות נוספות בקטגוריה
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div style={{ padding: "14px 20px 18px", display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <button
+            onClick={onClose}
+            style={{
+              padding: "8px 18px", borderRadius: 8, fontSize: 13,
+              backgroundColor: "transparent", color: "var(--text-secondary)",
+              border: "1px solid var(--border)", cursor: "pointer",
+            }}
+          >
+            ביטול
+          </button>
+          <button
+            onClick={handleCompare}
+            disabled={selected.size === 0}
+            style={{
+              padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+              backgroundColor: selected.size > 0 ? G : "var(--border)",
+              color: selected.size > 0 ? "#fff" : "var(--text-muted)",
+              border: "none", cursor: selected.size > 0 ? "pointer" : "not-allowed",
+              transition: "background 0.15s",
+            }}
+          >
+            השווה {selected.size > 0 ? `(${selected.size + 1} קרנות)` : ""}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Per-fund detail view ───────────────────────────────────────────────── */
 
 function FundDetailView({
@@ -403,6 +757,9 @@ function FundDetailView({
   const [aiText,    setAiText]    = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError,   setAiError]   = useState(false);
+
+  /* Compare modal */
+  const [showCompareModal, setShowCompareModal] = useState(false);
 
   const fetchData = useCallback(async (month: string) => {
     if (!fundId || !month) return;
@@ -528,13 +885,40 @@ function FundDetailView({
           </div>
         )}
 
-        {/* Period selector */}
+        {/* Period selector + fund selector */}
         <div style={{
           display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
           padding: "12px 16px", borderRadius: 10,
           backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
           marginBottom: 24,
         }}>
+          {/* Fund selector — left side */}
+          <FundSelector
+            currentFundId={fundId}
+            clientKey={clientKey}
+            primaryColor={brand.primaryColor || "#1B3A2F"}
+          />
+
+          {/* Compare button */}
+          {data && (
+            <button
+              onClick={() => setShowCompareModal(true)}
+              style={{
+                padding: "6px 12px", borderRadius: 8, fontSize: 11, fontWeight: 500,
+                backgroundColor: "transparent",
+                color: "var(--text-secondary)",
+                border: "1px solid var(--border)", cursor: "pointer",
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+              }}
+            >
+              השווה לקרנות נוספות
+            </button>
+          )}
+
+          {/* Divider */}
+          <div style={{ width: 1, height: 24, backgroundColor: "var(--border)", flexShrink: 0 }} />
+
           <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>תקופה:</span>
           <select
             value={selectedYear}
@@ -586,6 +970,18 @@ function FundDetailView({
             </span>
           )}
         </div>
+
+        {/* Compare modal */}
+        {showCompareModal && data && (
+          <CompareModal
+            currentFund={{ id: data.fund.id, name: data.fund.name }}
+            categoryId={data.category.id}
+            categoryName={data.category.name}
+            clientKey={clientKey}
+            primaryColor={brand.primaryColor || "#1B3A2F"}
+            onClose={() => setShowCompareModal(false)}
+          />
+        )}
 
         {/* Loading / Error */}
         {loading && (
@@ -797,12 +1193,17 @@ function LeaderboardView({ clientKey }: { clientKey: string }) {
   const { theme } = useTheme();
   const isDark    = theme === "dark";
 
-  const [fundsData,   setFundsData]   = useState<FundsData | null>(null);
-  const [benchmarks,  setBenchmarks]  = useState<Benchmark[]>([]);
-  const [config,      setConfig]      = useState<ConsistencyConfig | null>(null);
-  const [selectedCat, setSelectedCat] = useState("equity-hedged");
-  const [timeRange,   setTimeRange]   = useState("all");
-  const [expandedId,  setExpandedId]  = useState<string | null>(null);
+  const [fundsData,          setFundsData]          = useState<FundsData | null>(null);
+  const [benchmarks,         setBenchmarks]         = useState<Benchmark[]>([]);
+  const [config,             setConfig]             = useState<ConsistencyConfig | null>(null);
+  const [selectedCat,        setSelectedCat]        = useState("equity-hedged");
+  const [timeRange,          setTimeRange]          = useState("all");
+  const [expandedId,         setExpandedId]         = useState<string | null>(null);
+  const [compareSet,         setCompareSet]         = useState<Set<string>>(new Set());
+  const [crossCatToast,      setCrossCatToast]      = useState(false);
+  const crossCatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const router = useRouter();
 
   useEffect(() => {
     fetch(`/api/funds?client=${encodeURIComponent(clientKey)}`)
@@ -812,6 +1213,27 @@ function LeaderboardView({ clientKey }: { clientKey: string }) {
     fetch(`/api/consistency-config?client=${encodeURIComponent(clientKey)}`)
       .then((r) => r.json()).then(setConfig);
   }, [clientKey]);
+
+  /* Clear compare selection when category changes */
+  useEffect(() => { setCompareSet(new Set()); }, [selectedCat]);
+
+  const handleCompareToggle = (fundId: string) => {
+    setCompareSet((prev) => {
+      const next = new Set(prev);
+      if (next.has(fundId)) {
+        next.delete(fundId);
+      } else {
+        if (next.size >= 4) return prev; // max 4
+        next.add(fundId);
+      }
+      return next;
+    });
+  };
+
+  const handleLaunchCompare = () => {
+    if (compareSet.size < 2) return;
+    router.push(`/${clientKey}/consistency/compare?funds=${[...compareSet].join(",")}`);
+  };
 
   /* ── compute rows ────────────────────────────────────────────────────── */
   const { rows, bmInfo, bmMRFiltered, fundsWithData, totalFunds } = useMemo(() => {
@@ -1098,9 +1520,10 @@ function LeaderboardView({ clientKey }: { clientKey: string }) {
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr>
-                    <th style={TH("right",  "32%")}>קרן</th>
+                    <th style={{ ...TH("center", "4%"), paddingRight: 8 }}></th>
+                    <th style={TH("right",  "30%")}>קרן</th>
                     <th style={TH("center", "18%")}>ציון עקביות</th>
-                    <th style={TH("center", "22%")}>מגמה</th>
+                    <th style={TH("center", "20%")}>מגמה</th>
                     <th style={TH("center", "16%")}>חודשים</th>
                     <th style={TH("center", "12%")}></th>
                   </tr>
@@ -1128,6 +1551,25 @@ function LeaderboardView({ clientKey }: { clientKey: string }) {
                             transition: "background 0.15s",
                           }}
                         >
+                          {/* Checkbox */}
+                          <td style={{ padding: "16px 8px 16px 4px", textAlign: "center" }}>
+                            {!isNA && (
+                              <input
+                                type="checkbox"
+                                checked={compareSet.has(row.id)}
+                                onChange={() => {
+                                  handleCompareToggle(row.id);
+                                }}
+                                style={{
+                                  width: 14, height: 14,
+                                  cursor: "pointer",
+                                  accentColor: G,
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            )}
+                          </td>
+
                           {/* Fund name */}
                           <td style={{
                             padding: "16px 20px",
@@ -1138,7 +1580,7 @@ function LeaderboardView({ clientKey }: { clientKey: string }) {
                           </td>
 
                           {isNA ? (
-                            <td colSpan={4} style={{
+                            <td colSpan={5} style={{
                               padding: "16px 20px", textAlign: "center",
                               fontSize: 11, color: "var(--text-muted)",
                             }}>
@@ -1206,7 +1648,7 @@ function LeaderboardView({ clientKey }: { clientKey: string }) {
                           <tr key={`${row.id}-detail`} style={{
                             borderBottom: i < rows.length - 1 ? "1px solid var(--border)" : "none",
                           }}>
-                            <td colSpan={5} style={{ padding: 0 }}>
+                            <td colSpan={6} style={{ padding: 0 }}>
                               <div className="con-enter" style={{
                                 backgroundColor: "var(--bg-surface-alt)",
                                 padding: "24px 28px",
@@ -1428,6 +1870,46 @@ function LeaderboardView({ clientKey }: { clientKey: string }) {
 
         </div>
       </div>
+
+      {/* Floating compare button */}
+      {compareSet.size >= 2 && (
+        <div style={{
+          position: "fixed", bottom: 28, left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 200,
+          display: "flex", alignItems: "center", gap: 12,
+          backgroundColor: G,
+          borderRadius: 100,
+          padding: "12px 24px",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
+          color: "#fff",
+          cursor: "pointer",
+        }}
+          onClick={handleLaunchCompare}
+        >
+          <svg width={16} height={16} viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+            <path d="M2 8h12M9 4l4 4-4 4" stroke="#fff" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>השווה {compareSet.size} קרנות</span>
+        </div>
+      )}
+
+      {/* Cross-category toast */}
+      {crossCatToast && (
+        <div style={{
+          position: "fixed", bottom: 28, right: 24,
+          zIndex: 300,
+          backgroundColor: "#1e293b",
+          color: "#f8fafc",
+          borderRadius: 10,
+          padding: "10px 18px",
+          fontSize: 13,
+          boxShadow: "0 4px 16px rgba(0,0,0,0.25)",
+          direction: "rtl",
+        }}>
+          ניתן להשוות רק קרנות מאותה קטגוריה
+        </div>
+      )}
     </ClientGate>
   );
 }
