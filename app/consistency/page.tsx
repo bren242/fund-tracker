@@ -1214,18 +1214,40 @@ function LeaderboardView({ clientKey }: { clientKey: string }) {
       .then((r) => r.json()).then(setConfig);
   }, [clientKey]);
 
-  /* Clear compare selection when category changes */
-  useEffect(() => { setCompareSet(new Set()); }, [selectedCat]);
-
   const handleCompareToggle = (fundId: string) => {
+    // find category of the fund being toggled
+    const getFundCat = (id: string): string | null => {
+      if (!fundsData) return null;
+      for (const cat of fundsData.categories) {
+        if (cat.funds.some((f) => f.id === id)) return cat.id;
+      }
+      return null;
+    };
+
     setCompareSet((prev) => {
       const next = new Set(prev);
       if (next.has(fundId)) {
         next.delete(fundId);
-      } else {
-        if (next.size >= 4) return prev; // max 4
-        next.add(fundId);
+        return next;
       }
+      if (next.size >= 4) return prev; // max 4
+
+      // cross-category guard
+      if (next.size > 0) {
+        const existingCat = getFundCat([...next][0]);
+        const newCat      = getFundCat(fundId);
+        if (existingCat && newCat && existingCat !== newCat) {
+          // fire toast — can't call setState inside setter, defer
+          setTimeout(() => {
+            if (crossCatTimerRef.current) clearTimeout(crossCatTimerRef.current);
+            setCrossCatToast(true);
+            crossCatTimerRef.current = setTimeout(() => setCrossCatToast(false), 3000);
+          }, 0);
+          return prev; // don't add
+        }
+      }
+
+      next.add(fundId);
       return next;
     });
   };
@@ -1897,15 +1919,17 @@ function LeaderboardView({ clientKey }: { clientKey: string }) {
       {/* Cross-category toast */}
       {crossCatToast && (
         <div style={{
-          position: "fixed", bottom: 28, right: 24,
+          position: "fixed", bottom: 80, right: 24,
           zIndex: 300,
-          backgroundColor: "#1e293b",
-          color: "#f8fafc",
+          backgroundColor: "#FEE2E2",
+          color: "#DC2626",
           borderRadius: 10,
           padding: "10px 18px",
           fontSize: 13,
-          boxShadow: "0 4px 16px rgba(0,0,0,0.25)",
+          fontWeight: 500,
+          boxShadow: "0 2px 12px rgba(220,38,38,0.15)",
           direction: "rtl",
+          border: "1px solid #FECACA",
         }}>
           ניתן להשוות רק קרנות מאותה קטגוריה
         </div>
