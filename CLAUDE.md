@@ -92,3 +92,42 @@ If `corrections[]` contains `monthly_uncertain` for a year, monthly values for t
 | `AI_DEV_RULES.md` | Print layout rules, header/footer patterns, CSS constraints |
 | `PROJECT_STATE.md` | Full feature documentation and QA records |
 | `DEV_STATE.md` | System health and file map |
+
+## פיצ'ר עקביות (מאי 2026)
+
+### מה נבנה
+- Leaderboard ב-/green/consistency
+- Detail view ב-/green/consistency?fund=X
+- Compare view ב-/green/consistency/compare?funds=A,B,C (2-4 קרנות, אותה קטגוריה)
+- 3 ציוני עקביות: IR, % מעל בנצ'מרק, % מעל קטגוריה (כולם Rolling 24M)
+- AI בעברית על detail + compare, grounded במספרים
+
+### קבצים מרכזיים
+- lib/category-average.ts — חישוב ממוצע קטגוריה (monthly/YTD/24M)
+- lib/consistency.ts — פונקציות consistencyVsBenchmark + consistencyVsCategory
+- app/consistency/page.tsx — leaderboard + detail view (מותנה ב-?fund=)
+- app/consistency/compare/page.tsx — compare view
+- app/api/consistency-data/route.ts — אגרגציה צד-שרת לקרן בודדת
+- app/api/consistency-compare-data/route.ts — אגרגציה לכמה קרנות
+- app/api/consistency-ai/route.ts — AI לקרן בודדת
+- app/api/consistency-compare-ai/route.ts — AI להשוואה
+
+### Commits מרכזיים
+- 2ebc45d — core (category-average + consistency expansion)
+- afd1209 — dropdown + compare page + leaderboard checkboxes
+- 940fd7e — fix cross-category toast
+- 4dbeb5f — fix race condition on compare page
+
+### בעיות UX פתוחות
+הפיצ'ר עובד פונקציונלית, אבל ה-UX לא ב-Apple-grade. 4 בעיות מרכזיות:
+1. בורר תקופה לא מובן (תקופה vs חלון)
+2. 12M מחזיר "אין נתונים" כי סף מינימום הוא 24M
+3. Checkbox ב-leaderboard בלי context/label
+4. תאריך משתנה במעבר ל-compare
+
+הסשן הבא ייעודי ל-Design Review מלא. לא להוסיף פיצ'רים עד אז.
+
+### לקחים טכניים
+- חובה npm run build && npm start לפני push לכל פיצ'ר עם useSearchParams
+- npm run dev לא חושף race conditions של hydration
+- useEffect שמנקה state ב-dependency change = anti-pattern. עדיף guards מפורשים.
