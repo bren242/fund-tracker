@@ -7,10 +7,15 @@
  * Example:
  *   npx tsx scripts/upload-benchmark-history.ts ./scripts/data/benchmark-ta125.csv bm-ta125
  *
- * CSV format (no header, one row per month):
- *   2024-05,0.0123
+ * CSV format (header optional, one row per month):
+ *   month,return
+ *   2024-05,1.23        ← percent format  (1.23 = 1.23%)
+ *   2024-06,-0.45
+ *   -- OR --
+ *   2024-05,0.0123      ← decimal format  (0.0123 = 1.23%)
  *   2024-06,-0.0045
- *   ...
+ *
+ * Format is auto-detected from the values in the file.
  *
  * Behaviour:
  *   - Loads production KV credentials from .env.production.local
@@ -58,17 +63,17 @@ if (!fs.existsSync(csvPath)) {
 const MONTH_RE = /^\d{4}-\d{2}$/;
 
 const csvLines = fs.readFileSync(csvPath, "utf-8").split("\n");
-const incoming: Record<string, number> = {};
+const raw: Record<string, number> = {};  // raw parsed values, before format conversion
 let csvErrors = 0;
 
 for (let i = 0; i < csvLines.length; i++) {
-  const raw = csvLines[i].trim();
-  if (!raw || raw.startsWith("#")) continue;
+  const line = csvLines[i].trim();
+  if (!line || line.startsWith("#")) continue;
 
-  // Support both comma and semicolon separators; strip optional header
-  const parts = raw.split(/[,;]/);
+  // Support comma and semicolon separators; skip optional header row
+  const parts = line.split(/[,;]/);
   if (parts.length < 2) {
-    console.warn(`  Line ${i + 1}: skipping malformed row: "${raw}"`);
+    console.warn(`  Line ${i + 1}: skipping malformed row: "${line}"`);
     csvErrors++;
     continue;
   }
@@ -77,8 +82,7 @@ for (let i = 0; i < csvLines.length; i++) {
   const val   = parseFloat(parts[1].trim());
 
   if (!MONTH_RE.test(month)) {
-    // Likely the header row "month,return" — skip silently
-    if (i === 0) continue;
+    if (i === 0) continue; // header row — skip silently
     console.warn(`  Line ${i + 1}: invalid month format "${month}", skipping`);
     csvErrors++;
     continue;
@@ -90,18 +94,44 @@ for (let i = 0; i < csvLines.length; i++) {
     continue;
   }
 
-  incoming[month] = val;
+  raw[month] = val;
 }
 
-const incomingCount = Object.keys(incoming).length;
-if (incomingCount === 0) {
+const rawValues = Object.values(raw);
+if (rawValues.length === 0) {
   console.error("ERROR: No valid rows found in CSV.");
   process.exit(1);
 }
 
-console.log(`\nCSV parsed: ${incomingCount} valid months${csvErrors > 0 ? `, ${csvErrors} rows skipped` : ""}`);
+// ── 4. Auto-detect percent vs decimal format ──────────────────────────────────
+//
+//   Percent : all values in [-50, 50]  but at least one |v| > 1
+//   Decimal : all values in [-1, 1]
+//   Mixed   : values outside [-50, 50], or mix of >1 and <1 that doesn't fit either bucket
+//
 
-// ── 4. Load & merge KV data ───────────────────────────────────────────────────
+const allDecimal = rawValues.every(v => Math.abs(v) <= 1);
+const allPercent = rawValues.every(v => Math.abs(v) <= 50);
+const anyAboveOne = rawValues.some(v => Math.abs(v) > 1);
+
+let incoming: Record<string, number>;
+
+if (allDecimal) {
+  console.log(`\nDetected format: decimal (e.g. 0.0123 → stored as 0.0123)`);
+  incoming = raw;
+} else if (allPercent && anyAboveOne) {
+  console.log(`\nDetected format: percent (e.g. 1.23 → stored as 0.0123)`);
+  incoming = Object.fromEntries(Object.entries(raw).map(([m, v]) => [m, v / 100]));
+} else {
+  console.error(`\nERROR: Mixed format detected — some values are >1 (percent?) and some are <=1 (decimal?).`);
+  console.error(`Refusing to upload. Please normalise to a single format and re-run.`);
+  console.error(`Outlier values: ${rawValues.filter(v => Math.abs(v) > 1).slice(0, 5).join(", ")} ...`);
+  process.exit(1);
+}
+
+console.log(`CSV parsed: ${rawValues.length} valid months${csvErrors > 0 ? `, ${csvErrors} rows skipped` : ""}`);
+
+// ── 5. Load & merge KV data ───────────────────────────────────────────────────
 import { storageRead, storageWrite } from "../lib/storage";
 import { Benchmark } from "../lib/types";
 
@@ -136,10 +166,10 @@ for (const [month, val] of Object.entries(incoming).sort()) {
 
 target.monthlyReturns = existing;
 
-// ── 5. Write back ─────────────────────────────────────────────────────────────
+// ── 6. Write back ─────────────────────────────────────────────────────────────
 await storageWrite(KV_KEY, benchmarks);
 
-// ── 6. Summary ────────────────────────────────────────────────────────────────
+// ── 7. Summary ────────────────────────────────────────────────────────────────
 const allMonths = Object.keys(existing).sort();
 console.log(`\n✓ Done`);
 console.log(`  Added   : ${added} months`);
