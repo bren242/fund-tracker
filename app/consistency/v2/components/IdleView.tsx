@@ -10,6 +10,7 @@ function verdictInfo(score: number): { tier: string; label: string } {
 export default function IdleView({
   top5,
   totalFunds,
+  windowSize,
 }: {
   top5: LeaderboardEntry[];
   totalFunds: number;
@@ -45,7 +46,11 @@ export default function IdleView({
           {top5.map((f) => {
             const { tier, label } = verdictInfo(f.score);
             return (
-              <div key={f.fundId} className="v2-top-item">
+              <a
+                key={f.fundId}
+                className="v2-top-item"
+                href={`?fund=${f.fundId}&window=${windowSize}`}
+              >
                 <div className="v2-rank">{String(f.rank).padStart(2, "0")}</div>
                 <div className="v2-fund-name">{f.fundName}</div>
                 <div className={`v2-verdict-tag ${tier}`}>
@@ -53,7 +58,7 @@ export default function IdleView({
                   {label}
                 </div>
                 <div className="v2-fund-score">{Math.round(f.score)}</div>
-              </div>
+              </a>
             );
           })}
         </div>

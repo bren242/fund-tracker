@@ -12,6 +12,7 @@ import Toolbar from "./components/Toolbar";
 import PageWrapper from "./components/PageWrapper";
 import PageFooter from "./components/PageFooter";
 import IdleView from "./components/IdleView";
+import SingleView from "./components/SingleView";
 
 export const dynamic = "force-dynamic";
 
@@ -32,9 +33,9 @@ export interface LeaderboardEntry {
 export default async function ConsistencyV2Page({
   searchParams,
 }: {
-  searchParams: Promise<{ client?: string; window?: string }>;
+  searchParams: Promise<{ client?: string; window?: string; fund?: string }>;
 }) {
-  const { client = "green", window: windowParam } = await searchParams;
+  const { client = "green", window: windowParam, fund: fundParam } = await searchParams;
   const windowSize = [24, 36, 48].includes(Number(windowParam)) ? Number(windowParam) : 24;
 
   const [fundsData, benchmarks] = await Promise.all([
@@ -46,15 +47,44 @@ export default async function ConsistencyV2Page({
   const windowEndInfo = getWindowEndMonth(allFunds, benchmarks);
   const windowInfo = buildWindowInfo(windowEndInfo.endMonth, windowSize);
 
-  // Global leaderboard: compute IR+score for all funds across categories, sort by IR
+  const [y, m] = windowInfo.endMonth ? windowInfo.endMonth.split("-").map(Number) : [0, 0];
+  const dateLabel = y ? `${HEBREW_MONTHS[m - 1]} ${y} · דוח עקביות` : "דוח עקביות";
+
+  // Single fund view
+  if (fundParam) {
+    let fundName: string | undefined;
+    for (const cat of fundsData.categories) {
+      const f = cat.funds.find(f => f.id === fundParam);
+      if (f) { fundName = f.name; break; }
+    }
+
+    return (
+      <>
+        <Suspense fallback={<div className="v2-toolbar" />}>
+          <Toolbar
+            windowSize={windowSize}
+            fundId={fundParam}
+            fundName={fundName}
+            client={client}
+          />
+        </Suspense>
+        <PageWrapper dateLabel={dateLabel}>
+          <SingleView fundId={fundParam} windowSize={windowSize} client={client} />
+          <PageFooter disclaimer="המידע מובא לצורך ניתוח בלבד ואינו מהווה ייעוץ השקעות, המלצה או חוות דעת." />
+        </PageWrapper>
+      </>
+    );
+  }
+
+  // Leaderboard (idle view)
   const allStats: Omit<LeaderboardEntry, "rank">[] = [];
   for (const cat of fundsData.categories) {
     const blend = getBenchmarkForCategory(cat.id);
     if (!blend) continue;
     const bmAll = blendBenchmarkReturns(blend, benchmarks);
     const bmWindow: Record<string, number> = {};
-    for (const m of windowInfo.windowMonths) {
-      if (bmAll[m] != null) bmWindow[m] = bmAll[m];
+    for (const mo of windowInfo.windowMonths) {
+      if (bmAll[mo] != null) bmWindow[mo] = bmAll[mo];
     }
     const stats = computeCategoryStats(cat.id, cat.name, cat.funds, bmWindow, windowInfo.windowMonths);
     for (const f of stats.funds) {
@@ -66,14 +96,10 @@ export default async function ConsistencyV2Page({
   const top5: LeaderboardEntry[] = allStats.slice(0, 5).map((f, i) => ({ ...f, rank: i + 1 }));
   const totalFunds = allStats.length;
 
-  // Masthead date label
-  const [y, m] = windowInfo.endMonth ? windowInfo.endMonth.split("-").map(Number) : [0, 0];
-  const dateLabel = y ? `${HEBREW_MONTHS[m - 1]} ${y} · דוח עקביות` : "דוח עקביות";
-
   return (
     <>
       <Suspense fallback={<div className="v2-toolbar" />}>
-        <Toolbar windowSize={windowSize} />
+        <Toolbar windowSize={windowSize} client={client} />
       </Suspense>
       <PageWrapper dateLabel={dateLabel}>
         <IdleView top5={top5} totalFunds={totalFunds} windowSize={windowSize} />
