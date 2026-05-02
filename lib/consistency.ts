@@ -305,3 +305,223 @@ export function calcOverallScore(
     category: consistencyCategory,
   };
 }
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  V2 — Types                                                                 */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+export interface WorstMonth {
+  monthKey: string;
+  monthLabelHebrew: string;
+  fundReturn: number;
+  benchmarkReturn: number;
+  categoryAverageReturn: number | null;
+  fundVsBenchmark: number;
+}
+
+export interface CategoryFundStat {
+  fundId: string;
+  fundName: string;
+  ir: number;
+}
+
+export interface CategoryStats {
+  categoryKey: string;
+  categoryLabel: string;
+  fundCount: number;
+  averageIR: number;
+  funds: CategoryFundStat[];
+}
+
+export interface SameMonthCohortPosition {
+  fundReturn: number;
+  rank: number;
+  total: number;
+  percentile: number;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  V2 — Private helpers                                                       */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+const HEBREW_MONTH_NAMES = [
+  "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
+  "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר",
+];
+
+function hebrewMonthLabel(monthKey: string): string {
+  const [y, m] = monthKey.split("-");
+  return `${HEBREW_MONTH_NAMES[parseInt(m, 10) - 1]} ${y}`;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  V2 — 7. windowMonthKeys                                                    */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Generates the list of YYYY-MM month keys for a rolling window.
+ * Returns exactly windowSize months ending at endMonth (inclusive), ascending.
+ */
+export function windowMonthKeys(endMonth: string, windowSize: number): string[] {
+  const [y, m] = endMonth.split("-").map(Number);
+  const months: string[] = [];
+  for (let i = windowSize - 1; i >= 0; i--) {
+    const t = y * 12 + m - 1 - i;
+    const yr = Math.floor(t / 12);
+    const mo = (t % 12) + 1;
+    months.push(`${yr}-${String(mo).padStart(2, "0")}`);
+  }
+  return months;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  V2 — 8. computeCategoryAverageReturn                                       */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+const MIN_FUNDS_COHORT = 3;
+
+/**
+ * Arithmetic average of monthlyReturns[monthKey] across funds.
+ * Returns null if fewer than 3 funds have data for that month.
+ */
+export function computeCategoryAverageReturn(
+  categoryFunds: Fund[],
+  monthKey: string
+): number | null {
+  const vals = categoryFunds
+    .map((f) => f.monthlyReturns?.[monthKey])
+    .filter((v): v is number => v != null && !Number.isNaN(v));
+  if (vals.length < MIN_FUNDS_COHORT) return null;
+  return vals.reduce((s, v) => s + v, 0) / vals.length;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  V2 — 9. computeWorstMonth                                                  */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Finds the month in windowMonths where (fundReturn − benchmarkReturn) is lowest.
+ * Returns null if there is no month where both fund and benchmark have data.
+ *
+ * categoryFunds: all funds in the same category (including subject fund),
+ * used to compute the category average for the identified worst month.
+ */
+export function computeWorstMonth(
+  fund: Fund,
+  benchmarkReturns: Record<string, number>,
+  categoryFunds: Fund[],
+  windowMonths: string[]
+): WorstMonth | null {
+  const mr = fund.monthlyReturns ?? {};
+
+  let worstKey: string | null = null;
+  let worstExcess = Infinity;
+
+  for (const m of windowMonths) {
+    const fr = mr[m];
+    const br = benchmarkReturns[m];
+    if (fr == null || br == null) continue;
+    const excess = fr - br;
+    if (excess < worstExcess) {
+      worstExcess = excess;
+      worstKey = m;
+    }
+  }
+
+  if (worstKey === null) return null;
+
+  return {
+    monthKey: worstKey,
+    monthLabelHebrew: hebrewMonthLabel(worstKey),
+    fundReturn: mr[worstKey]!,
+    benchmarkReturn: benchmarkReturns[worstKey]!,
+    categoryAverageReturn: computeCategoryAverageReturn(categoryFunds, worstKey),
+    fundVsBenchmark: worstExcess,
+  };
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  V2 — 10. computeCategoryStats                                              */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Computes IR for every fund in the category over windowMonths.
+ * Only funds with a valid (non-null) IR are included.
+ * Result is sorted descending by IR.
+ * averageIR is the mean IR across all qualifying funds.
+ * fundCount is the number of qualifying funds.
+ */
+export function computeCategoryStats(
+  categoryKey: string,
+  categoryLabel: string,
+  categoryFunds: Fund[],
+  benchmarkReturns: Record<string, number>,
+  windowMonths: string[],
+  minMonths = 12
+): CategoryStats {
+  const fundStats: CategoryFundStat[] = [];
+
+  for (const fund of categoryFunds) {
+    const mr = fund.monthlyReturns ?? {};
+    const fundWindow: Record<string, number> = {};
+    const bmWindow: Record<string, number> = {};
+    for (const m of windowMonths) {
+      if (mr[m] != null) fundWindow[m] = mr[m];
+      if (benchmarkReturns[m] != null) bmWindow[m] = benchmarkReturns[m];
+    }
+    const result = calcConsistencyVsBenchmark(fundWindow, bmWindow, minMonths);
+    if (result?.ir != null) {
+      fundStats.push({ fundId: fund.id, fundName: fund.name, ir: result.ir });
+    }
+  }
+
+  fundStats.sort((a, b) => b.ir - a.ir);
+
+  const averageIR =
+    fundStats.length > 0
+      ? Math.round(
+          (fundStats.reduce((s, f) => s + f.ir, 0) / fundStats.length) * 1000
+        ) / 1000
+      : 0;
+
+  return { categoryKey, categoryLabel, fundCount: fundStats.length, averageIR, funds: fundStats };
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  V2 — 11. computeSameMonthCohortPosition                                    */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Returns rank and percentile of a fund within its category for a specific month.
+ *
+ * rank 1 = best performer. percentile = % of OTHER funds in the category
+ * that the subject fund outperformed (e.g., 78 means "beat 78% of peers").
+ *
+ * Returns null if the fund has no return for monthKey or is the only fund
+ * with data that month.
+ */
+export function computeSameMonthCohortPosition(
+  fund: Fund,
+  categoryFunds: Fund[],
+  monthKey: string
+): SameMonthCohortPosition | null {
+  const fundReturn = fund.monthlyReturns?.[monthKey];
+  if (fundReturn == null) return null;
+
+  const otherReturns = categoryFunds
+    .filter((f) => f.id !== fund.id)
+    .map((f) => f.monthlyReturns?.[monthKey])
+    .filter((v): v is number => v != null && !Number.isNaN(v));
+
+  if (otherReturns.length === 0) return null;
+
+  const strictlyAbove = otherReturns.filter((r) => r > fundReturn).length;
+  const beaten        = otherReturns.filter((r) => fundReturn > r).length;
+
+  return {
+    fundReturn,
+    rank:       1 + strictlyAbove,
+    total:      otherReturns.length + 1,
+    percentile: Math.round((beaten / otherReturns.length) * 100),
+  };
+}
