@@ -115,7 +115,7 @@ export default function SingleView({ fundId, windowSize, client }: SingleViewPro
     <>
       <Hero
         fundName={fund.name}
-        verdictLabel={ai?.verdictLabel ?? "—"}
+        verdictLabel={ai?.verdictLabel ?? ""}
         windowSize={win.months}
         categoryName={fund.category.name}
         benchmarkShortName={benchmarkShortName}

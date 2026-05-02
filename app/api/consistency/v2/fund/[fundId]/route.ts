@@ -31,6 +31,24 @@ import { callAI } from "@/lib/consistency-v2/ai-caller";
 
 const VALID_WINDOWS = new Set([24, 36, 48]);
 
+const SHORT_MONTHS = ["ינו","פבר","מרץ","אפר","מאי","יוני","יולי","אוג","ספט","אוק","נוב","דצ"];
+const HEBREW_MONTHS = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
+
+function hebrewLabel(m: string): string {
+  const [y, mo] = m.split("-").map(Number);
+  return `${HEBREW_MONTHS[mo - 1]} ${y}`;
+}
+function shortLabel(m: string): string {
+  const [y, mo] = m.split("-").map(Number);
+  return `${SHORT_MONTHS[mo - 1]} ${String(y).slice(2)}`;
+}
+
+const BENCH_SHORT: Record<string, string> = {
+  "equity-hedged":  'ת"א 125',
+  "bond-hedged":    'ת"א 125 + תל בונד-מאגר',
+  "multi-strategy": 'ת"א 125 + תל בונד-מאגר',
+};
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ fundId: string }> }
@@ -88,6 +106,44 @@ export async function GET(
     ? computeSameMonthCohortPosition(fund, category.funds, worstMonth.monthKey)
     : null;
 
+  // ── Chart data: monthly excess returns where both fund + benchmark have data ──
+  const chartData = windowMonths
+    .filter((m) => fundWindow[m] != null && bmWindow[m] != null)
+    .map((m) => ({
+      month:        m,
+      shortLabel:   shortLabel(m),
+      excessReturn: fundWindow[m] - bmWindow[m],
+    }));
+
+  // Best month (highest excess return)
+  const bestEntry = chartData.length > 0
+    ? chartData.reduce((a, b) => b.excessReturn > a.excessReturn ? b : a)
+    : null;
+  const bestMonth = bestEntry
+    ? { monthKey: bestEntry.month, monthLabelHebrew: hebrewLabel(bestEntry.month), shortLabel: bestEntry.shortLabel, excessReturn: bestEntry.excessReturn }
+    : null;
+
+  // ── Global rank across all benchmark-mapped categories ──────────────────────
+  const allSystemStats: { fundId: string; ir: number }[] = [];
+  for (const cat of fundsData.categories) {
+    const catBlend = getBenchmarkForCategory(cat.id);
+    if (!catBlend) continue;
+    const catBmAll = blendBenchmarkReturns(catBlend, benchmarks);
+    const catBmW: Record<string, number> = {};
+    for (const m of windowMonths) if (catBmAll[m] != null) catBmW[m] = catBmAll[m];
+    for (const f of cat.funds) {
+      const fW: Record<string, number> = {};
+      for (const m of windowMonths) if (f.monthlyReturns?.[m] != null) fW[m] = f.monthlyReturns[m];
+      const res = calcConsistencyVsBenchmark(fW, catBmW);
+      if (res?.ir != null) allSystemStats.push({ fundId: f.id, ir: res.ir });
+    }
+  }
+  allSystemStats.sort((a, b) => b.ir - a.ir);
+  const totalInSystem = allSystemStats.length;
+  const globalRank    = vsBenchmark?.ir != null
+    ? (allSystemStats.findIndex((f) => f.fundId === fundId) + 1) || null
+    : null;
+
   // ── Build AI analysis ──────────────────────────────────────────────────────
   const categoryRank = categoryStats
     ? (categoryStats.funds.findIndex((f) => f.fundId === fundId) + 1) || null
@@ -100,8 +156,7 @@ export async function GET(
     windowMonths:         windowSize,
     startMonthLabel:      windowMonths.length > 0
       ? windowInfo.windowMonths[0].replace(/(\d{4})-(\d{2})/, (_, y, m) => {
-          const names = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
-          return `${names[parseInt(m,10)-1]} ${y}`;
+          return `${HEBREW_MONTHS[parseInt(m,10)-1]} ${y}`;
         })
       : "",
     endMonthLabel:        windowInfo.endMonthLabel,
@@ -129,7 +184,7 @@ export async function GET(
       total:      cohortPosition.total,
       percentile: cohortPosition.percentile,
     } : null,
-    categoryRank:   categoryRank,
+    categoryRank,
     categoryTotal:  categoryStats?.fundCount ?? null,
     categoryAvgIR:  categoryStats?.averageIR ?? null,
   };
@@ -144,18 +199,23 @@ export async function GET(
   }
 
   return NextResponse.json({
-    window: windowInfo,
+    window:                   windowInfo,
     fund: {
       id:       fund.id,
       name:     fund.name,
       category: { id: category.id, name: category.name },
     },
-    ir:                      vsBenchmark?.ir ?? null,
-    consistencyVsBenchmark:  vsBenchmark,
-    consistencyVsCategory:   vsCategory,
+    benchmarkShortName:       BENCH_SHORT[category.id] ?? getBenchmarkDescription(category.id),
+    ir:                       vsBenchmark?.ir ?? null,
+    consistencyVsBenchmark:   vsBenchmark,
+    consistencyVsCategory:    vsCategory,
     worstMonth,
+    bestMonth,
+    chartData,
     categoryStats,
     worstMonthCohortPosition: cohortPosition,
+    globalRank,
+    totalInSystem,
     ai,
   });
 }
