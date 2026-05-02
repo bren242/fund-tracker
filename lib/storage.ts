@@ -92,8 +92,8 @@ function keyToFilePath(key: string): string {
  * Returns fallback if key doesn't exist.
  */
 export async function storageRead<T>(key: string, fallback: T): Promise<T> {
-  // Try KV first in production
-  if (isProduction()) {
+  // Try KV first in production, or in dev when KV credentials are present
+  if (isProduction() || hasKvEnvVars()) {
     const store = await getKv();
     if (store) {
       try {
