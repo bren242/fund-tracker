@@ -323,6 +323,8 @@ export interface CategoryFundStat {
   fundId: string;
   fundName: string;
   ir: number;
+  /** % months above benchmark, 0-100 */
+  score: number;
 }
 
 export interface CategoryStats {
@@ -471,7 +473,7 @@ export function computeCategoryStats(
     }
     const result = calcConsistencyVsBenchmark(fundWindow, bmWindow, minMonths);
     if (result?.ir != null) {
-      fundStats.push({ fundId: fund.id, fundName: fund.name, ir: result.ir });
+      fundStats.push({ fundId: fund.id, fundName: fund.name, ir: result.ir, score: result.score });
     }
   }
 
@@ -523,5 +525,101 @@ export function computeSameMonthCohortPosition(
     rank:       1 + strictlyAbove,
     total:      otherReturns.length + 1,
     percentile: Math.round((beaten / otherReturns.length) * 100),
+  };
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  V2 — 12. getWindowEndMonth  (dynamic, data-driven)                         */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+export interface WindowEndInfo {
+  /** Final window end month, YYYY-MM */
+  endMonth: string;
+  endMonthLabel: string;
+  /** Median last-month across all funds with data */
+  consensusFundMonth: string;
+  /** Min last-month across benchmarks used in any CATEGORY_BLEND entry */
+  benchmarkCeiling: string;
+  /** Fund IDs whose last data month is behind endMonth */
+  partialFundIds: string[];
+}
+
+/**
+ * Derives the dynamic window end month from real data.
+ *
+ * Algorithm:
+ *   1. For every fund: find its last YYYY-MM with a monthly return.
+ *   2. Sort those months ascending; take the median → "consensus fund month".
+ *      Funds below the median are "partial" — they don't block the window.
+ *   3. For every benchmark referenced in CATEGORY_BLEND: find its last month.
+ *      Take the minimum → "benchmark ceiling" (hard cap).
+ *   4. endMonth = min(consensusFundMonth, benchmarkCeiling).
+ */
+export function getWindowEndMonth(
+  allFunds: Fund[],
+  benchmarks: Benchmark[]
+): WindowEndInfo {
+  // Step 1: collect last month per fund
+  const fundData: Array<{ id: string; lastMonth: string }> = [];
+  for (const fund of allFunds) {
+    const months = Object.keys(fund.monthlyReturns ?? {}).sort();
+    if (months.length > 0) {
+      fundData.push({ id: fund.id, lastMonth: months[months.length - 1] });
+    }
+  }
+
+  if (fundData.length === 0) {
+    return { endMonth: "", endMonthLabel: "", consensusFundMonth: "", benchmarkCeiling: "", partialFundIds: [] };
+  }
+
+  // Step 2: median of last months → consensus
+  const sortedLastMonths = fundData.map((f) => f.lastMonth).sort();
+  const consensusFundMonth = sortedLastMonths[Math.floor(sortedLastMonths.length / 2)];
+
+  // Step 3: min last month across all benchmarks referenced in any blend
+  const relevantBmIds = new Set(
+    Object.values(CATEGORY_BLEND).flatMap((blend) => Object.keys(blend))
+  );
+  const bmLastMonths = Array.from(relevantBmIds)
+    .map((id) => {
+      const bm = benchmarks.find((b) => b.id === id);
+      const months = Object.keys(bm?.monthlyReturns ?? {}).sort();
+      return months.length > 0 ? months[months.length - 1] : null;
+    })
+    .filter((m): m is string => m != null);
+
+  const benchmarkCeiling =
+    bmLastMonths.length > 0
+      ? bmLastMonths.reduce((a, b) => (a < b ? a : b))
+      : consensusFundMonth;
+
+  // Step 4: endMonth = min(consensus, ceiling)
+  const endMonth = consensusFundMonth < benchmarkCeiling ? consensusFundMonth : benchmarkCeiling;
+
+  // Partial = funds whose last month is before endMonth
+  const partialFundIds = fundData.filter((f) => f.lastMonth < endMonth).map((f) => f.id);
+
+  return { endMonth, endMonthLabel: hebrewMonthLabel(endMonth), consensusFundMonth, benchmarkCeiling, partialFundIds };
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  V2 — 13. buildWindowInfo                                                   */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+export interface WindowInfo {
+  endMonth: string;
+  endMonthLabel: string;
+  /** 24 | 36 | 48 */
+  months: number;
+  windowMonths: string[];
+}
+
+/** Builds the full window descriptor given a known endMonth and size. */
+export function buildWindowInfo(endMonth: string, windowSize: number): WindowInfo {
+  return {
+    endMonth,
+    endMonthLabel: hebrewMonthLabel(endMonth),
+    months: windowSize,
+    windowMonths: windowMonthKeys(endMonth, windowSize),
   };
 }

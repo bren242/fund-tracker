@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const h = await headers();
   const pathname = h.get("x-pathname") || "";
-  const showHeader = !pathname.startsWith("/fund-report");
+  const showHeader = !pathname.startsWith("/fund-report") && !pathname.includes("/consistency/v2");
 
   return (
     <html lang="he" dir="rtl" suppressHydrationWarning>
