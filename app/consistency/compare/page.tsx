@@ -96,9 +96,10 @@ function CompareView({
   const G      = brand.primaryColor || "#1B3A2F";
 
   const [data,         setData]         = useState<CompareData | null>(null);
-  const [loading,      setLoading]      = useState(true);
+  const [loading,      setLoading]      = useState(true);   // true until first fetch settles
   const [error,        setError]        = useState<string | null>(null);
   const [endMonth,     setEndMonth]     = useState<string | null>(null);
+  const [paramsReady,  setParamsReady]  = useState(false);  // true once endMonth is validated
   const [selectedYear, setSelectedYear] = useState<number>(CURRENT_YEAR);
   const [selectedMon,  setSelectedMon]  = useState<number>(new Date().getMonth() + 1);
   const [initialized,  setInitialized]  = useState(false);
@@ -111,7 +112,8 @@ function CompareView({
   const fundsParam = fundIds.join(",");
 
   const fetchData = useCallback(async (month: string) => {
-    if (!month) return;
+    // Guard: reject before hitting the API if month is missing or malformed
+    if (!month || !/^\d{4}-\d{2}$/.test(month)) return;
     setLoading(true); setError(null);
     try {
       const res = await fetch(
@@ -134,11 +136,15 @@ function CompareView({
           return acc;
         }, "");
         if (latestDate) {
-          const [y, m] = latestDate.split("-").map(Number);
-          setSelectedYear(y); setSelectedMon(m);
-          setEndMonth(`${y}-${String(m).padStart(2, "0")}`);
-          setInitialized(true);
-          return;
+          const parts = latestDate.split("-").map(Number);
+          const y = parts[0], m = parts[1];
+          // Validate parsed values before using — guards against malformed lastReportDate
+          if (Number.isFinite(y) && y > 2000 && m >= 1 && m <= 12) {
+            setSelectedYear(y); setSelectedMon(m);
+            setEndMonth(`${y}-${String(m).padStart(2, "0")}`);
+            setInitialized(true);
+            return;
+          }
         }
         setInitialized(true);
       }
@@ -148,8 +154,13 @@ function CompareView({
 
   useEffect(() => {
     const now = new Date();
-    const def = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    setEndMonth(def);
+    const y = now.getFullYear();
+    const m = now.getMonth() + 1;
+    if (Number.isFinite(y) && y > 2000 && m >= 1 && m <= 12) {
+      const def = `${y}-${String(m).padStart(2, "0")}`;
+      setEndMonth(def);
+      setParamsReady(true);
+    }
   }, [fundsParam]);
 
   useEffect(() => { if (endMonth) fetchData(endMonth); }, [endMonth]); // eslint-disable-line
@@ -290,11 +301,13 @@ function CompareView({
           )}
         </div>
 
-        {/* Loading / Error */}
-        {loading && (
+        {/* Loading — show spinner while params settle or data is fetching */}
+        {(!paramsReady || loading) && (
           <div style={{ textAlign: "center", padding: 56, color: "var(--text-muted)" }}>טוען...</div>
         )}
-        {error && (
+
+        {/* Error — only show after params are ready (not a race-condition artifact) */}
+        {paramsReady && !loading && error && (
           <div style={{ textAlign: "center", padding: 32 }}>
             <div style={{ fontSize: 14, color: "#DC2626", marginBottom: 16 }}>{error}</div>
             <button
