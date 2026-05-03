@@ -34,6 +34,23 @@ function hebrewYM(m: string): string {
   return `${HEBREW_MONTHS[mo - 1]} ${y}`;
 }
 
+async function readBenchmarksWithRetry(tenant: string): Promise<Benchmark[]> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const benchmarks = await storageRead<Benchmark[]>(`benchmarks:${tenant}`, []);
+    const isValid =
+      benchmarks.length > 0 &&
+      benchmarks.some(
+        (b) => b.monthlyReturns && Object.keys(b.monthlyReturns).length >= 12
+      );
+    if (isValid) {
+      if (attempt > 0) console.warn(`[KV-RETRY] benchmarks valid on attempt ${attempt + 1}`);
+      return benchmarks;
+    }
+    if (attempt < 2) await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
+  }
+  return storageRead<Benchmark[]>(`benchmarks:${tenant}`, []);
+}
+
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const client  = sp.get("client") ?? "green";
@@ -45,7 +62,7 @@ export async function GET(req: NextRequest) {
 
   const [fundsData, benchmarks] = await Promise.all([
     storageRead<FundsData>(`funds:${client}`, { lastUpdated: "", categories: [] }),
-    storageRead<Benchmark[]>(`benchmarks:${client}`, []),
+    readBenchmarksWithRetry(client),
   ]);
 
   const resolved: Array<{ fund: Fund; category: Category }> = [];

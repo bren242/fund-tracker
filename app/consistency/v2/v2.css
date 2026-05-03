@@ -1779,4 +1779,102 @@ details[open].v2-glossary .v2-glossary-summary::before {
   .v2-compare-float { display: none; }
   .cmp-deep { display: none; }
   .cmp-insight-skeleton { display: none; }
+  .cmp-skeleton-wrap { display: none; }
+  .cmp-error { display: none; }
 }
+
+/* ── Compare skeleton (cold-start loading state) ─────── */
+.cmp-skeleton-wrap {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 0 var(--cmp-pad, 16px);
+}
+
+.cmp-skeleton-hero {
+  height: 110px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #e8e6df 25%, #f4f3ef 50%, #e8e6df 75%);
+  background-size: 200% 100%;
+  animation: v2-shimmer 1.4s infinite;
+  margin-bottom: 24px;
+}
+
+.cmp-skeleton-pills {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+
+.cmp-skeleton-pill {
+  height: 30px;
+  width: 64px;
+  border-radius: 15px;
+  background: linear-gradient(90deg, #e8e6df 25%, #f4f3ef 50%, #e8e6df 75%);
+  background-size: 200% 100%;
+  animation: v2-shimmer 1.4s infinite;
+}
+
+.cmp-skeleton-cards {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.cmp-skeleton-card {
+  flex: 1;
+  height: 96px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #e8e6df 25%, #f4f3ef 50%, #e8e6df 75%);
+  background-size: 200% 100%;
+  animation: v2-shimmer 1.4s infinite;
+}
+
+.cmp-skeleton-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+
+.cmp-skeleton-row {
+  height: 34px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #e8e6df 25%, #f4f3ef 50%, #e8e6df 75%);
+  background-size: 200% 100%;
+  animation: v2-shimmer 1.4s infinite;
+}
+
+.cmp-skeleton-heatmap {
+  height: 130px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #e8e6df 25%, #f4f3ef 50%, #e8e6df 75%);
+  background-size: 200% 100%;
+  animation: v2-shimmer 1.4s infinite;
+}
+
+/* ── Compare error state ─────────────────────────────── */
+.cmp-error {
+  text-align: center;
+  padding: 80px 24px;
+  color: var(--ink-faint);
+  direction: rtl;
+}
+
+.cmp-error p {
+  font-family: var(--sans);
+  font-size: 15px;
+  margin-bottom: 20px;
+}
+
+.cmp-error-btn {
+  background: var(--gold);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 9px 22px;
+  font-size: 14px;
+  font-family: var(--sans);
+  cursor: pointer;
+}
+
+.cmp-error-btn:hover { opacity: 0.85; }
