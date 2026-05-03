@@ -1680,7 +1680,8 @@ details[open].v2-glossary .v2-glossary-summary::before {
 
 .cmp-hm-cell-itd {
   border-right: 2px solid var(--gold);
-  opacity: 0.7;
+  background: rgba(95, 94, 90, 0.06) !important;
+  color: #2c2c2a !important;
 }
 
 .cmp-hm-ir {

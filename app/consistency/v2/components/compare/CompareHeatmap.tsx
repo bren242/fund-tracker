@@ -54,7 +54,7 @@ export default function CompareHeatmap({ funds }: { funds: CmpFund[] }) {
                     </td>
                   );
                 })}
-                <td className={`cmp-hm-cell cmp-hm-cell-itd ${irCellClass(itd?.informationRatio ?? null)}`}>
+                <td className="cmp-hm-cell cmp-hm-cell-itd">
                   <span className="cmp-hm-ir">{fmtIR(itd?.informationRatio ?? null)}</span>
                   {itd && <span className="cmp-hm-months">{itd.monthsCount} חו׳</span>}
                 </td>

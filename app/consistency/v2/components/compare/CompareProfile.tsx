@@ -1,13 +1,9 @@
 import type { CmpFund, CmpWindow, CmpWM } from "./types";
 import { FUND_ACCENTS } from "./types";
 
-function fmtPct(v: number | null, d = 1): string {
-  if (v == null) return "—";
-  return (v > 0 ? "+" : "") + v.toFixed(d) + "%";
-}
 function fmtCapture(v: number | null): string {
   if (v == null) return "—";
-  return v.toFixed(0) + "%";
+  return Math.abs(v).toFixed(0) + "%";
 }
 function fmtRatio(a: number, b: number): string {
   return b === 0 ? "—" : `${a}/${b}`;
@@ -42,8 +38,11 @@ const METRICS: MetricDef[] = [
   {
     label: "ירידה מקסימלית",
     getValue: (w) => w.maxDrawdown.drawdownPct !== 0 ? w.maxDrawdown.drawdownPct : null,
-    format: (w) => w.maxDrawdown.drawdownPct !== 0 ? fmtPct(w.maxDrawdown.drawdownPct) : "—",
-    higherIsBetter: false,
+    format: (w) => {
+      const v = w.maxDrawdown.drawdownPct;
+      return v !== 0 ? `-${Math.abs(v).toFixed(1)}%` : "—";
+    },
+    higherIsBetter: true,
   },
 ];
 
