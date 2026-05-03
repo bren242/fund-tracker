@@ -8,7 +8,6 @@ import CompareHeadline from "./CompareHeadline";
 import CompareProfile from "./CompareProfile";
 import CompareHeatmap from "./CompareHeatmap";
 import { CompareInsightSkeleton, CompareInsightContent } from "./CompareInsight";
-import CompareDeepData from "./CompareDeepData";
 
 interface AIInsight { text: string }
 
@@ -47,8 +46,6 @@ export default function CompareView({
       ) : aiInsight?.text ? (
         <CompareInsightContent text={aiInsight.text} />
       ) : null}
-
-      <CompareDeepData />
 
       <div className="v2-disclaimer">
         הנתונים לצורך מידע בלבד ואינם מהווים ייעוץ השקעות.
