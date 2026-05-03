@@ -1,8 +1,8 @@
 /**
  * GET /api/consistency/v2/fund/[fundId]?client=green
  *
- * Returns multi-window consistency metrics + AI insight for a single fund.
- * Computes YTD / 12M / 24M / 36M / lifetime windows in one call.
+ * Returns multi-window consistency metrics for a single fund.
+ * Fast — no AI. AI insight is fetched separately via /insight route.
  */
 export const dynamic = "force-dynamic";
 
@@ -18,30 +18,11 @@ import {
   computeAllWindows,
   type WindowLabel,
 } from "@/lib/consistency";
-import {
-  SYSTEM_PROMPT_FUND,
-  FUND_FORBIDDEN_WORDS,
-  getBenchmarkDescription,
-  buildFundUserMessage,
-  type FundAIInput,
-  type FundAIOutput,
-  type FundWindowAIRow,
-} from "@/lib/consistency-v2/ai-prompts";
-import { makeAICacheKey, getAICache, setAICache } from "@/lib/consistency-v2/ai-cache";
-import { callAIWithForbidden } from "@/lib/consistency-v2/ai-caller";
 
 const BENCH_SHORT: Record<string, string> = {
   "equity-hedged":  'ת"א 125',
   "bond-hedged":    'ת"א 125 + תל בונד-מאגר',
   "multi-strategy": 'ת"א 125 + תל בונד-מאגר',
-};
-
-const WIN_LABEL_DISPLAY: Record<WindowLabel, string> = {
-  YTD:      "מתחילת השנה",
-  "12M":    "12 חודשים",
-  "24M":    "24 חודשים",
-  "36M":    "36 חודשים",
-  lifetime: "כל ההיסטוריה",
 };
 
 const HEBREW_MONTHS = [
@@ -129,56 +110,14 @@ export async function GET(
     monthKeys, categoryFundsIRsByWindow
   );
 
-  // Build AI input
-  const aiWindows: FundWindowAIRow[] = WIN_LABELS
-    .flatMap((wl) => {
-      const w = windows[wl];
-      if (!w) return [];
-      const row: FundWindowAIRow = {
-        label:            WIN_LABEL_DISPLAY[wl],
-        months:           w.monthsCount,
-        fundReturn:       w.fundReturn,
-        excessReturn:     w.excessReturn,
-        ir:               w.informationRatio,
-        aboveBmCount:     w.monthsAboveBenchmark.count,
-        aboveBmTotal:     w.monthsAboveBenchmark.total,
-        mdd:              w.maxDrawdown.drawdownPct !== 0 ? w.maxDrawdown.drawdownPct : null,
-        upCapture:        w.upCapture,
-        downCapture:      w.downCapture,
-        rankInCategory:   w.rankInCategory,
-        totalInCategory:  w.totalInCategory,
-      };
-      return [row];
-    });
-
-  const aiInput: FundAIInput = {
-    fundName:             fund.name,
-    categoryName:         category.name,
-    benchmarkDescription: getBenchmarkDescription(category.id),
-    endMonthLabel:        endMonth ? hebrewLabel(endMonth) : "",
-    windows:              aiWindows,
-  };
-
-  const cacheKey = makeAICacheKey("fund-v25", aiInput);
-  let ai: FundAIOutput | null = await getAICache<FundAIOutput>(cacheKey);
-
-  if (!ai) {
-    const userMessage = buildFundUserMessage(aiInput);
-    ai = await callAIWithForbidden<FundAIOutput>(
-      SYSTEM_PROMPT_FUND, userMessage, FUND_FORBIDDEN_WORDS
-    );
-    if (ai) await setAICache(cacheKey, ai);
-  }
-
   return NextResponse.json({
     fund: {
       id:       fund.id,
       name:     fund.name,
       category: { id: category.id, name: category.name },
     },
-    benchmarkShortName: BENCH_SHORT[category.id] ?? getBenchmarkDescription(category.id),
+    benchmarkShortName: BENCH_SHORT[category.id] ?? category.id,
     endMonthLabel:      endMonth ? hebrewLabel(endMonth) : "",
     windows,
-    ai,
   });
 }

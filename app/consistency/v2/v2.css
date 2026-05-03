@@ -1159,6 +1159,37 @@ details[open].v2-glossary .v2-glossary-summary::before {
   margin: 0;
 }
 
+/* AI Insight loading skeleton */
+.v2-ai-skeleton {
+  max-width: 880px;
+  margin: 24px auto 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.v2-ai-skeleton-label {
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.v2-ai-skeleton-line {
+  height: 12px;
+  background: linear-gradient(90deg, #e8e6df 25%, #f4f3ef 50%, #e8e6df 75%);
+  background-size: 200% 100%;
+  animation: v2-shimmer 1.4s infinite;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+@keyframes v2-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+@media print {
+  .v2-ai-skeleton { display: none; }
+}
+
 /* ── Disclaimer ────────────────────────────────────────── */
 .v2-disclaimer {
   max-width: 880px;
