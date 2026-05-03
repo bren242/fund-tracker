@@ -1251,3 +1251,531 @@ details[open].v2-glossary .v2-glossary-summary::before {
     display: none;
   }
 }
+
+/* ══════════════════════════════════════════════════════════
+   Compare View — cmp- prefix
+   ══════════════════════════════════════════════════════════ */
+
+/* ── Idle View — checkbox + float bar ─────────────────── */
+.v2-top-item-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.v2-top-checkbox {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.v2-top-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--green);
+  cursor: pointer;
+}
+
+.v2-top-checkbox input[type="checkbox"]:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.v2-top-item-wrap .v2-top-item {
+  flex: 1;
+}
+
+.v2-top-item-selected {
+  background: rgba(27, 58, 47, 0.04);
+  border-radius: 6px;
+}
+
+.v2-select-hint {
+  font-size: 11px;
+  color: var(--ink-faint);
+  font-weight: 400;
+}
+
+/* Floating compare bar */
+.v2-compare-float {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--green);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 40px;
+  box-shadow: 0 4px 20px rgba(27, 58, 47, 0.35);
+  font-size: 14px;
+  z-index: 100;
+  white-space: nowrap;
+}
+
+.v2-compare-float-label {
+  font-family: var(--sans);
+  opacity: 0.85;
+}
+
+.v2-compare-float-btn {
+  background: white;
+  color: var(--green);
+  border: none;
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--sans);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.v2-compare-float-btn:hover {
+  background: #f0ede5;
+}
+
+.v2-compare-float-clear {
+  background: transparent;
+  color: rgba(255,255,255,0.6);
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.v2-compare-float-clear:hover { color: white; }
+
+/* ── Compare Hero ─────────────────────────────────────── */
+.cmp-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 880px;
+  margin: 0 auto 32px;
+  padding: 0 16px;
+}
+
+.cmp-hero-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-family: var(--sans);
+  margin-bottom: 6px;
+}
+
+.cmp-hero-title {
+  font-family: var(--serif);
+  font-size: 26px;
+  color: var(--green);
+  margin: 0 0 8px;
+  font-weight: 700;
+}
+
+.cmp-hero-meta {
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--ink-muted);
+  flex-wrap: wrap;
+}
+
+.cmp-hero-date {
+  font-size: 13px;
+  color: var(--ink-faint);
+  white-space: nowrap;
+  padding-top: 4px;
+}
+
+/* ── Window Picker ────────────────────────────────────── */
+.cmp-window-picker {
+  display: flex;
+  gap: 8px;
+  max-width: 880px;
+  margin: 0 auto 24px;
+  padding: 0 16px;
+}
+
+.cmp-pill {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink-muted);
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 13px;
+  font-family: var(--sans);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.cmp-pill:hover {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.cmp-pill-active {
+  background: var(--green);
+  color: white;
+  border-color: var(--green);
+}
+
+/* ── Headline Cards ───────────────────────────────────── */
+.cmp-headline-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  max-width: 880px;
+  margin: 0 auto 32px;
+  padding: 0 16px;
+}
+
+.cmp-card {
+  background: var(--paper);
+  border: 0.5px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  padding: 0 0 16px;
+  position: relative;
+}
+
+.cmp-card-accent {
+  height: 4px;
+  background: var(--accent, var(--green));
+}
+
+.cmp-rank-badge {
+  font-size: 11px;
+  color: var(--ink-faint);
+  padding: 8px 14px 0;
+  font-family: var(--sans);
+}
+
+.cmp-card-name {
+  font-family: var(--serif);
+  font-size: 15px;
+  color: var(--green);
+  font-weight: 600;
+  padding: 6px 14px 0;
+  line-height: 1.3;
+}
+
+.cmp-card-inception {
+  font-size: 11px;
+  color: var(--ink-faint);
+  padding: 4px 14px 0;
+  font-family: var(--sans);
+}
+
+.cmp-card-return {
+  font-family: var(--serif);
+  font-size: 42px;
+  font-weight: 700;
+  padding: 12px 14px 0;
+  line-height: 1;
+  direction: ltr;
+  text-align: right;
+}
+
+.cmp-card-return.cmp-metric-pos { color: var(--green); }
+.cmp-card-return.cmp-metric-neg { color: var(--crimson); }
+.cmp-card-return.cmp-metric-neu { color: var(--ink-muted); }
+.cmp-card-return.cmp-metric-muted { color: var(--ink-faint); }
+
+.cmp-card-return-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+  padding: 2px 14px 12px;
+  font-family: var(--sans);
+}
+
+.cmp-card-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 0.5px solid var(--line);
+  margin: 0 14px;
+  padding-top: 10px;
+  gap: 0;
+}
+
+.cmp-mini-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.cmp-mini-label {
+  font-size: 10px;
+  color: var(--ink-faint);
+  font-family: var(--sans);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cmp-mini-value {
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--sans);
+  direction: ltr;
+}
+
+.cmp-metric-pos  { color: var(--green); }
+.cmp-metric-neg  { color: var(--crimson); }
+.cmp-metric-neu  { color: var(--ink-muted); }
+.cmp-metric-muted { color: var(--ink-faint); }
+
+/* ── Profile Table ────────────────────────────────────── */
+.cmp-profile-wrap {
+  max-width: 880px;
+  margin: 0 auto 32px;
+  padding: 0 16px;
+}
+
+.cmp-section-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  font-family: var(--sans);
+  margin-bottom: 12px;
+}
+
+.cmp-profile-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-family: var(--sans);
+}
+
+.cmp-ptd-metric {
+  text-align: right;
+  width: 160px;
+  color: var(--ink-muted);
+  font-size: 12px;
+  padding: 8px 0;
+  border-bottom: 0.5px solid var(--line);
+}
+
+.cmp-pth-fund {
+  text-align: center;
+  color: var(--ink-soft);
+  font-weight: 500;
+  font-size: 12px;
+  padding: 8px 12px;
+  border-bottom: 0.5px solid var(--line);
+  vertical-align: bottom;
+}
+
+.cmp-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-left: 4px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.cmp-ptr:hover td { background: rgba(0,0,0,0.015); }
+
+.cmp-ptd-label {
+  text-align: right;
+  color: var(--ink-muted);
+  padding: 8px 0;
+  font-size: 12px;
+  border-bottom: 0.5px solid var(--line);
+}
+
+.cmp-ptd {
+  text-align: center;
+  padding: 8px 12px;
+  border-bottom: 0.5px solid var(--line);
+  direction: ltr;
+  color: var(--ink-soft);
+}
+
+.cmp-ptd-best {
+  color: var(--green);
+  font-weight: 600;
+}
+
+.cmp-ptd-worst {
+  color: var(--crimson);
+  opacity: 0.75;
+}
+
+.cmp-best-dot {
+  font-size: 8px;
+  margin-left: 3px;
+  vertical-align: middle;
+  color: var(--green);
+}
+
+/* ── Heatmap ──────────────────────────────────────────── */
+.cmp-heatmap-wrap {
+  max-width: 880px;
+  margin: 0 auto 32px;
+  padding: 0 16px;
+  overflow-x: auto;
+}
+
+.cmp-heatmap {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-family: var(--sans);
+}
+
+.cmp-hm-th-fund {
+  text-align: right;
+  color: var(--ink-faint);
+  font-size: 11px;
+  padding: 0 0 8px;
+  min-width: 160px;
+}
+
+.cmp-hm-th {
+  text-align: center;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+  padding: 0 12px 8px;
+}
+
+.cmp-hm-th-sep {
+  border-right: 2px solid var(--gold);
+  padding-right: 12px;
+}
+
+.cmp-hm-row {
+  border-bottom: 0.5px solid var(--line);
+}
+
+.cmp-hm-fund {
+  text-align: right;
+  padding: 10px 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cmp-hm-cell {
+  text-align: center;
+  padding: 8px 12px;
+  border-radius: 4px;
+}
+
+.cmp-hm-cell-itd {
+  border-right: 2px solid var(--gold);
+  opacity: 0.7;
+}
+
+.cmp-hm-ir {
+  display: block;
+  font-weight: 600;
+  direction: ltr;
+}
+
+.cmp-hm-months {
+  display: block;
+  font-size: 10px;
+  opacity: 0.65;
+  margin-top: 2px;
+}
+
+/* IR color coding */
+.cmp-hm-high-pos  { background: #e4f0e8; color: #1a4a2a; }
+.cmp-hm-low-pos   { background: #f0f7f2; color: #2a6a3a; }
+.cmp-hm-low-neg   { background: #fdf0ef; color: #8b2020; }
+.cmp-hm-high-neg  { background: #f9d8d8; color: #7a1a1a; }
+.cmp-hm-muted     { color: var(--ink-faint); }
+
+/* ── Insight ──────────────────────────────────────────── */
+.cmp-insight {
+  max-width: 880px;
+  margin: 0 auto 28px;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #faf8f2 0%, #f5f2ea 100%);
+  border: 0.5px solid var(--gold);
+  border-radius: 8px;
+}
+
+.cmp-insight-skeleton {
+  border-color: var(--line);
+  background: var(--paper);
+}
+
+.cmp-insight-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--gold);
+  font-family: var(--sans);
+  margin-bottom: 10px;
+}
+
+.cmp-insight-text {
+  font-family: var(--serif);
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--ink-soft);
+  font-style: italic;
+  margin: 0;
+}
+
+/* ── Deep Data ────────────────────────────────────────── */
+.cmp-deep {
+  max-width: 880px;
+  margin: 0 auto 24px;
+  padding: 0 16px;
+}
+
+.cmp-deep-toggle {
+  background: none;
+  border: none;
+  color: var(--ink-faint);
+  font-size: 12px;
+  font-family: var(--sans);
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cmp-deep-toggle:hover { color: var(--ink-muted); }
+
+.cmp-deep-body {
+  margin-top: 12px;
+  padding: 16px;
+  background: var(--paper);
+  border: 0.5px solid var(--line);
+  border-radius: 6px;
+}
+
+.cmp-deep-soon {
+  color: var(--ink-faint);
+  font-size: 13px;
+  font-family: var(--sans);
+  text-align: center;
+  margin: 0;
+}
+
+/* ── Print overrides for compare ─────────────────────── */
+@media print {
+  .v2-compare-float { display: none; }
+  .cmp-deep { display: none; }
+  .cmp-insight-skeleton { display: none; }
+}

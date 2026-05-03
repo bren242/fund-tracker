@@ -1,12 +1,4 @@
-/**
- * GET /api/consistency/v2/compare?funds=fund-19,fund-22&client=green
- *
- * Multi-window metrics for 2-4 funds from the same category.
- * No AI — fetched separately via /insight route.
- */
-export const dynamic = "force-dynamic";
-
-import { NextRequest, NextResponse } from "next/server";
+import { redirect } from "next/navigation";
 import { storageRead } from "@/lib/storage";
 import { FundsData, Fund, Category, Benchmark } from "@/lib/types";
 import {
@@ -18,6 +10,13 @@ import {
   computeAllWindows,
   type WindowLabel,
 } from "@/lib/consistency";
+import BackNav from "../components/BackNav";
+import PageWrapper from "../components/PageWrapper";
+import PageFooter from "../components/PageFooter";
+import CompareView from "../components/compare/CompareView";
+import type { CompareData, CmpFund, CmpWM } from "../components/compare/types";
+
+export const dynamic = "force-dynamic";
 
 const BENCH_SHORT: Record<string, string> = {
   "equity-hedged":  'ת"א 125',
@@ -34,20 +33,26 @@ function hebrewYM(m: string): string {
   return `${HEBREW_MONTHS[mo - 1]} ${y}`;
 }
 
-export async function GET(req: NextRequest) {
-  const sp = req.nextUrl.searchParams;
-  const client  = sp.get("client") ?? "green";
-  const fundIds = (sp.get("funds") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+export default async function ComparePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ client?: string; funds?: string }>;
+}) {
+  const { client = "green", funds: fundsParam } = await searchParams;
 
-  if (fundIds.length < 2 || fundIds.length > 4) {
-    return NextResponse.json({ error: "Provide 2–4 fund IDs in ?funds=" }, { status: 400 });
-  }
+  const idlePath = "/consistency/v2";
+  const rawIds = (fundsParam ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+
+  if (rawIds.length < 2) redirect(`${idlePath}?client=${client}`);
+
+  const fundIds = rawIds.slice(0, 4);
 
   const [fundsData, benchmarks] = await Promise.all([
     storageRead<FundsData>(`funds:${client}`, { lastUpdated: "", categories: [] }),
     storageRead<Benchmark[]>(`benchmarks:${client}`, []),
   ]);
 
+  // Locate all funds
   const resolved: Array<{ fund: Fund; category: Category }> = [];
   for (const id of fundIds) {
     let found = false;
@@ -55,19 +60,16 @@ export async function GET(req: NextRequest) {
       const f = cat.funds.find((f) => f.id === id);
       if (f) { resolved.push({ fund: f, category: cat }); found = true; break; }
     }
-    if (!found) return NextResponse.json({ error: `Fund not found: ${id}` }, { status: 404 });
+    if (!found) redirect(`${idlePath}?client=${client}`);
   }
 
+  // Validate same category
   const categoryIds = new Set(resolved.map((r) => r.category.id));
-  if (categoryIds.size > 1) {
-    return NextResponse.json({ error: "All funds must belong to the same category" }, { status: 400 });
-  }
+  if (categoryIds.size > 1) redirect(`${idlePath}?client=${client}`);
 
   const category = resolved[0].category;
   const blend = getBenchmarkForCategory(category.id);
-  if (!blend) {
-    return NextResponse.json({ error: "No benchmark for category" }, { status: 400 });
-  }
+  if (!blend) redirect(`${idlePath}?client=${client}`);
 
   const allFunds    = fundsData.categories.flatMap((c) => c.funds);
   const { endMonth } = getWindowEndMonth(allFunds, benchmarks);
@@ -76,7 +78,7 @@ export async function GET(req: NextRequest) {
 
   const WIN_LABELS: WindowLabel[] = ["YTD", "12M", "24M", "36M", "lifetime"];
 
-  const funds = resolved.map(({ fund }) => {
+  const funds: CmpFund[] = resolved.map(({ fund }) => {
     const fundMr = fund.monthlyReturns ?? {};
     const monthKeys: string[] = [], fundReturns: number[] = [];
     const benchmarkReturns: number[] = [], categoryAverageReturns: number[] = [];
@@ -84,10 +86,8 @@ export async function GET(req: NextRequest) {
     for (const m of Object.keys(fundMr).sort()) {
       const fr = fundMr[m], br = bmAll[m];
       if (fr == null || br == null) continue;
-      monthKeys.push(m);
-      fundReturns.push(fr);
-      benchmarkReturns.push(br);
-      categoryAverageReturns.push(catAvgAll[m] ?? 0);
+      monthKeys.push(m); fundReturns.push(fr);
+      benchmarkReturns.push(br); categoryAverageReturns.push(catAvgAll[m] ?? 0);
     }
 
     const categoryFundsIRsByWindow: Partial<Record<WindowLabel, number[]>> = {};
@@ -119,16 +119,20 @@ export async function GET(req: NextRequest) {
       inceptionMonth: monthKeys[0] ?? "",
       monthsActive: monthKeys.length,
       windows: {
-        YTD:   allWindows.YTD,
-        "12M": allWindows["12M"],
-        "24M": allWindows["24M"],
-        "36M": allWindows["36M"],
+        YTD:   allWindows.YTD   as CmpWM | null,
+        "12M": allWindows["12M"] as CmpWM | null,
+        "24M": allWindows["24M"] as CmpWM | null,
+        "36M": allWindows["36M"] as CmpWM | null,
       },
-      itd: allWindows.lifetime,
+      itd: allWindows.lifetime as CmpWM | null,
     };
   });
 
-  return NextResponse.json({
+  const dateLabel = endMonth
+    ? `${hebrewYM(endMonth)} · השוואת קרנות`
+    : "השוואת קרנות";
+
+  const compareData: CompareData = {
     category: {
       id: category.id,
       label: category.name,
@@ -137,5 +141,15 @@ export async function GET(req: NextRequest) {
     asOfMonth:      endMonth ?? "",
     asOfMonthLabel: endMonth ? hebrewYM(endMonth) : "",
     funds,
-  });
+  };
+
+  return (
+    <>
+      <BackNav />
+      <PageWrapper dateLabel={dateLabel} idlePath={idlePath}>
+        <CompareView data={compareData} client={client} />
+        <PageFooter disclaimer="המידע מובא לצורך ניתוח בלבד ואינו מהווה ייעוץ השקעות, המלצה או חוות דעת." />
+      </PageWrapper>
+    </>
+  );
 }

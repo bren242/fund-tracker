@@ -35,9 +35,9 @@ export interface LeaderboardEntry {
 export default async function ConsistencyV2Page({
   searchParams,
 }: {
-  searchParams: Promise<{ client?: string; window?: string; fund?: string }>;
+  searchParams: Promise<{ client?: string; window?: string; fund?: string; preselect?: string }>;
 }) {
-  const { client = "green", window: windowParam, fund: fundParam } = await searchParams;
+  const { client = "green", window: windowParam, fund: fundParam, preselect } = await searchParams;
   const windowSize = [24, 36, 48].includes(Number(windowParam)) ? Number(windowParam) : 24;
 
   const [fundsData, benchmarks] = await Promise.all([
@@ -98,7 +98,7 @@ export default async function ConsistencyV2Page({
 
   return (
     <PageWrapper dateLabel={dateLabel} idlePath={idlePath}>
-      <IdleView top5={top5} totalFunds={totalFunds} windowSize={windowSize} searchPool={allStats} />
+      <IdleView top5={top5} totalFunds={totalFunds} windowSize={windowSize} searchPool={allStats} preselectId={preselect} />
       <PageFooter />
     </PageWrapper>
   );

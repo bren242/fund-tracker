@@ -34,14 +34,19 @@ export default function IdleView({
   top5,
   totalFunds,
   searchPool,
+  preselectId,
 }: {
   top5: LeaderboardEntry[];
   totalFunds: number;
   windowSize: number;
   searchPool: SearchEntry[];
+  preselectId?: string;
 }) {
-  const [query, setQuery] = useState("");
-  const [showAll, setShowAll] = useState(false);
+  const [query, setQuery]       = useState("");
+  const [showAll, setShowAll]   = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(
+    preselectId ? new Set([preselectId]) : new Set()
+  );
 
   const results = query.length >= 1
     ? searchPool.filter((f) => f.fundName.includes(query)).slice(0, 8)
@@ -50,6 +55,29 @@ export default function IdleView({
   const displayList: LeaderboardEntry[] = showAll
     ? searchPool.map((f, i) => ({ ...f, rank: i + 1 }))
     : top5;
+
+  // The category of the first selected fund (all must match)
+  const firstSelectedCat = selected.size > 0
+    ? searchPool.find((f) => selected.has(f.fundId))?.categoryId ?? null
+    : null;
+
+  function toggleFund(fundId: string, categoryId: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(fundId)) {
+        next.delete(fundId);
+      } else {
+        if (next.size >= 4) return prev; // max 4
+        if (firstSelectedCat && categoryId !== firstSelectedCat) return prev; // same cat only
+        next.add(fundId);
+      }
+      return next;
+    });
+  }
+
+  const compareUrl = selected.size >= 2
+    ? `compare?funds=${Array.from(selected).join(",")}`
+    : null;
 
   return (
     <>
@@ -98,27 +126,48 @@ export default function IdleView({
       </div>
 
       <div className="v2-top-section">
-        <div className="v2-top-label">מובילות לפי Information Ratio (24 חו׳)</div>
+        <div className="v2-top-label">
+          מובילות לפי Information Ratio (24 חו׳)
+          {selected.size > 0 && (
+            <span className="v2-select-hint"> · בחר 2-4 קרנות מאותה קטגוריה להשוואה</span>
+          )}
+        </div>
         <div className="v2-top-list">
           {displayList.map((f) => {
             const catShort = CAT_SHORT[f.categoryId];
             const cls = irClass(f.ir);
+            const isSelected = selected.has(f.fundId);
+            const isDisabled = !isSelected && selected.size >= 4;
+            const isCatMismatch = !isSelected && firstSelectedCat !== null && f.categoryId !== firstSelectedCat;
+
             return (
-              <a
-                key={f.fundId}
-                className="v2-top-item"
-                href={`?fund=${f.fundId}`}
-              >
-                <div className="v2-rank">{String(f.rank).padStart(2, "0")}</div>
-                <div className="v2-fund-name">{f.fundName}</div>
-                {catShort
-                  ? <div className="v2-cat-pill">{catShort}</div>
-                  : <div />}
-                <div className={`v2-ir-display v2-ir-${cls}`}>
-                  <span className="v2-ir-display-label">IR</span>
-                  <span className="v2-ir-display-value">{fmtIR(f.ir)}</span>
-                </div>
-              </a>
+              <div key={f.fundId} className={`v2-top-item-wrap${isSelected ? " v2-top-item-selected" : ""}`}>
+                <label
+                  className="v2-top-checkbox"
+                  title={isCatMismatch ? "ניתן לבחור קרנות מאותה קטגוריה בלבד" : undefined}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    disabled={isDisabled || isCatMismatch}
+                    onChange={() => toggleFund(f.fundId, f.categoryId)}
+                  />
+                </label>
+                <a
+                  className="v2-top-item"
+                  href={`?fund=${f.fundId}`}
+                >
+                  <div className="v2-rank">{String(f.rank).padStart(2, "0")}</div>
+                  <div className="v2-fund-name">{f.fundName}</div>
+                  {catShort
+                    ? <div className="v2-cat-pill">{catShort}</div>
+                    : <div />}
+                  <div className={`v2-ir-display v2-ir-${cls}`}>
+                    <span className="v2-ir-display-label">IR</span>
+                    <span className="v2-ir-display-value">{fmtIR(f.ir)}</span>
+                  </div>
+                </a>
+              </div>
             );
           })}
         </div>
@@ -130,6 +179,19 @@ export default function IdleView({
           </div>
         )}
       </div>
+
+      {/* Floating compare bar */}
+      {selected.size >= 2 && compareUrl && (
+        <div className="v2-compare-float">
+          <span className="v2-compare-float-label">{selected.size} קרנות נבחרו</span>
+          <a href={compareUrl} className="v2-compare-float-btn">
+            השווה →
+          </a>
+          <button className="v2-compare-float-clear" onClick={() => setSelected(new Set())}>
+            ✕
+          </button>
+        </div>
+      )}
     </>
   );
 }
