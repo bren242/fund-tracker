@@ -8,9 +8,12 @@ export default function PageWrapper({
   return (
     <div className="v2-page">
       <div className="v2-masthead">
-        <div className="v2-brand">
-          <span className="v2-green-mark">GREEN</span>
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/branding/green/logoLight.png"
+          alt="GREEN Wealth Management"
+          className="v2-brand-logo"
+        />
         <div className="v2-date">{dateLabel}</div>
       </div>
       {children}
