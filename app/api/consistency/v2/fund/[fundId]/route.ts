@@ -4,6 +4,8 @@
  * Returns multi-window consistency metrics + AI insight for a single fund.
  * Computes YTD / 12M / 24M / 36M / lifetime windows in one call.
  */
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from "next/server";
 import { storageRead } from "@/lib/storage";
 import { FundsData, Benchmark } from "@/lib/types";
@@ -178,5 +180,12 @@ export async function GET(
     endMonthLabel:      endMonth ? hebrewLabel(endMonth) : "",
     windows,
     ai,
+    _debug: {
+      fundMrCount:    Object.keys(fund.monthlyReturns ?? {}).length,
+      bmAllCount:     Object.keys(bmAll).length,
+      intersectCount: monthKeys.length,
+      firstKey:       monthKeys[0],
+      lastKey:        monthKeys[monthKeys.length - 1],
+    },
   });
 }
