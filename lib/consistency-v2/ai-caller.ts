@@ -7,6 +7,22 @@
 
 import { jsonrepair } from "jsonrepair";
 
+// Fix AI hallucinations: 3+ consecutive identical chars → 2 (e.g. "ממממוצע" → "ממוצע")
+function dedupeChars<T>(value: T): T {
+  if (typeof value === "string") {
+    return value.replace(/(.)\1{2,}/gu, "$1$1") as unknown as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map(dedupeChars) as unknown as T;
+  }
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, dedupeChars(v)])
+    ) as unknown as T;
+  }
+  return value;
+}
+
 const MODEL    = "claude-sonnet-4-5";
 const TEMP     = 0.4;
 const TIMEOUT  = 30_000;
@@ -64,11 +80,11 @@ export async function callAI<T>(
     .trim();
 
   try {
-    return JSON.parse(raw) as T;
+    return dedupeChars(JSON.parse(raw) as T);
   } catch {
     // Try jsonrepair fallback
     try {
-      return JSON.parse(jsonrepair(raw)) as T;
+      return dedupeChars(JSON.parse(jsonrepair(raw)) as T);
     } catch (e) {
       console.error("[ai-caller] JSON parse failed after repair:", e);
       return null;

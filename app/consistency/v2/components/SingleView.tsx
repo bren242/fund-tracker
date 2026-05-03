@@ -8,10 +8,14 @@ import PerformanceChart from "./PerformanceChart";
 import CategoryDotPlot from "./CategoryDotPlot";
 import NumbersTable from "./NumbersTable";
 
-const SHORT_MONTHS = ["ינו","פבר","מרץ","אפר","מאי","יוני","יולי","אוג","ספט","אוק","נוב","דצ"];
-function toShortLabel(monthKey: string): string {
-  const [y, mo] = monthKey.split("-").map(Number);
-  return `${SHORT_MONTHS[mo - 1]} ${String(y).slice(2)}`;
+// Derive a verdict label from numbers when AI is unavailable
+function deriveVerdict(score: number | null, ir: number | null): string {
+  const s = score ?? 0;
+  const i = ir ?? null;
+  if (s >= 75 && (i ?? 0) > 0.5) return "קרן עקבית מאוד";
+  if (s >= 60 && (i ?? 0) > 0) return "קרן עקבית";
+  if (s >= 45 || (i != null && i >= -0.2 && i <= 0)) return "עקביות בינונית";
+  return "קרן לא עקבית";
 }
 
 // Highlights standalone numbers in a string with <span class="num">
@@ -101,7 +105,7 @@ export default function SingleView({ fundId, windowSize, client }: SingleViewPro
   const {
     window: win, fund, benchmarkShortName, ir,
     consistencyVsBenchmark: vsB, consistencyVsCategory: vsC,
-    worstMonth, bestMonth, chartData, categoryStats,
+    worstMonth, chartData, categoryStats,
     globalRank, totalInSystem, ai,
   } = data;
 
@@ -109,13 +113,14 @@ export default function SingleView({ fundId, windowSize, client }: SingleViewPro
     ? (categoryStats.funds.findIndex(f => f.fundId === fund.id) + 1) || null
     : null;
 
-  const worstShortLabel = worstMonth ? toShortLabel(worstMonth.monthKey) : null;
+  // Always show a verdict — use AI label or derive from numbers
+  const verdictLabel = ai?.verdictLabel || deriveVerdict(vsB?.score ?? null, ir);
 
   return (
     <>
       <Hero
         fundName={fund.name}
-        verdictLabel={ai?.verdictLabel ?? ""}
+        verdictLabel={verdictLabel}
         windowSize={win.months}
         categoryName={fund.category.name}
         benchmarkShortName={benchmarkShortName}
@@ -151,12 +156,7 @@ export default function SingleView({ fundId, windowSize, client }: SingleViewPro
           <div className="v2-section-label">ביצועים מול בנצ׳מרק</div>
           <PerformanceChart
             chartData={chartData}
-            worstMonthKey={worstMonth?.monthKey ?? null}
-            worstMonthShortLabel={worstShortLabel}
-            bestMonthKey={bestMonth?.monthKey ?? null}
-            bestMonthShortLabel={bestMonth?.shortLabel ?? null}
             benchmarkName={benchmarkShortName}
-            fundName={fund.name}
           />
         </div>
       )}
