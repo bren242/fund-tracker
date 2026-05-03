@@ -10,31 +10,22 @@
 /* ══════════════════════════════════════════════════════════════════════════ */
 
 export const SYSTEM_PROMPT_FUND = `\
-אתה כותב פסקאות עבור דוח עקביות של קרן בודדת, עבור יועץ פיננסי שיציג את הדוח ללקוח.
-הסגנון: עיתונות פיננסית עברית מקצועית — The Marker meets The Economist.
+אתה כותב תובנה עובדתית קצרה עבור דוח עקביות קרן, עבור יועץ פיננסי.
 
-כללי כתיבה:
-1. עברית בלבד. לא לערבב עם אנגלית בתוך אותה שורה.
-2. מונחים טכניים ללא תרגום שגור (Information Ratio) — להשאיר באנגלית, ולהסביר בקצרה בפעם הראשונה שמופיעים. למשל: "ה-Information Ratio של הקרן (מדד שמשקלל תשואה עודפת ביחס לתנודתיות) עומד על X.XX".
-3. ללא רשימות, ללא bullets. פסקאות שלמות, זורמות.
-4. כל מספר שמוזכר בטקסט חייב להופיע בקלט. אסור להמציא מספרים.
-5. לא להעצים. אם הקרן לא עקבית — להגיד את זה ישירות. אם IR שלילי — להזכיר ולהסביר משמעות. אסור להחביא ביצועים חלשים מאחורי ניסוחים מתוחכמים.
-6. אם consistencyScore < 50 — verdict הוא "קרן לא עקבית" או "עקביות נמוכה". אסור להשתמש ב"מתונה" או "בינונית" לקרנות עם score נמוך.
-7. בעברית פיננסית רהוטה, לא דיבורית. לא לכלול disclaimer — הוא מוצג בנפרד ב-footer.
-
-ממפה verdict לפי הקלט:
-- consistencyScore >= 75 ו-IR > 0.5 → "קרן עקבית מאוד"
-- consistencyScore >= 60 ו-IR > 0 → "קרן עקבית"
-- consistencyScore >= 45 או IR בין -0.2 ל-0 → "עקביות בינונית"
-- אחרת → "קרן לא עקבית"
+כללים מחייבים:
+1. עברית בלבד.
+2. עובדות בלבד — ללא תחזית, ללא המלצה, ללא ניתוח מקרו.
+3. 2–4 משפטים שמסכמים את ביצועי הקרן לפי מדדי העקביות הנתונים.
+4. כל מספר שמוזכר חייב להופיע בקלט. אסור להמציא מספרים.
+5. אין להשתמש במילים: "צפוי", "תחזית", "ריבית", "אינפלציה", "ממליץ", "כדאי", "עתיד", "בעתיד", "יהיה", "תהיה".
+6. ללא disclaimer — הוא מוצג בנפרד.
 
 החזר JSON תקין בלבד, ללא הסברים לפני או אחרי. Schema:
-{
-  "verdictLabel": "קרן עקבית מאוד" | "קרן עקבית" | "עקביות בינונית" | "קרן לא עקבית",
-  "storyParagraphs": ["פסקה ראשונה", "פסקה שנייה", "פסקה שלישית אופציונלית"],
-  "worstMonthNarrative": "משפט אחד-שניים על החודש הקשה",
-  "categoryContextNarrative": "משפט אחד-שניים על המיקום בקטגוריה"
-}`;
+{"insightParagraph": "2–4 משפטים עובדתיים"}`;
+
+export const FUND_FORBIDDEN_WORDS = [
+  "צפוי", "תחזית", "ריבית", "אינפלציה", "ממליץ", "כדאי", "עתיד", "בעתיד",
+];
 
 export const SYSTEM_PROMPT_COMPARE = `\
 אתה כותב פסקאות עבור דוח השוואה של 2-4 קרנות מאותה קטגוריה, עבור יועץ פיננסי.
@@ -66,10 +57,7 @@ export const SYSTEM_PROMPT_COMPARE = `\
 /* ══════════════════════════════════════════════════════════════════════════ */
 
 export interface FundAIOutput {
-  verdictLabel: "קרן עקבית מאוד" | "קרן עקבית" | "עקביות בינונית" | "קרן לא עקבית";
-  storyParagraphs: string[];
-  worstMonthNarrative: string;
-  categoryContextNarrative: string;
+  insightParagraph: string;
 }
 
 export interface CompareAIOutput {
@@ -83,30 +71,27 @@ export interface CompareAIOutput {
 /*  Input types (structured data passed from route to formatter)             */
 /* ══════════════════════════════════════════════════════════════════════════ */
 
+export interface FundWindowAIRow {
+  label: string;       // e.g. "24 חודשים"
+  months: number;
+  fundReturn: number | null;     // cumulative %
+  excessReturn: number | null;   // %
+  ir: number | null;
+  aboveBmCount: number | null;
+  aboveBmTotal: number | null;
+  mdd: number | null;            // negative % or null
+  upCapture: number | null;      // %
+  downCapture: number | null;    // %
+  rankInCategory: number | null;
+  totalInCategory: number | null;
+}
+
 export interface FundAIInput {
   fundName: string;
   categoryName: string;
   benchmarkDescription: string;
-  windowMonths: number;
-  startMonthLabel: string;
   endMonthLabel: string;
-  ir: number | null;
-  vsB: { score: number; wins: number; total: number; avgGap: number } | null;
-  vsC: { score: number; wins: number; total: number } | null;
-  worstMonth: {
-    monthLabel: string;
-    fundReturnPct: number;
-    bmReturnPct: number;
-    gapPct: number;
-    catAvgPct: number | null;
-  } | null;
-  cohort: { rank: number; total: number; percentile: number } | null;
-  categoryRank: number | null;
-  categoryTotal: number | null;
-  categoryAvgIR: number | null;
-  maxDrawdownWindow: number | null;
-  maxDrawdownLifetime: number | null;
-  windowSize: number;
+  windows: FundWindowAIRow[];
 }
 
 export interface CompareAIInput {
@@ -182,61 +167,28 @@ export function buildFundUserMessage(input: FundAIInput): string {
   const lines: string[] = [
     `קרן: ${input.fundName} | קטגוריה: ${input.categoryName}`,
     `בנצ'מרק: ${input.benchmarkDescription}`,
-    `חלון ניתוח: ${input.windowMonths} חודשים (${input.startMonthLabel} – ${input.endMonthLabel})`,
+    `נכון ל: ${input.endMonthLabel}`,
     ``,
-    `ביצועים נגד בנצ'מרק:`,
-    `  Information Ratio: ${irStr(input.ir)}`,
   ];
 
-  if (input.vsB) {
-    lines.push(`  חודשים שעקפה בנצ'מרק: ${input.vsB.wins} מתוך ${input.vsB.total} (${input.vsB.score.toFixed(1)}%)`);
-    lines.push(`  ממוצע פער חודשי (קרן פחות בנצ'מרק): ${pctStr(input.vsB.avgGap)}`);
-  } else {
-    lines.push(`  אין נתונים מספיקים לחישוב`);
-  }
-
-  lines.push(``);
-  lines.push(`ביצועים נגד ממוצע קטגוריה:`);
-  if (input.vsC) {
-    lines.push(`  חודשים מעל ממוצע הקטגוריה: ${input.vsC.wins} מתוך ${input.vsC.total} (${input.vsC.score.toFixed(1)}%)`);
-  } else {
-    lines.push(`  אין נתונים מספיקים לחישוב`);
-  }
-
-  if (input.worstMonth) {
-    const w = input.worstMonth;
+  for (const w of input.windows) {
+    lines.push(`── ${w.label} (${w.months} חודשים) ──`);
+    lines.push(`  תשואה מצטברת: ${w.fundReturn != null ? `${w.fundReturn > 0 ? "+" : ""}${w.fundReturn}%` : "—"}`);
+    lines.push(`  עודף על בנצ'מרק: ${w.excessReturn != null ? `${w.excessReturn > 0 ? "+" : ""}${w.excessReturn}%` : "—"}`);
+    lines.push(`  Information Ratio: ${w.ir != null ? w.ir.toFixed(2) : "—"}`);
+    if (w.aboveBmCount != null && w.aboveBmTotal != null) {
+      lines.push(`  חודשים מעל בנצ'מרק: ${w.aboveBmCount}/${w.aboveBmTotal}`);
+    }
+    if (w.mdd != null) lines.push(`  ירידה מקסימלית: ${w.mdd}%`);
+    if (w.upCapture != null)   lines.push(`  Up Capture: ${w.upCapture}%`);
+    if (w.downCapture != null) lines.push(`  Down Capture: ${w.downCapture}%`);
+    if (w.rankInCategory != null && w.totalInCategory != null) {
+      lines.push(`  דירוג בקטגוריה: ${w.rankInCategory}/${w.totalInCategory + 1}`);
+    }
     lines.push(``);
-    lines.push(`החודש הקשה ביותר:`);
-    lines.push(`  ${w.monthLabel} — קרן: ${pctStr(w.fundReturnPct)}, בנצ'מרק: ${pctStr(w.bmReturnPct)}, פער: ${pctStr(w.gapPct)}`);
-    if (w.catAvgPct != null) {
-      lines.push(`  ממוצע קטגוריה באותו חודש: ${pctStr(w.catAvgPct)}`);
-    }
-    if (input.cohort) {
-      lines.push(`  דירוג הקרן בין חברות הקטגוריה בחודש זה: מקום ${input.cohort.rank} מתוך ${input.cohort.total} (אחוזון ${input.cohort.percentile})`);
-    }
   }
 
-  if (input.categoryTotal != null) {
-    lines.push(``);
-    lines.push(`הקשר קטגוריה (${input.categoryTotal} קרנות עם IR):`);
-    lines.push(`  ממוצע IR קטגוריה: ${irStr(input.categoryAvgIR)}`);
-    if (input.categoryRank != null) {
-      lines.push(`  דירוג הקרן ב-IR בקטגוריה: מקום ${input.categoryRank} מתוך ${input.categoryTotal}`);
-    }
-  }
-
-  if (input.maxDrawdownWindow != null || input.maxDrawdownLifetime != null) {
-    lines.push(``);
-    lines.push(`ירידה מקסימלית (Max Drawdown):`);
-    if (input.maxDrawdownWindow != null) {
-      lines.push(`  ${input.windowSize} חודשים: ${input.maxDrawdownWindow.toFixed(1)}%`);
-    }
-    if (input.maxDrawdownLifetime != null) {
-      lines.push(`  כל ההיסטוריה: ${input.maxDrawdownLifetime.toFixed(1)}%`);
-    }
-  }
-
-  lines.push(``, `כתוב ניתוח כ-JSON תקין בלבד.`);
+  lines.push(`כתוב תובנה עובדתית כ-JSON תקין בלבד.`);
   return lines.join("\n");
 }
 

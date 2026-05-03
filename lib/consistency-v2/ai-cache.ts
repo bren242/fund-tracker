@@ -12,7 +12,7 @@ function isProduction(): boolean {
   return process.env.VERCEL === "1" || process.env.NODE_ENV === "production";
 }
 
-export function makeAICacheKey(prefix: "fund" | "compare", input: unknown): string {
+export function makeAICacheKey(prefix: "fund" | "fund-v25" | "compare", input: unknown): string {
   const hash = crypto
     .createHash("sha256")
     .update(JSON.stringify(input))

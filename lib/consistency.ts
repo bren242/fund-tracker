@@ -736,3 +736,179 @@ export function computeMaxDrawdown(
     monthsAvailable: n,
   };
 }
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  V2.5 — 15. WindowMetrics / computeWindowMetrics / computeAllWindows       */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+export type WindowLabel = 'YTD' | '12M' | '24M' | '36M' | 'lifetime';
+
+export interface WindowMetrics {
+  windowLabel: WindowLabel;
+  monthsCount: number;
+  /** Cumulative geometric return, as percent e.g. 12.34 */
+  fundReturn: number;
+  benchmarkReturn: number;
+  /** fundReturn - benchmarkReturn, as percent */
+  excessReturn: number;
+  informationRatio: number | null;
+  monthsAboveBenchmark: { count: number; total: number };
+  monthsAboveCategory:  { count: number; total: number };
+  maxDrawdown: MaxDrawdownResult;
+  /** Up-market capture ratio, as percent */
+  upCapture: number | null;
+  /** Down-market capture ratio, as percent */
+  downCapture: number | null;
+  rankInCategory: number | null;
+  totalInCategory: number | null;
+}
+
+const WIN_SIZES: Partial<Record<WindowLabel, number>> = { '12M': 12, '24M': 24, '36M': 36 };
+const MIN_IR_MONTHS      = 2;
+const MIN_CAPTURE_MONTHS = 3;
+
+function wArrMean(arr: number[]): number {
+  return arr.length === 0 ? 0 : arr.reduce((a, b) => a + b, 0) / arr.length;
+}
+
+function wSampleStd(arr: number[]): number {
+  if (arr.length < 2) return 0;
+  const m = wArrMean(arr);
+  return Math.sqrt(arr.reduce((acc, v) => acc + (v - m) ** 2, 0) / (arr.length - 1));
+}
+
+function wGeoReturn(returns: number[]): number {
+  return returns.reduce((acc, r) => acc * (1 + r), 1) - 1;
+}
+
+/**
+ * Computes performance metrics for a single time window.
+ * All input arrays are parallel, ordered chronologically.
+ * Returns null when the window has insufficient data.
+ */
+export function computeWindowMetrics(
+  fundReturns: number[],
+  benchmarkReturns: number[],
+  categoryAverageReturns: number[],
+  monthKeys: string[],
+  windowLabel: WindowLabel,
+  categoryFundsIRs: number[]
+): WindowMetrics | null {
+  const n = monthKeys.length;
+  if (n === 0) return null;
+
+  // Determine slice start
+  let sliceStart: number;
+  if (windowLabel === 'lifetime') {
+    sliceStart = 0;
+  } else if (windowLabel === 'YTD') {
+    const endYear = Number(monthKeys[n - 1].slice(0, 4));
+    sliceStart = monthKeys.findIndex(k => Number(k.slice(0, 4)) === endYear);
+    if (sliceStart === -1) return null;
+  } else {
+    const size = WIN_SIZES[windowLabel]!;
+    if (n < size) return null;
+    sliceStart = n - size;
+  }
+
+  const fRet  = fundReturns.slice(sliceStart);
+  const bRet  = benchmarkReturns.slice(sliceStart);
+  const cRet  = categoryAverageReturns.slice(sliceStart);
+  const keys  = monthKeys.slice(sliceStart);
+  const count = fRet.length;
+  if (count === 0) return null;
+
+  // Cumulative returns (as %)
+  const fundReturn      = parseFloat((wGeoReturn(fRet) * 100).toFixed(2));
+  const benchmarkReturn = parseFloat((wGeoReturn(bRet) * 100).toFixed(2));
+  const excessReturn    = parseFloat((fundReturn - benchmarkReturn).toFixed(2));
+
+  // Monthly excess (decimal)
+  const monthlyExcess = fRet.map((f, i) => f - bRet[i]);
+
+  // Information Ratio (annualized, sample std)
+  let informationRatio: number | null = null;
+  if (count >= MIN_IR_MONTHS) {
+    const avg = wArrMean(monthlyExcess);
+    const std = wSampleStd(monthlyExcess);
+    if (std > 1e-10) {
+      informationRatio = parseFloat((avg / std * Math.sqrt(12)).toFixed(2));
+    }
+  }
+
+  // Months above benchmark / category
+  const aboveBm  = fRet.filter((f, i) => f > bRet[i]).length;
+  const aboveCat = fRet.filter((f, i) => f > cRet[i]).length;
+
+  // Max Drawdown
+  const maxDrawdown = computeMaxDrawdown(fRet, keys);
+
+  // Up Capture (months where benchmark > 0)
+  const upIdxs = bRet.reduce<number[]>((acc, b, i) => { if (b > 0) acc.push(i); return acc; }, []);
+  let upCapture: number | null = null;
+  if (upIdxs.length >= MIN_CAPTURE_MONTHS) {
+    const avgFUp = wArrMean(upIdxs.map(i => fRet[i]));
+    const avgBUp = wArrMean(upIdxs.map(i => bRet[i]));
+    if (Math.abs(avgBUp) > 1e-10) {
+      upCapture = parseFloat((avgFUp / avgBUp * 100).toFixed(1));
+    }
+  }
+
+  // Down Capture (months where benchmark < 0)
+  const dnIdxs = bRet.reduce<number[]>((acc, b, i) => { if (b < 0) acc.push(i); return acc; }, []);
+  let downCapture: number | null = null;
+  if (dnIdxs.length >= MIN_CAPTURE_MONTHS) {
+    const avgFDn = wArrMean(dnIdxs.map(i => fRet[i]));
+    const avgBDn = wArrMean(dnIdxs.map(i => bRet[i]));
+    if (Math.abs(avgBDn) > 1e-10) {
+      downCapture = parseFloat((avgFDn / avgBDn * 100).toFixed(1));
+    }
+  }
+
+  // Rank in category by IR
+  let rankInCategory: number | null = null;
+  let totalInCategory: number | null = null;
+  if (informationRatio !== null && categoryFundsIRs.length > 0) {
+    totalInCategory = categoryFundsIRs.length;
+    rankInCategory  = 1 + categoryFundsIRs.filter(ir => ir > informationRatio!).length;
+  }
+
+  return {
+    windowLabel,
+    monthsCount: count,
+    fundReturn,
+    benchmarkReturn,
+    excessReturn,
+    informationRatio,
+    monthsAboveBenchmark: { count: aboveBm,  total: count },
+    monthsAboveCategory:  { count: aboveCat, total: count },
+    maxDrawdown,
+    upCapture,
+    downCapture,
+    rankInCategory,
+    totalInCategory,
+  };
+}
+
+/**
+ * Computes WindowMetrics for all 5 standard windows.
+ * categoryFundsIRsByWindow: per-window list of all other category funds' IRs (for rank).
+ */
+export function computeAllWindows(
+  fundReturns: number[],
+  benchmarkReturns: number[],
+  categoryAverageReturns: number[],
+  monthKeys: string[],
+  categoryFundsIRsByWindow: Partial<Record<WindowLabel, number[]>>
+): Record<WindowLabel, WindowMetrics | null> {
+  const labels: WindowLabel[] = ['YTD', '12M', '24M', '36M', 'lifetime'];
+  return Object.fromEntries(
+    labels.map(wl => [
+      wl,
+      computeWindowMetrics(
+        fundReturns, benchmarkReturns, categoryAverageReturns, monthKeys,
+        wl, categoryFundsIRsByWindow[wl] ?? []
+      ),
+    ])
+  ) as Record<WindowLabel, WindowMetrics | null>;
+}

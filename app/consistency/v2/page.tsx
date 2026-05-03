@@ -70,7 +70,7 @@ export default async function ConsistencyV2Page({
           />
         </Suspense>
         <PageWrapper dateLabel={dateLabel}>
-          <SingleView fundId={fundParam} windowSize={windowSize} client={client} />
+          <SingleView fundId={fundParam} client={client} />
           <PageFooter disclaimer="המידע מובא לצורך ניתוח בלבד ואינו מהווה ייעוץ השקעות, המלצה או חוות דעת." />
         </PageWrapper>
       </>
@@ -93,7 +93,7 @@ export default async function ConsistencyV2Page({
     }
   }
 
-  allStats.sort((a, b) => b.score - a.score);
+  allStats.sort((a, b) => b.ir - a.ir);
   const top5: LeaderboardEntry[] = allStats.slice(0, 5).map((f, i) => ({ ...f, rank: i + 1 }));
   const totalFunds = allStats.length;
 

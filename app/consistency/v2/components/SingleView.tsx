@@ -2,236 +2,87 @@
 
 import { useEffect, useState } from "react";
 import Hero from "./Hero";
-import StoryProse from "./StoryProse";
-import WorstMonth from "./WorstMonth";
-import PerformanceChart from "./PerformanceChart";
-import CategoryDotPlot from "./CategoryDotPlot";
-import NumbersTable from "./NumbersTable";
-import DrawdownSection from "./DrawdownSection";
+import WindowsTable from "./WindowsTable";
+import type { WindowLabel } from "@/lib/consistency";
 
-// Derive a verdict label from numbers when AI is unavailable
-function deriveVerdict(score: number | null, ir: number | null): string {
-  const s = score ?? 0;
-  const i = ir ?? null;
-  if (s >= 75 && (i ?? 0) > 0.5) return "קרן עקבית מאוד";
-  if (s >= 60 && (i ?? 0) > 0) return "קרן עקבית";
-  if (s >= 45 || (i != null && i >= -0.2 && i <= 0)) return "עקביות בינונית";
-  return "קרן לא עקבית";
-}
-
-// Highlights standalone numbers in a string with <span class="num">
-const NUM_RE = /(?<![^\s,.(;\-״"(])(-?\d+(?:\.\d+)?(?:%|(?=[\s,.;:)—״"\n]|$)))/gu;
-function HighlightedLine({ text }: { text: string }) {
-  const parts = text.split(NUM_RE);
-  return (
-    <>
-      {parts.map((p, i) =>
-        /^-?\d+(?:\.\d+)?%?$/.test(p)
-          ? <span key={i} className="num">{p}</span>
-          : p
-      )}
-    </>
-  );
-}
-
-interface WindowData {
-  endMonth: string;
-  endMonthLabel: string;
-  months: number;
-  windowMonths: string[];
-}
-interface FundData {
-  id: string;
-  name: string;
-  category: { id: string; name: string };
-}
-interface ConsResult { score: number; wins: number; total: number; avgGap: number; ir: number | null }
-interface CatResult  { score: number; wins: number; total: number }
-interface WM {
-  monthKey: string; monthLabelHebrew: string;
-  fundReturn: number; benchmarkReturn: number;
-  categoryAverageReturn: number | null; fundVsBenchmark: number;
-}
-interface BestMonth { monthKey: string; monthLabelHebrew: string; shortLabel: string; excessReturn: number }
-interface ChartPoint { month: string; shortLabel: string; excessReturn: number }
 interface MDD {
-  drawdownPct: number; peakMonthKey: string | null; troughMonthKey: string | null;
-  durationMonths: number; recoveryMonths: number | null; monthsAvailable: number;
+  drawdownPct: number;
+  peakMonthKey: string | null;
+  troughMonthKey: string | null;
+  durationMonths: number;
+  recoveryMonths: number | null;
+  monthsAvailable: number;
 }
-interface DrawdownData { fund: MDD; benchmark: MDD; category: MDD }
-interface CatFundStat { fundId: string; fundName: string; ir: number; score: number }
-interface CatStats { categoryKey: string; categoryLabel: string; fundCount: number; averageIR: number; funds: CatFundStat[] }
-interface AI {
-  verdictLabel: string;
-  storyParagraphs: string[];
-  worstMonthNarrative: string;
-  categoryContextNarrative: string;
+interface WM {
+  windowLabel: WindowLabel;
+  monthsCount: number;
+  fundReturn: number;
+  benchmarkReturn: number;
+  excessReturn: number;
+  informationRatio: number | null;
+  monthsAboveBenchmark: { count: number; total: number };
+  monthsAboveCategory:  { count: number; total: number };
+  maxDrawdown: MDD;
+  upCapture: number | null;
+  downCapture: number | null;
+  rankInCategory: number | null;
+  totalInCategory: number | null;
 }
-
 interface FundViewData {
-  window: WindowData;
-  fund: FundData;
+  fund: { id: string; name: string; category: { id: string; name: string } };
   benchmarkShortName: string;
-  ir: number | null;
-  consistencyVsBenchmark: ConsResult | null;
-  consistencyVsCategory: CatResult | null;
-  worstMonth: WM | null;
-  bestMonth: BestMonth | null;
-  chartData: ChartPoint[];
-  categoryStats: CatStats | null;
-  worstMonthCohortPosition: { rank: number; total: number; percentile: number } | null;
-  globalRank: number | null;
-  totalInSystem: number;
-  drawdown: { drawdownWindow: DrawdownData; lifetime: DrawdownData } | null;
-  ai: AI | null;
+  endMonthLabel: string;
+  windows: Record<WindowLabel, WM | null>;
+  ai: { insightParagraph: string } | null;
   error?: string;
 }
 
 interface SingleViewProps {
   fundId: string;
-  windowSize: number;
   client: string;
 }
 
-export default function SingleView({ fundId, windowSize, client }: SingleViewProps) {
+export default function SingleView({ fundId, client }: SingleViewProps) {
   const [data, setData] = useState<FundViewData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
     setData(null);
-    fetch(`/api/consistency/v2/fund/${fundId}?window=${windowSize}&client=${client}`)
-      .then(r => r.json())
+    fetch(`/api/consistency/v2/fund/${fundId}?client=${client}`)
+      .then((r) => r.json())
       .then((d: FundViewData) => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [fundId, windowSize, client]);
+  }, [fundId, client]);
 
   if (loading) return <div className="v2-loading">טוען...</div>;
   if (!data || data.error) return <div className="v2-loading">לא נמצאו נתונים</div>;
 
-  const {
-    window: win, fund, benchmarkShortName, ir,
-    consistencyVsBenchmark: vsB, consistencyVsCategory: vsC,
-    worstMonth, chartData, categoryStats,
-    globalRank, totalInSystem, drawdown, ai,
-  } = data;
-
-  const categoryRank = categoryStats
-    ? (categoryStats.funds.findIndex(f => f.fundId === fund.id) + 1) || null
-    : null;
-
-  // Always show a verdict — use AI label or derive from numbers
-  const verdictLabel = ai?.verdictLabel || deriveVerdict(vsB?.score ?? null, ir);
+  const { fund, benchmarkShortName, endMonthLabel, windows, ai } = data;
 
   return (
     <>
       <Hero
         fundName={fund.name}
-        verdictLabel={verdictLabel}
-        windowSize={win.months}
         categoryName={fund.category.name}
         benchmarkShortName={benchmarkShortName}
+        endMonthLabel={endMonthLabel}
       />
 
-      {/* הסיפור */}
-      {(ai?.storyParagraphs?.length ?? 0) > 0 && (
-        <div className="v2-section">
-          <div className="v2-section-label">הסיפור</div>
-          <StoryProse paragraphs={ai!.storyParagraphs} />
-        </div>
-      )}
-
-      {/* החודש המאתגר */}
-      {worstMonth && (
-        <div className="v2-section">
-          <div className="v2-section-label">החודש המאתגר</div>
-          <div className="v2-section-sublabel">החודש בו הקרן הכי פיגרה אחרי הבנצ׳מרק</div>
-          <WorstMonth
-            monthLabel={worstMonth.monthLabelHebrew}
-            fundName={fund.name}
-            fundReturn={worstMonth.fundReturn}
-            categoryAvg={worstMonth.categoryAverageReturn}
-            benchmarkReturn={worstMonth.benchmarkReturn}
-            benchmarkName={benchmarkShortName}
-            narrative={ai?.worstMonthNarrative ?? ""}
-          />
-        </div>
-      )}
-
-      {/* הירידה הקשה */}
-      {drawdown && (
-        <div className="v2-section">
-          <div className="v2-section-label">הירידה הקשה</div>
-          <div className="v2-section-sublabel">ירידה מצטברת מקסימלית מ-peak ל-trough</div>
-          <div className="v2-section-sublabel v2-section-sublabel--muted">התאוששות = מספר החודשים מהשפל ועד שהקרן חוזרת לערך השיא ממנו ירדה</div>
-          <DrawdownSection
-            drawdownWindow={drawdown.drawdownWindow}
-            lifetime={drawdown.lifetime}
-            benchmarkName={benchmarkShortName}
-            windowSize={win.months}
-          />
-        </div>
-      )}
-
-      {/* ביצועים מול בנצ׳מרק */}
-      {chartData.length > 0 && (
-        <div className="v2-section">
-          <div className="v2-section-label">ביצועים מול בנצ׳מרק</div>
-          <PerformanceChart
-            chartData={chartData}
-            benchmarkName={benchmarkShortName}
-          />
-        </div>
-      )}
-
-      {/* ביחס לקטגוריה */}
-      {categoryStats && (
-        <div className="v2-section">
-          <div className="v2-section-label">ביחס לקטגוריה</div>
-          {ai?.categoryContextNarrative && (
-            <div className="v2-category-lead-line">
-              <HighlightedLine text={ai.categoryContextNarrative} />
-            </div>
-          )}
-          <CategoryDotPlot
-            funds={categoryStats.funds.map(f => ({ fundId: f.fundId, ir: f.ir }))}
-            thisFundId={fund.id}
-            fundName={fund.name}
-            avgIR={categoryStats.averageIR}
-            categoryName={fund.category.name}
-            fundCount={categoryStats.fundCount}
-          />
-          {categoryRank && (
-            <div className="v2-category-rank">
-              <div className="v2-rank-label">דירוג בקטגוריית {fund.category.name}</div>
-              <div className="v2-rank-value">
-                #{categoryRank}<span className="small">/{categoryStats.fundCount}</span>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* המספרים */}
       <div className="v2-section">
-        <div className="v2-section-label">המספרים</div>
-        <NumbersTable
-          ir={ir}
-          benchmarkName={benchmarkShortName}
-          benchmarkWins={vsB?.wins ?? null}
-          benchmarkTotal={vsB?.total ?? null}
-          categoryWins={vsC?.wins ?? null}
-          categoryTotal={vsC?.total ?? null}
-          worstMonthGap={worstMonth?.fundVsBenchmark ?? null}
-          categoryName={fund.category.name}
-          categoryRank={categoryRank}
-          categoryFundCount={categoryStats?.fundCount ?? null}
-          globalRank={globalRank}
-          totalInSystem={totalInSystem}
-          mddWindow={drawdown?.drawdownWindow.fund.drawdownPct ?? null}
-          mddLifetime={drawdown?.lifetime.fund.drawdownPct ?? null}
-          windowSize={win.months}
-        />
+        <WindowsTable windows={windows} benchmarkShortName={benchmarkShortName} />
+      </div>
+
+      {ai?.insightParagraph && (
+        <div className="v2-section v2-ai-insight-section">
+          <div className="v2-section-label">תובנה</div>
+          <p className="v2-ai-insight-text">{ai.insightParagraph}</p>
+        </div>
+      )}
+
+      <div className="v2-disclaimer">
+        הנתונים לצורך מידע בלבד ואינם מהווים ייעוץ השקעות.
+        הביצועים בעבר אינם מבטיחים תשואה עתידית.
       </div>
     </>
   );

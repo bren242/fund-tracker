@@ -27,6 +27,35 @@ const MODEL    = "claude-sonnet-4-5";
 const TEMP     = 0.4;
 const TIMEOUT  = 30_000;
 
+function stringContainsAny(value: unknown, words: string[]): boolean {
+  if (typeof value === "string") return words.some((w) => value.includes(w));
+  if (Array.isArray(value)) return value.some((v) => stringContainsAny(v, words));
+  if (value !== null && typeof value === "object")
+    return Object.values(value as Record<string, unknown>).some((v) => stringContainsAny(v, words));
+  return false;
+}
+
+/**
+ * Like callAI but retries (up to maxRetries times) whenever the result contains
+ * any of the forbidden words. Returns null if all attempts fail.
+ */
+export async function callAIWithForbidden<T>(
+  systemPrompt:   string,
+  userMessage:    string,
+  forbiddenWords: string[],
+  maxRetries = 2,
+  maxTokens  = 2000
+): Promise<T | null> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const result = await callAI<T>(systemPrompt, userMessage, maxTokens);
+    if (!result) return null;
+    if (!stringContainsAny(result, forbiddenWords)) return result;
+    if (attempt < maxRetries)
+      console.warn(`[ai-caller] forbidden word detected (attempt ${attempt + 1}), retrying`);
+  }
+  return null;
+}
+
 export async function callAI<T>(
   systemPrompt: string,
   userMessage:  string,

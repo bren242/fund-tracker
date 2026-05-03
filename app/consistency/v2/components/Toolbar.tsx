@@ -37,10 +37,7 @@ export default function Toolbar({ windowSize, fundId, fundName, client = "green"
           <span className="v2-chip-x" onClick={clearFund}>✕</span>
         </div>
       ) : (
-        <div className="v2-toolbar-search">
-          <span style={{ opacity: 0.5 }}>🔍</span>
-          <input type="text" placeholder="חפש קרן..." readOnly />
-        </div>
+        <div className="v2-toolbar-hint">בחר קרן מהרשימה לצפייה בנתונים</div>
       )}
       <select
         className="v2-window-select"
