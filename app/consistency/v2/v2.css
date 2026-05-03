@@ -936,6 +936,147 @@
 .v2-wtd-neutral  { color: var(--ink-soft); }
 .v2-wtd-muted    { color: var(--ink-faint); }
 
+/* ── Info Icon + Tooltip ──────────────────────────────── */
+.v2-info-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #eceae4;
+  color: var(--ink-muted);
+  font-size: 9px;
+  font-style: normal;
+  cursor: default;
+  margin-right: 6px;
+  vertical-align: middle;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.v2-info-icon .v2-tooltip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  background: var(--ink);
+  color: white;
+  padding: 10px 14px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: normal;
+  width: 230px;
+  text-align: right;
+  z-index: 200;
+  font-weight: 400;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.v2-info-icon:hover .v2-tooltip,
+.v2-info-icon:focus-within .v2-tooltip {
+  display: block;
+}
+
+.v2-tooltip-link {
+  display: block;
+  margin-top: 7px;
+  color: var(--gold);
+  text-decoration: none;
+  font-size: 11px;
+  letter-spacing: 0.3px;
+}
+
+.v2-tooltip-link:hover {
+  text-decoration: underline;
+}
+
+/* ── Glossary ─────────────────────────────────────────── */
+.v2-glossary {
+  border: 1px solid var(--gold);
+  border-radius: 4px;
+  margin-bottom: 48px;
+}
+
+.v2-glossary-summary {
+  padding: 12px 16px;
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 500;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+}
+
+.v2-glossary-summary::-webkit-details-marker { display: none; }
+
+.v2-glossary-summary::before {
+  content: "▸";
+  font-size: 10px;
+  display: inline-block;
+  transition: transform 0.15s;
+}
+
+details[open].v2-glossary .v2-glossary-summary::before {
+  transform: rotate(90deg);
+}
+
+.v2-glossary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 24px;
+  padding: 4px 20px 20px;
+  border-top: 1px solid rgba(184, 151, 90, 0.3);
+}
+
+.v2-glossary-item {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.v2-glossary-item:nth-last-child(1),
+.v2-glossary-item:nth-last-child(2) {
+  border-bottom: none;
+}
+
+.v2-glossary-term {
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--green);
+  margin-bottom: 4px;
+  letter-spacing: 0.1px;
+}
+
+.v2-glossary-def {
+  font-family: var(--sans);
+  font-size: 12px;
+  color: var(--ink-muted);
+  line-height: 1.55;
+  margin: 0;
+}
+
+@media (max-width: 600px) {
+  .v2-glossary-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .v2-glossary-item:last-child {
+    border-bottom: none;
+  }
+  .v2-glossary-item:nth-last-child(2) {
+    border-bottom: 1px solid var(--line);
+  }
+}
+
 /* ── AI Insight ────────────────────────────────────────── */
 .v2-ai-insight-section {
   border-top: 1px solid var(--line);
@@ -960,19 +1101,52 @@
 }
 
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 1.5cm;
+  }
+
   .v2-root {
     background: white;
     padding: 0;
   }
+
   .v2-toolbar {
     display: none;
   }
+
   .v2-page {
     box-shadow: none;
-    max-width: none;
-    padding: 40px 60px;
+    max-width: 100%;
+    padding: 0;
   }
-  @page {
-    margin: 1.5cm;
+
+  .v2-section {
+    page-break-inside: avoid;
+  }
+
+  .v2-hero {
+    page-break-inside: avoid;
+  }
+
+  .v2-wtable-wrap {
+    overflow-x: visible;
+    page-break-inside: avoid;
+  }
+
+  .v2-info-icon {
+    display: none;
+  }
+
+  details.v2-glossary {
+    page-break-inside: avoid;
+  }
+
+  details.v2-glossary > .v2-glossary-grid {
+    display: grid !important;
+  }
+
+  details.v2-glossary > .v2-glossary-summary {
+    display: none;
   }
 }

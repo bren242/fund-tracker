@@ -24,7 +24,7 @@ interface WindowsTableProps {
 
 const WIN_ORDER: WindowLabel[] = ["YTD", "12M", "24M", "36M", "lifetime"];
 const WIN_HEADER: Record<WindowLabel, string> = {
-  YTD:      "מ׳ השנה",
+  YTD:      "YTD",
   "12M":    "12 חו׳",
   "24M":    "24 חו׳",
   "36M":    "36 חו׳",
@@ -74,6 +74,7 @@ function captureClass(v: number | null, isDown: boolean): CellClass {
 interface RowDef {
   label: string;
   sublabel?: string;
+  tooltip?: string;
   cells: (w: WM) => { value: string; cls: CellClass };
 }
 
@@ -97,6 +98,7 @@ export default function WindowsTable({ windows, benchmarkShortName }: WindowsTab
     },
     {
       label: "Information Ratio",
+      tooltip: "עודף התשואה החודשי הממוצע על הבנצ׳מרק, מחולק בסטיית התקן שלו. IR מעל 0.5 = עקביות גבוהה. IR מתחת לאפס = הקרן הפסידה בממוצע לבנצ׳מרק.",
       cells: (w) => ({ value: fmtIR(w.informationRatio), cls: irClass(w.informationRatio) }),
     },
     {
@@ -117,6 +119,7 @@ export default function WindowsTable({ windows, benchmarkShortName }: WindowsTab
     },
     {
       label: "ירידה מקסימלית",
+      tooltip: "הירידה המרבית מנקודת שיא לנקודת שפל בתקופה. ערך נמוך יותר (פחות שלילי) = פחות נזק למשקיע.",
       cells: (w) => ({
         value: w.maxDrawdown.drawdownPct !== 0 ? fmtPct(w.maxDrawdown.drawdownPct) : "—",
         cls: w.maxDrawdown.drawdownPct !== 0 ? "negative" : "muted",
@@ -124,15 +127,18 @@ export default function WindowsTable({ windows, benchmarkShortName }: WindowsTab
     },
     {
       label: "Up Capture",
+      tooltip: "אחוז מתשואת הבנצ׳מרק שהשיגה הקרן בחודשים שבהם הבנצ׳מרק עלה. מעל 100% — הקרן עלתה יותר מהבנצ׳מרק.",
       cells: (w) => ({ value: fmtCapture(w.upCapture), cls: captureClass(w.upCapture, false) }),
     },
     {
       label: "Down Capture",
+      tooltip: "אחוז מירידת הבנצ׳מרק שספגה הקרן בחודשים שבהם הבנצ׳מרק ירד. מתחת ל-100% — הגנה טובה יותר בירידות.",
       cells: (w) => ({ value: fmtCapture(w.downCapture), cls: captureClass(w.downCapture, true) }),
     },
     {
       label: "דירוג בקטגוריה",
       sublabel: "לפי IR",
+      tooltip: "מיקום הקרן בין כלל הקרנות בקטגוריה לפי IR, מהגבוה לנמוך. דירוג 1 = ה-IR הגבוה ביותר בקטגוריה.",
       cells: (w) => ({
         value: fmtRank(w.rankInCategory, w.totalInCategory),
         cls: w.rankInCategory != null && w.totalInCategory != null && w.rankInCategory === 1
@@ -161,6 +167,15 @@ export default function WindowsTable({ windows, benchmarkShortName }: WindowsTab
               <td className="v2-wtd-label">
                 {row.label}
                 {row.sublabel && <span className="v2-wtd-sublabel">{row.sublabel}</span>}
+                {row.tooltip && (
+                  <span className="v2-info-icon">
+                    ⓘ
+                    <span className="v2-tooltip">
+                      {row.tooltip}
+                      <a href="#v2-glossary" className="v2-tooltip-link">ראה מילון מלא ↓</a>
+                    </span>
+                  </span>
+                )}
               </td>
               {cols.map(({ wl, w }) => {
                 if (!w) return <td key={wl} className="v2-wtd v2-wtd-empty">—</td>;
