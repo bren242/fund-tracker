@@ -41,10 +41,15 @@ export default function IdleView({
   searchPool: SearchEntry[];
 }) {
   const [query, setQuery] = useState("");
+  const [showAll, setShowAll] = useState(false);
 
   const results = query.length >= 1
     ? searchPool.filter((f) => f.fundName.includes(query)).slice(0, 8)
     : [];
+
+  const displayList: LeaderboardEntry[] = showAll
+    ? searchPool.map((f, i) => ({ ...f, rank: i + 1 }))
+    : top5;
 
   return (
     <>
@@ -95,7 +100,7 @@ export default function IdleView({
       <div className="v2-top-section">
         <div className="v2-top-label">מובילות לפי Information Ratio (24 חו׳)</div>
         <div className="v2-top-list">
-          {top5.map((f) => {
+          {displayList.map((f) => {
             const catShort = CAT_SHORT[f.categoryId];
             const cls = irClass(f.ir);
             return (
@@ -107,17 +112,21 @@ export default function IdleView({
                 <div className="v2-rank">{String(f.rank).padStart(2, "0")}</div>
                 <div className="v2-fund-name">{f.fundName}</div>
                 {catShort
-                  ? <div className="v2-cat-tag">{catShort}</div>
+                  ? <div className="v2-cat-pill">{catShort}</div>
                   : <div />}
-                <div className={`v2-fund-ir v2-ir-${cls}`}>IR {fmtIR(f.ir)}</div>
-                <div className="v2-fund-score">{Math.round(f.score)}</div>
+                <div className={`v2-ir-display v2-ir-${cls}`}>
+                  <span className="v2-ir-display-label">IR</span>
+                  <span className="v2-ir-display-value">{fmtIR(f.ir)}</span>
+                </div>
               </a>
             );
           })}
         </div>
         {totalFunds > 5 && (
           <div className="v2-show-all">
-            <a href="#">הצג את כל {totalFunds} הקרנות</a>
+            <button className="v2-show-all-btn" onClick={() => setShowAll((s) => !s)}>
+              {showAll ? "הסתר" : `הצג את כל ${totalFunds} הקרנות`}
+            </button>
           </div>
         )}
       </div>

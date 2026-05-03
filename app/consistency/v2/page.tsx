@@ -9,6 +9,7 @@ import {
   computeCategoryStats,
 } from "@/lib/consistency";
 import Toolbar from "./components/Toolbar";
+import BackNav from "./components/BackNav";
 import PageWrapper from "./components/PageWrapper";
 import PageFooter from "./components/PageFooter";
 import IdleView from "./components/IdleView";
@@ -51,6 +52,8 @@ export default async function ConsistencyV2Page({
   const [y, m] = windowInfo.endMonth ? windowInfo.endMonth.split("-").map(Number) : [0, 0];
   const dateLabel = y ? `${HEBREW_MONTHS[m - 1]} ${y} · דוח עקביות` : "דוח עקביות";
 
+  const idlePath = `/${client}/consistency/v2`;
+
   // Single fund view
   if (fundParam) {
     let fundName: string | undefined;
@@ -62,14 +65,10 @@ export default async function ConsistencyV2Page({
     return (
       <>
         <Suspense fallback={<div className="v2-toolbar" />}>
-          <Toolbar
-            windowSize={windowSize}
-            fundId={fundParam}
-            fundName={fundName}
-            client={client}
-          />
+          <Toolbar fundId={fundParam} fundName={fundName} />
         </Suspense>
-        <PageWrapper dateLabel={dateLabel}>
+        <BackNav />
+        <PageWrapper dateLabel={dateLabel} idlePath={idlePath}>
           <SingleView fundId={fundParam} client={client} />
           <PageFooter disclaimer="המידע מובא לצורך ניתוח בלבד ואינו מהווה ייעוץ השקעות, המלצה או חוות דעת." />
         </PageWrapper>
@@ -98,14 +97,9 @@ export default async function ConsistencyV2Page({
   const totalFunds = allStats.length;
 
   return (
-    <>
-      <Suspense fallback={<div className="v2-toolbar" />}>
-        <Toolbar windowSize={windowSize} client={client} />
-      </Suspense>
-      <PageWrapper dateLabel={dateLabel}>
-        <IdleView top5={top5} totalFunds={totalFunds} windowSize={windowSize} searchPool={allStats} />
-        <PageFooter />
-      </PageWrapper>
-    </>
+    <PageWrapper dateLabel={dateLabel} idlePath={idlePath}>
+      <IdleView top5={top5} totalFunds={totalFunds} windowSize={windowSize} searchPool={allStats} />
+      <PageFooter />
+    </PageWrapper>
   );
 }
