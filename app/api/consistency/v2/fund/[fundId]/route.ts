@@ -180,12 +180,5 @@ export async function GET(
     endMonthLabel:      endMonth ? hebrewLabel(endMonth) : "",
     windows,
     ai,
-    _debug: {
-      fundMrCount:    Object.keys(fund.monthlyReturns ?? {}).length,
-      bmAllCount:     Object.keys(bmAll).length,
-      intersectCount: monthKeys.length,
-      firstKey:       monthKeys[0],
-      lastKey:        monthKeys[monthKeys.length - 1],
-    },
   });
 }
