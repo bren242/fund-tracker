@@ -104,6 +104,9 @@ export interface FundAIInput {
   categoryRank: number | null;
   categoryTotal: number | null;
   categoryAvgIR: number | null;
+  maxDrawdownWindow: number | null;
+  maxDrawdownLifetime: number | null;
+  windowSize: number;
 }
 
 export interface CompareAIInput {
@@ -219,6 +222,17 @@ export function buildFundUserMessage(input: FundAIInput): string {
     lines.push(`  ממוצע IR קטגוריה: ${irStr(input.categoryAvgIR)}`);
     if (input.categoryRank != null) {
       lines.push(`  דירוג הקרן ב-IR בקטגוריה: מקום ${input.categoryRank} מתוך ${input.categoryTotal}`);
+    }
+  }
+
+  if (input.maxDrawdownWindow != null || input.maxDrawdownLifetime != null) {
+    lines.push(``);
+    lines.push(`ירידה מקסימלית (Max Drawdown):`);
+    if (input.maxDrawdownWindow != null) {
+      lines.push(`  ${input.windowSize} חודשים: ${input.maxDrawdownWindow.toFixed(1)}%`);
+    }
+    if (input.maxDrawdownLifetime != null) {
+      lines.push(`  כל ההיסטוריה: ${input.maxDrawdownLifetime.toFixed(1)}%`);
     }
   }
 

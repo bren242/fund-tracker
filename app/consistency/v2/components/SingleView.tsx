@@ -7,6 +7,7 @@ import WorstMonth from "./WorstMonth";
 import PerformanceChart from "./PerformanceChart";
 import CategoryDotPlot from "./CategoryDotPlot";
 import NumbersTable from "./NumbersTable";
+import DrawdownSection from "./DrawdownSection";
 
 // Derive a verdict label from numbers when AI is unavailable
 function deriveVerdict(score: number | null, ir: number | null): string {
@@ -53,6 +54,11 @@ interface WM {
 }
 interface BestMonth { monthKey: string; monthLabelHebrew: string; shortLabel: string; excessReturn: number }
 interface ChartPoint { month: string; shortLabel: string; excessReturn: number }
+interface MDD {
+  drawdownPct: number; peakMonthKey: string | null; troughMonthKey: string | null;
+  durationMonths: number; recoveryMonths: number | null; monthsAvailable: number;
+}
+interface DrawdownData { fund: MDD; benchmark: MDD; category: MDD }
 interface CatFundStat { fundId: string; fundName: string; ir: number; score: number }
 interface CatStats { categoryKey: string; categoryLabel: string; fundCount: number; averageIR: number; funds: CatFundStat[] }
 interface AI {
@@ -76,6 +82,7 @@ interface FundViewData {
   worstMonthCohortPosition: { rank: number; total: number; percentile: number } | null;
   globalRank: number | null;
   totalInSystem: number;
+  drawdown: { drawdownWindow: DrawdownData; lifetime: DrawdownData } | null;
   ai: AI | null;
   error?: string;
 }
@@ -106,7 +113,7 @@ export default function SingleView({ fundId, windowSize, client }: SingleViewPro
     window: win, fund, benchmarkShortName, ir,
     consistencyVsBenchmark: vsB, consistencyVsCategory: vsC,
     worstMonth, chartData, categoryStats,
-    globalRank, totalInSystem, ai,
+    globalRank, totalInSystem, drawdown, ai,
   } = data;
 
   const categoryRank = categoryStats
@@ -146,6 +153,19 @@ export default function SingleView({ fundId, windowSize, client }: SingleViewPro
             benchmarkReturn={worstMonth.benchmarkReturn}
             benchmarkName={benchmarkShortName}
             narrative={ai?.worstMonthNarrative ?? ""}
+          />
+        </div>
+      )}
+
+      {/* הירידה הקשה */}
+      {drawdown && (
+        <div className="v2-section">
+          <div className="v2-section-label">הירידה הקשה</div>
+          <DrawdownSection
+            drawdownWindow={drawdown.drawdownWindow}
+            lifetime={drawdown.lifetime}
+            benchmarkName={benchmarkShortName}
+            windowSize={win.months}
           />
         </div>
       )}
@@ -205,6 +225,9 @@ export default function SingleView({ fundId, windowSize, client }: SingleViewPro
           categoryFundCount={categoryStats?.fundCount ?? null}
           globalRank={globalRank}
           totalInSystem={totalInSystem}
+          mddWindow={drawdown?.drawdownWindow.fund.drawdownPct ?? null}
+          mddLifetime={drawdown?.lifetime.fund.drawdownPct ?? null}
+          windowSize={win.months}
         />
       </div>
     </>

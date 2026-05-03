@@ -11,6 +11,9 @@ interface NumbersTableProps {
   categoryFundCount: number | null;
   globalRank: number | null;
   totalInSystem: number;
+  mddWindow: number | null;
+  mddLifetime: number | null;
+  windowSize: number;
 }
 
 function fmtPct(v: number): string {
@@ -18,13 +21,20 @@ function fmtPct(v: number): string {
   return v >= 0 ? `+${pct}%` : `−${pct}%`;
 }
 
+function fmtMdd(pct: number | null): string {
+  if (pct == null) return "—";
+  if (pct === 0) return "ללא ירידה";
+  return `${pct.toFixed(1)}%`;
+}
+
 export default function NumbersTable({
   ir, benchmarkName, benchmarkWins, benchmarkTotal,
   categoryWins, categoryTotal, worstMonthGap,
   categoryName, categoryRank, categoryFundCount,
   globalRank, totalInSystem,
+  mddWindow, mddLifetime, windowSize,
 }: NumbersTableProps) {
-  const rows: { label: string; value: string; small?: string; neg?: boolean }[] = [
+  const rows: { label: string; value: string; small?: string; neg?: boolean; muted?: boolean }[] = [
     {
       label: "Information Ratio",
       value: ir != null ? ir.toFixed(2) : "—",
@@ -55,6 +65,18 @@ export default function NumbersTable({
       value: globalRank != null ? `#${globalRank}` : "—",
       small: totalInSystem > 0 ? `/${totalInSystem}` : undefined,
     },
+    {
+      label: `ירידה מקסימלית · ${windowSize} חודשים`,
+      value: fmtMdd(mddWindow),
+      neg: mddWindow != null && mddWindow < 0,
+      muted: mddWindow === 0,
+    },
+    {
+      label: "ירידה מקסימלית · כל ההיסטוריה",
+      value: fmtMdd(mddLifetime),
+      neg: mddLifetime != null && mddLifetime < 0,
+      muted: mddLifetime === 0,
+    },
   ];
 
   return (
@@ -62,7 +84,7 @@ export default function NumbersTable({
       {rows.map((row, i) => (
         <div key={i} className="v2-numbers-row">
           <div className="v2-numbers-label">{row.label}</div>
-          <div className={`v2-numbers-value${row.neg ? " negative" : ""}`}>
+          <div className={`v2-numbers-value${row.neg ? " negative" : ""}${row.muted ? " muted" : ""}`}>
             {row.value}
             {row.small && <span className="small">{row.small}</span>}
           </div>

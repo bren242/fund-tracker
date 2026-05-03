@@ -18,6 +18,7 @@ import {
   computeWorstMonth,
   computeCategoryStats,
   computeSameMonthCohortPosition,
+  computeMaxDrawdown,
 } from "@/lib/consistency";
 import {
   SYSTEM_PROMPT_FUND,
@@ -30,6 +31,11 @@ import { makeAICacheKey, getAICache, setAICache } from "@/lib/consistency-v2/ai-
 import { callAI } from "@/lib/consistency-v2/ai-caller";
 
 const VALID_WINDOWS = new Set([24, 36, 48]);
+
+function mddFromRecord(rec: Record<string, number>, months?: string[]) {
+  const keys = months ? months.filter(m => rec[m] != null) : Object.keys(rec).sort();
+  return computeMaxDrawdown(keys.map(k => rec[k]), keys);
+}
 
 const SHORT_MONTHS = ["ינו","פבר","מרץ","אפר","מאי","יוני","יולי","אוג","ספט","אוק","נוב","דצ"];
 const HEBREW_MONTHS = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
@@ -105,6 +111,21 @@ export async function GET(
   const cohortPosition = worstMonth
     ? computeSameMonthCohortPosition(fund, category.funds, worstMonth.monthKey)
     : null;
+
+  // ── Max Drawdown ────────────────────────────────────────────────────────────
+  const NO_MDD = computeMaxDrawdown([], []);
+  const drawdown = {
+    drawdownWindow: {
+      fund:      mddFromRecord(fundWindow, windowMonths),
+      benchmark: blend ? mddFromRecord(bmWindow, windowMonths) : NO_MDD,
+      category:  mddFromRecord(catAvgWindow, windowMonths),
+    },
+    lifetime: {
+      fund:      mddFromRecord(fund.monthlyReturns ?? {}),
+      benchmark: blend ? mddFromRecord(bmAll) : NO_MDD,
+      category:  mddFromRecord(catAvgAll),
+    },
+  };
 
   // ── Chart data: monthly excess returns where both fund + benchmark have data ──
   const chartData = windowMonths
@@ -185,8 +206,11 @@ export async function GET(
       percentile: cohortPosition.percentile,
     } : null,
     categoryRank,
-    categoryTotal:  categoryStats?.fundCount ?? null,
-    categoryAvgIR:  categoryStats?.averageIR ?? null,
+    categoryTotal:       categoryStats?.fundCount ?? null,
+    categoryAvgIR:       categoryStats?.averageIR ?? null,
+    maxDrawdownWindow:   drawdown.drawdownWindow.fund.drawdownPct !== 0 ? drawdown.drawdownWindow.fund.drawdownPct : null,
+    maxDrawdownLifetime: drawdown.lifetime.fund.drawdownPct !== 0 ? drawdown.lifetime.fund.drawdownPct : null,
+    windowSize,
   };
 
   const cacheKey = makeAICacheKey("fund", aiInput);
@@ -216,6 +240,7 @@ export async function GET(
     worstMonthCohortPosition: cohortPosition,
     globalRank,
     totalInSystem,
+    drawdown,
     ai,
   });
 }

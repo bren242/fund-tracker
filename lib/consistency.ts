@@ -623,3 +623,116 @@ export function buildWindowInfo(endMonth: string, windowSize: number): WindowInf
     windowMonths: windowMonthKeys(endMonth, windowSize),
   };
 }
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  V2 — 14. computeMaxDrawdown                                               */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+export interface MaxDrawdownResult {
+  /** Negative percentage, e.g. -12.43. 0 means no drawdown. */
+  drawdownPct: number;
+  peakMonthIndex: number | null;
+  troughMonthIndex: number | null;
+  peakMonthKey: string | null;
+  troughMonthKey: string | null;
+  /** troughIndex - peakIndex; 0 if no drawdown */
+  durationMonths: number;
+  /** Months from trough until wealth recovers to peak; null if not yet recovered */
+  recoveryMonths: number | null;
+  /** How many months of data were available for this calculation */
+  monthsAvailable: number;
+}
+
+const MDD_EPSILON = 1e-9;
+
+/**
+ * Computes Max Drawdown using geometric compounding of monthly returns.
+ * monthlyReturns and monthKeys must be the same length and ordered chronologically.
+ * Throws if lengths differ.
+ */
+export function computeMaxDrawdown(
+  monthlyReturns: number[],
+  monthKeys: string[]
+): MaxDrawdownResult {
+  if (monthlyReturns.length !== monthKeys.length) {
+    throw new Error(
+      `computeMaxDrawdown: length mismatch (returns=${monthlyReturns.length}, keys=${monthKeys.length})`
+    );
+  }
+
+  const n = monthlyReturns.length;
+  const NO_DD: MaxDrawdownResult = {
+    drawdownPct: 0,
+    peakMonthIndex: null,
+    troughMonthIndex: null,
+    peakMonthKey: null,
+    troughMonthKey: null,
+    durationMonths: 0,
+    recoveryMonths: null,
+    monthsAvailable: n,
+  };
+
+  if (n === 0) return NO_DD;
+
+  // Build wealth index (geometric compounding)
+  const wealth = new Array<number>(n);
+  wealth[0] = 1 + monthlyReturns[0];
+  for (let i = 1; i < n; i++) {
+    wealth[i] = wealth[i - 1] * (1 + monthlyReturns[i]);
+  }
+
+  // Build running max and drawdown series
+  const runningMax = new Array<number>(n);
+  const drawdown   = new Array<number>(n);
+  runningMax[0] = wealth[0];
+  drawdown[0]   = 0;
+  for (let i = 1; i < n; i++) {
+    runningMax[i] = Math.max(runningMax[i - 1], wealth[i]);
+    drawdown[i]   = wealth[i] / runningMax[i] - 1;
+  }
+
+  // Max drawdown = minimum of drawdown series
+  let maxDD = 0;
+  for (let i = 0; i < n; i++) {
+    if (drawdown[i] < maxDD) maxDD = drawdown[i];
+  }
+
+  if (maxDD >= -MDD_EPSILON) return NO_DD; // no meaningful drawdown
+
+  // Trough index: argmin(drawdown)
+  let troughIndex = 0;
+  for (let i = 1; i < n; i++) {
+    if (drawdown[i] < drawdown[troughIndex]) troughIndex = i;
+  }
+
+  // Peak index: last index ≤ troughIndex where wealth[i] = runningMax[troughIndex]
+  // Scan backward from troughIndex to find the last peak
+  const peakWealth = runningMax[troughIndex];
+  let peakIndex = 0;
+  for (let i = troughIndex; i >= 0; i--) {
+    if (Math.abs(wealth[i] - peakWealth) < MDD_EPSILON) {
+      peakIndex = i;
+      break;
+    }
+  }
+
+  // Recovery: first index after trough where wealth >= peakWealth
+  let recoveryMonths: number | null = null;
+  for (let i = troughIndex + 1; i < n; i++) {
+    if (wealth[i] >= peakWealth - MDD_EPSILON) {
+      recoveryMonths = i - troughIndex;
+      break;
+    }
+  }
+
+  return {
+    drawdownPct:     parseFloat((maxDD * 100).toFixed(2)),
+    peakMonthIndex:  peakIndex,
+    troughMonthIndex: troughIndex,
+    peakMonthKey:    monthKeys[peakIndex],
+    troughMonthKey:  monthKeys[troughIndex],
+    durationMonths:  troughIndex - peakIndex,
+    recoveryMonths,
+    monthsAvailable: n,
+  };
+}
