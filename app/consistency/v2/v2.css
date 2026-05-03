@@ -225,6 +225,60 @@
   letter-spacing: 0.3px;
 }
 
+/* Search dropdown */
+.v2-hero-search-wrap {
+  position: relative;
+}
+.v2-search-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  z-index: 100;
+  overflow: hidden;
+}
+.v2-search-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  text-decoration: none;
+  color: var(--ink);
+  gap: 12px;
+  transition: background 0.1s;
+}
+.v2-search-result:last-child { border-bottom: none; }
+.v2-search-result:hover { background: rgba(184,151,90,0.06); }
+.v2-search-name {
+  font-family: var(--serif);
+  font-size: 18px;
+  color: var(--ink);
+  flex: 1;
+}
+.v2-search-cat {
+  font-family: var(--sans);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  flex-shrink: 0;
+}
+
+/* Category tag in top-5 list */
+.v2-cat-tag {
+  font-family: var(--sans);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  font-weight: 400;
+}
+
 /* ── Divider ──────────────────────────────────────────── */
 .v2-divider {
   text-align: center;
@@ -284,13 +338,13 @@
 
 .v2-top-item {
   display: grid;
-  grid-template-columns: 32px 1fr auto auto;
+  grid-template-columns: 32px 1fr auto auto auto;
   align-items: center;
   padding: 22px 0;
   border-bottom: 1px solid var(--line);
   cursor: pointer;
   transition: background 0.15s;
-  gap: 20px;
+  gap: 16px;
   text-decoration: none;
   color: inherit;
 }
@@ -487,6 +541,20 @@
   flex: 1;
   height: 1px;
   background: var(--line);
+}
+
+.v2-section-sublabel {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 16px;
+  color: var(--gold);
+  margin-bottom: 6px;
+  letter-spacing: -0.1px;
+}
+.v2-section-sublabel--muted {
+  color: var(--ink-faint);
+  font-size: 14px;
+  margin-bottom: 20px;
 }
 
 /* Story prose */

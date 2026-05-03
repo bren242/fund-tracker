@@ -25,6 +25,7 @@ export interface LeaderboardEntry {
   rank: number;
   fundId: string;
   fundName: string;
+  categoryId: string;
   categoryLabel: string;
   ir: number;
   score: number;
@@ -88,11 +89,11 @@ export default async function ConsistencyV2Page({
     }
     const stats = computeCategoryStats(cat.id, cat.name, cat.funds, bmWindow, windowInfo.windowMonths);
     for (const f of stats.funds) {
-      allStats.push({ fundId: f.fundId, fundName: f.fundName, categoryLabel: cat.name, ir: f.ir, score: f.score });
+      allStats.push({ fundId: f.fundId, fundName: f.fundName, categoryId: cat.id, categoryLabel: cat.name, ir: f.ir, score: f.score });
     }
   }
 
-  allStats.sort((a, b) => b.ir - a.ir);
+  allStats.sort((a, b) => b.score - a.score);
   const top5: LeaderboardEntry[] = allStats.slice(0, 5).map((f, i) => ({ ...f, rank: i + 1 }));
   const totalFunds = allStats.length;
 
@@ -102,7 +103,7 @@ export default async function ConsistencyV2Page({
         <Toolbar windowSize={windowSize} client={client} />
       </Suspense>
       <PageWrapper dateLabel={dateLabel}>
-        <IdleView top5={top5} totalFunds={totalFunds} windowSize={windowSize} />
+        <IdleView top5={top5} totalFunds={totalFunds} windowSize={windowSize} searchPool={allStats} />
         <PageFooter />
       </PageWrapper>
     </>

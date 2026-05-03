@@ -141,10 +141,11 @@ export default function SingleView({ fundId, windowSize, client }: SingleViewPro
         </div>
       )}
 
-      {/* החודש הקשה */}
+      {/* החודש המאתגר */}
       {worstMonth && (
         <div className="v2-section">
-          <div className="v2-section-label">החודש הקשה</div>
+          <div className="v2-section-label">החודש המאתגר</div>
+          <div className="v2-section-sublabel">החודש בו הקרן הכי פיגרה אחרי הבנצ׳מרק</div>
           <WorstMonth
             monthLabel={worstMonth.monthLabelHebrew}
             fundName={fund.name}
@@ -161,6 +162,8 @@ export default function SingleView({ fundId, windowSize, client }: SingleViewPro
       {drawdown && (
         <div className="v2-section">
           <div className="v2-section-label">הירידה הקשה</div>
+          <div className="v2-section-sublabel">ירידה מצטברת מקסימלית מ-peak ל-trough</div>
+          <div className="v2-section-sublabel v2-section-sublabel--muted">התאוששות = מספר החודשים מהשפל ועד שהקרן חוזרת לערך השיא ממנו ירדה</div>
           <DrawdownSection
             drawdownWindow={drawdown.drawdownWindow}
             lifetime={drawdown.lifetime}

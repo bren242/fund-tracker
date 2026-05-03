@@ -52,11 +52,7 @@ export default function Toolbar({ windowSize, fundId, fundName, client = "green"
         <option value={48}>חלון: 48 חודשים</option>
       </select>
       <div className="v2-spacer" />
-      <button
-        className={`v2-btn${fundId ? " active" : ""}`}
-        disabled={!fundId}
-        onClick={goCompare}
-      >
+      <button className="v2-btn" disabled title="בקרוב">
         + השווה
       </button>
       <button className="v2-btn" onClick={() => window.print()}>
