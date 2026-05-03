@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/consistency/v2/compare?funds=fund-24,fund-22,fund-23&client=green&window=24
  *

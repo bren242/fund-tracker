@@ -129,7 +129,6 @@ export interface CompareAIInput {
 const BENCHMARK_NAMES: Record<string, string> = {
   "bm-ta125":          'ת"א 125',
   "bm-telbond-maagar": "תל בונד-מאגר",
-  "bm-telbond-tsuot":  "תל בונד-תשואות",
   "bm-agach-klali":    'אג"ח כללי',
   "bm-sme60":          "SME 60",
 };

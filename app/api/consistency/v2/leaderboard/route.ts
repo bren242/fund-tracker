@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/consistency/v2/leaderboard?client=green&window=24&limit=10
  *
