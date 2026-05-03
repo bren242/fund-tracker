@@ -1,7 +1,7 @@
 # Fund Tracker — SPEC.md
-> מצב נכון ל: 2026-04-15 | Cache v47 | גרסה אחרונה: NOX v1.1 release — feature-flag nav + year mode + changelog modal
-> **NOX סגור ונעול** — ראה סעיף "עדכון אחרון" למטה.
-> **פתוח:** 502 חדש בפרסר — לא אובחן עדיין. חשד: מודל `claude-sonnet-4-5` דפרקייטד לטובת `claude-sonnet-4-6`
+> מצב נכון ל: 2026-05-03 | Cache v47 | גרסה אחרונה: consistency v2.5 — multi-window facts-only redesign
+> **עדיפות:** consistency v2 compare view (4c) — עדיין disabled
+> **פתוח:** 502 בפרסר — חשד: `claude-sonnet-4-5` דפרקייטד
 
 ---
 
@@ -129,7 +129,65 @@
 
 ---
 
-## עדכון אחרון (2026-04-15 — NOX v1.1 release) 🔒
+## עדכון אחרון (2026-05-03 — consistency v2.5) ✅
+
+### Consistency V2.5 — multi-window facts-only redesign
+
+**מה בוצע:**
+
+**1. `lib/consistency.ts` — computeWindowMetrics + computeAllWindows**
+- `WindowLabel` type: `'YTD' | '12M' | '24M' | '36M' | 'lifetime'`
+- `WindowMetrics` interface: תשואה, IR, Up/Down Capture, MDD, דירוג בקטגוריה
+- `computeWindowMetrics(fundReturns, bmReturns, catReturns, monthKeys, windowLabel, categoryIRs)` — metrics לחלון בודד
+- `computeAllWindows(...)` — מחשב את כל 5 החלונות בבת אחת
+- Logic: YTD = כל החודשים בשנה של החודש האחרון; 12M/24M/36M = slice אחרון; lifetime = הכל
+
+**2. `__tests__/consistency.test.ts` — 26 unit tests חדשים**
+- 10 קיימים ל-computeMaxDrawdown
+- 16 חדשים ל-computeWindowMetrics + computeAllWindows
+- כוסו: YTD slicing, IR formula, Up/Down Capture, rank עם שוויון, null על חלון קצר מדי
+
+**3. API route — `app/api/consistency/v2/fund/[fundId]/route.ts`**
+- מחושבים כל 5 חלונות בקריאה אחת
+- דירוג קטגוריה מחושב per-window (IR של כל קרן אחרת בקטגוריה לאותו חלון)
+- Response: `{ fund, benchmarkShortName, endMonthLabel, windows, ai }`
+- אין יותר `window` param — כל החלונות מוחזרים תמיד
+
+**4. AI — facts-only system prompt + forbidden words**
+- `SYSTEM_PROMPT_FUND`: 2-4 משפטים עובדתיים, ללא תחזית/המלצה
+- `FUND_FORBIDDEN_WORDS`: ["צפוי", "תחזית", "ריבית", "אינפלציה", "ממליץ", "כדאי", "עתיד", "בעתיד"]
+- `callAIWithForbidden()` ב-ai-caller.ts: מנסה עד 3 פעמים אם מילים אסורות מופיעות
+- `FundAIOutput`: `{ insightParagraph: string }` (בוטל verdictLabel/storyParagraphs/worstMonth)
+
+**5. `WindowsTable.tsx` — NEW component**
+- 5 עמודות (YTD | 12M | 24M | 36M | כל הנתונים) × 10 שורות
+- תשואה, בנצ'מרק, עודף, IR, מעל בנצ'מרק, מעל קטגוריה, MDD, Up/Down Capture, דירוג
+- Color coding: positive=ירוק, negative=אדום
+- חלון לא זמין → "—" (null gracefully)
+
+**6. `SingleView.tsx` — rewrite**
+- הסרת: StoryProse, WorstMonth, PerformanceChart, CategoryDotPlot, NumbersTable, DrawdownSection
+- נשאר: Hero + WindowsTable + AI insight paragraph + Disclaimer
+
+**7. `Hero.tsx` — updated**
+- הוסר: verdictLabel, windowSize
+- נוסף: endMonthLabel
+
+**8. `IdleView.tsx` + `Toolbar.tsx` + `page.tsx`**
+- IdleView: כותרת ניטרלית, IR display בכל קרן, URL ללא window param
+- Toolbar: הוסרה search box ב-idle state
+- page.tsx: מיון לפי IR (לא score)
+
+**Commits:** `f9cfb5f`
+**Bundle:** `/consistency/v2` — 3.09 kB (היה 5.95 kB, –48%)
+
+### הצעד הבא
+- Compare view (4c) — עדיין disabled, להוסיף אחרי אישור V2.5 בפרודקשן
+- לבדוק MDD בפרודקשן: drawdownPct=0 כשאין ירידה מוצג כ"—" (נכון)
+
+---
+
+## עדכון קודם (2026-04-15 — NOX v1.1 release) 🔒
 
 ### NOX — סגור ונעול ✅
 
