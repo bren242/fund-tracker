@@ -52,7 +52,7 @@ export default async function ConsistencyV2Page({
   const [y, m] = windowInfo.endMonth ? windowInfo.endMonth.split("-").map(Number) : [0, 0];
   const dateLabel = y ? `${HEBREW_MONTHS[m - 1]} ${y} · דוח עקביות` : "דוח עקביות";
 
-  const idlePath = `/${client}/consistency/v2`;
+  const idlePath = "/consistency/v2";
 
   // Single fund view
   if (fundParam) {
