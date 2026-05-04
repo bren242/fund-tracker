@@ -35,12 +35,14 @@ export default function IdleView({
   totalFunds,
   searchPool,
   preselectId,
+  client = "green",
 }: {
   top5: LeaderboardEntry[];
   totalFunds: number;
   windowSize: number;
   searchPool: SearchEntry[];
   preselectId?: string;
+  client?: string;
 }) {
   const [query, setQuery]       = useState("");
   const [showAll, setShowAll]   = useState(false);
@@ -76,7 +78,7 @@ export default function IdleView({
   }
 
   const compareUrl = selected.size >= 2
-    ? `compare?funds=${Array.from(selected).join(",")}`
+    ? `/consistency/v2/compare?funds=${Array.from(selected).join(",")}&client=${client}`
     : null;
 
   return (

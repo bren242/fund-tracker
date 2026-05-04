@@ -3,18 +3,8 @@
 import { useEffect, useState } from "react";
 import Hero from "./Hero";
 import WindowsTable from "./WindowsTable";
+import GlossarySection, { SINGLE_GLOSSARY_TERMS } from "./GlossarySection";
 import type { WindowLabel } from "@/lib/consistency";
-
-const GLOSSARY_TERMS = [
-  { term: "Information Ratio (IR)", def: "עודף התשואה החודשי הממוצע על הבנצ׳מרק, מחולק בסטיית התקן שלו. IR מעל 0.5 = עקביות גבוהה. IR מתחת לאפס = הקרן הפסידה בממוצע לבנצ׳מרק." },
-  { term: "ירידה מקסימלית (MDD)", def: "הירידה המרבית מנקודת שיא לנקודת שפל בתקופה. מדד לגרוע ביותר שחווה המשקיע." },
-  { term: "Up Capture", def: "אחוז מתשואת הבנצ׳מרק שהשיגה הקרן בחודשים שבהם הבנצ׳מרק עלה. מעל 100% — הקרן עלתה יותר." },
-  { term: "Down Capture", def: "אחוז מירידת הבנצ׳מרק שספגה הקרן בחודשים שבהם הבנצ׳מרק ירד. מתחת ל-100% — הגנה טובה יותר בירידות." },
-  { term: "עודף על בנצ׳מרק", def: "הפרש התשואה המצטברת בין הקרן לבנצ׳מרק באותה תקופה. מחושב כ: תשואת קרן פחות תשואת בנצ׳מרק." },
-  { term: "דירוג בקטגוריה", def: "מיקום הקרן בין כלל הקרנות בקטגוריה לפי IR, מהגבוה לנמוך. דירוג 1 = ה-IR הגבוה ביותר בקטגוריה." },
-  { term: "מעל בנצ׳מרק", def: "מספר החודשים שבהם תשואת הקרן עלתה על תשואת הבנצ׳מרק, מתוך סך החודשים בחלון הזמן." },
-  { term: "מעל קטגוריה", def: "מספר החודשים שבהם תשואת הקרן עלתה על ממוצע תשואות כלל הקרנות בקטגוריה." },
-];
 
 interface MDD {
   drawdownPct: number;
@@ -114,17 +104,7 @@ export default function SingleView({ fundId, client }: SingleViewProps) {
         <WindowsTable windows={windows} benchmarkShortName={benchmarkShortName} />
       </div>
 
-      <details id="v2-glossary" className="v2-glossary">
-        <summary className="v2-glossary-summary">מילון מונחים</summary>
-        <div className="v2-glossary-grid">
-          {GLOSSARY_TERMS.map(({ term, def }) => (
-            <div key={term} className="v2-glossary-item">
-              <dt className="v2-glossary-term">{term}</dt>
-              <dd className="v2-glossary-def">{def}</dd>
-            </div>
-          ))}
-        </div>
-      </details>
+      <GlossarySection terms={SINGLE_GLOSSARY_TERMS} />
 
       {aiLoading ? (
         <AIInsightSkeleton />

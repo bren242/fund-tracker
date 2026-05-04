@@ -16,6 +16,7 @@ import IdleView from "./components/IdleView";
 import SingleView from "./components/SingleView";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const HEBREW_MONTHS = [
   "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
@@ -65,7 +66,7 @@ export default async function ConsistencyV2Page({
     return (
       <>
         <Suspense fallback={<div className="v2-toolbar" />}>
-          <Toolbar fundId={fundParam} fundName={fundName} />
+          <Toolbar fundId={fundParam} fundName={fundName} client={client} />
         </Suspense>
         <BackNav />
         <PageWrapper dateLabel={dateLabel} idlePath={idlePath}>
@@ -98,7 +99,7 @@ export default async function ConsistencyV2Page({
 
   return (
     <PageWrapper dateLabel={dateLabel} idlePath={idlePath}>
-      <IdleView top5={top5} totalFunds={totalFunds} windowSize={windowSize} searchPool={allStats} preselectId={preselect} />
+      <IdleView top5={top5} totalFunds={totalFunds} windowSize={windowSize} searchPool={allStats} preselectId={preselect} client={client} />
       <PageFooter />
     </PageWrapper>
   );

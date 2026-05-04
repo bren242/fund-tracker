@@ -1216,6 +1216,10 @@ details[open].v2-glossary .v2-glossary-summary::before {
     display: none;
   }
 
+  .v2-back-nav {
+    display: none;
+  }
+
   .v2-page {
     box-shadow: none;
     max-width: 100%;
@@ -1774,6 +1778,47 @@ details[open].v2-glossary .v2-glossary-summary::before {
   margin: 0;
 }
 
+/* ── Tooltip ⓘ ──────────────────────────────────────── */
+.v2-tooltip-wrap {
+  position: relative;
+  display: inline-block;
+  cursor: help;
+  margin-left: 4px;
+}
+
+.v2-tooltip-icon {
+  font-size: 10px;
+  color: var(--ink-faint);
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.v2-tooltip-wrap::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  background: #1b1b19;
+  color: #f5f3ee;
+  padding: 7px 11px;
+  border-radius: 5px;
+  font-size: 12px;
+  line-height: 1.55;
+  width: 220px;
+  white-space: normal;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  z-index: 200;
+  text-align: right;
+  direction: rtl;
+  font-weight: 400;
+}
+
+.v2-tooltip-wrap:hover::after {
+  opacity: 1;
+}
+
 /* ── Print overrides for compare ─────────────────────── */
 @media print {
   .v2-compare-float { display: none; }
@@ -1781,6 +1826,22 @@ details[open].v2-glossary .v2-glossary-summary::before {
   .cmp-insight-skeleton { display: none; }
   .cmp-skeleton-wrap { display: none; }
   .cmp-error { display: none; }
+  .v2-tooltip-wrap::after { display: none; }
+
+  /* glossary open in print for compare (same pattern as single) */
+  details.v2-glossary > .v2-glossary-grid { display: grid !important; }
+  details.v2-glossary > .v2-glossary-summary { display: none; }
+  details.v2-glossary { page-break-inside: avoid; }
+
+  /* compare sections: page-break-inside avoid */
+  .cmp-profile-wrap { page-break-inside: avoid; }
+  .cmp-heatmap-wrap { page-break-inside: avoid; }
+  .cmp-headline-wrap { page-break-inside: avoid; }
+  .cmp-hero { page-break-inside: avoid; }
+  .cmp-insight { page-break-inside: avoid; }
+
+  /* disclaimer always visible */
+  .v2-disclaimer { display: block !important; page-break-inside: avoid; }
 }
 
 /* ── Compare skeleton (cold-start loading state) ─────── */

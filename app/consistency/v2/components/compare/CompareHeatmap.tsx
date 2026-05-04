@@ -1,5 +1,6 @@
 import type { CmpFund, CmpWM } from "./types";
 import { FUND_ACCENTS } from "./types";
+import { Tooltip } from "../Tooltip";
 
 function fmtIR(v: number | null): string {
   if (v == null) return "—";
@@ -24,7 +25,10 @@ const WIN_COLS: { key: "YTD" | "12M" | "24M" | "36M"; label: string }[] = [
 export default function CompareHeatmap({ funds }: { funds: CmpFund[] }) {
   return (
     <div className="cmp-heatmap-wrap">
-      <div className="cmp-section-label">Information Ratio — כל החלונות</div>
+      <div className="cmp-section-label">
+        <Tooltip text="עודף התשואה החודשי הממוצע על הבנצ׳מרק, מחולק בסטיית התקן שלו. IR מעל 0.5 = עקביות גבוהה." />
+        Information Ratio — כל החלונות
+      </div>
       <table className="cmp-heatmap">
         <thead>
           <tr>

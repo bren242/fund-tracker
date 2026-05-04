@@ -1,16 +1,19 @@
 import type { CmpFund, CmpWindow, CmpWM } from "./types";
 import { FUND_ACCENTS } from "./types";
+import { Tooltip } from "../Tooltip";
 
 function fmtCapture(v: number | null): string {
   if (v == null) return "—";
   return Math.abs(v).toFixed(0) + "%";
 }
 function fmtRatio(a: number, b: number): string {
-  return b === 0 ? "—" : `${a}/${b}`;
+  if (b === 0) return "—";
+  return `${Math.max(0, a)}/${b}`;
 }
 
 interface MetricDef {
   label: string;
+  tooltip: string;
   getValue: (w: CmpWM) => number | null;
   format: (w: CmpWM) => string;
   higherIsBetter: boolean;
@@ -19,24 +22,28 @@ interface MetricDef {
 const METRICS: MetricDef[] = [
   {
     label: "חודשים מעל בנצ׳מרק",
+    tooltip: "מספר החודשים שבהם תשואת הקרן עלתה על הבנצ׳מרק, מתוך סך חודשי חלון הזמן.",
     getValue: (w) => w.monthsAboveBenchmark.total > 0 ? w.monthsAboveBenchmark.count / w.monthsAboveBenchmark.total : null,
     format: (w) => fmtRatio(w.monthsAboveBenchmark.count, w.monthsAboveBenchmark.total),
     higherIsBetter: true,
   },
   {
     label: "Up Capture",
+    tooltip: "אחוז מתשואת הבנצ׳מרק שהשיגה הקרן בחודשי עליה. מעל 100% — הקרן עלתה יותר.",
     getValue: (w) => w.upCapture,
     format: (w) => fmtCapture(w.upCapture),
     higherIsBetter: true,
   },
   {
     label: "Down Capture",
+    tooltip: "אחוז מירידת הבנצ׳מרק שספגה הקרן בחודשי ירידה. מתחת ל-100% — הגנה טובה יותר.",
     getValue: (w) => w.downCapture,
     format: (w) => fmtCapture(w.downCapture),
     higherIsBetter: false,
   },
   {
     label: "ירידה מקסימלית",
+    tooltip: "הירידה המרבית מנקודת שיא לשפל בתקופה.",
     getValue: (w) => w.maxDrawdown.drawdownPct !== 0 ? w.maxDrawdown.drawdownPct : null,
     format: (w) => {
       const v = w.maxDrawdown.drawdownPct;
@@ -79,7 +86,10 @@ export default function CompareProfile({
 
             return (
               <tr key={metric.label} className="cmp-ptr">
-                <td className="cmp-ptd-label">{metric.label}</td>
+                <td className="cmp-ptd-label">
+                  <Tooltip text={metric.tooltip} />
+                  {metric.label}
+                </td>
                 {funds.map((f, i) => {
                   const w = windows[i];
                   const val = w ? metric.getValue(w) : null;

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Toolbar from "../components/Toolbar";
 import BackNav from "../components/BackNav";
 import PageWrapper from "../components/PageWrapper";
 import PageFooter from "../components/PageFooter";
@@ -21,6 +22,7 @@ export default async function ComparePage({
 
   return (
     <>
+      <Toolbar isCompare client={client} />
       <BackNav />
       <PageWrapper dateLabel="השוואת קרנות" idlePath={idlePath}>
         <CompareView fundIds={fundIds} client={client} />

@@ -8,6 +8,7 @@ import CompareHeadline from "./CompareHeadline";
 import CompareProfile from "./CompareProfile";
 import CompareHeatmap from "./CompareHeatmap";
 import { CompareInsightSkeleton, CompareInsightContent } from "./CompareInsight";
+import GlossarySection, { COMPARE_GLOSSARY_TERMS } from "../GlossarySection";
 
 interface AIInsight { text: string }
 
@@ -129,6 +130,8 @@ export default function CompareView({
       ) : aiInsight?.text ? (
         <CompareInsightContent text={aiInsight.text} />
       ) : null}
+
+      <GlossarySection terms={COMPARE_GLOSSARY_TERMS} />
 
       <div className="v2-disclaimer">
         הנתונים לצורך מידע בלבד ואינם מהווים ייעוץ השקעות.
