@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef, Suspense } from "react";
 import { FundsData, Fund, Category, Benchmark } from "@/lib/types";
-import { pct, returnColorInline } from "@/lib/format";
+import { pct, returnColorInline, formatReportDate } from "@/lib/format";
 import { ThemeToggle } from "@/components/ThemeProvider";
 import { useBrand, invalidateBrandCache } from "@/lib/useBrand";
 import { useClientKey, withClient } from "@/lib/useClientKey";
@@ -95,7 +95,7 @@ function AdminContent() {
               // Also save to monthlyReturns history based on lastUpdated
               const mr = { ...(fund.monthlyReturns || {}) };
               if (data.lastUpdated && numVal !== null) {
-                const monthKey = data.lastUpdated.slice(0, 7); // "2026-02" from "2026-02-28"
+                const monthKey = data.lastUpdated.slice(0, 7); // "2026-04" — already YYYY-MM, slice is a no-op guard
                 mr[monthKey] = numVal;
               }
               return { ...fund, monthlyReturn: numVal, monthlyReturns: mr };
@@ -354,7 +354,7 @@ function AdminContent() {
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <BrandLogo brand={brand} height={26} variant="light" />
             <span style={{ fontSize: 13, color: "var(--text-primary)", fontWeight: 600 }}>ממשק ניהול</span>
-            <span style={{ fontSize: 10, color: "var(--text-muted)" }}>עדכון: {data.lastUpdated}</span>
+            <span style={{ fontSize: 10, color: "var(--text-muted)" }}>עדכון: {formatReportDate(data.lastUpdated)}</span>
             {brand.version && (
               <span style={{ fontSize: 10, color: "var(--text-muted)", backgroundColor: "var(--bg-input)", padding: "2px 8px", borderRadius: 4, fontWeight: 500 }}>
                 v{brand.version}
@@ -552,7 +552,7 @@ function MonthlyDataTab({ data, updateFund, onUpdateDate, onApplyFundLastUpdated
           מעודכן לתאריך:
         </label>
         <input
-          type="date"
+          type="month"
           value={data.lastUpdated || ""}
           onChange={(e) => onUpdateDate(e.target.value)}
           style={{
@@ -568,7 +568,7 @@ function MonthlyDataTab({ data, updateFund, onUpdateDate, onApplyFundLastUpdated
           dir="ltr"
         />
         <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-          תאריך זה יופיע בכותרת הדוח וההדפסה כ&quot;מעודכן ל:...&quot;
+          חודש זה יופיע בכותרת הדוח וההדפסה כ&quot;מעודכן ל:...&quot;
         </span>
       </div>
 
@@ -1214,12 +1214,12 @@ function FundManagementTab({ data, onToggleActive, onDelete, onShowAdd, onEdit, 
                       <td style={{ padding: "6px 12px", fontWeight: 600, textAlign: "right" }}>
                         {fund.name}
                         {(() => {
-                          if (!fund.lastReportDate || !isActive) return null;
-                          const lastDate = new Date(fund.lastReportDate + "-01");
+                          if (!fund.lastUpdated || !isActive) return null;
+                          const lastDate = new Date(fund.lastUpdated + "-01");
                           const now = new Date();
                           const monthsDiff = (now.getFullYear() - lastDate.getFullYear()) * 12 + (now.getMonth() - lastDate.getMonth());
                           if (monthsDiff >= 3) {
-                            return <span style={{ fontSize: 9, color: "#f59e0b", marginRight: 6, fontWeight: 400 }} title={`עדכון אחרון: ${fund.lastReportDate}`}>⚠️ לא עודכנה {monthsDiff} חודשים</span>;
+                            return <span style={{ fontSize: 9, color: "#f59e0b", marginRight: 6, fontWeight: 400 }} title={`עדכון אחרון: ${fund.lastUpdated}`}>⚠️ לא עודכנה {monthsDiff} חודשים</span>;
                           }
                           return null;
                         })()}
@@ -1818,7 +1818,7 @@ function FundModal({ title, categories, selectedCategory, existingFund, onCatego
         classification: existingFund.classification,
         manager: existingFund.manager,
         startDate: existingFund.startDate || "",
-        lastReportDate: existingFund.lastReportDate || "",
+        lastUpdated: existingFund.lastUpdated || "",
         monthlyReturn: existingFund.monthlyReturn !== null ? (existingFund.monthlyReturn * 100).toFixed(2) : "",
         ytd2026: existingFund.returns.ytd2026 !== null ? (existingFund.returns.ytd2026 * 100).toFixed(2) : "",
         y2025: existingFund.returns.y2025 !== null ? (existingFund.returns.y2025 * 100).toFixed(2) : "",
@@ -1835,7 +1835,7 @@ function FundModal({ title, categories, selectedCategory, existingFund, onCatego
       };
     }
     return {
-      name: "", classification: "", manager: "", startDate: "", lastReportDate: "",
+      name: "", classification: "", manager: "", startDate: "", lastUpdated: "",
       monthlyReturn: "", ytd2026: "", y2025: "", y2024: "", y2023: "", y2022: "",
       y2021: "", y2020: "", y2019: "", avgAnnualReturn: "", sharpe: "", stdDev: "", aumMillions: "",
     };
@@ -1862,7 +1862,7 @@ function FundModal({ title, categories, selectedCategory, existingFund, onCatego
       classification: form.classification.trim(),
       manager: form.manager.trim(),
       startDate: form.startDate || null,
-      lastReportDate: form.lastReportDate || null,
+      lastUpdated: form.lastUpdated || null,
       monthlyReturn: parsePct(form.monthlyReturn),
       returns: {
         ytd2026: parsePct(form.ytd2026),
@@ -2053,8 +2053,8 @@ function FundModal({ title, categories, selectedCategory, existingFund, onCatego
             <input type="date" value={form.startDate} onChange={(e) => update("startDate", e.target.value)} style={fieldStyle} dir="ltr" />
           </div>
           <div>
-            <label style={labelStyle}>תאריך דוח אחרון</label>
-            <input type="text" value={form.lastReportDate ?? ""} onChange={(e) => update("lastReportDate", e.target.value)} style={fieldStyle} dir="ltr" placeholder="לא עודכן" />
+            <label style={labelStyle}>חודש עדכון אחרון</label>
+            <input type="month" value={form.lastUpdated ?? ""} onChange={(e) => update("lastUpdated", e.target.value)} style={fieldStyle} dir="ltr" />
           </div>
         </div>
 
