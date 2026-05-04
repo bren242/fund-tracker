@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 /* ── types ──────────────────────────────────────────────────────────────── */
 interface ConsistencyPayload {
-  fund: { id: string; name: string; classification: string; lastReportDate: string | null };
+  fund: { id: string; name: string; classification: string; lastUpdated: string | null };
   category: { id: string; name: string; fundsCount: number; fundsWithMonthlyData: number };
   endMonth: string;
   ir: number | null;

@@ -202,7 +202,7 @@ export async function GET(req: NextRequest) {
         id:             fund.id,
         name:           fund.name,
         classification: fund.classification,
-        lastReportDate: fund.lastReportDate ?? null,
+        lastUpdated: fund.lastUpdated ?? null,
       },
       ir,
       vsBenchmark,

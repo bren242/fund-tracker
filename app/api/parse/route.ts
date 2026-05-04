@@ -2059,7 +2059,7 @@ export async function POST(req: NextRequest) {
         for (const fund of funds) {
           if (fund.id !== fundId) continue;
 
-          fundLastUpdated = (fund.lastUpdated as string) || null;
+          fundLastUpdated = (fund.lastUpdatedAt as string) || null;
           fundMonthlyDirection = (fund.monthlyDirection as "LTR" | "RTL" | null) || null;
           const monthlyReturns = (fund.monthlyReturns || {}) as Record<string, number>;
           const fundReturns = (fund.returns || {}) as Record<string, unknown>;
@@ -2294,8 +2294,8 @@ export async function POST(req: NextRequest) {
           if (funds[i].id !== fundId) continue;
           fundFound = true;
 
-          // Staleness check: if fund was updated after diff was computed, block apply
-          const fundLastUpdated = (funds[i].lastUpdated as string) || null;
+          // Staleness check: if fund was updated (by ISO write timestamp) after diff was computed, block apply
+          const fundLastUpdated = (funds[i].lastUpdatedAt as string) || null;
           if (fundLastUpdated && diffComputedAt && fundLastUpdated > diffComputedAt) {
             return NextResponse.json({
               error: "הנתונים בקרן השתנו מאז בדיקת ההשוואה — נא לרענן ולנסות שוב",
@@ -2448,20 +2448,17 @@ export async function POST(req: NextRequest) {
             appliedFieldNames.push(`cleared:${clearKey}`);
           }
 
-          // Update lastReportDate if reportMonth provided — store as MM/YYYY for display consistency
-          if (isValidReportMonth(reportMonth)) {
-            const [yyyy, mm] = reportMonth.split("-");
-            funds[i].lastReportDate = `${mm}/${yyyy}`;
-          }
-
           // Set returnBasis + currency on fund if provided (fund-level currency)
           if (applyReturnBasis === "ILS" || applyReturnBasis === "USD") {
             funds[i].returnBasis = applyReturnBasis;
             funds[i].currency = applyReturnBasis;
           }
 
-          // Update fund.lastUpdated for staleness tracking
-          funds[i].lastUpdated = new Date().toISOString();
+          // Update fund.lastUpdated (data month, YYYY-MM) and lastUpdatedAt (ISO write timestamp)
+          if (isValidReportMonth(reportMonth)) {
+            funds[i].lastUpdated = reportMonth;
+          }
+          funds[i].lastUpdatedAt = new Date().toISOString();
 
           // Auto-calculate sharpe/stdDev if 12+ observations (document values take priority)
           const hasExtractedSharpe = appliedFieldNames.includes("sharpe");
@@ -2477,13 +2474,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Fund not found" }, { status: 404 });
       }
 
-      // Update top-level lastUpdated so the main report header reflects the latest apply
+      // Update top-level lastUpdated so the main report header reflects the latest apply (YYYY-MM)
       {
         const fd = fundsData as Record<string, unknown>;
-        const reportDate = isValidReportMonth(reportMonth)
-          ? new Date(`${reportMonth}-01`).toISOString()
-          : new Date().toISOString();
-        fd.lastUpdated = reportDate;
+        fd.lastUpdated = isValidReportMonth(reportMonth)
+          ? reportMonth
+          : new Date().toISOString().slice(0, 7);
       }
 
       // Save funds data
@@ -2589,7 +2585,7 @@ export async function POST(req: NextRequest) {
         classification: typeof classification === "string" && classification ? classification : "",
         startDate: null,
         manager: "",
-        lastReportDate: isValidReportMonth(reportMonth) ? reportMonth : null,
+        lastUpdated: isValidReportMonth(reportMonth) ? reportMonth : null,
         monthlyReturn: 0,
         returns: {
           ytd2026: null, y2025: null, y2024: null, y2023: null,
