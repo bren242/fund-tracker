@@ -23,13 +23,8 @@ const MONTH_HE_FULL: Record<string, string> = {
   "09": "ספטמבר", "10": "אוקטובר", "11": "נובמבר", "12": "דצמבר",
 };
 
-/** Prefer manual lastUpdated ("YYYY-MM"), fall back to lastReportDate */
 function fmtUpdateCell(fund: Fund): string {
-  if (fund.lastUpdated && /^\d{4}-\d{2}$/.test(fund.lastUpdated)) {
-    const [yyyy, mm] = fund.lastUpdated.split("-");
-    return `${mm}/${yyyy}`;
-  }
-  return formatReportDate(fund.lastReportDate);
+  return formatReportDate(fund.lastUpdated);
 }
 
 const YEAR_OPTIONS: { key: YearKey; label: string }[] = [

@@ -254,9 +254,9 @@ export default function CompareTable({ funds, accentColor, compact, selectedYear
                     }}>
                       {val}
                       {isBest && <span style={{ marginRight: 3, fontSize: fs.star, color: accentColor }}> ★</span>}
-                      {metric.label === "תשואה חודשית" && f.lastReportDate && (
+                      {metric.label === "תשואה חודשית" && f.lastUpdated && (
                         <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
-                          {formatReportDate(f.lastReportDate)}
+                          {formatReportDate(f.lastUpdated)}
                         </div>
                       )}
                     </td>

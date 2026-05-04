@@ -180,7 +180,7 @@ function FundRow({ fund, even, comparisonEnabled, isSelected, onToggle, activeYe
         {fund.manager}
       </td>
       <td style={{ padding: "8px 10px", borderBottom: "1px solid var(--border-table)", color: "var(--text-muted)", textAlign: "center", fontSize: "10px", fontVariantNumeric: "tabular-nums" }}>
-        {formatReportDate(fund.lastReportDate)}
+        {formatReportDate(fund.lastUpdated)}
       </td>
       <td style={{
         padding: "8px 10px",

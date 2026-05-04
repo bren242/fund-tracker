@@ -97,7 +97,7 @@ export default function PrintReport({ categories, lastUpdated, brand, printYears
           <td style={tdStyle({ fontWeight: 600, textAlign: "right", fontSize: baseFontSize })}>{f.name}</td>
           <td style={tdStyle({ textAlign: "right", color: "#5a6577", fontSize: baseFontSize })}>{f.classification}</td>
           <td style={tdStyle({ textAlign: "center", color: "#8893a4", fontSize: baseFontSize })}>{f.manager}</td>
-          <td style={tdStyle({ textAlign: "center", color: "#8893a4", fontSize: baseFontSize })}>{formatReportDate(f.lastReportDate)}</td>
+          <td style={tdStyle({ textAlign: "center", color: "#8893a4", fontSize: baseFontSize })}>{formatReportDate(f.lastUpdated)}</td>
           <td style={tdStyle({ textAlign: "center", fontWeight: 600, color: returnColor(f.monthlyReturn), fontSize: baseFontSize })}>{pct(f.monthlyReturn)}</td>
           {yearKeys.map((y) => (
             <td key={y.key} style={tdStyle({ textAlign: "center", color: returnColor(f.returns[y.key]), fontSize: baseFontSize })}>{pct(f.returns[y.key])}</td>

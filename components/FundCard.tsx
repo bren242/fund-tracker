@@ -303,7 +303,7 @@ export default function FundCard({ fund }: { fund: Fund }) {
         <div style={{ fontSize: 11, color: "var(--text-muted)", direction: "rtl" }}>
           {[
             fund.manager || null,
-            fund.lastReportDate ? `עדכון ${formatReportDate(fund.lastReportDate)}` : null,
+            fund.lastUpdated ? `עדכון ${formatReportDate(fund.lastUpdated)}` : null,
           ]
             .filter(Boolean)
             .join(" · ")}
