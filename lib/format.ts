@@ -24,12 +24,12 @@ export function formatDate(dateStr: string | null): string {
 /** Format date as MM/YYYY for report display. Never returns empty. */
 export function formatReportDate(dateStr: string | null): string {
   if (!dateStr) return "—";
+  // Fast path for canonical YYYY-MM — avoids Date() timezone issues
+  const ymMatch = dateStr.match(/^(\d{4})-(\d{2})$/);
+  if (ymMatch) return `${ymMatch[2]}/${ymMatch[1]}`;
+  if (/^\d{1,2}\/\d{4}$/.test(dateStr)) return dateStr;
   const d = new Date(dateStr);
-  if (isNaN(d.getTime())) {
-    // Try parsing MM/YYYY or similar formats already in the string
-    if (/^\d{1,2}\/\d{4}$/.test(dateStr)) return dateStr;
-    return dateStr;
-  }
+  if (isNaN(d.getTime())) return dateStr;
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const year = d.getFullYear();
   return `${month}/${year}`;

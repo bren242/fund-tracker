@@ -19,7 +19,7 @@ function makeFund(
     classification: "",
     startDate: null,
     manager: "",
-    lastReportDate: null,
+    lastUpdated: null,
     monthlyReturn: null,
     returns: {
       ytd2026: null,

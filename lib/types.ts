@@ -4,7 +4,8 @@ export interface Fund {
   classification: string;
   startDate: string | null;
   manager: string;
-  lastReportDate: string | null;
+  lastUpdated: string | null;   // "YYYY-MM" — data month (single source of truth for update date)
+  lastUpdatedAt?: string;       // ISO timestamp — write time, used for staleness guard
   reportingDelay?: boolean;
   monthlyReturn: number | null;
   returns: {
@@ -25,8 +26,6 @@ export interface Fund {
   currency?: "ILS" | "USD";
   monthlyReturns?: Record<string, number>;
   monthlyDirection?: "LTR" | "RTL" | null;
-  lastUpdated?: string;    // "YYYY-MM" — set when indication is saved
-  lastUpdatedAt?: string;  // ISO timestamp — set when indication is saved
 }
 
 export interface Category {
@@ -55,7 +54,7 @@ export interface Benchmark {
 }
 
 export interface FundsData {
-  lastUpdated: string;
+  lastUpdated: string;  // "YYYY-MM" — data month of the tenant's latest update
   categories: Category[];
   adminPassword?: string;
   superAdminPassword?: string;
