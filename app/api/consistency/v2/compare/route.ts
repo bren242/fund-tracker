@@ -16,14 +16,9 @@ import {
   buildCategoryAvgReturns,
   computeWindowMetrics,
   computeAllWindows,
+  formatBenchmarkLabel,
   type WindowLabel,
 } from "@/lib/consistency";
-
-const BENCH_SHORT: Record<string, string> = {
-  "equity-hedged":  'ת"א 125',
-  "bond-hedged":    'ת"א 125 + תל בונד-מאגר',
-  "multi-strategy": 'ת"א 125 + תל בונד-מאגר',
-};
 
 const HEBREW_MONTHS = [
   "ינואר","פברואר","מרץ","אפריל","מאי","יוני",
@@ -149,7 +144,7 @@ export async function GET(req: NextRequest) {
     category: {
       id: category.id,
       label: category.name,
-      benchmarkLabel: BENCH_SHORT[category.id] ?? category.id,
+      benchmarkLabel: formatBenchmarkLabel(category.id),
     },
     asOfMonth:      endMonth ?? "",
     asOfMonthLabel: endMonth ? hebrewYM(endMonth) : "",

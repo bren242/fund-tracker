@@ -67,6 +67,28 @@ export function getBenchmarkForCategory(categoryId: string): BenchmarkBlend | nu
   return CATEGORY_BLEND[categoryId] ?? null;
 }
 
+const BM_DISPLAY: Record<string, string> = {
+  "bm-ta125":            'ת"א 125',
+  "bm-telbond-maagar":   "תל בונד מאגר",
+};
+
+/**
+ * מחזיר תווית קריאה לבנצ'מרק של קטגוריה, כולל משקולות.
+ * קטגוריה עם בנצ'מרק יחיד ב-100%: "ת\"א 125"
+ * קטגוריה עם blend: "15% ת\"א 125 + 85% תל בונד מאגר"
+ */
+export function formatBenchmarkLabel(categoryId: string): string {
+  const blend = CATEGORY_BLEND[categoryId];
+  if (!blend) return categoryId;
+  const entries = Object.entries(blend);
+  if (entries.length === 1 && entries[0][1] === 1.0) {
+    return BM_DISPLAY[entries[0][0]] ?? entries[0][0];
+  }
+  return entries
+    .map(([id, w]) => `${Math.round(w * 100)}% ${BM_DISPLAY[id] ?? id}`)
+    .join(" + ");
+}
+
 /* ══════════════════════════════════════════════════════════════════════════ */
 /*  Blend helper                                                              */
 /* ══════════════════════════════════════════════════════════════════════════ */
