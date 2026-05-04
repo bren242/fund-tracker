@@ -1778,6 +1778,33 @@ details[open].v2-glossary .v2-glossary-summary::before {
   margin: 0;
 }
 
+/* ── Full legal disclaimer block ─────────────────────── */
+.v2-disclaimer-block {
+  max-width: 880px;
+  margin: 20px auto 0;
+  padding: 16px 20px;
+  background: rgba(95, 94, 90, 0.04);
+  border-radius: 6px;
+  font-family: var(--sans);
+  font-size: 11px;
+  color: var(--ink-faint);
+  line-height: 1.75;
+  text-align: justify;
+  direction: rtl;
+}
+
+.v2-disclaimer-block p {
+  margin: 0;
+}
+
+@media print {
+  .v2-disclaimer-block {
+    page-break-inside: avoid;
+    background: transparent;
+    border: 0.5px solid var(--line);
+  }
+}
+
 /* ── Tooltip ⓘ ──────────────────────────────────────── */
 .v2-tooltip-wrap {
   position: relative;
@@ -1836,12 +1863,17 @@ details[open].v2-glossary .v2-glossary-summary::before {
   /* compare sections: page-break-inside avoid */
   .cmp-profile-wrap { page-break-inside: avoid; }
   .cmp-heatmap-wrap { page-break-inside: avoid; }
-  .cmp-headline-wrap { page-break-inside: avoid; }
+  .cmp-headline-grid { page-break-inside: avoid; }
   .cmp-hero { page-break-inside: avoid; }
-  .cmp-insight { page-break-inside: avoid; }
+  .cmp-insight { page-break-inside: avoid; page-break-after: avoid; }
 
   /* disclaimer always visible */
   .v2-disclaimer { display: block !important; page-break-inside: avoid; }
+
+  /* font-size reduction to fit more on page */
+  body { font-size: 11px; }
+  .cmp-hero-title { font-size: 22px !important; }
+  .cmp-card-return { font-size: 26px !important; }
 }
 
 /* ── Compare skeleton (cold-start loading state) ─────── */

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Hero from "./Hero";
 import WindowsTable from "./WindowsTable";
 import GlossarySection, { SINGLE_GLOSSARY_TERMS } from "./GlossarySection";
+import DisclaimerBlock from "./DisclaimerBlock";
 import type { WindowLabel } from "@/lib/consistency";
 
 interface MDD {
@@ -115,10 +116,7 @@ export default function SingleView({ fundId, client }: SingleViewProps) {
         </div>
       ) : null}
 
-      <div className="v2-disclaimer">
-        הנתונים לצורך מידע בלבד ואינם מהווים ייעוץ השקעות.
-        הביצועים בעבר אינם מבטיחים תשואה עתידית.
-      </div>
+      <DisclaimerBlock />
     </>
   );
 }

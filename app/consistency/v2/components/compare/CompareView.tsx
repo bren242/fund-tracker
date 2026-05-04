@@ -9,6 +9,7 @@ import CompareProfile from "./CompareProfile";
 import CompareHeatmap from "./CompareHeatmap";
 import { CompareInsightSkeleton, CompareInsightContent } from "./CompareInsight";
 import GlossarySection, { COMPARE_GLOSSARY_TERMS } from "../GlossarySection";
+import DisclaimerBlock from "../DisclaimerBlock";
 
 interface AIInsight { text: string }
 
@@ -133,10 +134,7 @@ export default function CompareView({
 
       <GlossarySection terms={COMPARE_GLOSSARY_TERMS} />
 
-      <div className="v2-disclaimer">
-        הנתונים לצורך מידע בלבד ואינם מהווים ייעוץ השקעות.
-        הביצועים בעבר אינם מבטיחים תשואה עתידית.
-      </div>
+      <DisclaimerBlock />
     </>
   );
 }
