@@ -209,7 +209,7 @@ function FundCompareCard({ fund, color, isWinner, selectedYears, isYearMode }: {
       </div>
 
       {/* Name + classification */}
-      <div style={{ marginBottom: fund.lastReportDate ? 8 : 14 }}>
+      <div style={{ marginBottom: fund.lastUpdated ? 8 : 14 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", lineHeight: 1.35, marginBottom: 3 }}>
           {fund.name}
         </div>
@@ -219,9 +219,9 @@ function FundCompareCard({ fund, color, isWinner, selectedYears, isYearMode }: {
       </div>
 
       {/* Update date */}
-      {fund.lastReportDate && (
+      {fund.lastUpdated && (
         <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 10 }}>
-          {isYearMode ? "עודכן לאחרונה" : "מעודכן ל"}: {formatReportDate(fund.lastReportDate)}
+          {isYearMode ? "עודכן לאחרונה" : "מעודכן ל"}: {formatReportDate(fund.lastUpdated)}
         </div>
       )}
 

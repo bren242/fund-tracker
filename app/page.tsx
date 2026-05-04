@@ -7,7 +7,7 @@ import { FundsData } from "@/lib/types";
 import FundTableV2 from "@/components/FundTableV2";
 import PrintReport from "@/components/PrintReport";
 import { ThemeToggle } from "@/components/ThemeProvider";
-import { formatDate } from "@/lib/format";
+import { formatReportDate } from "@/lib/format";
 import { useBrand } from "@/lib/useBrand";
 import { useClientKey, withClient } from "@/lib/useClientKey";
 import { useFilters } from "@/lib/useFilters";
@@ -95,7 +95,7 @@ function ReportContent() {
 
   const subtitle = brand.subtitleMode === "custom" && brand.customSubtitle
     ? brand.customSubtitle
-    : `עדכון: ${formatDate(data.lastUpdated)}`;
+    : `עדכון: ${formatReportDate(data.lastUpdated)}`;
 
   return (
     <ClientGate clientKey={clientKey}>

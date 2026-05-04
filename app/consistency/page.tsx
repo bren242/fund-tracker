@@ -274,7 +274,7 @@ function ChartTooltip({ active, payload, label, isDark }: {
 /* ══════════════════════════════════════════════════════════════════════════ */
 
 interface FundConsistencyData {
-  fund: { id: string; name: string; classification: string; lastReportDate: string | null };
+  fund: { id: string; name: string; classification: string; lastUpdated: string | null };
   category: { id: string; name: string; fundsCount: number; fundsWithMonthlyData: number };
   endMonth: string;
   ir: number | null;
@@ -774,8 +774,8 @@ function FundDetailView({
       }
       const json: FundConsistencyData = await res.json();
       setData(json);
-      if (!initialized && json.fund.lastReportDate) {
-        const [y, m] = json.fund.lastReportDate.split("-").map(Number);
+      if (!initialized && json.fund.lastUpdated) {
+        const [y, m] = json.fund.lastUpdated.split("-").map(Number);
         setSelectedYear(y); setSelectedMon(m);
         setEndMonth(`${y}-${String(m).padStart(2, "0")}`);
         setInitialized(true);
@@ -798,7 +798,7 @@ function FundDetailView({
   /* Fire AI analysis once main data is ready and endMonth is in sync */
   useEffect(() => {
     if (!data || loading) return;
-    // Skip if data is from a different endMonth (during initial snap-to-lastReportDate)
+    // Skip if data is from a different endMonth (during initial snap-to-lastUpdated)
     if (endMonth && data.endMonth !== endMonth) return;
     setAiText(null);
     setAiError(false);
@@ -817,15 +817,15 @@ function FundDetailView({
       .finally(() => setAiLoading(false));
   }, [data, loading, endMonth]); // eslint-disable-line
 
-  const maxYear  = data?.fund.lastReportDate ? parseInt(data.fund.lastReportDate.split("-")[0]) : CURRENT_YEAR;
-  const maxMonth = data?.fund.lastReportDate ? parseInt(data.fund.lastReportDate.split("-")[1]) : 12;
+  const maxYear  = data?.fund.lastUpdated ? parseInt(data.fund.lastUpdated.split("-")[0]) : CURRENT_YEAR;
+  const maxMonth = data?.fund.lastUpdated ? parseInt(data.fund.lastUpdated.split("-")[1]) : 12;
 
   const handleApply = () => {
     setEndMonth(`${selectedYear}-${String(selectedMon).padStart(2, "0")}`);
   };
   const handleReset = () => {
-    if (data?.fund.lastReportDate) {
-      const [y, mo] = data.fund.lastReportDate.split("-").map(Number);
+    if (data?.fund.lastUpdated) {
+      const [y, mo] = data.fund.lastUpdated.split("-").map(Number);
       setSelectedYear(y); setSelectedMon(mo);
       setEndMonth(`${y}-${String(mo).padStart(2, "0")}`);
     }
@@ -952,7 +952,7 @@ function FundDetailView({
           >
             הצג
           </button>
-          {data?.fund.lastReportDate && (
+          {data?.fund.lastUpdated && (
             <button
               onClick={handleReset}
               style={{

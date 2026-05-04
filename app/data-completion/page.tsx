@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, Suspense } from "react";
 import { FundsData, Fund } from "@/lib/types";
 import { ThemeToggle } from "@/components/ThemeProvider";
-import { formatDate } from "@/lib/format";
+import { formatReportDate } from "@/lib/format";
 import { useBrand } from "@/lib/useBrand";
 import { useClientKey, withClient } from "@/lib/useClientKey";
 import BrandLogo from "@/components/BrandLogo";
@@ -208,7 +208,7 @@ function DataCompletionContent() {
   const totalMissing = computable.length + notComputable.length;
   const subtitle = brand.subtitleMode === "custom" && brand.customSubtitle
     ? brand.customSubtitle
-    : `עדכון: ${formatDate(data.lastUpdated)}`;
+    : `עדכון: ${formatReportDate(data.lastUpdated)}`;
 
   const linkStyle: React.CSSProperties = { fontSize: 12, color: "var(--text-secondary)", textDecoration: "none", padding: "5px 10px", borderRadius: 6, border: "1px solid var(--border)", transition: "border-color 0.15s" };
 

@@ -136,7 +136,7 @@ function FundStatusContent() {
         if (fund.active === false) continue;
         const lk = getLatestKey(fund);
         const effectiveKey = fund.lastUpdated ?? lk;
-        const rdk = fund.lastReportDate ?? null;
+        const rdk = fund.lastUpdated ?? null;
         const displayDate = rdk;
         const mismatch = !!lk && !!rdk && toYYYYMM(lk) !== toYYYYMM(rdk);
         const reportingDelay = fund.reportingDelay ?? false;

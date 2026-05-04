@@ -8,7 +8,7 @@ import {
 } from "recharts";
 import { FundsData, Fund } from "@/lib/types";
 import { ThemeToggle, useTheme } from "@/components/ThemeProvider";
-import { formatDate } from "@/lib/format";
+import { formatReportDate } from "@/lib/format";
 import { useBrand } from "@/lib/useBrand";
 import { useClientKey, withClient } from "@/lib/useClientKey";
 import BrandLogo from "@/components/BrandLogo";
@@ -278,7 +278,7 @@ function ChartsContent() {
             <BrandLogo brand={brand} height={28} variant={dark ? "dark" : "light"} />
           </div>
           <div className="no-print" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>עדכון: {formatDate(data.lastUpdated)}</span>
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>עדכון: {formatReportDate(data.lastUpdated)}</span>
             {brand.version && (
               <span style={{ fontSize: 10, color: "var(--text-muted)", backgroundColor: "var(--bg-surface-alt)", padding: "2px 8px", borderRadius: 4, fontWeight: 500 }}>
                 v{brand.version}
@@ -298,7 +298,7 @@ function ChartsContent() {
             <ThemeToggle />
           </div>
           <div className="print-only" style={{ fontSize: 12, color: "#1B3A2F" }}>
-            עדכון: {formatDate(data.lastUpdated)}
+            עדכון: {formatReportDate(data.lastUpdated)}
           </div>
         </div>
       </div>
@@ -396,7 +396,7 @@ function ChartsContent() {
           <tr><td style={{ padding: 0, borderBottom: `2px solid ${brand.secondaryColor}`, background: "white" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}><tbody><tr>
               <td style={{ width: "120px", textAlign: "right", verticalAlign: "middle", padding: "6px 8px" }}>
-                <span style={{ fontSize: "7pt", color: "#64748B", whiteSpace: "nowrap" }}>מעודכן ל: {formatDate(data.lastUpdated)}</span>
+                <span style={{ fontSize: "7pt", color: "#64748B", whiteSpace: "nowrap" }}>מעודכן ל: {formatReportDate(data.lastUpdated)}</span>
               </td>
               <td style={{ textAlign: "center", verticalAlign: "middle" }}>
                 <span style={{ fontSize: "11pt", color: "#1B3A2F", fontWeight: 700 }}>סיכון מול תשואה</span>

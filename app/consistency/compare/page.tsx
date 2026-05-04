@@ -12,7 +12,7 @@ import { brandCssVars } from "@/lib/colors";
 /* ══════════════════════════════════════════════════════════════════════════ */
 
 interface FundMetrics {
-  fund:        { id: string; name: string; classification: string; lastReportDate: string | null };
+  fund:        { id: string; name: string; classification: string; lastUpdated: string | null };
   ir:          number | null;
   vsBenchmark: { monthsAbove: number; monthsBelow: number; totalMonths: number; percentageAbove: number; benchmarkName: string; insufficientData: boolean };
   vsCategory:  { monthsAbove: number; monthsBelow: number; totalMonths: number; percentageAbove: number; insufficientData: boolean };
@@ -130,15 +130,15 @@ function CompareView({
       }
       setData(json);
       if (!initialized) {
-        /* Snap to latest lastReportDate among funds */
+        /* Snap to latest lastUpdated among funds */
         const latestDate = json.funds.reduce((acc, f) => {
-          if (f.fund.lastReportDate && f.fund.lastReportDate > acc) return f.fund.lastReportDate;
+          if (f.fund.lastUpdated && f.fund.lastUpdated > acc) return f.fund.lastUpdated;
           return acc;
         }, "");
         if (latestDate) {
           const parts = latestDate.split("-").map(Number);
           const y = parts[0], m = parts[1];
-          // Validate parsed values before using — guards against malformed lastReportDate
+          // Validate parsed values before using — guards against malformed lastUpdated
           if (Number.isFinite(y) && y > 2000 && m >= 1 && m <= 12) {
             setSelectedYear(y); setSelectedMon(m);
             setEndMonth(`${y}-${String(m).padStart(2, "0")}`);
