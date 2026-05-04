@@ -12,7 +12,6 @@
  *     --month 2026-04 \
  *     --value 0.012 \
  *     --ytd 0.045 \
- *     [--report-month 04/2026] \
  *     [--dry-run] \
  *     [--force]
  *
@@ -46,31 +45,23 @@ import { FundsData, Fund } from "../lib/types";
 
 // ── 2. Audit: all system fields that display update dates ──────────────────────
 //
-// data.lastUpdated (FundsData global — YYYY-MM-DD format):
-//   app/page.tsx:98              — main page subtitle "עדכון: {formatDate(...)}"
-//   app/page.tsx:159             — PrintReport prop
-//   app/charts/page.tsx:281      — charts header (screen)
-//   app/charts/page.tsx:301      — charts header (print)
-//   app/charts/page.tsx:399      — charts footer (print)
-//   app/data-completion/page.tsx:211 — data-completion subtitle
-//   app/admin/page.tsx:357       — admin panel header "עדכון:"
+// data.lastUpdated (FundsData global — YYYY-MM format):
+//   app/page.tsx:98              — main page subtitle
+//   app/charts/page.tsx:281,301  — charts header
+//   app/data-completion/page.tsx — data-completion subtitle
+//   app/admin/page.tsx:357       — admin panel header
 //
-// fund.lastReportDate (per-fund — YYYY-MM format):
-//   components/FundCard.tsx:306  — "עדכון {formatReportDate(...)}" on fund card
-//   components/FundTable.tsx:183 — main table date column
-//   components/FundTableV2.tsx:32 — FundTableV2 fallback (when lastUpdated not YYYY-MM)
-//   components/PrintReport.tsx:100 — print report date column
-//   components/CompareTable.tsx:259 — under "תשואה חודשית" in compare
-//   app/compare/page.tsx:224     — "מעודכן ל:" in compare card
-//   app/fund-status/page.tsx:140 — display date in fund status page
-//   app/admin/page.tsx:1222      — staleness warning (≥3 months alert)
-//   app/consistency/page.tsx:778 — snaps consistency single-view endMonth picker
-//   app/consistency/compare/page.tsx:135 — snaps compare-view date picker
-//
-// fund.lastUpdated (per-fund — YYYY-MM format, PRIMARY for display):
-//   components/FundTableV2.tsx:27 — FIRST priority for update-date cell
-//   app/fund-status/page.tsx:46  — effectiveKey for green/yellow/red status
-//   app/api/parse/route.ts:2299  — staleness guard (blocks conflicting parser apply)
+// fund.lastUpdated (per-fund — YYYY-MM format, single source of truth):
+//   components/FundCard.tsx      — fund card subtitle
+//   components/FundTable.tsx     — main table date column
+//   components/FundTableV2.tsx   — FundTableV2 date cell
+//   components/PrintReport.tsx   — print report date column
+//   components/CompareTable.tsx  — under "תשואה חודשית" in compare
+//   app/compare/page.tsx         — "מעודכן ל:" in compare card
+//   app/fund-status/page.tsx     — display date + green/yellow/red status
+//   app/admin/page.tsx           — staleness warning (≥3 months alert)
+//   app/consistency/page.tsx     — snaps consistency endMonth picker
+//   app/consistency/compare/page.tsx — snaps compare-view date picker
 
 // ── 3. CLI argument parsing ────────────────────────────────────────────────────
 
@@ -80,7 +71,6 @@ function parseArgs(argv: string[]): {
   month: string;
   value: number;
   ytd: number;
-  reportMonth: string | null;
   dryRun: boolean;
   force: boolean;
 } {
@@ -96,7 +86,6 @@ function parseArgs(argv: string[]): {
   const month      = get("--month");
   const valueStr   = get("--value");
   const ytdStr     = get("--ytd");
-  const reportMonth = get("--report-month");
   const dryRun     = has("--dry-run");
   const force      = has("--force");
 
@@ -117,7 +106,6 @@ function parseArgs(argv: string[]): {
     console.error("    --month 2026-04 \\");
     console.error("    --value 0.012 \\");
     console.error("    --ytd 0.045 \\");
-    console.error("    [--report-month 04/2026] \\");
     console.error("    [--dry-run] [--force]");
     process.exit(1);
   }
@@ -134,7 +122,6 @@ function parseArgs(argv: string[]): {
     month:       month!,
     value,
     ytd,
-    reportMonth: reportMonth ?? null,
     dryRun,
     force,
   };
@@ -142,14 +129,7 @@ function parseArgs(argv: string[]): {
 
 // ── 4. Validation helpers ──────────────────────────────────────────────────────
 
-const MONTH_RE        = /^\d{4}-(0[1-9]|1[0-2])$/;       // YYYY-MM
-const REPORT_MONTH_RE = /^(0[1-9]|1[0-2])\/\d{4}$/;       // MM/YYYY
-
-/** Convert MM/YYYY → YYYY-MM */
-function reportMonthToYYYYMM(rm: string): string {
-  const [mm, yyyy] = rm.split("/");
-  return `${yyyy}-${mm}`;
-}
+const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/; // YYYY-MM
 
 /** Derive YYYY from month string */
 function yearOf(month: string): number {
@@ -196,7 +176,6 @@ async function main(): Promise<void> {
   console.log(`  data month  : ${args.month}`);
   console.log(`  value       : ${(args.value * 100).toFixed(4)}% (${args.value})`);
   console.log(`  ytd         : ${(args.ytd * 100).toFixed(4)}% (${args.ytd})`);
-  if (args.reportMonth) console.log(`  report-month: ${args.reportMonth} (override)`);
   if (args.dryRun) console.log("  *** DRY-RUN — no writes will happen ***");
   if (args.force)  console.log("  *** FORCE — skipping safety guards ***");
   console.log("");
@@ -205,16 +184,6 @@ async function main(): Promise<void> {
   if (!MONTH_RE.test(args.month)) {
     console.error(`ERROR: --month "${args.month}" must be YYYY-MM (e.g. 2026-04)`);
     process.exit(1);
-  }
-
-  // ── Validate report-month if provided
-  let storedLastReportDate: string = args.month; // default: YYYY-MM
-  if (args.reportMonth) {
-    if (!REPORT_MONTH_RE.test(args.reportMonth)) {
-      console.error(`ERROR: --report-month "${args.reportMonth}" must be MM/YYYY (e.g. 04/2026)`);
-      process.exit(1);
-    }
-    storedLastReportDate = reportMonthToYYYYMM(args.reportMonth); // convert to YYYY-MM
   }
 
   // ── Validate client
@@ -300,29 +269,24 @@ async function main(): Promise<void> {
   }
 
   // ── Compute all field values
-  const dataYear  = yearOf(args.month);
-  const ytdField  = ytdKey(dataYear);
-  const now       = new Date();
-  const nowISO    = now.toISOString();
-  const nowYYYYMM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const dataYear = yearOf(args.month);
+  const ytdField = ytdKey(dataYear);
 
   // Existing "before" snapshots for diff display
   const before = {
-    "fund.monthlyReturn":          foundFund.monthlyReturn,
+    "fund.monthlyReturn":                   foundFund.monthlyReturn,
     [`fund.monthlyReturns[${args.month}]`]: existingMonthly ?? null,
-    [`fund.returns.${ytdField}`]:  (foundFund.returns as Record<string, number | null>)[ytdField] ?? null,
-    "fund.lastReportDate":         foundFund.lastReportDate,
-    "fund.lastUpdated":            foundFund.lastUpdated ?? null,
-    "data.lastUpdated (global)":   data.lastUpdated,
+    [`fund.returns.${ytdField}`]:           (foundFund.returns as Record<string, number | null>)[ytdField] ?? null,
+    "fund.lastUpdated":                     foundFund.lastUpdated ?? null,
+    "data.lastUpdated (global)":            data.lastUpdated,
   };
 
   const after = {
-    "fund.monthlyReturn":          args.value,
+    "fund.monthlyReturn":                   args.value,
     [`fund.monthlyReturns[${args.month}]`]: args.value,
-    [`fund.returns.${ytdField}`]:  args.ytd,
-    "fund.lastReportDate":         storedLastReportDate,
-    "fund.lastUpdated":            nowYYYYMM,
-    "data.lastUpdated (global)":   `${args.month}-01`,
+    [`fund.returns.${ytdField}`]:           args.ytd,
+    "fund.lastUpdated":                     args.month,
+    "data.lastUpdated (global)":            args.month,
   };
 
   // ── Diff display
@@ -350,11 +314,10 @@ async function main(): Promise<void> {
   foundFund.monthlyReturn                    = args.value;
   foundFund.monthlyReturns[args.month]       = args.value;
   (foundFund.returns as Record<string, number | null>)[ytdField] = args.ytd;
-  foundFund.lastReportDate                   = storedLastReportDate;
-  foundFund.lastUpdated = nowYYYYMM;
+  foundFund.lastUpdated                      = args.month;
 
-  // Global lastUpdated — first day of data month so formatDate shows the right month
-  data.lastUpdated = `${args.month}-01`;
+  // Global lastUpdated — same format: YYYY-MM
+  data.lastUpdated = args.month;
 
   // ── Write
   console.log(`Writing funds:${args.client} to KV...`);
@@ -396,12 +359,11 @@ async function main(): Promise<void> {
     verifyOk = false;
   } else {
     const checks: Array<[string, unknown, unknown]> = [
-      ["monthlyReturn",      verifyFund.monthlyReturn,                                    args.value],
-      [`monthlyReturns[${args.month}]`, (verifyFund.monthlyReturns || {})[args.month],    args.value],
-      [`returns.${ytdField}`, (verifyFund.returns as Record<string, number | null>)[ytdField], args.ytd],
-      ["lastReportDate",     verifyFund.lastReportDate,                                   storedLastReportDate],
-      ["lastUpdated (fund)", verifyFund.lastUpdated,                                      nowYYYYMM],
-      ["lastUpdated (data)", verify.lastUpdated,                                           `${args.month}-01`],
+      ["monthlyReturn",                  verifyFund.monthlyReturn,                                              args.value],
+      [`monthlyReturns[${args.month}]`,  (verifyFund.monthlyReturns || {})[args.month],                        args.value],
+      [`returns.${ytdField}`,            (verifyFund.returns as Record<string, number | null>)[ytdField],       args.ytd],
+      ["lastUpdated (fund)",             verifyFund.lastUpdated,                                                args.month],
+      ["lastUpdated (data)",             verify.lastUpdated,                                                    args.month],
     ];
 
     for (const [label, got, expected] of checks) {
@@ -448,9 +410,8 @@ function printSummary(
     console.log("    fund.monthlyReturn         — scalar for table display");
     console.log(`    fund.monthlyReturns[${args.month}] — monthly history`);
     console.log("    fund.returns.ytd*/y*        — YTD / annual return");
-    console.log("    fund.lastReportDate         — YYYY-MM (data month)");
-    console.log("    fund.lastUpdated            — YYYY-MM (data month, display priority)");
-    console.log("    data.lastUpdated            — YYYY-MM-DD (global, report header)");
+    console.log("    fund.lastUpdated            — YYYY-MM (data month, single source of truth)");
+    console.log("    data.lastUpdated            — YYYY-MM (global, report header)");
     console.log("");
     console.log("  System locations that now reflect the new date:");
     console.log("    [1] app/page.tsx:98              — main page subtitle");
