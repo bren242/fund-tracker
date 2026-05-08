@@ -9,6 +9,7 @@ import { useClientKey, withClient } from "@/lib/useClientKey";
 import { BrandConfig, AppFeatures } from "@/config/brand";
 import BrandLogo from "@/components/BrandLogo";
 import PasswordInput from "@/components/PasswordInput";
+import BulkUpdateFromText from "@/components/admin/BulkUpdateFromText";
 
 /* ================================================================== */
 /*  Admin Page                                                         */
@@ -22,7 +23,7 @@ function AdminContent() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
-  const [activeTab, setActiveTab] = useState<"data" | "funds" | "branding" | "settings" | "monthly-history" | "ai-parser" | "benchmarks" | "indications" | "consistency">("data");
+  const [activeTab, setActiveTab] = useState<"data" | "bulk-text" | "funds" | "branding" | "settings" | "monthly-history" | "ai-parser" | "benchmarks" | "indications" | "consistency">("data");
   const brand = useBrand(clientKey);
   const [showAddFund, setShowAddFund] = useState(false);
   const [addFundCategory, setAddFundCategory] = useState("");
@@ -403,6 +404,7 @@ function AdminContent() {
         <div style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--border)" }}>
           {[
             { id: "data" as const, label: "עדכון חודשי" },
+            { id: "bulk-text" as const, label: "📋 עדכון מטקסט" },
             { id: "funds" as const, label: "ניהול קרנות" },
             ...(role === "super" ? [
               { id: "monthly-history" as const, label: "היסטוריה חודשית" },
@@ -439,6 +441,9 @@ function AdminContent() {
       <div style={{ maxWidth: 1400, margin: "0 auto", padding: "20px 24px" }}>
         {activeTab === "data" && (
           <MonthlyDataTab data={data} updateFund={updateFund} onUpdateDate={updateLastUpdated} onApplyFundLastUpdated={applyFundLastUpdatedLocal} password={passwordRef.current} clientKey={clientKey} />
+        )}
+        {activeTab === "bulk-text" && (
+          <BulkUpdateFromText clientKey={clientKey} password={passwordRef.current} onStatus={showStatus} onReload={loadData} />
         )}
         {activeTab === "funds" && (
           <FundManagementTab
