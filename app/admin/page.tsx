@@ -1862,6 +1862,7 @@ function FundModal({ title, categories, selectedCategory, existingFund, onCatego
     if (!form.name.trim()) return;
 
     const fund: Fund = {
+      ...(existingFund ?? {}),
       id: existingFund?.id || `fund-${Date.now()}`,
       name: form.name.trim(),
       classification: form.classification.trim(),
