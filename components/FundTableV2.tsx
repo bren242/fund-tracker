@@ -869,8 +869,8 @@ export default function FundTableV2({
                           consistencyHref={
                             clientKey
                               ? (clientKey === "green"
-                                  ? `/green/consistency?fund=${fund.id}`
-                                  : `/consistency?fund=${fund.id}&client=${clientKey}`)
+                                  ? `/green/consistency/v2?fund=${fund.id}`
+                                  : `/consistency/v2?fund=${fund.id}&client=${clientKey}`)
                               : undefined
                           }
                         />
