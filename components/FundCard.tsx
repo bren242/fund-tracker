@@ -2,6 +2,7 @@
 
 import { Fund } from "@/lib/types";
 import { pct, num, formatReportDate, returnColorInline } from "@/lib/format";
+import { getLastUpdated } from "@/lib/fundDerived";
 import { useState, useEffect } from "react";
 
 /* ── Year keys to display ── */
@@ -303,7 +304,7 @@ export default function FundCard({ fund }: { fund: Fund }) {
         <div style={{ fontSize: 11, color: "var(--text-muted)", direction: "rtl" }}>
           {[
             fund.manager || null,
-            fund.lastUpdated ? `עדכון ${formatReportDate(fund.lastUpdated)}` : null,
+            getLastUpdated(fund) ? `עדכון ${formatReportDate(getLastUpdated(fund))}` : null,
           ]
             .filter(Boolean)
             .join(" · ")}

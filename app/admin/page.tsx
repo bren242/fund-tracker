@@ -1,8 +1,17 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef, Suspense } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo, Suspense } from "react";
 import { FundsData, Fund, Category, Benchmark } from "@/lib/types";
 import { pct, returnColorInline, formatReportDate } from "@/lib/format";
+import {
+  computeLatestMonth,
+  computeYTDFromMonthlyReturns,
+  computeAnnualReturn,
+  computeAvgAnnualReturn,
+  computeSharpe,
+  computeStdDev,
+} from "@/lib/metrics";
+import { getLastUpdated } from "@/lib/fundDerived";
 import { ThemeToggle } from "@/components/ThemeProvider";
 import { useBrand, invalidateBrandCache } from "@/lib/useBrand";
 import { useClientKey, withClient } from "@/lib/useClientKey";
@@ -440,7 +449,7 @@ function AdminContent() {
       {/* Tab content */}
       <div style={{ maxWidth: 1400, margin: "0 auto", padding: "20px 24px" }}>
         {activeTab === "data" && (
-          <MonthlyDataTab data={data} updateFund={updateFund} onUpdateDate={updateLastUpdated} onApplyFundLastUpdated={applyFundLastUpdatedLocal} password={passwordRef.current} clientKey={clientKey} />
+          <MonthlyDataTab data={data} password={passwordRef.current} clientKey={clientKey} onAfterSave={loadData} />
         )}
         {activeTab === "bulk-text" && (
           <BulkUpdateFromText clientKey={clientKey} password={passwordRef.current} onStatus={showStatus} onReload={loadData} />
@@ -539,44 +548,16 @@ function AdminContent() {
 /* ================================================================== */
 /*  Monthly Data Tab                                                   */
 /* ================================================================== */
-function MonthlyDataTab({ data, updateFund, onUpdateDate, onApplyFundLastUpdated, password, clientKey }: {
+function MonthlyDataTab({ data, password, clientKey, onAfterSave }: {
   data: FundsData;
-  updateFund: (catId: string, fundId: string, field: string, value: string) => void;
-  onUpdateDate: (dateStr: string) => void;
-  onApplyFundLastUpdated: (categoryId: string, fundId: string, lastUpdated: string, lastUpdatedAt: string) => void;
   password: string;
   clientKey: string;
+  onAfterSave: () => void;
 }) {
   const [search, setSearch] = useState("");
 
   return (
     <>
-      {/* Month Updated field */}
-      <div style={{ marginBottom: 20, backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px 20px", display: "flex", alignItems: "center", gap: 16 }}>
-        <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap" }}>
-          מעודכן לתאריך:
-        </label>
-        <input
-          type="month"
-          value={data.lastUpdated || ""}
-          onChange={(e) => onUpdateDate(e.target.value)}
-          style={{
-            border: "1px solid var(--border)",
-            borderRadius: 6,
-            padding: "6px 12px",
-            fontSize: 13,
-            backgroundColor: "var(--bg-input)",
-            color: "var(--text-primary)",
-            cursor: "pointer",
-            minWidth: 160,
-          }}
-          dir="ltr"
-        />
-        <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-          חודש זה יופיע בכותרת הדוח וההדפסה כ&quot;מעודכן ל:...&quot;
-        </span>
-      </div>
-
       {/* Search */}
       <div style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
         <input
@@ -615,27 +596,24 @@ function MonthlyDataTab({ data, updateFund, onUpdateDate, onApplyFundLastUpdated
         });
         if (visibleFunds.length === 0) return null;
         return (
-          <div key={cat.id} style={{ marginBottom: 20 }}>
-            <div style={{ backgroundColor: "var(--bg-section)", color: "#fff", padding: "6px 16px", borderRadius: "8px 8px 0 0", fontWeight: 600, fontSize: 12 }}>
+          <div key={cat.id} style={{ marginBottom: 24 }}>
+            <div style={{ backgroundColor: "var(--bg-section)", color: "#fff", padding: "7px 16px", borderRadius: "10px 10px 0 0", fontWeight: 600, fontSize: 12 }}>
               {cat.name} <span style={{ fontWeight: 400, fontSize: 10, opacity: 0.7 }}>({visibleFunds.length})</span>
             </div>
-            <div style={{ backgroundColor: "var(--bg-surface)", borderRadius: "0 0 8px 8px", overflow: "hidden", border: "1px solid var(--border)", borderTop: "none" }}>
+            <div style={{ backgroundColor: "var(--bg-surface)", borderRadius: "0 0 10px 10px", overflow: "hidden", border: "1px solid var(--border)", borderTop: "none" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr style={{ backgroundColor: "var(--bg-surface-alt)" }}>
-                    <th style={thStyle(160)}>שם קרן</th>
-                    <th style={thStyle(120)}>תשואה חודשית (%)</th>
-                    <th style={thStyle(120)}>מצטבר 2026 (%)</th>
-                    <th style={thStyle(80)}>2025</th>
-                    <th style={thStyle(80)}>2024</th>
-                    <th style={thStyle(90)}>מטבע</th>
-                    <th style={thStyle(undefined)}>מנהל</th>
-                    <th style={thStyle(160)}>חודש עדכון</th>
+                    <th style={thStyle(190)}>שם קרן</th>
+                    <th style={thStyle(150)}>חודש</th>
+                    <th style={thStyle(100)}>תשואה (%)</th>
+                    <th style={thStyle(undefined)}>מדדים מחושבים</th>
+                    <th style={thStyle(80)}></th>
                   </tr>
                 </thead>
                 <tbody>
                   {visibleFunds.map((fund, idx) => (
-                    <MonthlyRow key={fund.id} fund={fund} categoryId={cat.id} odd={idx % 2 === 1} onUpdate={updateFund} onApplyLastUpdated={onApplyFundLastUpdated} password={password} clientKey={clientKey} />
+                    <MonthlyRow key={fund.id} fund={fund} categoryId={cat.id} odd={idx % 2 === 1} password={password} clientKey={clientKey} onAfterSave={onAfterSave} />
                   ))}
                 </tbody>
               </table>
@@ -658,218 +636,237 @@ function thStyle(width?: number): React.CSSProperties {
   };
 }
 
-function MonthlyRow({ fund, categoryId, odd, onUpdate, onApplyLastUpdated, password, clientKey }: {
+const MONTH_HE_ADMIN: Record<string, string> = {
+  "01": "ינואר", "02": "פברואר", "03": "מרץ", "04": "אפריל",
+  "05": "מאי", "06": "יוני", "07": "יולי", "08": "אוגוסט",
+  "09": "ספטמבר", "10": "אוקטובר", "11": "נובמבר", "12": "דצמבר",
+};
+
+function generateMonthOptions(): { value: string; label: string }[] {
+  const now = new Date();
+  const opts: { value: string; label: string }[] = [];
+  for (let offset = 6; offset >= -35; offset--) {
+    const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+    const yr = d.getFullYear();
+    const mo = String(d.getMonth() + 1).padStart(2, "0");
+    opts.push({ value: `${yr}-${mo}`, label: `${MONTH_HE_ADMIN[mo]} ${yr}` });
+  }
+  return opts;
+}
+
+const MONTH_OPTIONS = generateMonthOptions();
+
+function MonthlyRow({ fund, categoryId: _categoryId, odd, password, clientKey, onAfterSave }: {
   fund: Fund; categoryId: string; odd: boolean;
-  onUpdate: (catId: string, fundId: string, field: string, value: string) => void;
-  onApplyLastUpdated: (categoryId: string, fundId: string, lastUpdated: string, lastUpdatedAt: string) => void;
   password: string; clientKey: string;
+  onAfterSave: () => void;
 }) {
-  const monthlyDisplay = fund.monthlyReturn !== null ? (fund.monthlyReturn * 100).toFixed(2) : "";
-  const ytdDisplay = fund.returns.ytd2026 !== null ? (fund.returns.ytd2026 * 100).toFixed(2) : "";
-  const hasCurrency = fund.currency === "ILS" || fund.currency === "USD";
-  const [pendingCurrency, setPendingCurrency] = useState<"ILS" | "USD">("ILS");
+  const defaultMonth = useMemo(() => {
+    const latest = computeLatestMonth(fund.monthlyReturns ?? {});
+    if (!latest) {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    }
+    const yr = parseInt(latest.slice(0, 4));
+    const mo = parseInt(latest.slice(5, 7));
+    return mo === 12
+      ? `${yr + 1}-01`
+      : `${yr}-${String(mo + 1).padStart(2, "0")}`;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const [selectedMonth, setSelectedMonth] = useState(defaultMonth);
+  const [mtdInput, setMtdInput] = useState(() => {
+    const existing = (fund.monthlyReturns as Record<string, number> | undefined)?.[defaultMonth];
+    return typeof existing === "number" ? (existing * 100).toFixed(2) : "";
+  });
   const [saving, setSaving] = useState(false);
-  const [saved, setSavedLocal] = useState(false);
-  const [managerInput, setManagerInput] = useState(fund.manager || "");
-  const [managerSaved, setManagerSaved] = useState(false);
+  const [saved, setSaved] = useState(false);
 
-  // Per-fund lastUpdated
-  const defaultMonth = (() => {
-    if (fund.lastUpdated) return fund.lastUpdated;
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  })();
-  const [monthInput, setMonthInput] = useState(defaultMonth);
-  const [monthSaving, setMonthSaving] = useState(false);
-  const [monthSaved, setMonthSaved] = useState(false);
+  useEffect(() => {
+    const existing = (fund.monthlyReturns as Record<string, number> | undefined)?.[selectedMonth];
+    setMtdInput(typeof existing === "number" ? (existing * 100).toFixed(2) : "");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMonth]);
 
-  const bgBase = odd ? "var(--bg-surface-alt)" : "var(--bg-surface)";
-  const bg = !hasCurrency ? "#FFFBE6" : bgBase;
+  const previewValue = useMemo(() => {
+    const trimmed = mtdInput.trim();
+    if (!trimmed) return null;
+    const n = parseFloat(trimmed);
+    return isNaN(n) ? null : n / 100;
+  }, [mtdInput]);
 
-  const inputStyle: React.CSSProperties = {
-    width: 80,
-    textAlign: "center",
-    border: "1px solid var(--border)",
-    borderRadius: 6,
-    padding: "4px 8px",
-    fontSize: 13,
-    backgroundColor: "var(--bg-input)",
-    color: "var(--text-primary)",
-  };
+  const previewMr = useMemo((): Record<string, number> => {
+    const base: Record<string, number> = {};
+    for (const [k, v] of Object.entries(fund.monthlyReturns ?? {})) {
+      if (typeof v === "number") base[k] = v;
+    }
+    if (previewValue !== null) base[selectedMonth] = previewValue;
+    return base;
+  }, [fund.monthlyReturns, selectedMonth, previewValue]);
 
-  async function handleSaveCurrency() {
+  const computed = useMemo(() => ({
+    ytd2026: computeYTDFromMonthlyReturns(previewMr, "2026"),
+    y2025:   computeAnnualReturn(previewMr, 2025),
+    y2024:   computeAnnualReturn(previewMr, 2024),
+    cagr:    computeAvgAnnualReturn(previewMr),
+    sharpe:  computeSharpe(previewMr),
+    stdDev:  computeStdDev(previewMr),
+  }), [previewMr]);
+
+  const isPreview = previewValue !== null;
+  const canSave = isPreview && !saving;
+  const monthHasData = (fund.monthlyReturns as Record<string, number> | undefined)?.[selectedMonth] !== undefined;
+
+  async function handleDelete() {
+    if (!window.confirm(`למחוק את ${selectedMonth} מ-${fund.name}?`)) return;
     setSaving(true);
-    const res = await fetch(`/api/funds?action=set-currency&client=${encodeURIComponent(clientKey)}`, {
+    const res = await fetch(`/api/funds?action=delete-monthly-return&client=${encodeURIComponent(clientKey)}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", "x-admin-password": password },
-      body: JSON.stringify({ fundId: fund.id, currency: pendingCurrency }),
+      body: JSON.stringify({ fundId: fund.id, month: selectedMonth }),
     });
     setSaving(false);
-    if (res.ok) { setSavedLocal(true); setTimeout(() => setSavedLocal(false), 2000); }
+    if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 2000); onAfterSave(); }
   }
 
-  async function handleSaveManager() {
-    const trimmed = managerInput.trim();
-    if (trimmed === (fund.manager || "")) return; // no change
-    await fetch(`/api/funds?action=set-manager&client=${encodeURIComponent(clientKey)}`, {
+  async function handleSave() {
+    if (!canSave || previewValue === null) return;
+    setSaving(true);
+    const res = await fetch(`/api/funds?action=set-monthly-return&client=${encodeURIComponent(clientKey)}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", "x-admin-password": password },
-      body: JSON.stringify({ fundId: fund.id, manager: trimmed }),
+      body: JSON.stringify({ fundId: fund.id, month: selectedMonth, value: previewValue }),
     });
-    setManagerSaved(true);
-    setTimeout(() => setManagerSaved(false), 2000);
-  }
-
-  async function handleSaveLastUpdated() {
-    if (!monthInput) return;
-    // Guard: the server expects strict "YYYY-MM" format
-    if (!/^\d{4}-\d{2}$/.test(monthInput)) return;
-    setMonthSaving(true);
-    const valueToSave = monthInput; // freeze — avoid closure races
-    const res = await fetch(`/api/funds?action=set-last-updated&client=${encodeURIComponent(clientKey)}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", "x-admin-password": password },
-      body: JSON.stringify({ fundId: fund.id, lastUpdated: valueToSave }),
-    });
-    setMonthSaving(false);
+    setSaving(false);
     if (res.ok) {
-      // Sync parent state so a later global handleSave (PUT) doesn't
-      // overwrite the PATCH value with stale React state
-      onApplyLastUpdated(categoryId, fund.id, valueToSave, new Date().toISOString());
-      setMonthSaved(true);
-      setTimeout(() => setMonthSaved(false), 2000);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+      onAfterSave();
     }
   }
 
+  const latestUpdated = getLastUpdated(fund);
+  const bg = odd ? "var(--bg-surface-alt)" : "var(--bg-surface)";
+
+  const chips = [
+    { label: "YTD 2026", value: computed.ytd2026, isPct: true  },
+    { label: "2025",     value: computed.y2025,   isPct: true  },
+    { label: "2024",     value: computed.y2024,   isPct: true  },
+    { label: "CAGR",     value: computed.cagr,    isPct: true  },
+    { label: "Sharpe",   value: computed.sharpe,  isPct: false },
+    { label: "StdDev",   value: computed.stdDev,  isPct: true  },
+  ] as const;
+
   return (
     <tr style={{ backgroundColor: bg, borderBottom: "1px solid var(--border-table)" }}>
-      <td style={{ padding: "6px 12px", fontWeight: 600, textAlign: "right", fontSize: 12.5 }}>
+      {/* Fund name */}
+      <td style={{ padding: "10px 14px", fontWeight: 600, fontSize: 13, direction: "rtl", whiteSpace: "nowrap" }}>
         {fund.name}
-      </td>
-      <td style={{ padding: "5px 10px", textAlign: "center" }}>
-        <input
-          type="text"
-          defaultValue={monthlyDisplay}
-          onBlur={(e) => {
-            const v = e.target.value.trim();
-            if (v && isNaN(parseFloat(v))) { e.target.value = monthlyDisplay; return; }
-            onUpdate(categoryId, fund.id, "monthlyReturn", v);
-          }}
-          style={{ ...inputStyle, color: returnColorInline(fund.monthlyReturn) }}
-          dir="ltr"
-        />
-      </td>
-      <td style={{ padding: "5px 10px", textAlign: "center" }}>
-        <input
-          type="text"
-          defaultValue={ytdDisplay}
-          onBlur={(e) => {
-            const v = e.target.value.trim();
-            if (v && isNaN(parseFloat(v))) { e.target.value = ytdDisplay; return; }
-            onUpdate(categoryId, fund.id, "ytd2026", v);
-          }}
-          style={{ ...inputStyle, color: returnColorInline(fund.returns.ytd2026) }}
-          dir="ltr"
-        />
-      </td>
-      <td style={{ padding: "6px 10px", textAlign: "center", color: returnColorInline(fund.returns.y2025), fontSize: 12 }}>
-        {pct(fund.returns.y2025)}
-      </td>
-      <td style={{ padding: "6px 10px", textAlign: "center", color: returnColorInline(fund.returns.y2024), fontSize: 12 }}>
-        {pct(fund.returns.y2024)}
-      </td>
-      <td style={{ padding: "5px 8px", textAlign: "center" }}>
-        {hasCurrency ? (
-          <span style={{ fontSize: 11, fontWeight: 600, color: fund.currency === "USD" ? "#1d4ed8" : "#059669", padding: "2px 8px", borderRadius: 4, backgroundColor: fund.currency === "USD" ? "#dbeafe" : "#d1fae5" }}>
-            {fund.currency}
-          </span>
-        ) : saved ? (
-          <span style={{ fontSize: 11, color: "#059669" }}>✓</span>
-        ) : (
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-            <select
-              value={pendingCurrency}
-              onChange={(e) => setPendingCurrency(e.target.value as "ILS" | "USD")}
-              style={{ fontSize: 11, padding: "3px 6px", borderRadius: 5, border: "1px solid #f59e0b", backgroundColor: "#fff", cursor: "pointer" }}
-            >
-              <option value="ILS">ILS</option>
-              <option value="USD">USD</option>
-            </select>
-            <button
-              onClick={handleSaveCurrency}
-              disabled={saving}
-              style={{ fontSize: 10, padding: "3px 7px", borderRadius: 5, border: "none", backgroundColor: "#f59e0b", color: "#fff", cursor: saving ? "default" : "pointer", fontWeight: 600, opacity: saving ? 0.6 : 1 }}
-            >
-              {saving ? "..." : "שמור"}
-            </button>
-          </span>
+        {fund.currency === "USD" && (
+          <span style={{ marginRight: 7, fontSize: 9, fontWeight: 700, color: "#1d4ed8", padding: "1px 5px", borderRadius: 3, backgroundColor: "#dbeafe", verticalAlign: "middle" }}>USD</span>
         )}
       </td>
-      <td style={{ padding: "5px 8px", textAlign: "center", position: "relative" }}>
-        <input
-          type="text"
-          value={managerInput}
-          onChange={(e) => setManagerInput(e.target.value)}
-          onFocus={(e) => {
-            e.currentTarget.style.borderColor = "var(--border)";
-            e.currentTarget.style.backgroundColor = "var(--bg-input)";
-          }}
-          onBlur={(e) => {
-            e.currentTarget.style.borderColor = "transparent";
-            e.currentTarget.style.backgroundColor = "transparent";
-            handleSaveManager();
-          }}
-          placeholder="—"
-          style={{
-            width: 110,
-            textAlign: "center",
-            border: "1px solid transparent",
-            borderRadius: 6,
-            padding: "3px 6px",
-            fontSize: 12,
-            backgroundColor: "transparent",
-            color: "var(--text-primary)",
-            outline: "none",
-            transition: "border-color 0.15s, background-color 0.15s",
-          }}
-          dir="rtl"
-        />
-        {managerSaved && (
-          <span style={{ position: "absolute", top: "50%", right: -2, transform: "translateY(-50%)", fontSize: 10, color: "#059669" }}>✓</span>
-        )}
-      </td>
-      <td style={{ padding: "5px 8px", textAlign: "center" }}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-          <input
-            type="month"
-            value={monthInput}
-            onChange={(e) => setMonthInput(e.target.value)}
+
+      {/* Month dropdown */}
+      <td style={{ padding: "8px 10px", textAlign: "center" }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+          <select
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
             style={{
-              fontSize: 11, padding: "3px 6px", borderRadius: 5,
+              fontSize: 12, padding: "5px 8px", borderRadius: 7,
               border: "1px solid var(--border)",
-              backgroundColor: "var(--bg-input)",
-              color: "var(--text-primary)",
-              cursor: "pointer",
+              backgroundColor: "var(--bg-input)", color: "var(--text-primary)",
+              cursor: "pointer", width: 136,
             }}
             dir="ltr"
-          />
-          {monthSaved ? (
-            <span style={{ fontSize: 11, color: "#059669", fontWeight: 600 }}>✓</span>
-          ) : (
+          >
+            {MONTH_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          {monthHasData && (
             <button
-              onClick={handleSaveLastUpdated}
-              disabled={monthSaving}
+              onClick={handleDelete}
+              disabled={saving}
+              title={`מחק ${selectedMonth}`}
               style={{
-                fontSize: 10, padding: "3px 7px", borderRadius: 5, border: "none",
-                backgroundColor: "#1B3A2F", color: "#fff",
-                cursor: monthSaving ? "default" : "pointer",
-                fontWeight: 600, opacity: monthSaving ? 0.6 : 1,
+                width: 18, height: 18, borderRadius: "50%", border: "none",
+                backgroundColor: "rgba(239,68,68,0.12)", color: "#ef4444",
+                fontSize: 10, fontWeight: 700, cursor: saving ? "default" : "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0, opacity: saving ? 0.5 : 1,
               }}
-            >
-              {monthSaving ? "..." : "שמור"}
-            </button>
+            >✕</button>
           )}
-        </span>
+        </div>
+      </td>
+
+      {/* MTD input */}
+      <td style={{ padding: "8px 10px", textAlign: "center" }}>
+        <input
+          type="text"
+          value={mtdInput}
+          onChange={(e) => setMtdInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
+          placeholder="0.00"
+          style={{
+            width: 76, textAlign: "center",
+            border: `1px solid ${isPreview ? "rgba(16, 185, 129, 0.45)" : "var(--border)"}`,
+            borderRadius: 7, padding: "5px 8px", fontSize: 13,
+            backgroundColor: "var(--bg-input)",
+            color: previewValue !== null ? returnColorInline(previewValue) : "var(--text-primary)",
+            fontVariantNumeric: "tabular-nums", outline: "none",
+            transition: "border-color 0.15s",
+          }}
+          dir="ltr"
+        />
+      </td>
+
+      {/* Live computed metrics chips */}
+      <td style={{ padding: "8px 14px" }}>
+        <div style={{ display: "flex", gap: 7, justifyContent: "center", alignItems: "center", flexWrap: "nowrap" }}>
+          {chips.map((m) => (
+            <div key={m.label} style={{
+              display: "flex", flexDirection: "column", alignItems: "center",
+              padding: "4px 8px", borderRadius: 8,
+              backgroundColor: isPreview ? "rgba(16, 185, 129, 0.06)" : "var(--bg-surface-alt)",
+              border: `1px solid ${isPreview ? "rgba(16, 185, 129, 0.28)" : "var(--border-table)"}`,
+              minWidth: 50, transition: "background-color 0.2s, border-color 0.2s",
+            }}>
+              <span style={{ fontSize: 9, color: "var(--text-muted)", fontWeight: 500, whiteSpace: "nowrap", marginBottom: 1 }}>{m.label}</span>
+              <span style={{ fontSize: 11.5, fontWeight: 600, color: m.isPct ? returnColorInline(m.value) : "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>
+                {m.value != null ? (m.isPct ? pct(m.value) : (m.value as number).toFixed(2)) : "—"}
+              </span>
+            </div>
+          ))}
+        </div>
+      </td>
+
+      {/* Save */}
+      <td style={{ padding: "8px 12px", textAlign: "center", verticalAlign: "middle" }}>
+        {saved ? (
+          <span style={{ fontSize: 15, color: "#059669", fontWeight: 700 }}>✓</span>
+        ) : (
+          <button
+            onClick={handleSave}
+            disabled={!canSave}
+            style={{
+              fontSize: 11, padding: "5px 13px", borderRadius: 7, border: "none",
+              backgroundColor: canSave ? "#1B3A2F" : "var(--bg-surface-alt)",
+              color: canSave ? "#fff" : "var(--text-muted)",
+              cursor: canSave ? "pointer" : "default",
+              fontWeight: 600, display: "block", margin: "0 auto",
+              transition: "background-color 0.15s, color 0.15s",
+            }}
+          >
+            {saving ? "..." : "שמור"}
+          </button>
+        )}
+        <div style={{ fontSize: 9.5, color: "var(--text-muted)", marginTop: 4, whiteSpace: "nowrap", textAlign: "center" }}>
+          {latestUpdated ? formatReportDate(latestUpdated) : "—"}
+        </div>
       </td>
     </tr>
   );

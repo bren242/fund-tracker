@@ -240,5 +240,56 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ success: true });
   }
 
+  // Set a single month's return, updating monthlyReturns history only
+  if (url.searchParams.get("action") === "set-monthly-return") {
+    const body = await req.json();
+    const { fundId, month, value } = body as { fundId: string; month: string; value: number };
+    if (!fundId || !month || !/^\d{4}-\d{2}$/.test(month) || typeof value !== "number") {
+      return NextResponse.json({ error: "Missing fundId, invalid month (YYYY-MM), or non-numeric value" }, { status: 400 });
+    }
+    let found = false;
+    const categories = (data.categories || []) as Record<string, unknown>[];
+    for (const cat of categories) {
+      const funds = cat.funds as Record<string, unknown>[];
+      const idx = funds.findIndex((f) => f.id === fundId);
+      if (idx >= 0) {
+        const mr = (funds[idx].monthlyReturns as Record<string, number>) ?? {};
+        funds[idx].monthlyReturns = { ...mr, [month]: value };
+        funds[idx].lastUpdatedAt = new Date().toISOString();
+        found = true;
+        break;
+      }
+    }
+    if (!found) return NextResponse.json({ error: "Fund not found" }, { status: 404 });
+    await writeData(clientKey, data);
+    return NextResponse.json({ success: true });
+  }
+
+  // Delete a single month's return from monthlyReturns
+  if (url.searchParams.get("action") === "delete-monthly-return") {
+    const body = await req.json();
+    const { fundId, month } = body as { fundId: string; month: string };
+    if (!fundId || !month || !/^\d{4}-\d{2}$/.test(month)) {
+      return NextResponse.json({ error: "Missing fundId or invalid month (YYYY-MM)" }, { status: 400 });
+    }
+    let found = false;
+    const categories = (data.categories || []) as Record<string, unknown>[];
+    for (const cat of categories) {
+      const funds = cat.funds as Record<string, unknown>[];
+      const idx = funds.findIndex((f) => f.id === fundId);
+      if (idx >= 0) {
+        const mr = { ...((funds[idx].monthlyReturns as Record<string, number>) ?? {}) };
+        delete mr[month];
+        funds[idx].monthlyReturns = mr;
+        funds[idx].lastUpdatedAt = new Date().toISOString();
+        found = true;
+        break;
+      }
+    }
+    if (!found) return NextResponse.json({ error: "Fund not found" }, { status: 404 });
+    await writeData(clientKey, data);
+    return NextResponse.json({ success: true });
+  }
+
   return NextResponse.json({ error: "Unknown PATCH action" }, { status: 400 });
 }

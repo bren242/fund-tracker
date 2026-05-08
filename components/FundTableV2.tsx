@@ -5,7 +5,7 @@ import { Category, Fund } from "@/lib/types";
 import { pct, num, returnColorInline, formatReportDate } from "@/lib/format";
 import FundOnePagerModal from "./FundOnePagerModal";
 import { useBrand } from "@/lib/useBrand";
-import { getYTD, getAnnualReturn, getSharpe, getStdDev, getAvgAnnualReturn, getLatestMonthly } from "@/lib/fundDerived";
+import { getYTD, getAnnualReturn, getSharpe, getStdDev, getAvgAnnualReturn, getLatestMonthly, getLastUpdated } from "@/lib/fundDerived";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type TimeRange = "ytd" | "12m" | "3y" | "5y" | "max" | "custom";
@@ -25,7 +25,7 @@ const MONTH_HE_FULL: Record<string, string> = {
 };
 
 function fmtUpdateCell(fund: Fund): string {
-  return formatReportDate(fund.lastUpdated);
+  return formatReportDate(getLastUpdated(fund));
 }
 
 const YEAR_OPTIONS: { key: YearKey; label: string }[] = [

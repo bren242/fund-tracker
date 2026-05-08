@@ -10,6 +10,10 @@
 import * as metrics from "@/lib/metrics";
 import type { Fund } from "@/lib/types";
 
+export function getLastUpdated(fund: Fund): string | null {
+  return metrics.computeLatestMonth(fund.monthlyReturns ?? {}) ?? fund.lastUpdated ?? null;
+}
+
 export function getYTD(fund: Fund, year: number): number | null {
   const r = fund.returns as Record<string, number | null>;
   return (

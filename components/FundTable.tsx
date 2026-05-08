@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Category, Fund } from "@/lib/types";
 import { pct, num, returnColorInline, formatReportDate } from "@/lib/format";
+import { getLastUpdated } from "@/lib/fundDerived";
 
 
 type ReturnKey = "ytd2026" | "y2025" | "y2024" | "y2023" | "y2022" | "y2021" | "y2020" | "y2019";
@@ -180,7 +181,7 @@ function FundRow({ fund, even, comparisonEnabled, isSelected, onToggle, activeYe
         {fund.manager}
       </td>
       <td style={{ padding: "8px 10px", borderBottom: "1px solid var(--border-table)", color: "var(--text-muted)", textAlign: "center", fontSize: "10px", fontVariantNumeric: "tabular-nums" }}>
-        {formatReportDate(fund.lastUpdated)}
+        {formatReportDate(getLastUpdated(fund))}
       </td>
       <td style={{
         padding: "8px 10px",
