@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useClientKey } from "@/lib/useClientKey";
 import { useBrand } from "@/lib/useBrand";
+import { CLIENT_KEYS } from "@/lib/clientKey";
 import type { AppFeatures } from "@/config/brand";
 
 interface AppHeaderProps {
@@ -143,7 +144,7 @@ export default function AppHeader({ fundCount = 84 }: AppHeaderProps) {
           </span>
         )}
         <span style={{ fontSize: 12, color: "#999" }}>
-          {pathname !== "/" ? `${fundCount} קרנות פעילות` : null}
+          {!(pathname === "/" || CLIENT_KEYS.has(pathname.slice(1))) ? `${fundCount} קרנות פעילות` : null}
         </span>
       </div>
 
