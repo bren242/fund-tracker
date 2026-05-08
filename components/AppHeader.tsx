@@ -143,7 +143,7 @@ export default function AppHeader({ fundCount = 84 }: AppHeaderProps) {
           </span>
         )}
         <span style={{ fontSize: 12, color: "#999" }}>
-          {fundCount} קרנות פעילות
+          {pathname !== "/" ? `${fundCount} קרנות פעילות` : null}
         </span>
       </div>
 
