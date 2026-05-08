@@ -68,7 +68,7 @@ export default async function ConsistencyV2Page({
         <Suspense fallback={<div className="v2-toolbar" />}>
           <Toolbar fundId={fundParam} fundName={fundName} client={client} />
         </Suspense>
-        <BackNav />
+        <BackNav client={client} />
         <PageWrapper dateLabel={dateLabel} idlePath={idlePath}>
           <SingleView fundId={fundParam} client={client} />
           <PageFooter disclaimer="המידע מובא לצורך ניתוח בלבד ואינו מהווה ייעוץ השקעות, המלצה או חוות דעת." />
@@ -98,9 +98,12 @@ export default async function ConsistencyV2Page({
   const totalFunds = allStats.length;
 
   return (
-    <PageWrapper dateLabel={dateLabel} idlePath={idlePath}>
-      <IdleView top5={top5} totalFunds={totalFunds} windowSize={windowSize} searchPool={allStats} preselectId={preselect} client={client} />
-      <PageFooter />
-    </PageWrapper>
+    <>
+      <BackNav client={client} />
+      <PageWrapper dateLabel={dateLabel} idlePath={idlePath}>
+        <IdleView top5={top5} totalFunds={totalFunds} windowSize={windowSize} searchPool={allStats} preselectId={preselect} client={client} />
+        <PageFooter />
+      </PageWrapper>
+    </>
   );
 }
