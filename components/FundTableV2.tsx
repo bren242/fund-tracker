@@ -537,6 +537,8 @@ export default function FundTableV2({
   const [hoveredSection, setHoveredSection]   = useState<string | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [openAccordions, setOpenAccordions]   = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery]         = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Brand — read once per clientKey; used to gate aiReport feature flag
   const brand = useBrand(clientKey || "");
@@ -559,6 +561,21 @@ export default function FundTableV2({
   }, [clientKey, aiFeatureOn]);
 
   const aiAvailable = aiFeatureOn && apiKeyAvailable;
+
+  const totalActiveFunds = useMemo(() =>
+    categories.reduce((s, c) => s + c.funds.length, 0),
+  [categories]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && searchQuery) {
+        setSearchQuery("");
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [searchQuery]);
 
   // Year-mode: activated when no fund has monthlyReturns data (e.g. NOX)
   const [isYearMode, setIsYearMode]     = useState(false);
@@ -611,6 +628,7 @@ export default function FundTableV2({
 
   // Filtered categories
   const filteredCats = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     let cats = activeFilter === "הכל"
       ? categories
       : categories.filter(c => c.parentSection === activeFilter || c.name === activeFilter);
@@ -618,8 +636,12 @@ export default function FundTableV2({
       cats = cats.map(c => ({ ...c, funds: c.funds.filter(f => f.classification === activeClassification) }))
                  .filter(c => c.funds.length > 0);
     }
+    if (q) {
+      cats = cats.map(c => ({ ...c, funds: c.funds.filter(f => f.name.toLowerCase().includes(q)) }))
+                 .filter(c => c.funds.length > 0);
+    }
     return cats;
-  }, [categories, activeFilter, activeClassification]);
+  }, [categories, activeFilter, activeClassification, searchQuery]);
 
   // Grouped by section
   const { sectionMap, sectionOrder } = useMemo(() => {
@@ -689,7 +711,7 @@ export default function FundTableV2({
           padding: "12px 16px",
           borderBottom: subBarClassifications.length > 0 ? "none" : "1px solid var(--border-table)",
           backgroundColor: "var(--bg-surface)",
-          display: "flex", flexDirection: "column", gap: 10,
+          display: "flex", flexDirection: "column", gap: 12,
         }}>
           {/* Time range / Year selector */}
           {isYearMode ? (
@@ -717,6 +739,67 @@ export default function FundTableV2({
               )}
             </>
           )}
+
+          {/* Search bar + fund counter */}
+          <div className="no-print" style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+          }}>
+            <div style={{ position: "relative", width: 280, flexShrink: 0 }}>
+              <div style={{
+                position: "absolute", top: "50%", right: 10, transform: "translateY(-50%)",
+                pointerEvents: "none", display: "flex", alignItems: "center",
+              }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+              </div>
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="חיפוש קרן..."
+                style={{
+                  width: "100%", height: 36, paddingRight: 34,
+                  paddingLeft: searchQuery ? 30 : 12,
+                  border: "1px solid var(--border)", borderRadius: 8,
+                  backgroundColor: "var(--bg-input)", color: "var(--text-primary)",
+                  fontSize: 13, outline: "none", boxSizing: "border-box",
+                  transition: "border-color 0.15s, box-shadow 0.15s",
+                  direction: "rtl",
+                }}
+                onFocus={e => {
+                  e.currentTarget.style.borderColor = "#1B3A2F";
+                  e.currentTarget.style.boxShadow = "0 0 0 3px rgba(27,58,47,0.10)";
+                }}
+                onBlur={e => {
+                  e.currentTarget.style.borderColor = "var(--border)";
+                  e.currentTarget.style.boxShadow = "none";
+                }}
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => { setSearchQuery(""); searchInputRef.current?.focus(); }}
+                  style={{
+                    position: "absolute", top: "50%", left: 8, transform: "translateY(-50%)",
+                    border: "none", background: "none", cursor: "pointer", padding: 2,
+                    color: "var(--text-muted)", display: "flex", alignItems: "center",
+                    borderRadius: 4, lineHeight: 1,
+                  }}
+                  aria-label="נקה חיפוש"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              )}
+            </div>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+              {searchQuery.trim()
+                ? `${totalFunds} תוצאות (מתוך ${totalActiveFunds})`
+                : `${totalActiveFunds} קרנות פעילות`}
+            </span>
+          </div>
 
           {/* Category pills */}
           <CategoryPills
@@ -764,7 +847,9 @@ export default function FundTableV2({
       {/* ── Table ── */}
       {totalFunds === 0 ? (
         <div style={{ padding: "40px 20px", textAlign: "center", color: "var(--text-muted)", fontSize: 14 }}>
-          לא נמצאו קרנות.
+          {searchQuery.trim()
+            ? `לא נמצאו קרנות התואמות לחיפוש "${searchQuery.trim()}"`
+            : "לא נמצאו קרנות."}
         </div>
       ) : (
         <div style={{ overflowX: "auto", background: "#ffffff" }}>
