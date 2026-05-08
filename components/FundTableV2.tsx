@@ -5,6 +5,7 @@ import { Category, Fund } from "@/lib/types";
 import { pct, num, returnColorInline, formatReportDate } from "@/lib/format";
 import FundOnePagerModal from "./FundOnePagerModal";
 import { useBrand } from "@/lib/useBrand";
+import { getYTD, getAnnualReturn, getSharpe, getStdDev, getAvgAnnualReturn, getLatestMonthly } from "@/lib/fundDerived";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type TimeRange = "ytd" | "12m" | "3y" | "5y" | "max" | "custom";
@@ -112,15 +113,15 @@ function calcCumulative(fund: Fund): number | null {
 }
 
 function getYearReturn(fund: Fund, year: YearKey): number | null {
-  if (year === "avg") return fund.avgAnnualReturn;
-  const key = year === "ytd2026" ? "ytd2026" : (`y${year}` as keyof Fund["returns"]);
-  return fund.returns[key] ?? null;
+  if (year === "avg") return getAvgAnnualReturn(fund);
+  if (year === "ytd2026") return getYTD(fund, 2026);
+  return getAnnualReturn(fund, parseInt(year));
 }
 
 /** ממוצע שנתי מ-y2020 עד y2025 — שנים עם ערך בלבד (YTD לא נכלל) */
 function calcAnnualAvgFromReturns(fund: Fund): number | null {
-  const keys: (keyof Fund["returns"])[] = ["y2020", "y2021", "y2022", "y2023", "y2024", "y2025"];
-  const vals = keys.map(k => fund.returns[k]).filter((v): v is number => v != null);
+  const years = [2020, 2021, 2022, 2023, 2024, 2025] as const;
+  const vals = years.map(y => getAnnualReturn(fund, y)).filter((v): v is number => v != null);
   if (vals.length === 0) return null;
   return vals.reduce((a, b) => a + b, 0) / vals.length;
 }
@@ -295,6 +296,8 @@ function MonthlyPills({ monthlyReturns }: { monthlyReturns?: Record<string, numb
 // ── Accordion Panel ────────────────────────────────────────────────────────
 function AccordionPanel({ fund }: { fund: Fund }) {
   const cumulative = calcCumulative(fund);
+  const derivedStdDev = getStdDev(fund);
+  const derivedSharpe = getSharpe(fund);
 
   const sep = <span style={{ color: "var(--text-muted)", margin: "0 5px" }}>·</span>;
   const lbl = (t: string) => <span style={{ color: "var(--text-muted)", marginLeft: 3 }}>{t}</span>;
@@ -325,9 +328,9 @@ function AccordionPanel({ fund }: { fund: Fund }) {
             {sep}
             <span>{lbl("מצטבר")}<span style={{ color: returnColorInline(cumulative) }}>{pct(cumulative)}</span></span>
             {sep}
-            <span>{lbl("סטיית תקן")}{fund.stdDev != null ? `${(fund.stdDev * 100).toFixed(2)}%` : "—"}</span>
+            <span>{lbl("סטיית תקן")}{derivedStdDev != null ? `${(derivedStdDev * 100).toFixed(2)}%` : "—"}</span>
             {sep}
-            <span>{lbl("שארפ")}<span style={{ color: "#B8975A" }}>{fund.sharpe != null ? num(fund.sharpe) : "—"}</span></span>
+            <span>{lbl("שארפ")}<span style={{ color: "#B8975A" }}>{derivedSharpe != null ? num(derivedSharpe) : "—"}</span></span>
           </div>
 
           {/* Monthly pills */}
@@ -367,7 +370,9 @@ function FundRowV2({
   const [hovered, setHovered] = useState(false);
   const bg = even ? "#ffffff" : "#fafafa";
   const classBadge = getClassBadge(fund.classification || "");
-  const shColor = sharpeColor(fund.sharpe);
+  const derivedSharpe = getSharpe(fund);
+  const derivedMonthly = getLatestMonthly(fund);
+  const shColor = sharpeColor(derivedSharpe);
 
   const cell: React.CSSProperties = {
     padding: "8px 10px",
@@ -482,27 +487,27 @@ function FundRowV2({
       </td>
 
       {/* Monthly return */}
-      <td style={{ ...cell, fontSize: 15, fontWeight: 600, color: returnColorInline(fund.monthlyReturn) }}>{pct(fund.monthlyReturn)}</td>
+      <td style={{ ...cell, fontSize: 15, fontWeight: 600, color: returnColorInline(derivedMonthly) }}>{pct(derivedMonthly)}</td>
 
       {/* Period return (computed from monthlyReturns) */}
       <td style={{ ...cell, fontSize: 22, fontWeight: 700, letterSpacing: "-0.5px", color: returnColorInline(periodReturn) }}>
         {pct(periodReturn)}
       </td>
 
-      {/* Avg annual — in yearMode computed from y2020-y2025, otherwise stored field */}
-      {(() => { const v = annualAvg !== undefined ? annualAvg : fund.avgAnnualReturn; return (
+      {/* Avg annual — in yearMode computed from y2020-y2025, otherwise derived */}
+      {(() => { const v = annualAvg !== undefined ? annualAvg : getAvgAnnualReturn(fund); return (
         <td style={{ ...cell, fontSize: 15, fontWeight: 500, color: returnColorInline(v) }}>{pct(v)}</td>
       ); })()}
 
       {/* Sharpe with dot */}
       <td style={{ ...cell, fontSize: 14, fontWeight: 400, color: "#555" }}>
-        {fund.sharpe != null ? (
+        {derivedSharpe != null ? (
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
             <span style={{
               width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
               backgroundColor: shColor, display: "inline-block",
             }} />
-            <span style={{ color: shColor }}>{num(fund.sharpe)}</span>
+            <span style={{ color: shColor }}>{num(derivedSharpe)}</span>
           </span>
         ) : (
           <span style={{ color: "var(--text-muted)" }}>—</span>
