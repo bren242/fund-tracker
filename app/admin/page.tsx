@@ -605,6 +605,7 @@ function MonthlyDataTab({ data, password, clientKey, onAfterSave }: {
                 <thead>
                   <tr style={{ backgroundColor: "var(--bg-surface-alt)" }}>
                     <th style={thStyle(190)}>שם קרן</th>
+                    <th style={thStyle(80)}>מטבע</th>
                     <th style={thStyle(150)}>חודש</th>
                     <th style={thStyle(100)}>תשואה (%)</th>
                     <th style={thStyle(undefined)}>מדדים מחושבים</th>
@@ -682,6 +683,11 @@ function MonthlyRow({ fund, categoryId: _categoryId, odd, password, clientKey, o
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [currVal, setCurrVal] = useState(fund.currency ?? "");
+  const [currSaving, setCurrSaving] = useState(false);
+  const [currSaved, setCurrSaved] = useState(false);
+
+  useEffect(() => { setCurrVal(fund.currency ?? ""); }, [fund.currency]);
 
   useEffect(() => {
     const existing = (fund.monthlyReturns as Record<string, number> | undefined)?.[selectedMonth];
@@ -746,6 +752,25 @@ function MonthlyRow({ fund, categoryId: _categoryId, odd, password, clientKey, o
     }
   }
 
+  async function handleCurrencySave(newCurrency: string) {
+    if (newCurrency !== "ILS" && newCurrency !== "USD") return;
+    setCurrVal(newCurrency);
+    setCurrSaving(true);
+    const res = await fetch(`/api/funds?action=set-currency&client=${encodeURIComponent(clientKey)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-admin-password": password },
+      body: JSON.stringify({ fundId: fund.id, currency: newCurrency }),
+    });
+    setCurrSaving(false);
+    if (res.ok) {
+      setCurrSaved(true);
+      setTimeout(() => setCurrSaved(false), 1500);
+      onAfterSave();
+    } else {
+      setCurrVal(fund.currency ?? "");
+    }
+  }
+
   const latestUpdated = getLastUpdated(fund);
   const bg = odd ? "var(--bg-surface-alt)" : "var(--bg-surface)";
 
@@ -763,9 +788,42 @@ function MonthlyRow({ fund, categoryId: _categoryId, odd, password, clientKey, o
       {/* Fund name */}
       <td style={{ padding: "10px 14px", fontWeight: 600, fontSize: 13, direction: "rtl", whiteSpace: "nowrap" }}>
         {fund.name}
-        {fund.currency === "USD" && (
-          <span style={{ marginRight: 7, fontSize: 9, fontWeight: 700, color: "#1d4ed8", padding: "1px 5px", borderRadius: 3, backgroundColor: "#dbeafe", verticalAlign: "middle" }}>USD</span>
-        )}
+      </td>
+
+      {/* Currency */}
+      <td style={{
+        padding: "6px 8px", textAlign: "center", verticalAlign: "middle",
+        backgroundColor: !fund.currency ? "rgba(251,191,36,0.08)" : "transparent",
+      }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+          <select
+            value={currVal}
+            onChange={(e) => handleCurrencySave(e.target.value)}
+            disabled={currSaving}
+            style={{
+              fontSize: 11, padding: "4px 6px", borderRadius: 6,
+              border: `1px solid ${
+                !currVal ? "rgba(251,191,36,0.5)"
+                : currVal === "USD" ? "rgba(37,99,235,0.3)"
+                : "rgba(16,185,129,0.3)"
+              }`,
+              backgroundColor: !currVal ? "rgba(251,191,36,0.12)"
+                : currVal === "USD" ? "rgba(37,99,235,0.08)"
+                : "rgba(16,185,129,0.08)",
+              color: !currVal ? "#92400e"
+                : currVal === "USD" ? "#1d4ed8"
+                : "#065f46",
+              fontWeight: 600, cursor: currSaving ? "default" : "pointer",
+              opacity: currSaving ? 0.7 : 1,
+            }}
+          >
+            <option value="">—</option>
+            <option value="ILS">ILS</option>
+            <option value="USD">USD</option>
+          </select>
+          {currSaving && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>...</span>}
+          {currSaved && !currSaving && <span style={{ fontSize: 12, color: "#059669", fontWeight: 700 }}>✓</span>}
+        </div>
       </td>
 
       {/* Month dropdown */}
