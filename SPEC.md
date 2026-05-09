@@ -1,5 +1,5 @@
 # Fund Tracker — SPEC.md
-> מצב נכון ל: 2026-05-09 | Cache v47 | גרסה אחרונה: time hierarchy on /[client] | Production deploy: 8cypUHCF1 (commit 529aa93)
+> מצב נכון ל: 2026-05-09 | Cache v56 | גרסה אחרונה: parser parens fix + time hierarchy | Production deploy: Cxtt2NwgF (commit 31397e7)
 > **עדיפות:** Stage B Phases 2-4 (Charts/Compare/Analysis APIs) | fund-status UX
 > **פתוח:** 84 vs 81 inconsistency (3 כפילויות) | Stage B Phases 2-4 עדיין raw fields
 
@@ -69,7 +69,7 @@
 
 **Fallback:** אם Pass-2 לא מצא טבלאות (למשל כרטיס חודשי יחיד) — בונה `dualCurrencyData` מנתוני Pass-1 כולל חישוב YTD מצטבר מחודשים.
 
-**Cache:** תוצאות נשמרות לפי hash של הקובץ. גרסה נוכחית: **v47**. כל cache ישן ממנה בטל.
+**Cache:** תוצאות נשמרות לפי hash של הקובץ. גרסה נוכחית: **v56**. כל cache ישן ממנה בטל.
 
 **מה מחולץ בהצלחה (קבצים שנבדקו):**
 | קובץ | סטטוס | הערות |
@@ -134,6 +134,7 @@
 | /consistency/v2 קרס לקרנות בקטגוריה ללא BM | graceful fallback hasBenchmark=false + banner | 2026-05-09 |
 | create-fund לא שמר currency | הוספת currency לצד returnBasis | 2026-05-09 |
 | WindowsTable הציג שורות BM-only ללא נתונים | סינון לפי hasBenchmark | 2026-05-09 |
+| סוגריים בערכים שליליים לא נתפסו בפרסר — (0.02%) נפלט | parseParensValue helper + Pass-2 cell fix + prompt reinforcement | cache v56 | 2026-05-09 |
 
 ---
 
