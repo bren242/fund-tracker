@@ -1,5 +1,5 @@
 # Fund Tracker — SPEC.md
-> מצב נכון ל: 2026-05-09 | Cache v47 | גרסה אחרונה: fund-status v2 + Stage B Phase 1 | Production deploy: 9CfvbuP1a (commit 1fefbb8)
+> מצב נכון ל: 2026-05-09 | Cache v47 | גרסה אחרונה: time hierarchy on /[client] | Production deploy: 8cypUHCF1 (commit 529aa93)
 > **עדיפות:** Stage B Phases 2-4 (Charts/Compare/Analysis APIs) | fund-status UX
 > **פתוח:** 84 vs 81 inconsistency (3 כפילויות) | Stage B Phases 2-4 עדיין raw fields
 
@@ -682,6 +682,18 @@ Fallback to legacy KV fields for funds without monthly history.
 **החלטה:** מיון פעיל → תצוגה שטוחה (ללא כותרות קטגוריה). בלי מיון → תצוגה מקובצת רגילה. עמודות טקסט — ברירת מחדל עולה. עמודות מספריות — ברירת מחדל יורד.
 
 **למה:** מיון בתוך קבוצות לא שימושי — אייל רוצה לראות את הקרנות הטובות ביותר בראש רשימה בלי קשר לקטגוריה.
+
+### 15. Time hierarchy on /[client]
+**החלטה:** עמודת "עדכון" מציגה 4 רמות ויזואליות לפי הפרש מ-`latestMonth` (max lastUpdated בין כל הקרנות):
+- `current` (diff=0): כהה `#0f172a` + bold 600 + נקודה ירוקה 4px
+- `recent` (diff 1-2m): `#475569` + weight 500
+- `stale` (diff≥3m): `#94a3b8` + weight 400
+- `missing`: `#cbd5e1` + "—"
+
+עמודת "תשואה לתקופה" בMAX בלבד: sub-label פר-קרן עם `{duration} · מ-{MM/YYYY}`.
+דקדוק עברי: `חודש` / `N חודשים` / `שנה` / `שנתיים` / `N שנים` (floor, לא round).
+
+**למה:** אייל רוצה לראות במבט אחד איזו קרן עדיין לא עודכנה לחודש הנוכחי. ה-sub-label ב-MAX נותן context על גודל ה"מרחק" שה-% מייצג.
 
 ### 14. Categories without benchmark
 **החלטה:** קטגוריות עם פחות קרנות (כמו CLO עם 3 קרנות) אינן מקושרות ל-`CATEGORY_BLEND`. ה-API מחזיר 200 עם `hasBenchmark=false` במקום 404. ה-UI מסתיר אוטומטית מטריקות BM-תלויות (IR, Up/Down Capture, חודשים מעל בנצ'מרק, דירוג) ומציג banner. מטריקות מוחלטות (תשואות, MaxDD, מעל קטגוריה) ממשיכות לעבוד.
