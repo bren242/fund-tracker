@@ -28,6 +28,14 @@ function fmtUpdateCell(fund: Fund): string {
   return formatReportDate(getLastUpdated(fund));
 }
 
+function monthDiff(from: string, to: string): number {
+  const [fy, fm] = from.split("-").map(Number);
+  const [ty, tm] = to.split("-").map(Number);
+  return (ty - fy) * 12 + (tm - fm);
+}
+
+type UpdateStatus = "current" | "recent" | "stale" | "missing";
+
 const YEAR_OPTIONS: { key: YearKey; label: string }[] = [
   { key: "2020",    label: "2020" },
   { key: "2021",    label: "2021" },
@@ -348,7 +356,7 @@ function AccordionPanel({ fund }: { fund: Fund }) {
 function FundRowV2({
   fund, even, comparisonEnabled, isSelected, onToggle, selectionDisabled,
   accentColor, periodReturn, annualAvg, isOpen, onToggleAccordion, isFirst,
-  aiAvailable, onOpenAi, consistencyHref,
+  aiAvailable, onOpenAi, consistencyHref, latestMonth, timeRange,
 }: {
   fund: Fund;
   even: boolean;
@@ -366,6 +374,8 @@ function FundRowV2({
   onOpenAi?: (fundId: string) => void;
   /** Link to the per-fund consistency page. When provided, shows a "📊" button. */
   consistencyHref?: string;
+  latestMonth: string | null;
+  timeRange: TimeRange;
 }) {
   const [hovered, setHovered] = useState(false);
   const bg = even ? "#ffffff" : "#fafafa";
@@ -373,6 +383,49 @@ function FundRowV2({
   const derivedSharpe = getSharpe(fund);
   const derivedMonthly = getLatestMonthly(fund);
   const shColor = sharpeColor(derivedSharpe);
+
+  // Update-status for lastUpdated column
+  const fundLastUpdated = getLastUpdated(fund);
+  let updateStatus: UpdateStatus = "missing";
+  if (fundLastUpdated && latestMonth) {
+    const diff = monthDiff(fundLastUpdated, latestMonth);
+    if (diff === 0)      updateStatus = "current";
+    else if (diff <= 2)  updateStatus = "recent";
+    else                 updateStatus = "stale";
+  } else if (fundLastUpdated) {
+    updateStatus = "stale";
+  }
+  const updateCellStyle: React.CSSProperties =
+    updateStatus === "current" ? { color: "#0f172a", fontWeight: 600 } :
+    updateStatus === "recent"  ? { color: "#475569", fontWeight: 500 } :
+    updateStatus === "stale"   ? { color: "#94a3b8", fontWeight: 400 } :
+                                 { color: "#cbd5e1", fontWeight: 400 };
+
+  // MAX sub-label
+  let maxSubLabel: React.ReactNode = null;
+  if (timeRange === "max") {
+    const mr = fund.monthlyReturns;
+    if (mr) {
+      const sorted = Object.keys(mr).filter(k => mr[k as keyof typeof mr] != null).sort();
+      if (sorted.length > 0) {
+        const firstMonth = sorted[0];
+        const monthsCount = sorted.length;
+        const [y, m] = firstMonth.split("-");
+        const fromLabel = `${m}/${y}`;
+        const years = Math.floor(monthsCount / 12);
+        const duration = monthsCount < 12
+          ? (monthsCount === 1 ? "חודש" : `${monthsCount} חודשים`)
+          : years === 1 ? "שנה"
+          : years === 2 ? "שנתיים"
+          : `${years} שנים`;
+        maxSubLabel = (
+          <div style={{ fontSize: "75%", fontWeight: 400, color: "#94a3b8", marginTop: 2, letterSpacing: 0 }}>
+            {duration} · מ-{fromLabel}
+          </div>
+        );
+      }
+    }
+  }
 
   const cell: React.CSSProperties = {
     padding: "8px 10px",
@@ -482,8 +535,20 @@ function FundRowV2({
       </td>
 
       {/* Last report date */}
-      <td style={{ ...cell, fontSize: 13, color: "#AEAEB2" }}>
-        {fmtUpdateCell(fund)}
+      <td style={{ ...cell, fontSize: 13, ...updateCellStyle }}>
+        {updateStatus === "missing" ? (
+          <span style={{ color: "#cbd5e1" }}>—</span>
+        ) : (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+            {updateStatus === "current" && (
+              <span style={{
+                width: 4, height: 4, borderRadius: "50%", flexShrink: 0,
+                backgroundColor: "rgba(16,185,129,0.7)", display: "inline-block",
+              }} />
+            )}
+            {fmtUpdateCell(fund)}
+          </span>
+        )}
       </td>
 
       {/* Monthly return */}
@@ -492,6 +557,7 @@ function FundRowV2({
       {/* Period return (computed from monthlyReturns) */}
       <td style={{ ...cell, fontSize: 22, fontWeight: 700, letterSpacing: "-0.5px", color: returnColorInline(periodReturn) }}>
         {pct(periodReturn)}
+        {maxSubLabel}
       </td>
 
       {/* Avg annual — in yearMode computed from y2020-y2025, otherwise derived */}
@@ -570,6 +636,17 @@ export default function FundTableV2({
   const totalActiveFunds = useMemo(() =>
     categories.reduce((s, c) => s + c.funds.length, 0),
   [categories]);
+
+  const latestMonth = useMemo(() => {
+    let max: string | null = null;
+    for (const cat of categories) {
+      for (const f of cat.funds) {
+        const lu = getLastUpdated(f);
+        if (lu && (!max || lu > max)) max = lu;
+      }
+    }
+    return max;
+  }, [categories]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -956,6 +1033,8 @@ export default function FundTableV2({
                           isFirst={fi === 0}
                           aiAvailable={aiAvailable && !!clientKey}
                           onOpenAi={setAiFundId}
+                          latestMonth={latestMonth}
+                          timeRange={timeRange}
                           consistencyHref={
                             clientKey
                               ? (clientKey === "green"
