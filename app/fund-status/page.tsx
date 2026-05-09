@@ -222,7 +222,7 @@ function FundStatusContent() {
         if (fund.active === false) continue;
         const lk = getLatestKey(fund);
         const effectiveKey = getLastUpdated(fund);
-        const delayed = fund.delayed ?? fund.reportingDelay ?? false;
+        const delayed = fund.delayed ?? false;
         const status = statusFromKey(effectiveKey, delayed, expected);
         out.push({
           id: fund.id,
