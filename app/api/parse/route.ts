@@ -2598,6 +2598,7 @@ export async function POST(req: NextRequest) {
         active: true,
         monthlyReturns: {},
         returnBasis: returnBasis === "ILS" || returnBasis === "USD" ? returnBasis : "ILS",
+        currency:    returnBasis === "ILS" || returnBasis === "USD" ? returnBasis : "ILS",
       };
 
       // Apply extracted fields

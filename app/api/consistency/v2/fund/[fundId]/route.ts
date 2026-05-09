@@ -51,19 +51,47 @@ export async function GET(
     return NextResponse.json({ error: "Fund not found", fundId }, { status: 404 });
   }
 
-  // Benchmark for this category
+  // Shared setup — needed for both benchmark and no-benchmark paths
+  const allFunds     = fundsData.categories.flatMap((c) => c.funds);
+  const { endMonth } = getWindowEndMonth(allFunds, benchmarks);
+  const catAvgAll    = buildCategoryAvgReturns(category.funds);
+  const fundMr       = fund.monthlyReturns ?? {};
+
   const blend = getBenchmarkForCategory(category.id);
+
   if (!blend) {
-    return NextResponse.json({ error: "No benchmark for category", fundId }, { status: 404 });
+    // No benchmark defined — return absolute metrics only (BM cols hidden in UI)
+    const monthKeys: string[] = [];
+    const fundReturns: number[] = [];
+    const zeroReturns: number[] = [];
+    const categoryAverageReturns: number[] = [];
+
+    for (const m of Object.keys(fundMr).sort()) {
+      const fr = fundMr[m];
+      if (fr == null) continue;
+      monthKeys.push(m);
+      fundReturns.push(fr);
+      zeroReturns.push(0);
+      categoryAverageReturns.push(catAvgAll[m] ?? 0);
+    }
+
+    const windows = computeAllWindows(
+      fundReturns, zeroReturns, categoryAverageReturns, monthKeys, {}
+    );
+
+    return NextResponse.json({
+      fund: { id: fund.id, name: fund.name, category: { id: category.id, name: category.name } },
+      benchmarkShortName: null,
+      endMonthLabel:      endMonth ? hebrewLabel(endMonth) : "",
+      windows,
+      hasBenchmark:       false,
+    });
   }
 
-  const allFunds        = fundsData.categories.flatMap((c) => c.funds);
-  const { endMonth }    = getWindowEndMonth(allFunds, benchmarks);
-  const bmAll           = blendBenchmarkReturns(blend, benchmarks);
-  const catAvgAll       = buildCategoryAvgReturns(category.funds);
+  // Has benchmark — full metrics
+  const bmAll = blendBenchmarkReturns(blend, benchmarks);
 
   // Build fund's aligned return arrays (only months where both fund + benchmark have data)
-  const fundMr       = fund.monthlyReturns ?? {};
   const monthKeys:              string[] = [];
   const fundReturns:            number[] = [];
   const benchmarkReturns:       number[] = [];
@@ -114,5 +142,6 @@ export async function GET(
     benchmarkShortName: formatBenchmarkLabel(category.id),
     endMonthLabel:      endMonth ? hebrewLabel(endMonth) : "",
     windows,
+    hasBenchmark:       true,
   });
 }
