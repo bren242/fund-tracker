@@ -1,0 +1,28 @@
+# Fund Tracker — TODO.md
+> עדכון אחרון: 2026-05-09
+
+## Pending Work
+
+1. **84 vs 81 inconsistency** — 3 קרנות כפולות: Fund Access ASPM Apollo, ואר אקוויטי, קפלר קפיטל. בנוסף: בירור טיפול ב-`active=false` בספירות
+
+2. **Top-bar UI redesign** — צפיפות/ריווח בדף `/[client]` לא Apple-grade. ממתין ל-Design Review session ייעודי
+
+3. **Navigation links audit** — `/fund-status → /indications` היה באג שתוקן. לבדוק את כל נתיבי הניווט ברחבי האפליקציה
+
+4. **Stage B Phases 2-4** — הפיכת raw `fund.*` fields לשימוש ב-`lib/metrics.ts` / `lib/fundDerived.ts`:
+   - Phase 2: Charts (`app/charts/page.tsx`)
+   - Phase 3: Compare (`app/compare/page.tsx`)
+   - Phase 4: Analysis, Aggregate, BulkApply API, FundReport API
+   - ~10h עבודה בסה"כ
+
+5. **44 קרנות (Category D)** — עדיין ללא `monthlyReturns`. לפרסר היסטוריה מ-PDFs
+
+6. **3 קרנות כפולות** — מיזוג או מחיקה (תלוי בפריט 1 לעיל)
+
+7. **TRIO (fund-24)** — אין `monthlyReturns`. דרוש re-parse מ-PDF
+
+8. **אידאה (fund-eq2-3)** — לאמת `y2019` ב-`monthlyReturns`. הפרסר אישר שה-PDF מראה 26.08% — האם נכנס נכון ל-KV?
+
+9. **Push commit `3d5ff7a`** — פיצ'ר bulk-update עדיין local only, לא עלה ל-remote
+
+10. **Dead code** — `components/FundCard.tsx` ו-`components/FundTable.tsx` לא מיובאים בשום מקום. למחוק

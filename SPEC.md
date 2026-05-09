@@ -1,7 +1,7 @@
 # Fund Tracker — SPEC.md
-> מצב נכון ל: 2026-05-03 | Cache v47 | גרסה אחרונה: consistency v2.5 — multi-window facts-only redesign
-> **עדיפות:** consistency v2 compare view (4c) — עדיין disabled
-> **פתוח:** 502 בפרסר — חשד: `claude-sonnet-4-5` דפרקייטד
+> מצב נכון ל: 2026-05-09 | Cache v47 | גרסה אחרונה: fund-status v2 + Stage B Phase 1
+> **עדיפות:** Stage B Phases 2-4 (Charts/Compare/Analysis APIs) | fund-status UX
+> **פתוח:** 84 vs 81 inconsistency (3 כפילויות) | Stage B Phases 2-4 עדיין raw fields
 
 ---
 
@@ -129,7 +129,98 @@
 
 ---
 
-## עדכון אחרון (2026-05-03 — consistency v2.5) ✅
+## עדכון אחרון (2026-05-09 — Stage B Phase 1 + fund-status v2 + KV migration) ✅
+
+### Stage A — Pure Metric Functions (Completed)
+- `lib/constants.ts`: `RISK_FREE_RATE_ANNUAL=0.03`, `SHARPE_CAP=5`, `MIN_MONTHS_FOR_RISK_METRICS=12`
+- `lib/metrics.ts`: 9 pure functions — `computeYTD`, `computeAnnualReturn`, `computePeriodReturn`, `computeAvgAnnualReturn` (CAGR), `computeSharpe`, `computeStdDev`, `computeStartMonth`, `computeLatestMonth`, `computeLatestMonthly`, `hasMinimumHistory`
+- 32 unit tests in `__tests__/metrics.test.ts`
+
+### Stage B — UI Migration (In Progress)
+**Step 3 (Completed):** `FundTableV2`, `FundRowV2` use `lib/fundDerived` helpers
+
+**Phase 1 (Completed):** `getLastUpdated(fund)` replaces raw `fund.lastUpdated` in 4 files:
+- `app/admin/page.tsx` — staleness badge
+- `app/api/consistency-data/route.ts`
+- `app/api/consistency-compare-data/route.ts`
+- `app/fund-status/page.tsx`
+
+**Remaining (Phases 2-4):** Charts, Compare, Analysis, Aggregate, BulkApply API, FundReport API
+**Roadmap:** `/tmp/stage-b-roadmap.md`
+
+### Stage C — Admin Monthly Update UI (Completed)
+- No global `lastUpdated` picker — each fund self-reports
+- No editable YTD/yearly fields — all read-only, computed live
+- Single MTD input + month dropdown per fund
+- Live preview chips (YTD/CAGR/Sharpe/StdDev)
+- Delete button (✕) for existing months
+- New PATCH actions: `set-monthly-return`, `delete-monthly-return`
+
+### fund-status v2 (Completed — 2026-05-09)
+- **Fix 1:** Removed "עדכן ידנית" button linking to /indications. Replaced with inline MTD form per row (month dropdown + % input + save)
+- **Fix 2:** Unified summary counts — 3 statuses: `updated` | `waiting` | `delay` (merged old warning+old→waiting). `updated+waiting+delay===total` always holds
+- **Fix 3:** Fixed broken delay toggle (was calling non-existent `/api/funds/${id}`) → new `PATCH /api/funds?action=set-delayed-flag`
+
+### KV Migrations Completed
+- `reportingDelay → delayed` (10 GREEN funds, May 2026)
+- backup: `kv-backup-green-2026-05-09T06-12-16-243Z.json` (in `/tmp`)
+- `lib/types.ts`: `reportingDelay` field removed; `delayed` is the single source of truth
+
+### Architecture Principle
+**Single Source of Truth: `fund.monthlyReturns`**
+All derived metrics computed on-the-fly via `lib/metrics.ts`.
+Fallback to legacy KV fields for funds without monthly history.
+
+---
+
+## עדכון קודם (2026-05-03 — consistency v2 Compare View) ✅
+
+### Compare View — production-ready
+
+**מה בוצע (6 rounds):**
+
+**1. תיקוני Compare View — עיצוב ומספרים**
+- ITD column בהיטמאפ: ניטרלי (אפור), לא ירוק/אדום
+- Max Drawdown `higherIsBetter: true` — פחות שלילי = טוב יותר
+- Capture formatting: `Math.abs(v)` — תמיד חיובי
+- Max Drawdown formatting: תמיד `-X.X%` מפורש
+- הסרת `CompareDeepData` placeholder section
+
+**2. תיקון cold start**
+- בעיה: KV transient failure → `storageRead` מחזיר [] → כל החלונות null → מקפים בכל מקום
+- פתרון dual-layer: API retry (3 ניסיונות, 200ms/400ms) + client retry (2 ניסיונות, 1000ms) + `hasValidWindows()` validation
+- Compare page הוסב ל-Client-side fetch עם Skeleton + Error state
+
+**3. תיקוני ניווט ו-UX נוספים**
+- ניווט Compare URL מ-IdleView: absolute path עם `client` param
+- `revalidate = 0` ל-page.tsx
+- Months count: תמיד חיובי (היה מחזיר שלילי)
+- GlossarySection מוצג גם ב-Compare View
+- Tooltips ⓘ על כל מדד (CSS-only, `data-tip` attribute)
+- כפתור הדפס ב-Toolbar של Compare
+
+**4. Benchmark labels עם משקולות**
+- `formatBenchmarkLabel(categoryId)` ב-`lib/consistency.ts` — מחשב מ-`CATEGORY_BLEND` בזמן ריצה
+- equity-hedged → `ת"א 125` (בלי אחוז כי 100%)
+- bond-hedged → `15% ת"א 125 + 85% תל בונד מאגר`
+- מחליף `BENCH_SHORT` סטטי שהיה בשתי routes
+
+**5. DisclaimerBlock משותף**
+- `DisclaimerBlock.tsx` — קומפוננט משותף עם disclaimer מלא (כולל "אגם לידרים — סוכנות הפניקס")
+- שימוש ב-SingleView וב-CompareView
+- CSS print pagination: `page-break-inside: avoid` על כל section גדול
+- C (logo running header) — נדלג, Chrome לא תומך `@top-right` ב-`@page`
+
+**Commits:** `9d8613b`, `0d3d979`, `5c79953`, `51ba6ee`, `7009f32`, `6293056`
+
+### הצעד הבא
+- מעקב בפרודקשן: לוודא Compare View עובד ב-cold start אמיתי
+- בדיקת benchmark labels בכל הקטגוריות
+- לשקול retroactive validation של monthly history קיים
+
+---
+
+## עדכון קודם (2026-05-03 — consistency v2.5) ✅
 
 ### Consistency V2.5 — multi-window facts-only redesign
 
