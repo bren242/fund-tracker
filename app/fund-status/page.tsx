@@ -7,6 +7,7 @@ import { useBrand } from "@/lib/useBrand";
 import { FundsData, Fund } from "@/lib/types";
 import ClientGate from "@/components/ClientGate";
 import { brandCssVars } from "@/lib/colors";
+import { getLastUpdated } from "@/lib/fundDerived";
 
 /* ── status helpers ──────────────────────────────────────── */
 
@@ -43,7 +44,7 @@ type StatusKey = "updated" | "warning" | "old" | "delay";
 function computeStatus(fund: Fund, expected: string): StatusKey {
   // Prefer lastUpdated (set by both indications/manual entry AND AI parser).
   // Fall back to latest monthlyReturns key (GREEN parser path without lastUpdated).
-  const effectiveKey = fund.lastUpdated ?? getLatestKey(fund);
+  const effectiveKey = getLastUpdated(fund);
   if (!effectiveKey) return "old";
   const behind = monthsBehind(effectiveKey, expected);
   if (behind <= 0) return "updated";
@@ -135,8 +136,8 @@ function FundStatusContent() {
       for (const fund of cat.funds) {
         if (fund.active === false) continue;
         const lk = getLatestKey(fund);
-        const effectiveKey = fund.lastUpdated ?? lk;
-        const rdk = fund.lastUpdated ?? null;
+        const effectiveKey = getLastUpdated(fund);
+        const rdk = getLastUpdated(fund);
         const displayDate = rdk;
         const mismatch = !!lk && !!rdk && toYYYYMM(lk) !== toYYYYMM(rdk);
         const reportingDelay = fund.reportingDelay ?? false;

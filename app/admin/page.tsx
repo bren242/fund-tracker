@@ -1216,12 +1216,13 @@ function FundManagementTab({ data, onToggleActive, onDelete, onShowAdd, onEdit, 
                       <td style={{ padding: "6px 12px", fontWeight: 600, textAlign: "right" }}>
                         {fund.name}
                         {(() => {
-                          if (!fund.lastUpdated || !isActive) return null;
-                          const lastDate = new Date(fund.lastUpdated + "-01");
+                          const lu = getLastUpdated(fund);
+                          if (!lu || !isActive) return null;
+                          const lastDate = new Date(lu + "-01");
                           const now = new Date();
                           const monthsDiff = (now.getFullYear() - lastDate.getFullYear()) * 12 + (now.getMonth() - lastDate.getMonth());
                           if (monthsDiff >= 3) {
-                            return <span style={{ fontSize: 9, color: "#f59e0b", marginRight: 6, fontWeight: 400 }} title={`עדכון אחרון: ${fund.lastUpdated}`}>⚠️ לא עודכנה {monthsDiff} חודשים</span>;
+                            return <span style={{ fontSize: 9, color: "#f59e0b", marginRight: 6, fontWeight: 400 }} title={`עדכון אחרון: ${lu}`}>⚠️ לא עודכנה {monthsDiff} חודשים</span>;
                           }
                           return null;
                         })()}

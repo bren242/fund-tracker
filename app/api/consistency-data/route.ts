@@ -13,6 +13,7 @@ import {
   blendBenchmarkReturns,
   calcConsistencyVsBenchmark,
 } from "@/lib/consistency";
+import { getLastUpdated } from "@/lib/fundDerived";
 import {
   getFundsInCategory,
   monthlyCategoryAverage,
@@ -178,7 +179,7 @@ export async function GET(req: NextRequest) {
       id:             fund.id,
       name:           fund.name,
       classification: fund.classification,
-      lastUpdated: fund.lastUpdated ?? null,
+      lastUpdated: getLastUpdated(fund),
     },
     category: {
       id:                  category.id,
