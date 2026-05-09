@@ -26,3 +26,13 @@
 9. **Push commit `3d5ff7a`** — פיצ'ר bulk-update עדיין local only, לא עלה ל-remote
 
 10. **Dead code** — `components/FundCard.tsx` ו-`components/FundTable.tsx` לא מיובאים בשום מקום. למחוק
+
+11. **[HIGH] שתי קרנות CLO ב-KV חסרות currency** —
+    - `fund-1778317451353-3b9f` (עוגן קלאס A) — לקבוע ILS/USD
+    - `fund-1778318344637-aa3r` (מור CLO) — לקבוע ILS/USD
+    - תיקון נקודתי דרך `PATCH /api/funds?action=set-currency`
+    - Fix 1 (create-fund) רלוונטי רק לקרנות חדשות מכאן והלאה
+
+12. **[LOW] בדיקה ארכיטקטונית: מתי קטגוריה מקבלת BM?** —
+    שקול להוסיף ל-`CATEGORY_BLEND` קריטריון מינימום (לדוגמה ≥5 קרנות).
+    נדרש כשתתווסף קטגוריה חדשה כדי לקבוע אם היא מקבלת BM או לא.

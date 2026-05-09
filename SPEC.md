@@ -1,5 +1,5 @@
 # Fund Tracker — SPEC.md
-> מצב נכון ל: 2026-05-09 | Cache v47 | גרסה אחרונה: fund-status v2 + Stage B Phase 1
+> מצב נכון ל: 2026-05-09 | Cache v47 | גרסה אחרונה: fund-status v2 + Stage B Phase 1 | Production deploy: 9CfvbuP1a (commit 1fefbb8)
 > **עדיפות:** Stage B Phases 2-4 (Charts/Compare/Analysis APIs) | fund-status UX
 > **פתוח:** 84 vs 81 inconsistency (3 כפילויות) | Stage B Phases 2-4 עדיין raw fields
 
@@ -126,6 +126,14 @@
 - mobile UX מלא (upload עובד, אבל הממשק הראשי לא optimized למובייל)
 - מסך history/timeline לכל קרן
 - התראות אוטומטיות כשמגיע דוח חדש
+
+### בעיות שנפתרו — לא לגעת
+
+| בעיה | פתרון | תאריך |
+|------|--------|--------|
+| /consistency/v2 קרס לקרנות בקטגוריה ללא BM | graceful fallback hasBenchmark=false + banner | 2026-05-09 |
+| create-fund לא שמר currency | הוספת currency לצד returnBasis | 2026-05-09 |
+| WindowsTable הציג שורות BM-only ללא נתונים | סינון לפי hasBenchmark | 2026-05-09 |
 
 ---
 
@@ -674,6 +682,11 @@ Fallback to legacy KV fields for funds without monthly history.
 **החלטה:** מיון פעיל → תצוגה שטוחה (ללא כותרות קטגוריה). בלי מיון → תצוגה מקובצת רגילה. עמודות טקסט — ברירת מחדל עולה. עמודות מספריות — ברירת מחדל יורד.
 
 **למה:** מיון בתוך קבוצות לא שימושי — אייל רוצה לראות את הקרנות הטובות ביותר בראש רשימה בלי קשר לקטגוריה.
+
+### 14. Categories without benchmark
+**החלטה:** קטגוריות עם פחות קרנות (כמו CLO עם 3 קרנות) אינן מקושרות ל-`CATEGORY_BLEND`. ה-API מחזיר 200 עם `hasBenchmark=false` במקום 404. ה-UI מסתיר אוטומטית מטריקות BM-תלויות (IR, Up/Down Capture, חודשים מעל בנצ'מרק, דירוג) ומציג banner. מטריקות מוחלטות (תשואות, MaxDD, מעל קטגוריה) ממשיכות לעבוד.
+
+**למה:** 3 קרנות CLO אינן מספיקות להשוואה סטטיסטית משמעותית מול בנצ'מרק חיצוני. הצגת IR ו-Capture על בסיס מדגם קטן מטעה.
 
 ---
 
