@@ -7,6 +7,7 @@ export interface Fund {
   lastUpdated: string | null;   // "YYYY-MM" — data month (single source of truth for update date)
   lastUpdatedAt?: string;       // ISO timestamp — write time, used for staleness guard
   reportingDelay?: boolean;
+  delayed?: boolean;
   monthlyReturn: number | null;
   returns: {
     ytd2026: number | null;

@@ -291,5 +291,29 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ success: true });
   }
 
+  // Set delayed flag on a single fund by ID
+  if (url.searchParams.get("action") === "set-delayed-flag") {
+    const body = await req.json();
+    const { fundId, delayed } = body as { fundId: string; delayed: boolean };
+    if (!fundId || typeof delayed !== "boolean") {
+      return NextResponse.json({ error: "Missing fundId or invalid delayed (boolean)" }, { status: 400 });
+    }
+    let found = false;
+    const categories = (data.categories || []) as Record<string, unknown>[];
+    for (const cat of categories) {
+      const funds = cat.funds as Record<string, unknown>[];
+      const idx = funds.findIndex((f) => f.id === fundId);
+      if (idx >= 0) {
+        funds[idx].delayed = delayed;
+        funds[idx].lastUpdatedAt = new Date().toISOString();
+        found = true;
+        break;
+      }
+    }
+    if (!found) return NextResponse.json({ error: "Fund not found" }, { status: 404 });
+    await writeData(clientKey, data);
+    return NextResponse.json({ success: true });
+  }
+
   return NextResponse.json({ error: "Unknown PATCH action" }, { status: 400 });
 }
