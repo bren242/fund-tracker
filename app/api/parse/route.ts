@@ -168,7 +168,8 @@ async function getCachedResult(clientKey: string, fileHash: string): Promise<Rec
   // v27: single-pass only (removed buildDynamicStructuredPrompt second API call)
   // v47: validation fix — effectiveReportMonth prevents valid months from being excluded
   // v52: YTD alias normalization fix (סה"כ→סהכ); fund-name-as-annual-column prompt; benchmark cols excluded
-  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 55) return null;
+  // v56: parentheses = negative in Pass-2 mapRawTablesToFields + Pass-1 parseCloudeResponse
+  if (!cached.result._cacheVersion || (cached.result._cacheVersion as number) < 56) return null;
 
   return cached.result;
 }
@@ -827,6 +828,7 @@ ${dualInstructions}
 READING ACCURACY:
 - Read every digit carefully. 5.35 and 3.35 are different numbers.
 - Negative sign (-) must be preserved exactly as shown.
+- Parentheses notation (0.02%) means negative: return -0.0002. Do not skip or ignore parenthesised values regardless of magnitude.
 - Do not round or approximate any value.
 
 INSTRUCTIONS:
@@ -966,9 +968,14 @@ function mapRawTablesToFields(tables: RawTable[]): MappedEntry[] {
         const meaning = headerMap[idx];
         if (meaning === null || meaning === undefined || meaning === 'itd' || meaning === 'year') return;
 
-        const raw = String(cell).replace('%', '').replace(/[\*eE]/g, '').trim();
+        let raw = String(cell).replace('%', '').replace(/[\*eE]/g, '').trim();
+        const isParens = raw.startsWith('(') && raw.endsWith(')');
+        if (isParens) raw = '-' + raw.slice(1, -1);
         const num = parseFloat(raw);
-        if (isNaN(num)) return;
+        if (isNaN(num)) {
+          console.warn('[parser] failed to parse cell:', cell);
+          return;
+        }
         const decimal = Math.round((num / 100) * 1e8) / 1e8;
 
         if (meaning === 'ytd') {
@@ -1159,6 +1166,7 @@ STEP 6 — IDENTIFY COLUMN TYPES:
 STEP 7 — NEGATIVE NUMBERS:
 - "-5.3%" → "-5.3"
 - "(5.3%)" → "-5.3" (parentheses = negative)
+- ALWAYS apply this conversion even for very small values like (0.01%) or (0.02%) — never treat parentheses as annotation. Negative is negative regardless of magnitude.
 - Empty cell or dash → null
 - If a cell value contains asterisk (*) or superscript (e/E), extract only the numeric value. Example: *3.01% → 3.01%, 2.5%e → 2.5%
 
@@ -1519,6 +1527,21 @@ function remapFutureMonths(fields: ParsedField[], reportMonth: string | null): v
   }
 }
 
+/** Coerce an unknown LLM value to a number, handling parentheses = negative.
+ *  Pass-1 returns decimal values (0.0328). If the LLM mistakenly returns a
+ *  string like "(0.02%)" or "(0.0002)", this normalises it correctly. */
+function parseParensValue(val: unknown): number | null {
+  if (typeof val === "number") return val;
+  if (typeof val !== "string") return null;
+  const hasPct = val.includes('%');
+  let s = val.replace('%', '').replace(/[\*eE]/g, '').trim();
+  const isParens = s.startsWith('(') && s.endsWith(')');
+  if (isParens) s = '-' + s.slice(1, -1);
+  const n = parseFloat(s);
+  if (isNaN(n)) return null;
+  return hasPct ? n / 100 : n;
+}
+
 /** Parse Claude response JSON → structured result */
 function parseCloudeResponse(
   content: string,
@@ -1573,8 +1596,9 @@ function parseCloudeResponse(
   if (parsed.allMonthlyReturns && typeof parsed.allMonthlyReturns === "object") {
     const amr = parsed.allMonthlyReturns as Record<string, unknown>;
     for (const [month, val] of Object.entries(amr)) {
-      if (/^\d{4}-(0[1-9]|1[0-2])$/.test(month) && typeof val === "number") {
-        rawFields.push({ key: `monthlyReturns.${month}`, value: val, confidence: 0.95 });
+      const numVal = parseParensValue(val);
+      if (/^\d{4}-(0[1-9]|1[0-2])$/.test(month) && numVal !== null) {
+        rawFields.push({ key: `monthlyReturns.${month}`, value: numVal, confidence: 0.95 });
       }
     }
   }
@@ -1583,8 +1607,9 @@ function parseCloudeResponse(
   if (parsed.returns && typeof parsed.returns === "object" && !Array.isArray(parsed.returns)) {
     const ret = parsed.returns as Record<string, unknown>;
     for (const [yearKey, val] of Object.entries(ret)) {
-      if (/^(y\d{4}|ytd\d{4})$/.test(yearKey) && typeof val === "number") {
-        rawFields.push({ key: `returns.${yearKey}`, value: val, confidence: 0.85 });
+      const numVal = parseParensValue(val);
+      if (/^(y\d{4}|ytd\d{4})$/.test(yearKey) && numVal !== null) {
+        rawFields.push({ key: `returns.${yearKey}`, value: numVal, confidence: 0.85 });
       }
     }
   }
@@ -1636,8 +1661,9 @@ function parseCloudeResponse(
       if (entry.allMonthlyReturns && typeof entry.allMonthlyReturns === "object") {
         const amr = entry.allMonthlyReturns as Record<string, unknown>;
         for (const [month, val] of Object.entries(amr)) {
-          if (/^\d{4}-(0[1-9]|1[0-2])$/.test(month) && typeof val === "number") {
-            entryRawFields.push({ key: `monthlyReturns.${month}`, value: val, confidence: 0.95 });
+          const numVal = parseParensValue(val);
+          if (/^\d{4}-(0[1-9]|1[0-2])$/.test(month) && numVal !== null) {
+            entryRawFields.push({ key: `monthlyReturns.${month}`, value: numVal, confidence: 0.95 });
           }
         }
       }
@@ -1645,8 +1671,9 @@ function parseCloudeResponse(
       if (entry.returns && typeof entry.returns === "object" && !Array.isArray(entry.returns)) {
         const ret = entry.returns as Record<string, unknown>;
         for (const [yearKey, val] of Object.entries(ret)) {
-          if (/^(y\d{4}|ytd\d{4})$/.test(yearKey) && typeof val === "number") {
-            entryRawFields.push({ key: `returns.${yearKey}`, value: val, confidence: 0.85 });
+          const numVal = parseParensValue(val);
+          if (/^(y\d{4}|ytd\d{4})$/.test(yearKey) && numVal !== null) {
+            entryRawFields.push({ key: `returns.${yearKey}`, value: numVal, confidence: 0.85 });
           }
         }
       }
@@ -3017,7 +3044,7 @@ export async function POST(req: NextRequest) {
         resultObj.validation = result.validation;
         resultObj.validationStatus = result.validationStatus;
       }
-      resultObj._cacheVersion = 55;
+      resultObj._cacheVersion = 56;
       await setCachedResult(clientKey, fileHash, resultObj);
 
       return NextResponse.json({
