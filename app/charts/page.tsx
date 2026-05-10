@@ -271,8 +271,8 @@ function ChartsContent() {
       {/* Thin brand color bar */}
       <div style={{ height: 3, background: `linear-gradient(90deg, ${dark ? "#4ade80" : "#1B3A2F"} 0%, #B8975A 100%)` }} />
 
-      {/* Header — screen only */}
-      <div className="no-print" style={{ backgroundColor: "var(--bg-surface)", borderBottom: "1px solid var(--border)" }}>
+      {/* Header — screen only, sticky */}
+      <div className="no-print" style={{ position: "sticky", top: 0, zIndex: 100, backgroundColor: "var(--bg-surface)", borderBottom: "1px solid var(--border)" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <BrandLogo brand={brand} height={28} variant={dark ? "dark" : "light"} />
@@ -309,12 +309,13 @@ function ChartsContent() {
         <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: "6px 0 0", fontWeight: 400 }}>ניתוח השוואתי של קרנות השקעה לפי קטגוריה ותקופה</p>
       </div>
 
-      {/* ── Unified filter area ── */}
+      {/* ── Unified filter area — sticky controls bar ── */}
       <div className="no-print" style={{
-        maxWidth: 1100, margin: "20px auto 0", padding: "20px 24px",
-        backgroundColor: "var(--bg-surface-alt)", borderRadius: 12, border: "1px solid var(--border)",
-        direction: "rtl",
+        position: "sticky", top: 52, zIndex: 99,
+        backgroundColor: "#FAFAF7",
+        borderBottom: "1px solid var(--border)",
       }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "12px 24px", direction: "rtl" }}>
         <div style={{ display: "flex", gap: 32, flexWrap: "wrap", alignItems: "flex-start" }}>
           {/* Group: Category filters */}
           <div style={{ flex: "1 1 auto", minWidth: 300 }}>
@@ -385,7 +386,8 @@ function ChartsContent() {
             </div>
           </div>
         </div>
-      </div>
+      </div>{/* inner max-width wrapper */}
+      </div>{/* sticky controls bar */}
 
       {/* Main content area */}
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px" }}>

@@ -27,7 +27,7 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
 /* ── Helpers ── */
 function calcPeriodReturn(fund: Fund, key: SortKey): number | null {
   if (key === "sharpe") return fund.sharpe ?? null;
-  if (key === "avg")    return fund.avgAnnualReturn ?? null;
+  if (key === "avg")    return fund.avgAnnualReturn != null ? fund.avgAnnualReturn * 100 : null;
   if (!fund.monthlyReturns) return null;
 
   const now = new Date();
@@ -226,7 +226,7 @@ function FundRow({ fund, rank, sortKey, primary, isBottom }: {
                   { label: "12M", value: fmt(calcPeriodReturn(fund, "12M")) },
                   { label: "36M", value: fmt(calcPeriodReturn(fund, "36M")) },
                   { label: "60M", value: fmt(calcPeriodReturn(fund, "60M")) },
-                  { label: "ממוצע שנתי", value: fmt(fund.avgAnnualReturn ?? null) },
+                  { label: "ממוצע שנתי", value: fmt(fund.avgAnnualReturn != null ? fund.avgAnnualReturn * 100 : null) },
                   { label: "שארפ", value: fmtNum(fund.sharpe) },
                   { label: "סטיית תקן", value: fmtNum(fund.stdDev) },
                 ].map(({ label, value }) => (
