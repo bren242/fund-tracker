@@ -358,7 +358,7 @@ function AnalysisContent() {
       <div style={{ minHeight: "100vh", backgroundColor: "#f8f9fa", fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif", ...(brandCssVars(primary, brand.accentColor) as React.CSSProperties) }}>
 
         {/* ── Sticky controls: filter + sort ── */}
-        <div style={{ position: "sticky", top: 88, zIndex: 99 }}>
+        <div style={{ position: "sticky", top: 88, zIndex: 99, background: "#ffffff" }}>
 
         {/* FILTER BAR */}
         <div
