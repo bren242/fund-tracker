@@ -359,7 +359,7 @@ function AdminContent() {
       {/* Thin brand color bar */}
       <div style={{ height: 4, backgroundColor: brand.primaryColor }} />
       {/* Header */}
-      <div style={{ backgroundColor: "var(--bg-surface)", borderBottom: "1px solid var(--border)", position: "sticky", top: 0, zIndex: 50, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+      <div style={{ backgroundColor: "var(--bg-surface)", borderBottom: "1px solid var(--border)", position: "sticky", top: 88, zIndex: 99, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
         <div style={{ maxWidth: 1400, margin: "0 auto", padding: "8px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <BrandLogo brand={brand} height={26} variant="light" />
