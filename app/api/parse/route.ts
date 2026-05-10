@@ -434,6 +434,8 @@ async function callClaudeVision(
   userMessage?: string
 ): Promise<{ success: true; content: string; usage: ApiUsage } | { success: false; error: string }> {
   const maxAttempts = 2;
+  const VISION_TIMEOUT_MS = 180000; // 3 min — dense tables (22yr × 13col) can take 60-90s
+  const RETRY_BACKOFF_MS = [5000, 15000]; // wait before attempt 2, 3 (if maxAttempts grows)
 
   // PDFs use "document" content block, images use "image"
   const isPdf = mediaType === "application/pdf";
@@ -442,9 +444,17 @@ async function callClaudeVision(
   console.log(`[parse-file] type=${contentBlockType}, media_type=${mediaType}, base64_length=${base64Data.length}`);
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    // Exponential backoff before retry attempts
+    if (attempt > 1) {
+      const backoff = RETRY_BACKOFF_MS[attempt - 2] ?? 15000;
+      console.log(`[parse-file] retry backoff ${backoff}ms before attempt ${attempt}`);
+      await new Promise(r => setTimeout(r, backoff));
+    }
+
+    const startMs = Date.now();
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 45000); // 45s for files
+      const timeoutHandle = setTimeout(() => controller.abort(), VISION_TIMEOUT_MS);
 
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
@@ -479,7 +489,8 @@ async function callClaudeVision(
         signal: controller.signal,
       });
 
-      clearTimeout(timeout);
+      clearTimeout(timeoutHandle);
+      console.log(`[parse-file] Vision attempt ${attempt} completed in ${Date.now() - startMs}ms status=${response.status}`);
 
       if (!response.ok) {
         const errText = await response.text().catch(() => "Unknown error");
@@ -498,11 +509,12 @@ async function callClaudeVision(
 
       return { success: true, content, usage };
     } catch (err: unknown) {
+      const elapsedMs = Date.now() - startMs;
       const message = err instanceof Error ? err.message : "Unknown error";
-      console.error(`Claude Vision call failed (attempt ${attempt}):`, message);
+      console.error(`Claude Vision call failed (attempt ${attempt}, elapsed ${elapsedMs}ms):`, message);
       if (attempt < maxAttempts) continue;
-      if (message.includes("abort")) {
-        return { success: false, error: "AI service timeout (45s)" };
+      if (message.toLowerCase().includes("abort")) {
+        return { success: false, error: `AI service timeout after ${Math.round(elapsedMs / 1000)}s (limit: ${VISION_TIMEOUT_MS / 1000}s)` };
       }
       return { success: false, error: "Failed to connect to AI service" };
     }
@@ -2806,20 +2818,26 @@ export async function POST(req: NextRequest) {
     // ACTION: parse-file — Parse uploaded PDF/Image via Vision API
     // ============================================================
     if (action === "parse-file") {
+      console.log(`[parse-file] ▶ START action=parse-file client=${clientKey}`);
       const contentType = req.headers.get("content-type") || "";
       if (!contentType.includes("multipart/form-data")) {
+        console.error(`[parse-file] ✗ bad content-type: ${contentType}`);
         return NextResponse.json({ error: "Expected multipart/form-data" }, { status: 400 });
       }
 
       const formData = await req.formData();
       const file = formData.get("file") as File | null;
       if (!file) {
+        console.error(`[parse-file] ✗ no file in formData`);
         return NextResponse.json({ error: "No file provided" }, { status: 400 });
       }
+
+      console.log(`[parse-file] file=${file.name} type=${file.type} size=${file.size} (${(file.size/1024).toFixed(1)}KB)`);
 
       // Validate file type
       const mimeType = ALLOWED_MIME_TYPES[file.type];
       if (!mimeType) {
+        console.error(`[parse-file] ✗ unsupported mime: ${file.type}`);
         return NextResponse.json({
           error: `Unsupported file type: ${file.type}. Allowed: PDF, PNG, JPG`,
         }, { status: 400 });
@@ -2827,6 +2845,7 @@ export async function POST(req: NextRequest) {
 
       // Validate file size
       if (file.size > MAX_FILE_SIZE) {
+        console.error(`[parse-file] ✗ file too large: ${file.size}`);
         return NextResponse.json({
           error: `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum: 10MB`,
         }, { status: 400 });
@@ -2834,6 +2853,7 @@ export async function POST(req: NextRequest) {
 
       const apiKey = process.env.ANTHROPIC_API_KEY;
       if (!apiKey) {
+        console.error(`[parse-file] ✗ ANTHROPIC_API_KEY not set`);
         return NextResponse.json({
           error: "ANTHROPIC_API_KEY not configured.",
         }, { status: 500 });
@@ -2860,8 +2880,10 @@ export async function POST(req: NextRequest) {
 
       // Check file cache — avoid re-processing identical files
       const fileHash = createHash("sha256").update(Buffer.from(arrayBuffer)).digest("hex");
+      console.log(`[parse-file] base64_len=${base64Data.length} hash=${fileHash.slice(0,12)}...`);
       const cachedResult = await getCachedResult(clientKey, fileHash);
       if (cachedResult) {
+        console.log(`[parse-file] ✓ cache HIT — returning cached result`);
         // Record as cached call (0 tokens)
         await recordTokenUsage(clientKey, "parse-file", { input_tokens: 0, output_tokens: 0 }, file.name, true);
         return NextResponse.json({
@@ -2875,7 +2897,9 @@ export async function POST(req: NextRequest) {
 
       // Check token limit before calling API
       const tokenCheck = await checkTokenLimit(clientKey);
+      console.log(`[parse-file] token-check: allowed=${tokenCheck.allowed} used=${tokenCheck.usage.inputTokens} limit=${tokenCheck.limit} (${tokenCheck.percent}%)`);
       if (!tokenCheck.allowed) {
+        console.error(`[parse-file] ✗ token limit exceeded`);
         return NextResponse.json({
           error: "חריגת מכסת טוקנים חודשית. פנה למנהל להגדלת המכסה.",
           fileName: file.name,
@@ -2885,8 +2909,11 @@ export async function POST(req: NextRequest) {
 
       const systemPrompt = buildSystemPrompt(existingFunds);
 
+      console.log(`[parse-file] ▶ Pass-1 START (buildSystemPrompt+callClaudeVision) t=${Date.now()}`);
       const claudeResult = await callClaudeVision(apiKey, systemPrompt, base64Data, mimeType);
+      console.log(`[parse-file] ◀ Pass-1 END success=${claudeResult.success} t=${Date.now()}`);
       if (!claudeResult.success) {
+        console.error(`[parse-file] ✗ Pass-1 failed: ${claudeResult.error}`);
         return NextResponse.json({
           error: claudeResult.error,
           fileName: file.name,
@@ -2897,14 +2924,18 @@ export async function POST(req: NextRequest) {
       const updatedUsage = await recordTokenUsage(clientKey, "parse-file", claudeResult.usage, file.name);
       const limits = await getClientTokenLimit(clientKey);
       const usagePercent = Math.round((updatedUsage.inputTokens / limits.monthlyInputTokens) * 100);
+      console.log(`[parse-file] Pass-1 tokens: in=${claudeResult.usage.input_tokens} out=${claudeResult.usage.output_tokens} monthly=${usagePercent}%`);
 
+      console.log(`[parse-file] ▶ parseCloudeResponse START content_len=${claudeResult.content.length}`);
       const result = parseCloudeResponse(claudeResult.content, existingFunds);
       if ("error" in result) {
+        console.error(`[parse-file] ✗ parseCloudeResponse failed: ${result.error}`);
         return NextResponse.json({
           error: result.error,
           fileName: file.name,
         }, { status: 500 });
       }
+      console.log(`[parse-file] ◀ parseCloudeResponse END fundName=${result.fundName} reportMonth=${result.reportMonth} fields=${result.fields?.length ?? 0}`);
 
       let totalInputTokens = claudeResult.usage.input_tokens;
 
@@ -2914,19 +2945,34 @@ export async function POST(req: NextRequest) {
       // Two-Pass: Raw extraction → deterministic mapping
       try {
         const rawPrompt = buildRawExtractionPrompt();
+        console.log(`[parse-file] ▶ Pass-2 START (buildRawExtractionPrompt+callClaudeVision) t=${Date.now()}`);
         const rawResult = await callClaudeVision(apiKey, rawPrompt, base64Data, mimeType);
+        console.log(`[parse-file] ◀ Pass-2 END success=${rawResult.success} t=${Date.now()}`);
+        if (!rawResult.success) {
+          console.error(`[parse-file] ✗ Pass-2 failed: ${rawResult.error}`);
+        }
         if (rawResult.success) {
           totalInputTokens += rawResult.usage.input_tokens;
+          console.log(`[parse-file] Pass-2 tokens: in=${rawResult.usage.input_tokens} out=${rawResult.usage.output_tokens}`);
           const rawContent = rawResult.content;
           const rawMatch = rawContent.match(/\{[\s\S]*\}/);
+          console.log(`[parse-file] Pass-2 json_match=${!!rawMatch} content_len=${rawContent.length}`);
           if (rawMatch) {
-            const rawData = JSON.parse(rawMatch[0]);
+            let rawData: Record<string, unknown>;
+            try {
+              rawData = JSON.parse(rawMatch[0]);
+            } catch (jsonErr) {
+              console.error(`[parse-file] ✗ Pass-2 JSON.parse failed:`, jsonErr);
+              throw jsonErr;
+            }
             if (rawData.tables && Array.isArray(rawData.tables) && rawData.tables.length > 0) {
               // DEBUG (dev only) — log raw tables from pass-2 AI response
               if (process.env.NODE_ENV === 'development') {
                 console.log('RAW_TABLES:', JSON.stringify(rawData.tables, null, 2));
               }
+              console.log(`[parse-file] Pass-2 tables_count=${rawData.tables.length}`);
               const mappedEntries = mapRawTablesToFields(rawData.tables as RawTable[]);
+              console.log(`[parse-file] Pass-2 mappedEntries=${mappedEntries.length}`);
               if (mappedEntries.length > 0) {
                 // Pass-2.5 — Jan↔Annual swap fix on mapped fields (Pass-1 fix runs on different fields)
                 const pass2Corrections: string[] = [];
@@ -2967,16 +3013,19 @@ export async function POST(req: NextRequest) {
                   result.fields = mappedEntries[0].fields;
                 }
                 // Pass-3 — ולידציה פנימית: מחושב vs מדווח
+                console.log(`[parse-file] ▶ Pass-3 START (validateParsedEntry x${mappedEntries.length})`);
                 const validations = mappedEntries.map(entry => validateParsedEntry(entry, result.reportMonth ?? null));
                 result.validation = validations;
                 result.validationStatus = validations.some(v => v.overallStatus === 'error') ? 'error'
                   : validations.some(v => v.overallStatus === 'warning') ? 'warning'
                   : 'valid';
+                console.log(`[parse-file] ◀ Pass-3 END validationStatus=${result.validationStatus}`);
               }
             }
             // Fallback ל-Pass-1: רץ אם Pass-2 לא הצליח לבנות dualCurrencyData
             // (tables ריק, או שלא נמצאו entries לאחר mapping)
             if (!result.dualCurrencyData) {
+              console.log(`[parse-file] Pass-2 produced no dualCurrencyData — falling back to Pass-1`);
               const pass1AMR: Record<string, number> = {};
               for (const f of result.fields) {
                 const m = f.key?.match(/^monthlyReturns\.(\d{4}-\d{2})$/);
@@ -3010,7 +3059,7 @@ export async function POST(req: NextRequest) {
           }
         }
       } catch (e) {
-        console.warn('Raw extraction failed, falling back to pass-1 result:', e);
+        console.error('[parse-file] ✗ Pass-2/3 exception:', e instanceof Error ? e.stack || e.message : String(e));
       }
 
       // Refresh usage totals
@@ -3047,6 +3096,7 @@ export async function POST(req: NextRequest) {
       resultObj._cacheVersion = 56;
       await setCachedResult(clientKey, fileHash, resultObj);
 
+      console.log(`[parse-file] ✓ RETURN 200 fundName=${result.fundName} reportMonth=${result.reportMonth} fields=${result.fields?.length ?? 0} dualCurrency=${!!(result.dualCurrencyData?.length)} validationStatus=${result.validationStatus ?? 'none'} corrections=${result.corrections?.length ?? 0}`);
       return NextResponse.json({
         ...result,
         sourceType: file.type.startsWith("image/") ? "image" : "pdf",
