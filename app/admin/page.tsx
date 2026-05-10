@@ -2659,6 +2659,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [inputText, setInputText] = useState("");
   const [parsing, setParsing] = useState(false);
+  const [creditBanner, setCreditBanner] = useState(false);
   const [parseResult, setParseResult] = useState<{
     fundName: string;
     fundNameConfidence: number;
@@ -2885,6 +2886,11 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "שגיאה בפענוח" }));
         console.error(`[upload] ✗ server error: ${JSON.stringify(err)}`);
+        if (res.status === 402 && err.error === "anthropic_credit_exhausted") {
+          setCreditBanner(true);
+          setParsing(false);
+          return;
+        }
         onStatus(`❌ ${err.error || "שגיאה בפענוח"}`);
         setParsing(false);
         return;
@@ -3625,6 +3631,31 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
               opacity: batchRunning ? 0.6 : 1,
             }}>
             {batchRunning ? "מעבד..." : "החל טיוטות בטוחות"}
+          </button>
+        </div>
+      )}
+
+      {/* Credit exhausted banner */}
+      {creditBanner && (
+        <div style={{
+          backgroundColor: "#ef444415",
+          border: "1px solid #ef444450",
+          borderRadius: 8,
+          padding: "10px 14px",
+          marginBottom: 12,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}>
+          <span style={{ fontSize: 13, color: "#ef4444", fontWeight: 600, lineHeight: 1.5 }}>
+            ⚠️ חשבון Anthropic מחייב טעינת קרדיט. פנה למנהל המערכת או טען ב-console.anthropic.com
+          </span>
+          <button
+            onClick={() => setCreditBanner(false)}
+            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "#ef4444", marginRight: 8, lineHeight: 1 }}
+            aria-label="סגור"
+          >
+            ×
           </button>
         </div>
       )}

@@ -5,6 +5,7 @@ import { getClientKeyFromRequest } from "@/lib/clientKey";
 import { storageRead, storageWrite, storageAppend } from "@/lib/storage";
 import { ParseDraft, ParseLogEntry, ParsedField, CollisionInfo } from "@/lib/parseTypes";
 import { createHash } from "crypto";
+import { isCreditExhaustedError, CREDIT_EXHAUSTED_SENTINEL, creditExhaustedBody } from "@/lib/credit-error";
 
 const SUPER_ADMIN_PASSWORD = "super2026";
 const DEFAULT_ADMIN_PASSWORD = "admin2026";
@@ -399,6 +400,9 @@ async function callClaude(apiKey: string, systemPrompt: string, userText: string
       if (!response.ok) {
         const errText = await response.text().catch(() => "Unknown error");
         console.error(`Claude API error (attempt ${attempt}):`, errText);
+        if (isCreditExhaustedError(response.status, errText)) {
+          return { success: false, error: CREDIT_EXHAUSTED_SENTINEL };
+        }
         if (attempt < maxAttempts) continue;
         return { success: false, error: `AI service error (${response.status})` };
       }
@@ -495,6 +499,9 @@ async function callClaudeVision(
       if (!response.ok) {
         const errText = await response.text().catch(() => "Unknown error");
         console.error(`Claude Vision API error (attempt ${attempt}):`, errText);
+        if (isCreditExhaustedError(response.status, errText)) {
+          return { success: false, error: CREDIT_EXHAUSTED_SENTINEL };
+        }
         if (attempt < maxAttempts) continue;
         return { success: false, error: `AI service error (${response.status})` };
       }
@@ -1896,6 +1903,9 @@ export async function POST(req: NextRequest) {
 
       const claudeResult = await callClaude(apiKey, systemPrompt, text);
       if (!claudeResult.success) {
+        if (claudeResult.error === CREDIT_EXHAUSTED_SENTINEL) {
+          return NextResponse.json(creditExhaustedBody(), { status: 402 });
+        }
         return NextResponse.json({ error: claudeResult.error }, { status: 502 });
       }
 
@@ -2914,6 +2924,9 @@ export async function POST(req: NextRequest) {
       console.log(`[parse-file] ◀ Pass-1 END success=${claudeResult.success} t=${Date.now()}`);
       if (!claudeResult.success) {
         console.error(`[parse-file] ✗ Pass-1 failed: ${claudeResult.error}`);
+        if (claudeResult.error === CREDIT_EXHAUSTED_SENTINEL) {
+          return NextResponse.json(creditExhaustedBody(), { status: 402 });
+        }
         return NextResponse.json({
           error: claudeResult.error,
           fileName: file.name,
@@ -2950,6 +2963,9 @@ export async function POST(req: NextRequest) {
         console.log(`[parse-file] ◀ Pass-2 END success=${rawResult.success} t=${Date.now()}`);
         if (!rawResult.success) {
           console.error(`[parse-file] ✗ Pass-2 failed: ${rawResult.error}`);
+          if (rawResult.error === CREDIT_EXHAUSTED_SENTINEL) {
+            return NextResponse.json(creditExhaustedBody(), { status: 402 });
+          }
         }
         if (rawResult.success) {
           totalInputTokens += rawResult.usage.input_tokens;
