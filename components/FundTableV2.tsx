@@ -775,16 +775,18 @@ export default function FundTableV2({
   }, [isYearMode, selectedYear, timeRange, customFrom, customTo]);
 
   const thBase: React.CSSProperties = {
-    backgroundColor: "transparent",
-    color: "#555555",
+    position: "sticky",
+    top: 136,
+    zIndex: 10,
+    backgroundColor: "#FAFAF7",
+    color: "rgba(27, 58, 47, 0.5)",
     fontWeight: 500,
     textAlign: "center",
     whiteSpace: "nowrap",
-    borderBottom: "2px solid var(--border-table)",
-    fontSize: "12px",
-    letterSpacing: "0.5px",
-    textTransform: "uppercase",
-    padding: "10px 10px",
+    fontSize: "10.5px",
+    letterSpacing: "0.2px",
+    padding: "9px 10px",
+    borderBottom: "0.5px solid rgba(27, 58, 47, 0.07)",
   };
 
   const selectStyle: React.CSSProperties = {
@@ -807,12 +809,12 @@ export default function FundTableV2({
           background: "#ffffff",
         }}
       >
-        {/* Row 1: search + count + time-range / year-selector */}
+        {/* Row 1: search + count + time-range */}
         <div style={{
           display: "flex",
           alignItems: "center",
           padding: "0 32px",
-          minHeight: 44,
+          height: 44,
           gap: 12,
           borderBottom: "0.5px solid rgba(27, 58, 47, 0.08)",
         }}>
@@ -872,31 +874,28 @@ export default function FundTableV2({
           {/* Spacer */}
           <div style={{ flex: 1 }} />
 
-          {/* Time range / Year selector */}
-          {isYearMode ? (
-            <YearSelector value={selectedYear} onChange={(v) => { setSelectedYear(v); resetAccordions(); }} />
-          ) : (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
-              <SegmentedControl value={timeRange} onChange={(v) => { setTimeRange(v); resetAccordions(); }} />
-              {timeRange === "custom" && (
-                <>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>מ-</span>
-                  <select value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={selectStyle}>
-                    {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>עד</span>
-                  <select value={customTo} onChange={e => setCustomTo(e.target.value)} style={selectStyle}>
-                    {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </>
-              )}
-            </div>
-          )}
+          {/* Time range */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
+            <SegmentedControl value={timeRange} onChange={(v) => { setTimeRange(v); resetAccordions(); }} />
+            {timeRange === "custom" && (
+              <>
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>מ-</span>
+                <select value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={selectStyle}>
+                  {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>עד</span>
+                <select value={customTo} onChange={e => setCustomTo(e.target.value)} style={selectStyle}>
+                  {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Row 2: category pills */}
         <div style={{
-          padding: "8px 32px",
+          height: 40,
+          padding: "0 32px",
           display: "flex",
           gap: 5,
           flexWrap: "wrap",
@@ -956,12 +955,12 @@ export default function FundTableV2({
           <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: "11px", lineHeight: 1.45 }}>
             <thead>
               <tr>
-                <th style={{ ...thBase, textAlign: "right", paddingRight: 12, maxWidth: 200 }}>שם קרן</th>
+                <th style={{ ...thBase, textAlign: "right", paddingRight: 12 }}>שם קרן</th>
                 <th style={{ ...thBase, minWidth: 64 }}>עדכון</th>
                 <th style={thBase}>חודשי</th>
-                <th style={{ ...thBase, color: "var(--text-primary)", fontWeight: 700 }}>
+                <th style={{ ...thBase, color: "rgba(27,58,47,0.8)", fontWeight: 600 }}>
                   תשואה לתקופה
-                  <div style={{ fontSize: 9, fontWeight: 400, letterSpacing: 0, color: "var(--text-muted)", textTransform: "none", marginTop: 2 }}>
+                  <div style={{ fontSize: 9, fontWeight: 400, letterSpacing: 0, color: "rgba(27,58,47,0.4)", marginTop: 2 }}>
                     {periodLabel}
                   </div>
                 </th>
@@ -1012,13 +1011,14 @@ export default function FundTableV2({
                       rows.push(
                         <tr key={`cat-${cat.id}`}>
                           <td colSpan={TOTAL_COLS} style={{
-                            backgroundColor: "transparent",
-                            borderTop: "1px solid rgba(6,78,59,0.15)",
-                            borderBottom: "none",
-                            color: "var(--text-secondary)",
-                            padding: "6px 16px 3px",
-                            fontWeight: 600, fontSize: 11,
-                            textAlign: "right", fontStyle: "italic",
+                            backgroundColor: "#F4F3EF",
+                            borderTop: "0.5px solid rgba(27,58,47,0.05)",
+                            borderBottom: "0.5px solid rgba(27,58,47,0.08)",
+                            color: "rgba(27,58,47,0.7)",
+                            padding: "6px 32px",
+                            fontWeight: 500,
+                            fontSize: "10.5px",
+                            textAlign: "right",
                           }}>{cat.name}</td>
                         </tr>
                       );
