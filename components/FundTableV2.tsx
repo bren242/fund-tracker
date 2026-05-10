@@ -48,8 +48,8 @@ const YEAR_OPTIONS: { key: YearKey; label: string }[] = [
 ];
 
 const TIME_RANGE_OPTIONS: { key: TimeRange; label: string }[] = [
-  { key: "ytd",    label: "מתחילת שנה" },
-  { key: "12m",   label: "12 חודשים" },
+  { key: "ytd",    label: "YTD" },
+  { key: "12m",   label: "12M" },
   { key: "3y",    label: "3Y" },
   { key: "5y",    label: "5Y" },
   { key: "max",   label: "MAX" },
@@ -154,9 +154,10 @@ function SegmentedControl({ value, onChange }: { value: TimeRange; onChange: (v:
   return (
     <div style={{
       display: "inline-flex",
-      background: "#e8e8ed",
-      borderRadius: 10,
-      padding: 3,
+      background: "#F4F3EF",
+      borderRadius: 5,
+      padding: 2,
+      flexShrink: 0,
     }}>
       {TIME_RANGE_OPTIONS.map((o) => {
         const active = value === o.key;
@@ -165,14 +166,13 @@ function SegmentedControl({ value, onChange }: { value: TimeRange; onChange: (v:
             key={o.key}
             onClick={() => onChange(o.key)}
             style={{
-              padding: "6px 13px", fontSize: 12,
-              fontWeight: active ? 600 : 400,
+              padding: "4px 9px", fontSize: 11,
+              fontWeight: active ? 500 : 400,
               border: "none",
-              borderRadius: active ? 8 : 0,
+              borderRadius: active ? 3 : 0,
               cursor: "pointer",
-              backgroundColor: active ? "#ffffff" : "transparent",
-              boxShadow: active ? "0 1px 3px rgba(0,0,0,0.12)" : "none",
-              color: active ? "var(--text-primary)" : "#666",
+              backgroundColor: active ? "#1B3A2F" : "transparent",
+              color: active ? "#ffffff" : "rgba(27, 58, 47, 0.6)",
               transition: "all 0.12s",
               whiteSpace: "nowrap",
             }}
@@ -229,7 +229,7 @@ function CategoryPills({ sections, active, onSelect, onHover }: {
   onHover?: (section: string | null) => void;
 }) {
   return (
-    <div style={{ display: "inline-flex", flexWrap: "wrap", gap: 2, background: "#e8e8ed", borderRadius: 10, padding: 3, alignSelf: "flex-start" }}>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
       {["הכל", ...sections].map(s => {
         const isActive = active === s;
         return (
@@ -237,17 +237,26 @@ function CategoryPills({ sections, active, onSelect, onHover }: {
             key={s}
             onClick={() => onSelect(s)}
             onMouseEnter={(e) => {
-              if (!isActive) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(0,0,0,0.06)";
+              if (!isActive) {
+                (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(27, 58, 47, 0.3)";
+                (e.currentTarget as HTMLButtonElement).style.color = "#1B3A2F";
+              }
               onHover?.(s !== "הכל" ? s : null);
             }}
-            onMouseLeave={(e) => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}
+            onMouseLeave={(e) => {
+              if (!isActive) {
+                (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(27, 58, 47, 0.15)";
+                (e.currentTarget as HTMLButtonElement).style.color = "rgba(27, 58, 47, 0.65)";
+              }
+            }}
             style={{
-              padding: "5px 14px", borderRadius: 8, fontSize: 13,
-              fontWeight: isActive ? 600 : 400, cursor: "pointer",
-              border: "none",
-              backgroundColor: isActive ? "#1B3A2F" : "transparent",
-              color: isActive ? "#ffffff" : "#444",
-              transition: "background 0.12s",
+              padding: "4px 11px", borderRadius: 11, fontSize: 11,
+              fontWeight: isActive ? 500 : 400, cursor: "pointer",
+              border: `0.5px solid ${isActive ? "#1B3A2F" : "rgba(27, 58, 47, 0.15)"}`,
+              backgroundColor: isActive ? "#1B3A2F" : "#ffffff",
+              color: isActive ? "#ffffff" : "rgba(27, 58, 47, 0.65)",
+              transition: "all 0.15s",
+              whiteSpace: "nowrap",
             }}
           >
             {s}
@@ -766,16 +775,18 @@ export default function FundTableV2({
   }, [isYearMode, selectedYear, timeRange, customFrom, customTo]);
 
   const thBase: React.CSSProperties = {
-    backgroundColor: "transparent",
-    color: "#555555",
+    position: "sticky",
+    top: 136,
+    zIndex: 10,
+    backgroundColor: "#FAFAF7",
+    color: "rgba(27, 58, 47, 0.5)",
     fontWeight: 500,
     textAlign: "center",
     whiteSpace: "nowrap",
-    borderBottom: "2px solid var(--border-table)",
-    fontSize: "12px",
-    letterSpacing: "0.5px",
-    textTransform: "uppercase",
-    padding: "10px 10px",
+    fontSize: "10.5px",
+    letterSpacing: "0.2px",
+    padding: "9px 10px",
+    borderBottom: "0.5px solid rgba(27, 58, 47, 0.07)",
   };
 
   const selectStyle: React.CSSProperties = {
@@ -787,103 +798,110 @@ export default function FundTableV2({
   return (
     <div style={{ direction: "rtl", background: "#f5f5f7", width: "100%" }}>
 
-      {/* ── Controls + Sub bar wrapper ── */}
-      <div onMouseLeave={() => setHoveredSection(null)}>
+      {/* ── Controls bar — sticky ── */}
+      <div
+        className="no-print"
+        onMouseLeave={() => setHoveredSection(null)}
+        style={{
+          position: "sticky",
+          top: 52,
+          zIndex: 99,
+          background: "#ffffff",
+        }}
+      >
+        {/* Row 1: search + count + time-range */}
         <div style={{
-          padding: "12px 16px",
-          borderBottom: subBarClassifications.length > 0 ? "none" : "1px solid var(--border-table)",
-          backgroundColor: "var(--bg-surface)",
-          display: "flex", flexDirection: "column", gap: 12,
+          display: "flex",
+          alignItems: "center",
+          padding: "0 32px",
+          height: 44,
+          gap: 12,
+          borderBottom: "0.5px solid rgba(27, 58, 47, 0.08)",
         }}>
-          {/* Time range / Year selector */}
-          {isYearMode ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>שנה:</span>
-              <YearSelector value={selectedYear} onChange={(v) => { setSelectedYear(v); resetAccordions(); }} />
+          {/* Search input */}
+          <div style={{ position: "relative", width: 180, flexShrink: 0 }}>
+            <div style={{
+              position: "absolute", top: "50%", right: 9, transform: "translateY(-50%)",
+              pointerEvents: "none", display: "flex", alignItems: "center",
+            }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
             </div>
-          ) : (
-            <>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>טווח זמן:</span>
-                <SegmentedControl value={timeRange} onChange={(v) => { setTimeRange(v); resetAccordions(); }} />
-              </div>
-              {timeRange === "custom" && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>מ-</span>
-                  <select value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={selectStyle}>
-                    {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>עד</span>
-                  <select value={customTo} onChange={e => setCustomTo(e.target.value)} style={selectStyle}>
-                    {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Search bar + fund counter */}
-          <div className="no-print" style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
-          }}>
-            <div style={{ position: "relative", width: 280, flexShrink: 0 }}>
-              <div style={{
-                position: "absolute", top: "50%", right: 10, transform: "translateY(-50%)",
-                pointerEvents: "none", display: "flex", alignItems: "center",
-              }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                </svg>
-              </div>
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="חיפוש קרן..."
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="חיפוש קרן..."
+              style={{
+                width: "100%", height: 30, paddingRight: 28,
+                paddingLeft: searchQuery ? 26 : 10,
+                border: "0.5px solid rgba(27, 58, 47, 0.2)", borderRadius: 5,
+                backgroundColor: "#ffffff", color: "#1B3A2F",
+                fontSize: 12, outline: "none", boxSizing: "border-box",
+                transition: "border-color 0.15s",
+                direction: "rtl",
+              }}
+              onFocus={e => { e.currentTarget.style.borderColor = "#1B3A2F"; }}
+              onBlur={e => { e.currentTarget.style.borderColor = "rgba(27, 58, 47, 0.2)"; }}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => { setSearchQuery(""); searchInputRef.current?.focus(); }}
                 style={{
-                  width: "100%", height: 36, paddingRight: 34,
-                  paddingLeft: searchQuery ? 30 : 12,
-                  border: "1px solid var(--border)", borderRadius: 8,
-                  backgroundColor: "var(--bg-input)", color: "var(--text-primary)",
-                  fontSize: 13, outline: "none", boxSizing: "border-box",
-                  transition: "border-color 0.15s, box-shadow 0.15s",
-                  direction: "rtl",
+                  position: "absolute", top: "50%", left: 6, transform: "translateY(-50%)",
+                  border: "none", background: "none", cursor: "pointer", padding: 2,
+                  color: "#9ca3af", display: "flex", alignItems: "center",
+                  borderRadius: 4, lineHeight: 1,
                 }}
-                onFocus={e => {
-                  e.currentTarget.style.borderColor = "#1B3A2F";
-                  e.currentTarget.style.boxShadow = "0 0 0 3px rgba(27,58,47,0.10)";
-                }}
-                onBlur={e => {
-                  e.currentTarget.style.borderColor = "var(--border)";
-                  e.currentTarget.style.boxShadow = "none";
-                }}
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => { setSearchQuery(""); searchInputRef.current?.focus(); }}
-                  style={{
-                    position: "absolute", top: "50%", left: 8, transform: "translateY(-50%)",
-                    border: "none", background: "none", cursor: "pointer", padding: 2,
-                    color: "var(--text-muted)", display: "flex", alignItems: "center",
-                    borderRadius: 4, lineHeight: 1,
-                  }}
-                  aria-label="נקה חיפוש"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                  </svg>
-                </button>
-              )}
-            </div>
-            <span style={{ fontSize: 11, color: "var(--text-muted)", whiteSpace: "nowrap" }}>
-              {searchQuery.trim()
-                ? `${totalFunds} תוצאות (מתוך ${totalActiveFunds})`
-                : `${totalActiveFunds} קרנות פעילות`}
-            </span>
+                aria-label="נקה חיפוש"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            )}
           </div>
 
-          {/* Category pills */}
+          {/* Fund count */}
+          <span style={{ fontSize: 11, color: "rgba(27, 58, 47, 0.5)", whiteSpace: "nowrap", flexShrink: 0 }}>
+            {searchQuery.trim()
+              ? `${totalFunds} / ${totalActiveFunds}`
+              : totalActiveFunds.toString()}
+          </span>
+
+          {/* Spacer */}
+          <div style={{ flex: 1 }} />
+
+          {/* Time range */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
+            <SegmentedControl value={timeRange} onChange={(v) => { setTimeRange(v); resetAccordions(); }} />
+            {timeRange === "custom" && (
+              <>
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>מ-</span>
+                <select value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={selectStyle}>
+                  {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>עד</span>
+                <select value={customTo} onChange={e => setCustomTo(e.target.value)} style={selectStyle}>
+                  {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Row 2: category pills */}
+        <div style={{
+          height: 40,
+          padding: "0 32px",
+          display: "flex",
+          gap: 5,
+          flexWrap: "wrap",
+          alignItems: "center",
+          borderBottom: subBarClassifications.length > 0 ? "none" : "0.5px solid rgba(27, 58, 47, 0.15)",
+        }}>
           <CategoryPills
             sections={sectionLabels}
             active={activeFilter}
@@ -892,13 +910,12 @@ export default function FundTableV2({
           />
         </div>
 
-        {/* Sub bar — classifications */}
+        {/* Classification sub-bar */}
         {subBarClassifications.length > 0 && (
           <div style={{
-            background: "#f5f5f7", padding: "8px 16px",
+            background: "#f5f5f7", padding: "8px 32px",
             borderBottom: "2px solid #1B3A2F",
             display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center",
-            alignSelf: "flex-start",
           }}>
             {subBarClassifications.map(cls => {
               const isActive = activeClassification === cls;
@@ -934,16 +951,16 @@ export default function FundTableV2({
             : "לא נמצאו קרנות."}
         </div>
       ) : (
-        <div style={{ overflowX: "auto", background: "#ffffff" }}>
+        <div style={{ overflow: "clip", background: "#ffffff" }}>
           <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: "11px", lineHeight: 1.45 }}>
             <thead>
               <tr>
-                <th style={{ ...thBase, textAlign: "right", paddingRight: 12, maxWidth: 200 }}>שם קרן</th>
+                <th style={{ ...thBase, textAlign: "right", paddingRight: 12 }}>שם קרן</th>
                 <th style={{ ...thBase, minWidth: 64 }}>עדכון</th>
                 <th style={thBase}>חודשי</th>
-                <th style={{ ...thBase, color: "var(--text-primary)", fontWeight: 700 }}>
+                <th style={{ ...thBase, color: "rgba(27,58,47,0.8)", fontWeight: 600 }}>
                   תשואה לתקופה
-                  <div style={{ fontSize: 9, fontWeight: 400, letterSpacing: 0, color: "var(--text-muted)", textTransform: "none", marginTop: 2 }}>
+                  <div style={{ fontSize: 9, fontWeight: 400, letterSpacing: 0, color: "rgba(27,58,47,0.4)", marginTop: 2 }}>
                     {periodLabel}
                   </div>
                 </th>
@@ -994,13 +1011,14 @@ export default function FundTableV2({
                       rows.push(
                         <tr key={`cat-${cat.id}`}>
                           <td colSpan={TOTAL_COLS} style={{
-                            backgroundColor: "transparent",
-                            borderTop: "1px solid rgba(6,78,59,0.15)",
-                            borderBottom: "none",
-                            color: "var(--text-secondary)",
-                            padding: "6px 16px 3px",
-                            fontWeight: 600, fontSize: 11,
-                            textAlign: "right", fontStyle: "italic",
+                            backgroundColor: "#F4F3EF",
+                            borderTop: "0.5px solid rgba(27,58,47,0.05)",
+                            borderBottom: "0.5px solid rgba(27,58,47,0.08)",
+                            color: "rgba(27,58,47,0.7)",
+                            padding: "6px 32px",
+                            fontWeight: 500,
+                            fontSize: "10.5px",
+                            textAlign: "right",
                           }}>{cat.name}</td>
                         </tr>
                       );
