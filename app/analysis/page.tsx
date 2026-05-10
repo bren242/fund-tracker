@@ -357,9 +357,12 @@ function AnalysisContent() {
     <ClientGate clientKey={clientKey}>
       <div style={{ minHeight: "100vh", backgroundColor: "#f8f9fa", fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif", ...(brandCssVars(primary, brand.accentColor) as React.CSSProperties) }}>
 
+        {/* ── Sticky controls: filter + sort ── */}
+        <div style={{ position: "sticky", top: 88, zIndex: 99 }}>
+
         {/* FILTER BAR */}
         <div
-          style={{ background: "rgba(255,255,255,0.97)", borderBottom: "0.5px solid #eaecee", padding: "13px 28px", backdropFilter: "blur(8px)", position: "sticky", top: 0, zIndex: 10 }}
+          style={{ background: "rgba(255,255,255,0.97)", borderBottom: "0.5px solid #eaecee", padding: "13px 28px", backdropFilter: "blur(8px)" }}
           onMouseLeave={() => setHoveredGroup(null)}
         >
           <div style={{ display: "flex", gap: 5, alignItems: "center", flexWrap: "nowrap", overflowX: "auto", scrollbarWidth: "none", direction: "rtl" }}>
@@ -407,6 +410,7 @@ function AnalysisContent() {
             {sortedFunds.length} קרנות
           </div>
         </div>
+        </div>{/* end sticky controls */}
 
         {/* TABLE */}
         <div style={{ maxWidth: 900, margin: "0 auto", padding: "20px 28px 100px" }}>
