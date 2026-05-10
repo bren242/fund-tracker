@@ -1,6 +1,6 @@
 # Fund Tracker — SPEC.md
-> מצב נכון ל: 2026-05-09 | Cache v56 | גרסה אחרונה: parser parens fix + time hierarchy | Production deploy: Cxtt2NwgF (commit 31397e7)
-> **עדיפות:** Stage B Phases 2-4 (Charts/Compare/Analysis APIs) | fund-status UX
+> מצב נכון ל: 2026-05-10 | Cache v56 | גרסה אחרונה: AppHeader redesign /[client] | Production deploy: 2026-05-10
+> **עדיפות:** Stage B Phases 2-4 (Charts/Compare/Analysis APIs) | Error UX (402 credit banner)
 > **פתוח:** 84 vs 81 inconsistency (3 כפילויות) | Stage B Phases 2-4 עדיין raw fields
 
 ---
@@ -138,7 +138,39 @@
 
 ---
 
-## עדכון אחרון (2026-05-09 — Stage B Phase 1 + fund-status v2 + KV migration) ✅
+## עדכון אחרון (2026-05-10 — AppHeader redesign + /[client] sticky layout) ✅
+
+### AppHeader — Complete Redesign
+- **לפני:** dark nav bar (44px) + print button ב-`app/page.tsx` (עם white gap)
+- **אחרי:** שורה לבנה אחת 52px: logo | nav tabs (inline) | spacer | print button (⎙ הדפסה)
+- Logo priority: `logoLight` → `logo` → `<span>` Cormorant Garamond, `letterSpacing: 3px`, `fontSize: 18`
+- Active tab: `borderBottom: 1.5px solid accentColor` (gold underline)
+- Sub bar (36px, `#f5f5f7`): שמור ללא שינוי — מופיע רק כשטאב פעיל יש לו subtabs
+- `className="app-header no-print"` — מוסתר בהדפסה
+
+### Controls Bar — FundTableV2
+- **Sticky stack:** AppHeader (top: 0, z: 100) → controls (top: 52, z: 99) → `<th>` (top: 136, z: 10)
+- **Row 1** (height: 44, padding: 0 32px): search input (180px) + count label + SegmentedControl
+- **Row 2** (height: 40, padding: 0 32px): CategoryPills only
+- **SegmentedControl תמיד מוצג** — הוסרה הלוגיקה `isYearMode ? <YearSelector> : <SegmentedControl>`
+- Time range labels: `"YTD"` / `"12M"` (לא בעברית)
+- SegmentedControl style: `background: "#F4F3EF"`, active: `#1B3A2F` white, `borderRadius: 5/3px`, `fontSize: 11`
+- CategoryPills: pills בגבול נפרד (לא segmented container), active: `#1B3A2F`
+
+### Table Layout
+- Table wrapper: **`overflow: "clip"`** (היה `overflowX: "auto"`) — חובה כדי ש-sticky `<th>` יעבד בתוך wrapper
+- `<th>` sticky: `top: 136`, `backgroundColor: "#FAFAF7"`, `color: rgba(27,58,47,0.5)`, `fontSize: 10.5px`
+- Family-label row: `backgroundColor: "#F4F3EF"`, `color: rgba(27,58,47,0.7)`, `fontWeight: 500`, `fontSize: 10.5px`, `padding: 6px 32px`
+
+### Fixes
+- White gap: הוסר `div` עם `padding: 8px 20px 0` ב-`app/page.tsx` (מיכל ישן של print button)
+- Cormorant Garamond: import ב-`globals.css` כשורה ראשונה (לפני Tailwind)
+
+**קבצים:** `components/AppHeader.tsx`, `components/FundTableV2.tsx`, `app/page.tsx`, `app/globals.css`
+
+---
+
+## עדכון קודם (2026-05-09 — Stage B Phase 1 + fund-status v2 + KV migration) ✅
 
 ### Stage A — Pure Metric Functions (Completed)
 - `lib/constants.ts`: `RISK_FREE_RATE_ANNUAL=0.03`, `SHARPE_CAP=5`, `MIN_MONTHS_FOR_RISK_METRICS=12`
@@ -683,6 +715,13 @@ Fallback to legacy KV fields for funds without monthly history.
 **החלטה:** מיון פעיל → תצוגה שטוחה (ללא כותרות קטגוריה). בלי מיון → תצוגה מקובצת רגילה. עמודות טקסט — ברירת מחדל עולה. עמודות מספריות — ברירת מחדל יורד.
 
 **למה:** מיון בתוך קבוצות לא שימושי — אייל רוצה לראות את הקרנות הטובות ביותר בראש רשימה בלי קשר לקטגוריה.
+
+### 16. AppHeader sticky layout — /[client]
+**החלטה:** AppHeader = שורה לבנה אחת 52px (לא dark nav bar). Controls bar: 2 שורות sticky ב-top:52. `<th>` sticky ב-top:136 (52+44+40). Table wrapper: `overflow: clip` (לא `auto`).
+
+**למה:** `overflow: auto` יוצר scroll container — sticky `<th>` מתייחס לאותו container ולא לviewport. `overflow: clip` חוסם בלי ליצור scroll container, מאפשר sticky `<th>` לרדת רק כשהטבלה scrolling ולא קודם.
+
+**SegmentedControl תמיד בשורה 1:** הוסרה ענף `isYearMode ? <YearSelector>` מה-controls bar. YearSelector שייך למקום אחר במערכת (NOX compare page), לא בcontrol bar הראשי.
 
 ### 15. Time hierarchy on /[client]
 **החלטה:** עמודת "עדכון" מציגה 4 רמות ויזואליות לפי הפרש מ-`latestMonth` (max lastUpdated בין כל הקרנות):

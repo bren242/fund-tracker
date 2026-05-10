@@ -5,9 +5,7 @@
 
 1. **84 vs 81 inconsistency** — 3 קרנות כפולות: Fund Access ASPM Apollo, ואר אקוויטי, קפלר קפיטל. בנוסף: בירור טיפול ב-`active=false` בספירות
 
-2. **Top-bar UI redesign** — צפיפות/ריווח בדף `/[client]` לא Apple-grade. ממתין ל-Design Review session ייעודי
-
-3. **Navigation links audit** — `/fund-status → /indications` היה באג שתוקן. לבדוק את כל נתיבי הניווט ברחבי האפליקציה
+2. **Navigation links audit** — `/fund-status → /indications` היה באג שתוקן. לבדוק את כל נתיבי הניווט ברחבי האפליקציה
 
 4. **Stage B Phases 2-4** — הפיכת raw `fund.*` fields לשימוש ב-`lib/metrics.ts` / `lib/fundDerived.ts`:
    - Phase 2: Charts (`app/charts/page.tsx`)
@@ -36,3 +34,7 @@
 12. **[LOW] בדיקה ארכיטקטונית: מתי קטגוריה מקבלת BM?** —
     שקול להוסיף ל-`CATEGORY_BLEND` קריטריון מינימום (לדוגמה ≥5 קרנות).
     נדרש כשתתווסף קטגוריה חדשה כדי לקבוע אם היא מקבלת BM או לא.
+
+13. **[MED] Error UX — 402 credit balance banner** — כשה-Claude API מחזיר 402 (credit balance exhausted), `app/api/parse/route.ts` צריך לתפוס את השגיאה ולהחזיר הודעה ברורה בממשק: "יתרת קרדיט Anthropic אזלה — יש לטעון יתרה ב-console.anthropic.com"
+
+14. **[LOW] Health check endpoint** — `/api/health/anthropic` — פינג ל-Claude API עם prompt קצר, מחזיר `{ status: "ok"|"error", latencyMs, model }`. שימושי לאבחון כשהפרסר לא מגיב.

@@ -1,144 +1,176 @@
 # Fund Tracker — הקשר לשיחה חדשה
 
 ## זהות ופרויקט
-- **אפליקציה:** פלטפורמת מעקב קרנות white-label ללקוחות מוסדיים
-- **Stack:** Next.js 15.5.14 (App Router), TypeScript, Tailwind CSS, Recharts
-- **UI:** עברית RTL, dark/light theme, print-optimized A4
-- **Deploy:** Vercel — auto-deploy על push ל-main
-- **Repo:** https://github.com/bren242/fund-tracker
-- **Routes:** `/{client}` · `/analysis` · `/charts` · `/compare` · `/admin` · `/upload`
-- **לקוחות:** GREEN (full features + AI parser) · NOX (basic)
-- **Auth:** password gate per client, super admin (`super2026`)
-
-## כללי עבודה
-1. שינויים מינימליים בלבד — לא לגעת במה שעובד
-2. Root cause first — לא לתקן תסמינים
-3. Print is sacred — לא לשבור print layouts
-4. לא לעשות push לפני validation
-5. לא יותר מ-2 ניסיונות כישלון — עצור, חשוב, שנה גישה
-
-## מצב נוכחי
-- **גרסה:** v1.1 stable (ל-deploy)
-- **Last commit:** `1c5c8b2` — dark mode headers white text and border
-- **Cache version:** 11
-- **כל הנתונים:** Vercel KV (prod) / `data/{clientKey}/` (local dev)
+- **מה:** כלי מעקב תשואות קרנות — white-label פנימי ל-GREEN Wealth Management + NOX
+- **Stack:** Next.js 15.5.14 (App Router), TypeScript, Tailwind CSS, Recharts, Vercel KV (Redis)
+- **Production:** `https://fund-tracker-zeta.vercel.app`
+- **Repo:** `https://github.com/bren242/fund-tracker`
+- **Routes:** `/{client}` (report), `/{client}/charts`, `/{client}/compare`, `/{client}/admin`, `/{client}/fund-status`, `/{client}/upload`, `/{client}/consistency`
+- **Clients:** `green` (full features + AI parser), `nox` (basic)
+- **Auth:** `admin2026` (client admin), `super2026` (super admin)
+- **Local dev:** JSON files under `data/{clientKey}/`. Prod: Vercel KV.
 
 ---
 
-## מה הושלם בשיחה זו — UI/UX Overhaul של עמוד ראשי
+## כללי עבודה
+1. **מינימל** — שינויים מינימליים בלבד. אין refactor מעבר למה שנדרש
+2. **שורש הבעיה קודם** — לזהות WHY לפני תיקון
+3. **תיקון אחד בכל פעם** — לא לערום שינויים
+4. **לא לדחוף לפני ווידוא** — לבנות ולבדוק לפני push
+5. **לא לחפור פעמיים באותו כיוון** — אם נתקע >2 ניסיונות, לעצור ולשנות גישה
+6. **Print is sacred** — לא לשבור layouts של הדפסה
+7. **לא למזג ל-main ללא אישור** — תמיד לחכות לאישור מפורש
 
-### Navigation
-- NavTab redesign — pill style → underline-only active state
-- Active tab מיושר עם `border-bottom: 2px solid var(--bg-section)`
-- Container הוסר (transparent bg)
+---
 
-### Floating Action Bar
-- כפתורי השוואה עברו מה-header לבר צף בתחתית המסך
-- CSS class: `.floating-action-bar` + animation `floatUp`
-- רקע `#e0e0e0` (לא שקוף, לא לבן — גרסה יציבה)
+## מצב נוכחי
+- **Cache version:** v56
+- **Main branch:** עדכני — deploy 2026-05-10 (AppHeader redesign)
+- **Tests:** 99/99 passing (4 test files)
 
-### Table Headers (Apple Numbers style)
-- `backgroundColor: transparent`, uppercase, `letterSpacing: 0.8px`
-- `borderBottom: 2px solid var(--border-table)` — קו מפריד בלבד
-- Sort arrows: `color: var(--text-muted)`
+---
 
-### Table Rows
-- Cell padding: `8px 10px`
-- Row alt: `var(--bg-row-alt)` = `#fafafa` (light) / `#1c2230` (dark)
-- `borderCollapse: separate` + `borderSpacing: 0` (כדי ש-borderTop על td יעבוד)
+## מה הושלם בשיחה זו (2026-05-10)
 
-### Group Headers — ריבוד היררכי
-- **ראשית:** `fontSize: 13px`, `fontWeight: 700`, `color: var(--section-header-color)`, `borderTop: 2px solid var(--section-header-color)`, padding `14px 16px 6px`
-- **משנה:** `fontSize: 11px`, `fontWeight: 600`, italic, אפור `var(--text-secondary)`, קו דק `rgba(6,78,59,0.25)`
-- **Dark mode:** `--section-header-color: rgba(255,255,255,0.90)` (לבן על רקע כהה)
-- **Light mode:** `--section-header-color: var(--bg-section)` (ירוק/כחול המותג)
+### AppHeader redesign + /[client] sticky layout
+מלא — ראה CHANGELOG.md `[unreleased] — 2026-05-10` לפרטים מלאים.
 
-### Collapsible Groups
-- State: `collapsedGroups: Set<string>` — מפתח = `cat.parentSection`
-- לחיצה על כותרת ראשית → מסתירה כל שורות הקרן של הקבוצה
-- כותרות משנה **נסתרות גם הן** בכיווץ
-- חץ ▼ עם `float: left`, rotation animation
+**עיקר השינויים:**
+- `components/AppHeader.tsx`: שורה לבנה 52px במקום dark nav bar. Logo + nav tabs + print button
+- `components/FundTableV2.tsx`: 2 שורות controls sticky ב-top:52. SegmentedControl תמיד מוצג. `overflow: clip` על table wrapper. `<th>` sticky ב-top:136
+- `app/page.tsx`: הוסר div עם print button (עם הgap שגרם)
+- `app/globals.css`: import Cormorant Garamond (Google Fonts)
 
-### Grouping Logic — שיפור מבני
-- הלוגיקה הישנה: hardcoded `SUPER_HEADER_BEFORE = "bond-hedged"` 
-- הלוגיקה החדשה: **`category.parentSection`** — שדה קיים על כל Category
-- Pre-group לפי `parentSection`, iteration על `sectionOrder`
-- כותרת משנה מוצגת רק אם: `sectionCats.length > 1 || cat.name !== section`
-- 7 קבוצות ראשיות: קרנות גידור ישראל · אגד קרנות · אחר · קרנות גידור חו"ל · נאמנות סגורות · חוב פרייבט · CLO
+**Sticky stack:**
+- AppHeader: `position: sticky, top: 0, z: 100`
+- Controls wrapper: `position: sticky, top: 52, z: 99`
+- `<th>`: `position: sticky, top: 136` (52+44+40)
+
+**חשוב — למה `overflow: clip`:**
+`overflow: auto` יוצר scroll container — sticky `<th>` מתייחס לו ולא לviewport. `overflow: clip` חוסם ויזואלית בלי ליצור scroll container → sticky עובד כמו שצריך.
 
 ---
 
 ## מה פתוח לטיפול — לפי עדיפות
-1. **עמוד ניתוח (`/analysis`)** — ממתין לסקירה
-2. **עמוד גרפים (`/charts`)** — ממתין לסקירה
-3. **עמוד השוואה (`/compare`)** — ממתין לסקירה
-4. **Print layout** — לוודא שהשינויים לא שברו את הדפסה
-5. **NOX client** — לוודא שהשינויים נראים טוב גם שם
+
+1. **84 vs 81 inconsistency** — 3 קרנות כפולות: Fund Access ASPM Apollo, ואר אקוויטי, קפלר קפיטל. גם: בירור טיפול ב-`active=false` בספירות
+
+2. **Navigation links audit** — לבדוק כל נתיבי ניווט ברחבי האפליקציה
+
+3. **Stage B Phases 2-4** (~10h):
+   - Phase 2: `app/charts/page.tsx`
+   - Phase 3: `app/compare/page.tsx`
+   - Phase 4: Analysis, Aggregate, BulkApply API, FundReport API
+   - Roadmap: `/tmp/stage-b-roadmap.md`
+
+4. **44 קרנות (Category D)** — ללא `monthlyReturns`. לפרסר מ-PDFs
+
+5. **3 קרנות כפולות** — מיזוג/מחיקה (תלוי ב-#1)
+
+6. **TRIO (fund-24)** — אין `monthlyReturns`, דרוש re-parse
+
+7. **אידאה (fund-eq2-3)** — לאמת `y2019` monthlyReturns (פרסר: 26.08%)
+
+8. **Commit `3d5ff7a`** — bulk-update feature, עדיין local only, לא עלה לremote
+
+9. **Dead code** — `components/FundCard.tsx`, `components/FundTable.tsx` — לא מיובאים בשום מקום
+
+10. **[HIGH] שתי קרנות CLO חסרות currency** — fund-1778317451353-3b9f, fund-1778318344637-aa3r
+
+11. **[MED] Error UX — 402 credit balance banner** — parse route צריך לתפוס 402 ולהציג הודעה ברורה
+
+12. **[LOW] Health check endpoint** — `/api/health/anthropic` לאבחון כשפרסר לא מגיב
+
+13. **Consistency UX** — 4 בעיות UX פתוחות (ממתינות ל-Design Review ייעודי)
 
 ---
 
-## החלטות עיצוב שהתקבלו
+## החלטות ארכיטקטורה שהתקבלו
 
-| נושא | החלטה |
-|------|--------|
-| Navigation | Underline-only active, לא pill container |
-| Action buttons | Floating bar בתחתית, לא בheader |
-| Table headers | Transparent, uppercase, border-bottom בלבד |
-| Group headers | Typography-only, אפס fill colors |
-| Dark mode headers | לבן `rgba(255,255,255,0.90)` — לא ירוק |
-| Collapse | מסתיר קרן-rows + כותרות משנה, כותרת ראשית תמיד נראית |
+### Single Source of Truth: fund.monthlyReturns
+כל מדדים מחושבים on-the-fly מ-`monthlyReturns` דרך `lib/metrics.ts`. שדות KV ישנים הם fallback בלבד.
+
+### getLastUpdated(fund) — לא fund.lastUpdated ישיר
+```typescript
+// lib/fundDerived.ts
+getLastUpdated(fund) = computeLatestMonth(fund.monthlyReturns) ?? fund.lastUpdated ?? null
+```
+
+### AppHeader sticky layout — top offsets
+- AppHeader height: **52px** (top: 0)
+- Controls Row 1 height: **44px** (search + SegmentedControl)
+- Controls Row 2 height: **40px** (CategoryPills)
+- `<th>` sticky top: **136px** = 52 + 44 + 40
+- Table wrapper must be `overflow: clip` (not `auto`) for sticky `<th>` to work
+
+### set-delayed-flag PATCH action
+`PATCH /api/funds?action=set-delayed-flag` עם `{ fundId, delayed: boolean }` — לא `/api/funds/${fundId}`
+
+### StatusKey — 3 סטטוסים בלבד
+`"updated" | "waiting" | "delay"` — תמיד `updated+waiting+delay===total`
+
+### KV: delayed, לא reportingDelay
+השדה `reportingDelay` נמחק מ-KV ומ-types. השדה הנכון הוא `delayed: boolean`.
 
 ---
 
-## קבצים מרכזיים שהשתנו בסשן
+## קבצים / רכיבים מרכזיים
 
-| קובץ | שינוי |
-|------|-------|
-| `components/FundTable.tsx` | Group headers, collapsible, borderCollapse, row alt color |
-| `app/globals.css` | Nav CSS, floating bar CSS, `--section-header-color`, dark mode vars |
-| `app/page.tsx` | NavTab redesign, floating action bar |
-
-## קבצים חשובים אחרים (לא שונו)
 | קובץ | תפקיד |
-|------|--------|
-| `lib/types.ts` | `Category.parentSection` — שדה מפתח לgrouping |
-| `lib/constants.ts` | `SECTION_COLORS` — כבר לא בשימוש ב-FundTable |
-| `lib/colors.ts` | `brandCssVars()` — מגדיר `--bg-section = primaryColor` על div |
-| `config/brand.ts` | `primaryColor: "#1a365d"` (local default) — ב-KV יש `#064e3b` |
-| `app/api/parse/route.ts` | AI parser — לא נגענו |
+|------|-------|
+| `components/AppHeader.tsx` | Header: שורה לבנה 52px — logo + nav + print |
+| `components/FundTableV2.tsx` | טבלת קרנות: 2-row sticky controls + sticky th |
+| `app/page.tsx` | דף ראשי — FundTableV2 + PrintReport |
+| `app/globals.css` | CSS גלובלי + Cormorant Garamond import |
+| `lib/types.ts` | Fund interface — `delayed?: boolean` |
+| `lib/metrics.ts` | 9 pure metric functions (Stage A) |
+| `lib/constants.ts` | `RISK_FREE_RATE_ANNUAL`, `SHARPE_CAP`, `MIN_MONTHS_FOR_RISK_METRICS` |
+| `lib/fundDerived.ts` | `getLastUpdated(fund)`, `getFundMetrics(fund)` |
+| `app/api/funds/route.ts` | CRUD + PATCH actions |
+| `app/fund-status/page.tsx` | סטטוס עדכון קרנות + MTD inline form |
+| `app/admin/page.tsx` | Admin panel — brand, funds, AI parser |
+| `app/api/parse/route.ts` | AI Parser (Three-Pass) |
+| `lib/storage.ts` | `storageRead` / `storageWrite` — KV/filesystem abstraction |
+| `lib/clientKey.ts` | `CLIENT_KEYS` — מקור האמת ללקוחות |
+| `__tests__/metrics.test.ts` | 32 unit tests לפונקציות Stage A |
+
+### PATCH actions ב-/api/funds
+```
+set-currency          → { fundId, currency: "ILS"|"USD" }
+set-manager           → { fundId, manager: string }
+set-last-updated      → { fundId, lastUpdated: "YYYY-MM" }
+set-monthly-return    → { fundId, month: "YYYY-MM", value: number }
+delete-monthly-return → { fundId, month: "YYYY-MM" }
+set-delayed-flag      → { fundId, delayed: boolean }
+```
 
 ---
 
 ## כללי זהב טכניים — לא לשבור
 
-1. **`--bg-section` ≠ `:root`** — `brandCssVars()` מגדיר על div, לא על `:root`. לבדוק computed style על האלמנט עצמו, לא על `document.documentElement`.
-2. **`borderCollapse: separate` + `borderSpacing: 0`** — חובה כדי ש-`borderTop` על `<td>` יעבוד. עם `collapse` הborder נעלם.
-3. **`colSpan = colCount + 1`** — הטבלה מכילה `COL_WIDTHS.length` (16) + עמודת AUM ללא רוחב = 17 עמודות. `colCount` לא כולל AUM.
-4. **`float: left` לחץ ▼** — RTL table, לא להשתמש ב-`justifyContent: space-between` — הטקסט מתהפך.
-5. **`--section-header-color`** — משתנה ייעודי לכותרות קבוצות. `--accent-hover` הוא זהב לכפתורים — לא לדרוס.
+- **לא לקרוא `fund.lastUpdated` ישיר** — תמיד `getLastUpdated(fund)`
+- **לא ליצור route `/api/funds/[id]`** — לא קיים ולא צריך
+- **לא להשתמש ב-`reportingDelay`** — נמחק. שמש ב-`delayed`
+- **`npm run build` + `npx vitest run` לפני כל push** — build חייב לעבור, 99/99 tests
+- **לא לדחוף ל-main ללא אישור**
+- **`overflow: clip` על table wrapper** — לא לשנות ל-`auto` (ישבור sticky th)
+- **AppHeader height = 52, Row1 = 44, Row2 = 40** — לא לשנות ללא עדכון `top: 136` ב-`<th>`
 
 ---
 
 ## בעיות שנפתרו — לא לגעת
 
-| בעיה | פתרון |
-|------|--------|
-| Nav container לא נראה ב-light mode | הוסר הcontainer, underline בלבד |
-| `--color-primary` לא קיים | משתמשים ב-`--bg-section` |
-| Dark mode text invisible | תוקנו `--text-secondary` / `--text-muted` |
-| Border header נעלם | `borderCollapse: separate` |
-| colSpan לא מגיע ל-AUM | `colCount + 1` |
-| ירוק על כהה = בעיה | `--section-header-color: rgba(255,255,255,0.90)` ב-dark |
+| בעיה | פתרון | מתי |
+|------|--------|-----|
+| White gap בין AppHeader לcontrols | הוסר div עם padding ב-`app/page.tsx` | 2026-05-10 |
+| Year selector מופיע בcontrols bar ל-NOX | הוסרה הלוגיקה isYearMode בcontrols bar | 2026-05-10 |
+| `toggleDelay` קרא ל-`/api/funds/${id}` שלא קיים | PATCH `set-delayed-flag` ב-`/api/funds` | 2026-05-09 |
+| ספירות סיכום לא מסתכמות ל-total | 3 סטטוסים: updated+waiting+delay | 2026-05-09 |
+| `reportingDelay` ו-`delayed` שניהם ב-KV | migration script, 10 קרנות GREEN | 2026-05-09 |
+| LLM non-determinism בטבלאות RTL | `fixAnnualJanSwapPerYear` + `temperature: 0` | קודם |
+| Dec header → YTD (בפרסר) | MONTH_ALIASES לפני YTD_ALIASES | v39 |
+| Sharpe ∞ בקרנות אג"ח יציבות | `SHARPE_CAP=5`, sample stdDev | Stage A |
 
 ---
 
-## הצעד הבא המיידי
-
-**לפתוח שיחה חדשה ולהמשיך עם:**
-
-> "המשך מ-session-context. העמוד הראשי סגור. עכשיו עוברים ל-[עמוד הבא]."
-
-עמוד ניתוח (`/analysis`) הוא הטבעי להמשיך איתו — אותו style system, צריך לוודא שהheaders, הטבלאות והחלוקה לקטגוריות תואמות את מה שנבנה היום.
-
----
-*עודכן: 2026-04-11 | Commit: `1c5c8b2` | גרסה: v1.1*
+*עודכן: 2026-05-10 | Cache v56 | tests: 99/99*

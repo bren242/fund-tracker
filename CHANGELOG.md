@@ -1,5 +1,27 @@
 # Changelog
 
+## [unreleased] — 2026-05-10 — AppHeader redesign + /[client] sticky layout
+
+### Changed
+- **AppHeader:** complete redesign — single 52px white row (logo + nav tabs inline + print button). Dark nav bar removed
+- **Controls bar (FundTableV2):** 2 sticky rows at `top: 52` — Row 1: search + SegmentedControl (height 44), Row 2: CategoryPills (height 40)
+- **Sticky `<th>`:** `top: 136px` (52+44+40), `backgroundColor: #FAFAF7`, `color: rgba(27,58,47,0.5)`, `fontSize: 10.5px`
+- **Table wrapper:** `overflow: clip` (was `overflowX: auto`) — required for sticky `<th>` to work inside wrapper
+- **SegmentedControl:** always shown in controls bar — removed `isYearMode ? <YearSelector> : <SegmentedControl>` branch
+- **Time range labels:** `"YTD"` / `"12M"` (was Hebrew "מתחילת שנה" / "12 חודשים")
+- **Family-label rows:** `backgroundColor: #F4F3EF`, `color: rgba(27,58,47,0.7)`, `fontWeight: 500`, `fontSize: 10.5px`, `padding: 6px 32px`
+- **Print button:** moved from standalone div in `app/page.tsx` → AppHeader top row (right side, `⎙ הדפסה`)
+- **Logo fallback:** Cormorant Garamond text (`letterSpacing: 3px`) when no logo image; Google Fonts import added to `globals.css`
+- **CategoryPills:** individual bordered pills (not segmented container), active: `#1B3A2F`
+
+### Fixed
+- White gap between AppHeader and controls bar — caused by `padding: 8px 20px 0` on removed print button div in `app/page.tsx`
+- Year selector no longer appears in controls bar for year-mode clients (NOX)
+
+**Files:** `components/AppHeader.tsx`, `components/FundTableV2.tsx`, `app/page.tsx`, `app/globals.css`
+
+---
+
 ## v1.6 — Data Completion (2026-04-05)
 
 ### Standalone Data Completion Page
