@@ -271,8 +271,8 @@ function ChartsContent() {
       {/* Thin brand color bar */}
       <div style={{ height: 3, background: `linear-gradient(90deg, ${dark ? "#4ade80" : "#1B3A2F"} 0%, #B8975A 100%)` }} />
 
-      {/* Header — screen only, sticky */}
-      <div className="no-print" style={{ position: "sticky", top: 0, zIndex: 100, backgroundColor: "var(--bg-surface)", borderBottom: "1px solid var(--border)" }}>
+      {/* Header — screen only */}
+      <div className="no-print" style={{ backgroundColor: "var(--bg-surface)", borderBottom: "1px solid var(--border)" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <BrandLogo brand={brand} height={28} variant={dark ? "dark" : "light"} />
@@ -311,7 +311,7 @@ function ChartsContent() {
 
       {/* ── Unified filter area — sticky controls bar ── */}
       <div className="no-print" style={{
-        position: "sticky", top: 52, zIndex: 99,
+        position: "sticky", top: 88, zIndex: 99,
         backgroundColor: "#FAFAF7",
         borderBottom: "1px solid var(--border)",
       }}>
