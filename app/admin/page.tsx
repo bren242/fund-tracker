@@ -2869,23 +2869,28 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
       return;
     }
 
+    console.log(`[upload] ▶ handleFileUpload file=${file.name} size=${file.size} type=${file.type} client=${clientKey}`);
     setParsing(true);
     try {
       const formData = new FormData();
       formData.append("file", file);
 
+      console.log(`[upload] fetch POST /api/parse?action=parse-file`);
       const res = await fetch(`/api/parse?action=parse-file&client=${encodeURIComponent(clientKey)}`, {
         method: "POST",
         headers: { "x-admin-password": password },
         body: formData,
       });
+      console.log(`[upload] response status=${res.status} ok=${res.ok}`);
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "שגיאה בפענוח" }));
+        console.error(`[upload] ✗ server error: ${JSON.stringify(err)}`);
         onStatus(`❌ ${err.error || "שגיאה בפענוח"}`);
         setParsing(false);
         return;
       }
       const result = await res.json();
+      console.log(`[upload] result keys=${Object.keys(result).join(',')} fundName=${result.fundName} reportMonth=${result.reportMonth} fields=${result.fields?.length ?? 0} dualCurrency=${!!(result.dualCurrencyData?.length)}`);
       setParseResult(result);
       setInputText(`[קובץ: ${file.name}]`);
       const approved = new Set<string>();
@@ -2901,6 +2906,7 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
         setSelectedMatchFundId(result.match.fundId);
         setSelectedMatchCatId(result.match.categoryId || "");
       }
+      console.log(`[upload] calling setView("review")`);
       setView("review");
       loadTokenUsage();
       setDualSaved(new Set());
@@ -2926,7 +2932,8 @@ function AiParserTab({ password, clientKey, data, brand, onStatus, onReload }: {
       } else if (result.fromCache) {
         onStatus("✓ תוצאה מהמטמון — 0 טוקנים");
       }
-    } catch {
+    } catch (err) {
+      console.error(`[upload] ✗ exception:`, err instanceof Error ? err.stack : String(err));
       onStatus("❌ שגיאה בחיבור לשרת");
     }
     setParsing(false);
