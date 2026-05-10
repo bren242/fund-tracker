@@ -116,18 +116,32 @@ export default function AppHeader({ fundCount: _fundCount = 84 }: AppHeaderProps
           gap: 24,
         }}
       >
-        {/* Logo — text only on screen; print report handles logo images separately */}
-        <span style={{
-          fontFamily: "'Cormorant Garamond', serif",
-          fontSize: 18,
-          fontWeight: 500,
-          color: primaryColor,
-          letterSpacing: "3px",
-          lineHeight: 1,
-          flexShrink: 0,
-        }}>
-          {brand.name || clientKey.toUpperCase()}
-        </span>
+        {/* Logo */}
+        {brand.logoLight ? (
+          <img
+            src={brand.logoLight}
+            alt={brand.name || clientKey}
+            style={{ maxHeight: 34, width: "auto", objectFit: "contain", flexShrink: 0 }}
+          />
+        ) : brand.logo ? (
+          <img
+            src={brand.logo}
+            alt={brand.name || clientKey}
+            style={{ maxHeight: 34, width: "auto", objectFit: "contain", flexShrink: 0 }}
+          />
+        ) : (
+          <span style={{
+            fontFamily: "'Cormorant Garamond', serif",
+            fontSize: 18,
+            fontWeight: 500,
+            color: primaryColor,
+            letterSpacing: "3px",
+            lineHeight: 1,
+            flexShrink: 0,
+          }}>
+            {brand.name || clientKey.toUpperCase()}
+          </span>
+        )}
 
         {/* Nav tabs */}
         <div style={{ display: "flex", alignItems: "center", gap: 20, flexShrink: 0 }}>
