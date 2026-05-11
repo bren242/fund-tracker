@@ -287,11 +287,15 @@ function ChartHelpPopover({ dark }: { dark: boolean }) {
           <div style={separator}>
             {sectionTitle("אזורי הגרף")}
             {[
-              { color: "rgba(27, 58, 47, 0.7)",   label: "איכות",   desc: "תשואה גבוהה ביחס לסיכון נמוך" },
-              { color: "rgba(180, 130, 50, 0.7)",  label: "מומנטום", desc: "תשואה גבוהה דרך תנודתיות" },
-              { color: "rgba(80, 100, 130, 0.7)",  label: "יציבות",  desc: "תשואה צנועה עם תנודתיות נמוכה" },
-              { color: "rgba(180, 50, 50, 0.7)",   label: "תנודתי", desc: "תנודתיות גבוהה ללא תגמול תואם" },
-            ].map(({ color, label, desc }) => bullet(color, label, desc))}
+              { label: "איכות",   desc: "תשואה גבוהה ביחס לסיכון נמוך" },
+              { label: "מומנטום", desc: "תשואה גבוהה דרך תנודתיות" },
+              { label: "יציבות",  desc: "תשואה צנועה עם תנודתיות נמוכה" },
+              { label: "תנודתי",  desc: "תנודתיות גבוהה ללא תגמול תואם" },
+            ].map(({ label, desc }) => (
+              <div key={label} style={{ fontSize: 11, color: "#6B6B6B", lineHeight: 1.7 }}>
+                <span style={{ fontWeight: 600, color: "#3D3D3D" }}>{label}</span> — {desc}
+              </div>
+            ))}
           </div>
 
           {/* Section 4: אמינות נתונים */}
@@ -816,16 +820,11 @@ function ChartsContent() {
                       </ScatterChart>
                     </ResponsiveContainer>
 
-                    {/* Quadrant labels */}
+                    {/* Quadrant watermarks */}
                     <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-                      {/* top-right: איכות — inside plot area (margin.top=40+24, margin.right=60+24) */}
-                      <QuadrantLabel text="איכות"   dotColor="rgba(27, 58, 47, 1)"   textColor="rgba(27, 58, 47, 0.85)"   top={64}    right={84} dotLeft />
-                      {/* bottom-right: מומנטום */}
-                      <QuadrantLabel text="מומנטום" dotColor="rgba(180, 130, 50, 1)" textColor="rgba(180, 130, 50, 0.85)" bottom={84} right={84} dotLeft />
-                      {/* top-left: יציבות */}
-                      <QuadrantLabel text="יציבות"  dotColor="rgba(80, 100, 130, 1)" textColor="rgba(80, 100, 130, 0.85)" top={64}    left={84}  dotLeft />
-                      {/* bottom-left: תנודתי */}
-                      <QuadrantLabel text="תנודתי"  dotColor="rgba(180, 50, 50, 1)"  textColor="rgba(180, 50, 50, 0.80)"  bottom={84} left={84}  dotLeft />
+                      {QUADRANT_LABELS.map((q) => (
+                        <QuadrantWatermark key={q.text} text={q.text} color={q.color} position={q.position} />
+                      ))}
                     </div>
                   </>
                 )}
@@ -884,33 +883,42 @@ function ChartsContent() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Quadrant label helper                                               */
+/*  Quadrant watermark                                                  */
 /* ------------------------------------------------------------------ */
-function QuadrantLabel({ text, dotColor, textColor, top, bottom, left, right, dotLeft, dotRight }: {
-  text: string;
-  dotColor: string;
-  textColor: string;
-  top?: number;
-  bottom?: number;
-  left?: number;
-  right?: number;
-  dotLeft?: boolean;
-  dotRight?: boolean;
-}) {
-  const dot = (
-    <span style={{ width: 6, height: 6, borderRadius: "50%", background: dotColor, flexShrink: 0, display: "inline-block" }} />
-  );
+type Position = "top-right" | "top-left" | "bottom-right" | "bottom-left";
+
+const QUADRANT_LABELS: Array<{ text: string; color: string; position: Position }> = [
+  { text: "איכות",   color: "rgba(27, 58, 47, 0.22)",   position: "top-right" },
+  { text: "יציבות",  color: "rgba(80, 100, 130, 0.22)", position: "top-left" },
+  { text: "מומנטום", color: "rgba(180, 130, 50, 0.22)", position: "bottom-right" },
+  { text: "תנודתי",  color: "rgba(180, 50, 50, 0.22)",  position: "bottom-left" },
+];
+
+function QuadrantWatermark({ text, color, position }: { text: string; color: string; position: Position }) {
+  const positionStyles: Record<Position, React.CSSProperties> = {
+    "top-right":    { top: 12, right: 18 },
+    "top-left":     { top: 12, left: 18 },
+    "bottom-right": { bottom: 48, right: 18 },
+    "bottom-left":  { bottom: 48, left: 18 },
+  };
+
   return (
-    <div style={{
-      position: "absolute", top, bottom, left, right,
-      display: "flex", alignItems: "center", gap: 6,
-      direction: "ltr",
-      fontSize: 14, fontWeight: 600, letterSpacing: "2px", textTransform: "uppercase",
-      color: textColor,
-    }}>
-      {dotRight && dot}
-      <span>{text}</span>
-      {dotLeft && dot}
+    <div
+      style={{
+        position: "absolute",
+        ...positionStyles[position],
+        fontSize: 16,
+        fontWeight: 500,
+        letterSpacing: 3,
+        textTransform: "uppercase",
+        color,
+        direction: "ltr",
+        pointerEvents: "none",
+        userSelect: "none",
+        zIndex: 1,
+      }}
+    >
+      {text}
     </div>
   );
 }
