@@ -290,7 +290,7 @@ function ChartHelpPopover({ dark }: { dark: boolean }) {
               { color: "rgba(27, 58, 47, 0.7)",   label: "איכות",   desc: "תשואה גבוהה ביחס לסיכון נמוך" },
               { color: "rgba(180, 130, 50, 0.7)",  label: "מומנטום", desc: "תשואה גבוהה דרך תנודתיות" },
               { color: "rgba(80, 100, 130, 0.7)",  label: "יציבות",  desc: "תשואה צנועה עם תנודתיות נמוכה" },
-              { color: "rgba(180, 50, 50, 0.7)",   label: "תנודה",   desc: "תנודתיות גבוהה ללא תגמול תואם" },
+              { color: "rgba(180, 50, 50, 0.7)",   label: "תנודתי", desc: "תנודתיות גבוהה ללא תגמול תואם" },
             ].map(({ color, label, desc }) => bullet(color, label, desc))}
           </div>
 
@@ -738,7 +738,7 @@ function ChartsContent() {
                       <div style={{ position: "absolute", top: 0, left: "50%", right: 0, bottom: "50%", background: "radial-gradient(circle at top right, rgba(180, 130, 50, 0.03) 0%, transparent 60%)" }} />
                       {/* bottom-left: יציבות */}
                       <div style={{ position: "absolute", top: "50%", left: 0, right: "50%", bottom: 0, background: "radial-gradient(circle at bottom left, rgba(80, 100, 130, 0.03) 0%, transparent 60%)" }} />
-                      {/* top-left: תנודה */}
+                      {/* bottom-left: תנודתי */}
                       <div style={{ position: "absolute", top: 0, left: 0, right: "50%", bottom: "50%", background: "radial-gradient(circle at top left, rgba(180, 50, 50, 0.03) 0%, transparent 60%)" }} />
                     </div>
 
@@ -818,14 +818,14 @@ function ChartsContent() {
 
                     {/* Quadrant labels */}
                     <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-                      {/* bottom-right: איכות (high return, low risk) */}
-                      <QuadrantLabel text="איכות" dotColor="rgba(27, 58, 47, 0.7)" textColor="rgba(27, 58, 47, 0.45)" bottom={68} right={80} dotLeft />
-                      {/* top-right: מומנטום (high return, high risk) */}
-                      <QuadrantLabel text="מומנטום" dotColor="rgba(180, 130, 50, 0.7)" textColor="rgba(180, 130, 50, 0.45)" top={44} right={80} dotLeft />
-                      {/* bottom-left: יציבות (low return, low risk) */}
-                      <QuadrantLabel text="יציבות" dotColor="rgba(80, 100, 130, 0.7)" textColor="rgba(80, 100, 130, 0.45)" bottom={68} left={80} dotRight />
-                      {/* top-left: תנודה (low return, high risk) */}
-                      <QuadrantLabel text="תנודה" dotColor="rgba(180, 50, 50, 0.7)" textColor="rgba(180, 50, 50, 0.40)" top={44} left={80} dotRight />
+                      {/* top-right: איכות — inside plot area (margin.top=40+24, margin.right=60+24) */}
+                      <QuadrantLabel text="איכות"   dotColor="rgba(27, 58, 47, 1)"   textColor="rgba(27, 58, 47, 0.85)"   top={64}    right={84} dotLeft />
+                      {/* bottom-right: מומנטום */}
+                      <QuadrantLabel text="מומנטום" dotColor="rgba(180, 130, 50, 1)" textColor="rgba(180, 130, 50, 0.85)" bottom={84} right={84} dotLeft />
+                      {/* top-left: יציבות */}
+                      <QuadrantLabel text="יציבות"  dotColor="rgba(80, 100, 130, 1)" textColor="rgba(80, 100, 130, 0.85)" top={64}    left={84}  dotLeft />
+                      {/* bottom-left: תנודתי */}
+                      <QuadrantLabel text="תנודתי"  dotColor="rgba(180, 50, 50, 1)"  textColor="rgba(180, 50, 50, 0.80)"  bottom={84} left={84}  dotLeft />
                     </div>
                   </>
                 )}
