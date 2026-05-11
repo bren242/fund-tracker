@@ -1,64 +1,98 @@
-# HANDOFF.md — ריצת לילה 2026-04-12
+# HANDOFF.md — סשן 10/05/2026 לילה
 
-## מה עשינו הלילה
+## מה הושלם היום
 
-### בעיה 1 — יישור גרף ✅
-**שורש הבעיה:** נצברו שלוש שכבות של hacks שגרמו לאפקט הפוך:
-- `margin: "0 24px 8px"` על ה-div עוטף — לא מצמצם width, רק מזיז
-- `paddingLeft: 24, paddingRight: 24` על `ResponsiveContainer` — SVG עדיין מחושב לפי outer width
-- כל commit ניסה לתקן את הקודם, גרם לנסיגה
+### 1. Credit-Exhausted UX ✅
+- `lib/credit-error.ts` — `isCreditExhaustedError(status, body)`, `CREDIT_EXHAUSTED_SENTINEL`, `creditExhaustedBody()`
+- זיהוי HTTP 402 + body keywords ("credit balance" / "billing") — לא 502 גנרי
+- `__tests__/parse-credit.test.ts` — 3 describe blocks, 7 tests
+- הועבר ל-`app/api/parse/route.ts`
 
-**הפתרון:** הסרה מלאה של כל ה-hacks. ה-content div כבר מכיל `padding: "0 24px"` — הגרף עם `width="100%"` ממלא את שטח התוכן ומיושר אוטומטית עם הכרטיסים.
+### 2. Diagnose Duplicates Script ✅
+- `scripts/diagnose-duplicates.ts` — script לאבחון כפילויות בKV (ללא כתיבה)
+- מנרמל שמות (Levenshtein ≤3), מוציא checklist ידני
+- מחפש `.env.production.local` מ-cwd עד 6 levels למעלה (תואם worktrees)
 
-### בעיה 2 — לוגיקת תאריכים + גרף חודשי ✅
-**מה השתנה ב-CompareCharts:**
-- Interface: `selectedYears?: string[]` → `from?: string; to?: string` (YYYY-MM)
-- `buildLineData()`: משתמש ב-`monthlyReturns` כשקיים, fallback שנתי
-- `formatXLabel()`: YYYY-MM → "אפ'23" וכד'
-- `xInterval`: `Math.max(0, Math.ceil(N/8) - 1)` — max ~8 תוויות
+### 3. avgAnnualReturn ×100 Fix ✅
+- בעיה: שדה נשמר כ-fraction (0.05) אבל הוצג ×100 ← הוצג כ-5% תמיד במקום 500%
+- תוקן ב-`app/api/funds/route.ts` → שמירה כ-fraction, display ×100 נכון
 
-**מה השתנה ב-page.tsx:**
-- `rangeToYearKeys()` הוחלף ב:
-  - `rangeToDateRange()` — מחזיר `{from, to}` ב-YYYY-MM
-  - `dateRangeToYearKeys()` — גוזר year keys מתוך הטווח (ל-CompareTable)
-- 3Y = `addMonths(today, -36)` = אפריל 2023 (לא ינואר 2023)
-- 5Y = `addMonths(today, -60)` = אפריל 2021
-- Custom: מציג עד YYYY-MM מדויק
+### 4+5. UI Unification — AppHeader + /analysis + /admin ✅
+**AppHeader redesign (components/AppHeader.tsx):**
+- 52px, sticky, background:#ffffff, logo + tabs (קרנות/ניתוח/כלים) + gear + print
 
-### בעיה 3 — פרינט ✅
-- `ComparePrint` מקבל `chartFrom?: string; chartTo?: string`
-- מועבר ל-`<CompareCharts compact from={chartFrom} to={chartTo} />`
-- אותו interval חכם בפרינט
+**/analysis (app/analysis/page.tsx) — 7 איטרציות sticky:**
+- שורה 1 (44px): sub-tabs עם feature locking (ימין) + sort/NOX year-select (שמאל)
+- שורה 2 (40px): groups+categories (ימין) + currency (שמאל)
+- thead `top:136` סטטי (52+44+40) — ללא ResizeObserver
+- כל קוד אבחוני הוסר
 
-## קומיטים שיצאו
+**/admin (app/admin/page.tsx):**
+- הוסר header ישן, הוחלף ב-pill bar sticky top:52
+- כפתור "שמירה ופרסום" בתוך ה-pill bar
 
-| Hash | תיאור |
-|------|-------|
-| `633e720` | fix: align compare chart width with fund cards |
-| `e656f51` | fix: date range logic for compare chart — rolling periods and monthly data |
-
-*(commit שלישי עם תיקון -36/-60 + תיעוד — עוד לא עלה לפוש)*
-
-## מה פתוח עדיין
-
-1. **בנצ'מרקים בלי monthlyReturns** — כשהגרף עובר למצב חודשי, בנצ'מרקים ללא monthly data יראו קוים ריקים. אפשר לטפל בזה ע"י: אם הקרן חודשית אבל הבנצ'מרק לא — לחשב נקודות שנתיות לבנצ'מרק ולהציגן כ-marker על הציר, לא כקו רציף.
-2. **GREEN — features.benchmarks = false** — הבנצ'מרקים מושבתים ב-GREEN. לא ניתן לבדוק בנצ'מרק בפרודקשן עד שיופעלו.
-3. **local dev אין monthlyReturns** — הגרף תמיד יציג fallback שנתי ב-local. זה מכוון (נתונים חסרים ב-seed JSON).
-4. **פרינט בנצ'מרקים בצבע שני** — CompareTable compact עדיין משתמש ב-`BM_COLORS[i]` לנכון, אבל לא נבדק בהדפסה אמיתית עם 2 בנצ'מרקים.
-
-## כללי זהב שנלמדו
-
-1. **Recharts `ResponsiveContainer` padding/margin hacks — לא לעשות.** `width="100%"` לוקח את שטח התוכן של ה-parent. לשים את ה-container ב-div עם padding — זה הכלל.
-2. **כל שינוי שנועד לתקן alignment — לזהות קודם מה בדיוק לא מיושר** (SVG נגד div נגד grid). אחרת כל commit מוסיף שכבה שמסתירה את הבעיה.
-3. **גרף חודשי vs שנתי** — ה-interface `from/to: YYYY-MM` גמיש יותר מ-`selectedYears: string[]`. אין לחזור לשנתי-בלבד.
-4. **fallback שנתי חובה** — נתונים חודשיים קיימים רק בפרודקשן KV. local dev תמיד fallback.
-
-## איפה עצרנו
-
-קוד מוכן. עדיין צריך:
-1. `git add app/compare/page.tsx && git commit --amend` (או commit חדש) עם תיקון `-36/-60` שכבר נעשה אך טרם commited
-2. `git push origin main`
-3. לאמת ב-Vercel שהגרף מיושר + שהתאריכים נכונים ב-3Y
+### 6. NOX Sub-tab Locking ✅ (ממרץ עם NOX worktree)
+- `brand.features.comparison/chartPage/consistencyAnalysis === false` → pill נעול + 🔒
+- NOX year multi-select (2020-2025 + YTD26) ב-row 1
 
 ---
-*Generated: 2026-04-12 ריצת לילה*
+
+## לקחים שנלמדו (מפורטים ב-LESSONS.md)
+- backdropFilter שובר sticky background → תמיד background סולידי
+- RTL flex + overflow-x חותך קצה שמאלי → 2 שורות נפרדות, לא דחיסה לאחת
+- ResizeObserver unstable → גבהים קבועים + top סטטי עדיף תמיד
+- overflow:clip (לא hidden) על table wrapper
+- "לא לחפור פעמיים" — מדידה אמיתית לפני ניסיון שלישי
+
+---
+
+## מה פתוח לסשן 3
+
+**קבצים:** `/charts`, `/compare`, `/consistency/v2`  
+**מה נדרש:**
+- הוסף sub-tabs row (דירוג/השוואה/גרף/עקביות) עם "גרף" / "השוואה" / "עקביות" active
+- עדכן כל controls wrapper ל-`top:52`
+- עדכן כל thead / sticky elements בהתאם
+- בדוק print layouts לא נשברו
+
+---
+
+## מה פתוח לסשן 4
+
+**קבצים:** `/indications`, `/fund-status`  
+**מה נדרש:**
+- top:52 על כל controls
+- סטנדרט pill אחיד
+
+---
+
+## מה פתוח לסשן 5 (polish)
+
+- Hover states על כל הכפתורים
+- Transition animations
+- Spacing consistency בין דפים
+- Mobile breakpoints (low priority)
+
+---
+
+## Design Review — /consistency/v2 (4 בעיות פתוחות)
+
+1. **בורר תקופה לא מובן** — "תקופה" vs "חלון" — שינוי copy + tooltip
+2. **12M מחזיר "אין נתונים"** — כי סף מינימום הוא 24M — להוריד ל-12M או להסביר למשתמש
+3. **Checkbox ב-leaderboard** — בלי label / context — לשפר UX
+4. **תאריך משתנה במעבר ל-compare** — race condition שתוקן (commit 4dbeb5f) אבל יש לאמת ב-prod
+
+---
+
+## מצב Git ומבחנים
+
+| | |
+|---|---|
+| **tests** | 107/107 ✅ |
+| **branch main** | `5c42ed7` merge: 2-row analysis controls |
+| **worktree branch** | `claude/quirky-matsumoto-467e52` (rebased on main) |
+| **Vercel** | auto-deploy on push to main |
+
+---
+
+*Generated: 2026-05-10 לילה | UI Unification Sessions 1+2*
