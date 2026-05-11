@@ -300,44 +300,11 @@ function AnalysisContent() {
   const [showAll, setShowAll] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const searchRef   = useRef<HTMLDivElement>(null);
-  const controlsRef = useRef<HTMLDivElement>(null);
-  const filterRowRef = useRef<HTMLDivElement>(null);
-  const sortRowRef  = useRef<HTMLDivElement>(null);
-  const theadRef    = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch(`/api/funds?client=${encodeURIComponent(clientKey)}`).then((r) => r.json()).then(setData);
   }, [clientKey]);
-
-  // DIAGNOSTIC — measure sticky stack heights
-  function measureSticky() {
-    const header   = document.querySelector("[data-app-header]") as HTMLElement | null;
-    const controls = controlsRef.current;
-    const filterRow = filterRowRef.current;
-    const sortRow  = sortRowRef.current;
-    const thead    = theadRef.current;
-    console.group("📐 STICKY DIAGNOSTIC");
-    console.log("AppHeader     height:", header?.getBoundingClientRect().height, "| bottom:", header?.getBoundingClientRect().bottom);
-    console.log("Controls wrap height:", controls?.getBoundingClientRect().height, "| top:", controls?.getBoundingClientRect().top, "| bottom:", controls?.getBoundingClientRect().bottom);
-    console.log("Filter row    height:", filterRow?.getBoundingClientRect().height, "| offsetHeight:", filterRow?.offsetHeight);
-    console.log("Sort row      height:", sortRow?.getBoundingClientRect().height,  "| offsetHeight:", sortRow?.offsetHeight);
-    if (thead) {
-      const r = thead.getBoundingClientRect();
-      const topStyle = getComputedStyle(thead).top;
-      console.log("Thead         height:", r.height, "| top (rect):", r.top, "| top (computed):", topStyle);
-      console.log("Thead visible start:", r.top, " — controls bottom:", controls?.getBoundingClientRect().bottom, " — gap:", r.top - (controls?.getBoundingClientRect().bottom ?? 0));
-    }
-    console.groupEnd();
-  }
-
-  useEffect(() => {
-    if (!data) return;
-    measureSticky();
-    const t = setTimeout(measureSticky, 100);
-    return () => clearTimeout(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data]);
 
   const filterOptions = useMemo(() => {
     if (!data) return { groups: [] as string[], categories: [] as string[] };
@@ -414,88 +381,88 @@ function AnalysisContent() {
     <ClientGate clientKey={clientKey}>
       <div style={{ minHeight: "100vh", backgroundColor: "#f8f9fa", fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif", ...(brandCssVars(primary, brand.accentColor) as React.CSSProperties) }}>
 
-        {/* ── Sticky controls: filter + sort ── */}
-        <div ref={controlsRef} style={{ position: "sticky", top: 52, zIndex: 99, background: "#FAFAF7" }}>
+        {/* ── Sticky controls ── */}
+        <div style={{ position: "sticky", top: 52, zIndex: 99, background: "#FAFAF7" }}>
 
-        {/* ROW 1 — sub-tabs + groups, fixed height 44px */}
-        <div ref={filterRowRef} style={{ height: 44, display: "flex", alignItems: "center", padding: "0 28px", gap: 5, direction: "rtl", borderBottom: "0.5px solid #eaecee" }}>
-          {/* Sub-tabs */}
-          {(() => {
-            const f = brand.features;
-            return [
-              { label: "דירוג",   path: "/analysis",       active: true,  locked: false },
-              { label: "השוואה",  path: "/compare",        active: false, locked: f?.comparison === false },
-              { label: "גרף",     path: "/charts",         active: false, locked: f?.chartPage === false },
-              { label: "עקביות",  path: "/consistency/v2", active: false, locked: f?.consistencyAnalysis === false },
-            ].map(({ label, path, active, locked }) => (
-              <button key={label}
-                onClick={() => { if (!active && !locked) navigate(path); }}
-                style={{ padding: "6px 15px", borderRadius: 20, fontSize: 13, border: "none", cursor: active || locked ? "default" : "pointer", whiteSpace: "nowrap", background: active ? primary : "#F4F3EF", color: active ? "#fff" : locked ? "#c4c9d0" : "#6b7280", fontWeight: active ? 600 : 400, transition: "all 0.12s", flexShrink: 0, opacity: locked ? 0.6 : 1 }}
-              >{locked ? `🔒 ${label}` : label}</button>
-            ));
-          })()}
-          <div style={{ width: 0.5, height: 22, background: "#e2e8f0", flexShrink: 0, margin: "0 6px" }} />
-          {/* Groups */}
-          {[ALL, ...filterOptions.groups].map((g) => (
-            <button key={g}
-              onClick={() => { setGroup(g); setCategory(ALL); setShowAll(false); }}
-              style={{ padding: "6px 15px", borderRadius: 20, fontSize: 13, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: group === g ? primary : "#F4F3EF", color: group === g ? "#fff" : "#6b7280", fontWeight: group === g ? 600 : 400, transition: "all 0.12s", flexShrink: 0 }}
-            >{g}</button>
-          ))}
+        {/* ROW 1 (44px) — sub-tabs right, time-range left */}
+        <div style={{ height: 44, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 28px", direction: "rtl", borderBottom: "0.5px solid #eaecee" }}>
+          {/* Sub-tabs with feature locking */}
+          <div style={{ display: "flex", gap: 5, alignItems: "center", flexShrink: 0 }}>
+            {(() => {
+              const f = brand.features;
+              return [
+                { label: "דירוג",   path: "/analysis",       active: true,  locked: false },
+                { label: "השוואה",  path: "/compare",        active: false, locked: f?.comparison === false },
+                { label: "גרף",     path: "/charts",         active: false, locked: f?.chartPage === false },
+                { label: "עקביות",  path: "/consistency/v2", active: false, locked: f?.consistencyAnalysis === false },
+              ].map(({ label, path, active, locked }) => (
+                <button key={label}
+                  onClick={() => { if (!active && !locked) navigate(path); }}
+                  style={{ padding: "6px 15px", borderRadius: 20, fontSize: 13, border: "none", cursor: active || locked ? "default" : "pointer", whiteSpace: "nowrap", background: active ? primary : "#F4F3EF", color: active ? "#fff" : locked ? "#c4c9d0" : "#6b7280", fontWeight: active ? 600 : 400, transition: "all 0.12s", flexShrink: 0, opacity: locked ? 0.6 : 1 }}
+                >{locked ? `🔒 ${label}` : label}</button>
+              ));
+            })()}
+          </div>
+          {/* Time-range (NOX: year multi-select, standard: sort pills) */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            {isNox ? (
+              <div style={{ display: "flex", gap: 3, background: "#f1f3f4", borderRadius: 22, padding: 3, overflow: "hidden" }}>
+                {NOX_YEARS.map((y) => {
+                  const active = noxYears.includes(y);
+                  return (
+                    <button key={y} onClick={() => { toggleNoxYear(y); setShowAll(false); }} style={{ padding: "5px 12px", borderRadius: 20, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap", border: "none", color: active ? "#c8a96b" : "#6b7280", fontWeight: active ? 700 : 400, background: active ? "#fff" : "transparent", boxShadow: active ? "0 1px 3px rgba(0,0,0,0.1)" : "none", transition: "all 0.12s" }}>
+                      {y === "ytd2026" ? "YTD 26" : y}{active && noxYears.length === 1 ? " ↓" : ""}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: 3, background: "#f1f3f4", borderRadius: 22, padding: 3, overflow: "hidden" } as React.CSSProperties}>
+                {SORT_OPTIONS.map(({ key, label }) => {
+                  const active = sortKey === key;
+                  return (
+                    <button key={key} onClick={() => { setSortKey(key); setShowAll(false); }}
+                      style={{ padding: "5px 12px", borderRadius: 20, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap", border: "none", color: active ? primary : "#6b7280", fontWeight: active ? 700 : 400, background: active ? "#fff" : "transparent", boxShadow: active ? "0 1px 3px rgba(0,0,0,0.1)" : "none", transition: "all 0.12s" }}>
+                      {label}{active ? " ↓" : ""}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <span style={{ fontSize: 11, color: "#9ca3af", flexShrink: 0 }}>{sortedFunds.length} קרנות</span>
+          </div>
         </div>
 
-        {/* ROW 2 — categories + currency, fixed height 40px */}
-        <div ref={sortRowRef} style={{ height: 40, display: "flex", alignItems: "center", padding: "0 28px", gap: 5, direction: "rtl", borderBottom: "0.5px solid #eaecee" }}>
-          {/* Category pills — when a group is selected */}
-          {group !== ALL && filterOptions.categories.length > 0 && (
-            <>
-              {[ALL, ...filterOptions.categories].map((cat) => (
-                <button key={cat}
-                  onClick={() => setCategory(cat)}
-                  style={{ padding: "5px 13px", borderRadius: 20, fontSize: 12, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: category === cat ? primary : "#F4F3EF", color: category === cat ? "#fff" : "#6b7280", fontWeight: category === cat ? 600 : 400, transition: "all 0.12s", flexShrink: 0 }}
-                >{cat}</button>
-              ))}
-              <div style={{ width: 0.5, height: 20, background: "#e2e8f0", flexShrink: 0, margin: "0 6px" }} />
-            </>
-          )}
+        {/* ROW 2 (40px) — groups+categories right, currency left */}
+        <div style={{ height: 40, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 28px", direction: "rtl", borderBottom: "0.5px solid #eaecee" }}>
+          {/* Groups + sub-categories */}
+          <div style={{ display: "flex", gap: 5, alignItems: "center", flexWrap: "wrap", overflow: "hidden" }}>
+            {[ALL, ...filterOptions.groups].map((g) => (
+              <button key={g}
+                onClick={() => { setGroup(g); setCategory(ALL); setShowAll(false); }}
+                style={{ padding: "5px 13px", borderRadius: 20, fontSize: 12, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: group === g ? primary : "#F4F3EF", color: group === g ? "#fff" : "#6b7280", fontWeight: group === g ? 600 : 400, transition: "all 0.12s", flexShrink: 0 }}
+              >{g}</button>
+            ))}
+            {group !== ALL && filterOptions.categories.length > 0 && (
+              <>
+                <div style={{ width: 0.5, height: 18, background: "#e2e8f0", flexShrink: 0, margin: "0 2px" }} />
+                {[ALL, ...filterOptions.categories].map((cat) => (
+                  <button key={cat}
+                    onClick={() => setCategory(cat)}
+                    style={{ padding: "5px 13px", borderRadius: 20, fontSize: 12, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: category === cat ? primary : "#F4F3EF", color: category === cat ? "#fff" : "#6b7280", fontWeight: category === cat ? 600 : 400, transition: "all 0.12s", flexShrink: 0 }}
+                  >{cat}</button>
+                ))}
+              </>
+            )}
+          </div>
           {/* Currency */}
-          {(["all", "ILS", "USD"] as const).map((c) => (
-            <button key={c}
-              onClick={() => setCurrencyFilter(c)}
-              style={{ padding: "5px 13px", borderRadius: 20, fontSize: 12, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: currencyFilter === c ? primary : "#F4F3EF", color: currencyFilter === c ? "#fff" : "#6b7280", fontWeight: currencyFilter === c ? 600 : 400, transition: "all 0.12s", flexShrink: 0 }}
-            >{c === "all" ? "הכל" : c}</button>
-          ))}
-        </div>
-
-        {/* SORT BAR — fixed height 40px */}
-        <div ref={sortRowRef} style={{ height: 40, display: "flex", alignItems: "center", padding: "0 28px", justifyContent: "space-between", direction: "rtl", borderBottom: "0.5px solid #eaecee", flexShrink: 0 }}>
-          {isNox ? (
-            /* NOX: year multi-select */
-            <div style={{ display: "flex", gap: 3, background: "#f1f3f4", borderRadius: 22, padding: 3, overflow: "hidden" }}>
-              {NOX_YEARS.map((y) => {
-                const active = noxYears.includes(y);
-                return (
-                  <button key={y} onClick={() => { toggleNoxYear(y); setShowAll(false); }} style={{ padding: "6px 14px", borderRadius: 20, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap", border: "none", color: active ? "#c8a96b" : "#6b7280", fontWeight: active ? 700 : 400, background: active ? "#fff" : "transparent", boxShadow: active ? "0 1px 3px rgba(0,0,0,0.1)" : "none", transition: "all 0.12s" }}>
-                    {y === "ytd2026" ? "YTD 26" : y}{active && noxYears.length === 1 ? " ↓" : ""}
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            /* Standard sort options */
-            <div style={{ display: "flex", gap: 3, background: "#f1f3f4", borderRadius: 22, padding: 3, overflow: "hidden" } as React.CSSProperties}>
-              {SORT_OPTIONS.map(({ key, label }) => {
-                const active = sortKey === key;
-                return (
-                  <button key={key} onClick={() => { setSortKey(key); setShowAll(false); }} style={{ padding: "6px 14px", borderRadius: 20, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap", border: "none", color: active ? primary : "#6b7280", fontWeight: active ? 700 : 400, background: active ? "#fff" : "transparent", boxShadow: active ? "0 1px 3px rgba(0,0,0,0.1)" : "none", transition: "all 0.12s" }}>
-                    {label}{active ? " ↓" : ""}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          <div style={{ fontSize: 11, color: "#9ca3af", flexShrink: 0, marginRight: 12 }}>
-            {sortedFunds.length} קרנות
+          <div style={{ display: "flex", gap: 5, alignItems: "center", flexShrink: 0, marginRight: 12 }}>
+            {(["all", "ILS", "USD"] as const).map((c) => (
+              <button key={c}
+                onClick={() => setCurrencyFilter(c)}
+                style={{ padding: "5px 13px", borderRadius: 20, fontSize: 12, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: currencyFilter === c ? primary : "#F4F3EF", color: currencyFilter === c ? "#fff" : "#6b7280", fontWeight: currencyFilter === c ? 600 : 400, transition: "all 0.12s" }}
+              >{c === "all" ? "הכל" : c}</button>
+            ))}
           </div>
         </div>
         </div>{/* end sticky controls */}
@@ -508,7 +475,7 @@ function AnalysisContent() {
             <div style={{ background: "#fff", border: "0.5px solid #e8ecee", borderRadius: 16, overflow: "clip", maxWidth: 900, margin: "0 auto" }}>
 
               {/* Header */}
-              <div ref={theadRef} style={{ position: "sticky", top: 176, zIndex: 5, display: "grid", gridTemplateColumns: COL, padding: "11px 24px", background: "#fafbfc", borderBottom: "0.5px solid #eaecee", direction: "rtl" }}>
+              <div style={{ position: "sticky", top: 136, zIndex: 5, display: "grid", gridTemplateColumns: COL, padding: "11px 24px", background: "#fafbfc", borderBottom: "0.5px solid #eaecee", direction: "rtl" }}>
                 {(() => {
                   const latestMonth = getLatestReportMonth(filteredFunds);
                   const sortLabel = isNox
