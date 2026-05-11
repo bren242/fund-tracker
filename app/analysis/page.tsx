@@ -395,8 +395,8 @@ function AnalysisContent() {
         </div>
 
         {/* SORT BAR */}
-        <div style={{ background: "#fff", borderBottom: "0.5px solid #eaecee", padding: "10px 28px", display: "flex", justifyContent: "space-between", alignItems: "center", direction: "rtl" }}>
-          <div style={{ display: "flex", gap: 3, background: "#f1f3f4", borderRadius: 22, padding: 3, overflowX: "auto", scrollbarWidth: "none" } as React.CSSProperties}>
+        <div style={{ borderBottom: "0.5px solid #eaecee", padding: "10px 28px", display: "flex", justifyContent: "space-between", alignItems: "center", direction: "rtl" }}>
+          <div style={{ display: "flex", gap: 3, background: "#f1f3f4", borderRadius: 22, padding: 3, overflow: "hidden" } as React.CSSProperties}>
             {SORT_OPTIONS.map(({ key, label }) => {
               const active = sortKey === key;
               return (
@@ -417,7 +417,7 @@ function AnalysisContent() {
           {sortedFunds.length === 0 ? (
             <div style={{ padding: "80px 20px", textAlign: "center", color: "#9ca3af", fontSize: 14 }}>לא נמצאו קרנות</div>
           ) : (
-            <div style={{ background: "#fff", border: "0.5px solid #e8ecee", borderRadius: 16, overflow: "hidden", maxWidth: 900, margin: "0 auto" }}>
+            <div style={{ background: "#fff", border: "0.5px solid #e8ecee", borderRadius: 16, overflow: "clip", maxWidth: 900, margin: "0 auto" }}>
 
               {/* Header */}
               <div style={{ display: "grid", gridTemplateColumns: COL, padding: "11px 24px", background: "#fafbfc", borderBottom: "0.5px solid #eaecee", direction: "rtl" }}>
