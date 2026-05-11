@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+import { storageRead } from "@/lib/storage";
+import { BrandConfig, DEFAULT_BRAND } from "@/config/brand";
 import Toolbar from "../components/Toolbar";
 import BackNav from "../components/BackNav";
 import PageWrapper from "../components/PageWrapper";
@@ -14,6 +16,14 @@ export default async function ComparePage({
 }) {
   const { client = "green", funds: fundsParam } = await searchParams;
   const idlePath = "/consistency/v2";
+
+  if (client !== "green") {
+    const brand = await storageRead<BrandConfig>(`brand:${client}`, DEFAULT_BRAND);
+    if (!brand.features?.consistencyAnalysis) {
+      redirect(`/${client}`);
+    }
+  }
+
   const rawIds = (fundsParam ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 
   if (rawIds.length < 2) redirect(`${idlePath}?client=${client}`);
@@ -24,7 +34,7 @@ export default async function ComparePage({
     <>
       <Toolbar isCompare client={client} />
       <BackNav />
-      <PageWrapper dateLabel="השוואת קרנות" idlePath={idlePath}>
+      <PageWrapper dateLabel="השוואת קרנות" idlePath={idlePath} client={client}>
         <CompareView fundIds={fundIds} client={client} />
         <PageFooter disclaimer="המידע מובא לצורך ניתוח בלבד ואינו מהווה ייעוץ השקעות, המלצה או חוות דעת." />
       </PageWrapper>

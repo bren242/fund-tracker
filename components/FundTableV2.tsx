@@ -1054,7 +1054,7 @@ export default function FundTableV2({
                           latestMonth={latestMonth}
                           timeRange={timeRange}
                           consistencyHref={
-                            clientKey
+                            clientKey && (clientKey === "green" || brand.features?.consistencyAnalysis === true)
                               ? (clientKey === "green"
                                   ? `/green/consistency/v2?fund=${fund.id}`
                                   : `/consistency/v2?fund=${fund.id}&client=${clientKey}`)
