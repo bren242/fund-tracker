@@ -70,7 +70,7 @@ export default function AppHeader({ fundCount: _fundCount = 84 }: AppHeaderProps
     <div
       className="app-header no-print"
       data-app-header="true"
-      style={{ position: "sticky", top: 0, zIndex: 100 }}
+      style={{ position: "sticky", top: 0, zIndex: 100, backgroundColor: "#ffffff" }}
     >
       <div
         style={{
