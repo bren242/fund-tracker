@@ -354,6 +354,7 @@ function AdminContent() {
   }
 
   /* ---- Main admin UI ---- */
+  const isNox = clientKey === "nox";
   return (
     <div style={{ minHeight: "100vh" }}>
       {/* Sticky controls bar */}
@@ -362,7 +363,7 @@ function AdminContent() {
           <div style={{ display: "flex", gap: 4, flexWrap: "nowrap", overflowX: "auto", scrollbarWidth: "none" } as React.CSSProperties}>
             {[
               { id: "data" as const, label: "עדכון חודשי" },
-              { id: "bulk-text" as const, label: "עדכון מטקסט" },
+              ...(isNox ? [] : [{ id: "bulk-text" as const, label: "עדכון מטקסט" }]),
               { id: "funds" as const, label: "ניהול קרנות" },
               ...(role === "super" ? [
                 { id: "monthly-history" as const, label: "היסטוריה חודשית" },
@@ -433,7 +434,7 @@ function AdminContent() {
         {activeTab === "data" && (
           <MonthlyDataTab data={data} password={passwordRef.current} clientKey={clientKey} onAfterSave={loadData} />
         )}
-        {activeTab === "bulk-text" && (
+        {activeTab === "bulk-text" && !isNox && (
           <BulkUpdateFromText clientKey={clientKey} password={passwordRef.current} onStatus={showStatus} onReload={loadData} />
         )}
         {activeTab === "funds" && (
