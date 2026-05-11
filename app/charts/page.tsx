@@ -533,7 +533,7 @@ function ChartsContent() {
                 className="chart-card"
                 style={{
                   width: "100%",
-                  height: "min(calc(100vh - 200px), 720px)",
+                  height: "min(calc(100vh - 220px), 680px)",
                   minHeight: 400,
                   background: dark
                     ? "linear-gradient(160deg, #1a2828 0%, #1E2A2A 100%)"
@@ -601,11 +601,17 @@ function ChartsContent() {
                             const truncName = payload.name && payload.name.length > 16
                               ? payload.name.slice(0, 16) + "…"
                               : payload.name;
+                            const heroLabel = isHero
+                              ? `${truncName} · ${payload.x.toFixed(1)}%`
+                              : null;
+                            const labelW = heroLabel ? Math.min(heroLabel.length * 6.5 + 16, 180) : 0;
+                            const labelX = cx - labelW / 2;
+                            const labelY = cy - r - 30;
                             return (
                               <g style={{ animation: `bubbleIn 350ms ease-out ${delay}ms both` }}>
                                 {isHero && (
                                   <circle cx={cx} cy={cy} r={r + 7} fill="none"
-                                    stroke={color} strokeWidth={1.5} strokeOpacity={0.35} />
+                                    stroke={color} strokeWidth={2} strokeOpacity={0.55} />
                                 )}
                                 <circle
                                   cx={cx} cy={cy} r={r}
@@ -623,16 +629,27 @@ function ChartsContent() {
                                 >
                                   {payload.idx}
                                 </text>
-                                {isHero && truncName && (
-                                  <text
-                                    x={cx} y={cy + r + 16}
-                                    textAnchor="middle"
-                                    fontSize={10} fontWeight={700}
-                                    fill={color}
-                                    style={{ pointerEvents: "none", userSelect: "none" }}
-                                  >
-                                    {truncName}
-                                  </text>
+                                {isHero && heroLabel && (
+                                  <g>
+                                    <rect
+                                      x={labelX} y={labelY - 13}
+                                      width={labelW} height={18}
+                                      rx={9}
+                                      fill={dark ? "#1a2828" : "#fff"}
+                                      stroke={color}
+                                      strokeWidth={1.5}
+                                      strokeOpacity={0.7}
+                                    />
+                                    <text
+                                      x={cx} y={labelY - 1}
+                                      textAnchor="middle"
+                                      fontSize={10} fontWeight={700}
+                                      fill={color}
+                                      style={{ pointerEvents: "none", userSelect: "none" }}
+                                    >
+                                      {heroLabel}
+                                    </text>
+                                  </g>
                                 )}
                               </g>
                             );
@@ -729,13 +746,13 @@ function CustomTooltip({ active, payload, dark }: { active?: boolean; payload?: 
       minWidth: 190,
     }}>
       <div style={{ fontWeight: 700, marginBottom: 8, color: dark ? "#e2e6ea" : "#1B3A2F", fontSize: 13 }}>{p.name}</div>
-      <div style={{ display: "grid", gridTemplateColumns: "auto auto auto", gap: "4px 16px", color: dark ? "#8893a4" : "#64748B", fontSize: 12, lineHeight: 1.8 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "auto auto auto", gap: "4px 16px", color: dark ? "#8893a4" : "#64748B", fontSize: 12, lineHeight: 1.8, fontVariantNumeric: "tabular-nums" }}>
         <span>תשואה <strong style={{ color }}>{p.x.toFixed(2)}%</strong></span>
         <span>ס״ת <strong style={{ color: dark ? "#e2e6ea" : "#64748B" }}>{p.y.toFixed(2)}%</strong></span>
         {p.sharpe != null && <span>שארפ <strong style={{ color }}>{p.sharpe.toFixed(2)}</strong></span>}
       </div>
       {p.aum != null && (
-        <div style={{ marginTop: 6, fontSize: 11, color: dark ? "#5a6577" : "#94a3b8" }}>
+        <div style={{ marginTop: 6, fontSize: 11, color: dark ? "#5a6577" : "#94a3b8", fontVariantNumeric: "tabular-nums" }}>
           AUM {p.aum.toLocaleString()} מ׳
           {p.currency && <span style={{ marginRight: 8 }}>{p.currency}</span>}
         </div>
