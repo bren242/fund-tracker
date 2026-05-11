@@ -228,7 +228,7 @@ function ChartHelpPopover({ dark }: { dark: boolean }) {
   );
 
   return (
-    <div style={{ position: "absolute", top: 14, left: 14, zIndex: 20 }}>
+    <div style={{ position: "absolute", top: 14, right: 14, zIndex: 20 }}>
       <button
         onClick={() => setOpen(!open)}
         title="הסבר הגרף"
@@ -245,7 +245,7 @@ function ChartHelpPopover({ dark }: { dark: boolean }) {
 
       {open && (
         <div style={{
-          position: "absolute", left: 0, top: 30,
+          position: "absolute", right: 0, top: 30,
           width: 420, maxWidth: "calc(100vw - 40px)",
           background: dark ? "#1c2230" : "#fff",
           border: `1px solid ${dark ? "#2a3244" : "#e2e8f0"}`,
@@ -355,7 +355,7 @@ function InsightsBlock({
     icon: "✦",
   });
 
-  if (currencyFilter === "all") {
+  if (showPartialHistory && currencyFilter === "all") {
     const currencies = new Set(completePoints.map((p) => p.currency).filter(Boolean));
     if (currencies.size >= 2) {
       insights.push({ text: "הגרף כולל קרנות בשקל ובדולר — ההשוואה עלולה להיות מטעה", icon: "⚠️" });
@@ -714,7 +714,7 @@ function ChartsContent() {
                 className="chart-card"
                 style={{
                   width: "100%",
-                  height: "min(calc(100vh - 220px), 680px)",
+                  height: "min(calc(100vh - 260px), 640px)",
                   minHeight: 400,
                   background: dark
                     ? "linear-gradient(160deg, #1a2828 0%, #1E2A2A 100%)"
@@ -787,7 +787,7 @@ function ChartsContent() {
                             <g style={{ animation: `bubbleIn 350ms ease-out ${delay}ms both`, opacity: isPartial ? 0.4 : 1 }}>
                               {isHero && (
                                 <circle cx={cx} cy={cy} r={r + 7} fill="none"
-                                  stroke={color} strokeWidth={2} strokeOpacity={0.55} />
+                                  stroke={color} strokeWidth={1.5} strokeOpacity={0.4} />
                               )}
                               <circle
                                 cx={cx} cy={cy} r={r}
@@ -805,10 +805,10 @@ function ChartsContent() {
                                 <g>
                                   <rect x={cx - labelW / 2} y={cy - r - 30 - 13}
                                     width={labelW} height={18} rx={9}
-                                    fill={dark ? "#1a2828" : "#fff"}
-                                    stroke={color} strokeWidth={1.5} strokeOpacity={0.7} />
+                                    fill={dark ? "#1a2828" : "#fff"} fillOpacity={0.92}
+                                    stroke={color} strokeWidth={1} strokeOpacity={0.5} />
                                   <text x={cx} y={cy - r - 30 - 1} textAnchor="middle"
-                                    fontSize={10} fontWeight={700} fill={color}
+                                    fontSize={10} fontWeight={600} fill={color} opacity={0.85}
                                     style={{ pointerEvents: "none", userSelect: "none" }}>
                                     {heroLabel}
                                   </text>
@@ -896,10 +896,10 @@ const QUADRANT_LABELS: Array<{ text: string; color: string; position: Position }
 
 function QuadrantWatermark({ text, color, position }: { text: string; color: string; position: Position }) {
   const positionStyles: Record<Position, React.CSSProperties> = {
-    "top-right":    { top: 12, right: 18 },
-    "top-left":     { top: 12, left: 18 },
-    "bottom-right": { bottom: 48, right: 18 },
-    "bottom-left":  { bottom: 48, left: 18 },
+    "top-right":    { top: 24, right: 32 },
+    "top-left":     { top: 24, left: 32 },
+    "bottom-right": { bottom: 60, right: 32 },
+    "bottom-left":  { bottom: 60, left: 32 },
   };
 
   return (
