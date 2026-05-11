@@ -362,7 +362,7 @@ function AnalysisContent() {
 
         {/* FILTER BAR */}
         <div
-          style={{ background: "rgba(255,255,255,0.97)", borderBottom: "0.5px solid #eaecee", padding: "13px 28px", backdropFilter: "blur(8px)" }}
+          style={{ borderBottom: "0.5px solid #eaecee", padding: "13px 28px" }}
           onMouseLeave={() => setHoveredGroup(null)}
         >
           <div style={{ display: "flex", gap: 5, alignItems: "center", flexWrap: "nowrap", overflowX: "auto", scrollbarWidth: "none", direction: "rtl" }}>
