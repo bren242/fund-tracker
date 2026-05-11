@@ -1,6 +1,36 @@
-# HANDOFF.md — סשן 11/05/2026 — UI Session 3א: /charts Foundation
+# HANDOFF.md — סשן 11/05/2026 — UI Sessions 3א+3ב: /charts Foundation + Hero
 
 ## מה הושלם היום
+
+### UI Session 3ב — /charts Hero Treatment ✅
+
+**קובץ:** `app/charts/page.tsx` — שדרוג Recharts layer
+
+**מה בוצע:**
+- **Full-bleed chart container** — `width: 100%`, `height: min(calc(100vh-200px), 720px)`, gradient bg `#F6F5F1→#FAFAF7`, `borderRadius: 20`, box-shadow 32px
+- **ResponsiveContainer** — החלפת `ScatterChart width={660}` בעטיפת `ResponsiveContainer` מלאה
+- **Semantic bubble colors (4 רמות):**
+  - `#1B3A2F` = holy-grail (ריבוע תשואה גבוהה + סיכון נמוך)
+  - `#5C8A6F` = top (שארפ גבוה מחוץ לריבוע)
+  - `#9CA3AF` = normal
+  - `#B45353` = bottom (שארפ נמוך מתחת לממוצע)
+- **Custom `shape` renderer** — מחליף `Cell`+`LabelList`, מצייר כל bubble ידנית
+- **Hero bubble** — קרן עם שארפ הגבוה ביותר: עיגול חיצוני (ring) + שם צף מתחת
+- **Mount animations** — `bubbleIn` fade-in עם stagger 30ms לכל bubble
+- **ChartHelpPopover** — כפתור `?` (absolute top-left), popover עם legend + הסבר, מחליף את `ChartExplanation` card
+- **Quadrant labels** — uppercase, letter-spacing 1.5px, opacity נמוכה, ללא ✦
+- **InsightsBlock** — הוסר "הקרן הבולטת" insight (עכשיו חי בגרף)
+- **Meta text block** — הוסר (מיזוג לתוך Row 2)
+- **Tooltip** — grid layout, צבע לפי rank
+
+**אומת:**
+- 4 צבעים סמנטיים ב-DOM ✅
+- Hero ring + label "חצבים וואליו" ✅
+- bubbleIn animation ✅
+- Sticky controls top:52 ✅
+- 107/107 tests ✅
+
+---
 
 ### UI Session 3א — /charts Foundation ✅
 
@@ -79,15 +109,6 @@
 - "לא לחפור פעמיים" — מדידה אמיתית לפני ניסיון שלישי
 
 ---
-
-## מה פתוח לסשן 3ב — /charts Chart Polish
-
-**קובץ:** `app/charts/page.tsx`
-**מה נדרש (Recharts layer):**
-- Quadrant improvements: better labels, interactive hover
-- Bubble sizing improvements
-- Tooltip polish
-- Potential axis improvements
 
 ## מה פתוח לסשן 3ג — /compare + /consistency/v2
 
