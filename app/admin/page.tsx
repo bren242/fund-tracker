@@ -356,93 +356,75 @@ function AdminContent() {
   /* ---- Main admin UI ---- */
   return (
     <div style={{ minHeight: "100vh" }}>
-      {/* Thin brand color bar */}
-      <div style={{ height: 4, backgroundColor: brand.primaryColor }} />
-      {/* Header */}
-      <div style={{ backgroundColor: "var(--bg-surface)", borderBottom: "1px solid var(--border)", position: "sticky", top: 88, zIndex: 99, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-        <div style={{ maxWidth: 1400, margin: "0 auto", padding: "8px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <BrandLogo brand={brand} height={26} variant="light" />
-            <span style={{ fontSize: 13, color: "var(--text-primary)", fontWeight: 600 }}>ממשק ניהול</span>
-            <span style={{ fontSize: 10, color: "var(--text-muted)" }}>עדכון: {formatReportDate(data.lastUpdated)}</span>
-            {brand.version && (
-              <span style={{ fontSize: 10, color: "var(--text-muted)", backgroundColor: "var(--bg-input)", padding: "2px 8px", borderRadius: 4, fontWeight: 500 }}>
-                v{brand.version}
-              </span>
-            )}
+      {/* Sticky controls bar */}
+      <div style={{ position: "sticky", top: 52, zIndex: 99, background: "#FAFAF7", borderBottom: "0.5px solid #eaecee" }}>
+        <div style={{ maxWidth: 1400, margin: "0 auto", padding: "10px 24px", display: "flex", alignItems: "center", gap: 6, direction: "rtl" }}>
+          <div style={{ display: "flex", gap: 4, flexWrap: "nowrap", overflowX: "auto", scrollbarWidth: "none" } as React.CSSProperties}>
+            {[
+              { id: "data" as const, label: "עדכון חודשי" },
+              { id: "bulk-text" as const, label: "עדכון מטקסט" },
+              { id: "funds" as const, label: "ניהול קרנות" },
+              ...(role === "super" ? [
+                { id: "monthly-history" as const, label: "היסטוריה חודשית" },
+                ...(brand.features?.aiParser ? [{ id: "ai-parser" as const, label: "קליטת נתונים" }] : []),
+                ...(brand.features?.benchmarks ? [{ id: "benchmarks" as const, label: "מדדי ייחוס" }] : []),
+                ...(brand.features?.consistencyAnalysis ? [{ id: "consistency" as const, label: "עקביות" }] : []),
+                { id: "indications" as const, label: "אינדיקציה" },
+                { id: "branding" as const, label: "מיתוג" },
+                { id: "settings" as const, label: "הגדרות" },
+              ] : []),
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  padding: "5px 14px", borderRadius: 20, fontSize: 12, border: "none",
+                  cursor: "pointer", whiteSpace: "nowrap",
+                  background: activeTab === tab.id ? (brand.primaryColor || "#1B3A2F") : "#F4F3EF",
+                  color: activeTab === tab.id ? "#fff" : "#6b7280",
+                  fontWeight: activeTab === tab.id ? 600 : 400,
+                  transition: "all 0.12s",
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {statusMessage && (
-              <span style={{ fontSize: 12, fontWeight: 500, color: statusMessage.startsWith("✓") ? "#34d399" : "#f87171", transition: "opacity 0.3s", display: "flex", alignItems: "center", gap: 6 }}>
-                {statusMessage}
-                {statusMessage.startsWith("❌") && (
-                  <button onClick={() => setStatusMessage("")} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }}>✕</button>
-                )}
-              </span>
+          <div style={{ flex: 1 }} />
+          {statusMessage && (
+            <span style={{ fontSize: 12, fontWeight: 500, color: statusMessage.startsWith("✓") ? "#34d399" : "#f87171", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+              {statusMessage}
+              {statusMessage.startsWith("❌") && (
+                <button onClick={() => setStatusMessage("")} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }}>✕</button>
+              )}
+            </span>
+          )}
+          {dirty && !saved && !statusMessage && (
+            <span style={{ color: "#fbbf24", fontSize: 12, fontWeight: 500, flexShrink: 0 }}>● שינויים לא נשמרו</span>
+          )}
+          <button
+            onClick={handleSave}
+            disabled={saving || !dirty}
+            style={{
+              display: "flex", alignItems: "center", gap: 6,
+              background: saving || !dirty ? "#9ca3af" : "#1B3A2F",
+              color: "#fff", fontWeight: 600, padding: "6px 16px",
+              borderRadius: 8, border: "none",
+              cursor: saving || !dirty ? "default" : "pointer",
+              fontSize: 12, opacity: saving || !dirty ? 0.5 : 1,
+              transition: "opacity 0.15s, background 0.15s",
+              flexShrink: 0,
+            }}
+          >
+            {!saving && (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/>
+                <polyline points="7 3 7 8 15 8"/>
+              </svg>
             )}
-            {dirty && !saved && !statusMessage && (
-              <span style={{ color: "#fbbf24", fontSize: 12, fontWeight: 500 }}>● שינויים לא נשמרו</span>
-            )}
-            <button
-              onClick={handleSave}
-              disabled={saving || !dirty}
-              style={{
-                backgroundColor: saving || !dirty ? "var(--text-muted)" : brand.primaryColor,
-                color: "#fff",
-                fontWeight: 700,
-                padding: "6px 20px",
-                borderRadius: 6,
-                border: "none",
-                cursor: saving || !dirty ? "default" : "pointer",
-                fontSize: 12,
-                opacity: saving || !dirty ? 0.4 : 1,
-                transition: "opacity 0.15s",
-              }}
-            >
-              {saving ? "שומר..." : "שמירה ופרסום"}
-            </button>
-            <a href={withClient("/", clientKey)} style={{ fontSize: 12, color: "var(--text-secondary)", textDecoration: "none", padding: "5px 10px", borderRadius: 6, border: "1px solid var(--border)" }}>דוח</a>
-            <a href={withClient("/charts", clientKey)} style={{ fontSize: 12, color: "var(--text-secondary)", textDecoration: "none", padding: "5px 10px", borderRadius: 6, border: "1px solid var(--border)" }}>גרפים</a>
-            <ThemeToggle />
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div style={{ maxWidth: 1400, margin: "0 auto", padding: "16px 24px 0" }}>
-        <div style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--border)" }}>
-          {[
-            { id: "data" as const, label: "עדכון חודשי" },
-            { id: "bulk-text" as const, label: "📋 עדכון מטקסט" },
-            { id: "funds" as const, label: "ניהול קרנות" },
-            ...(role === "super" ? [
-              { id: "monthly-history" as const, label: "היסטוריה חודשית" },
-              ...(brand.features?.aiParser ? [{ id: "ai-parser" as const, label: "🤖 קליטת נתונים" }] : []),
-              ...(brand.features?.benchmarks ? [{ id: "benchmarks" as const, label: "📊 מדדי ייחוס" }] : []),
-              ...(brand.features?.consistencyAnalysis ? [{ id: "consistency" as const, label: "📈 עקביות" }] : []),
-              { id: "indications" as const, label: "⚡ אינדיקציה" },
-              { id: "branding" as const, label: "מיתוג ודוחות" },
-              { id: "settings" as const, label: "הגדרות" },
-            ] : []),
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                padding: "8px 20px",
-                fontSize: 13,
-                fontWeight: activeTab === tab.id ? 600 : 400,
-                color: activeTab === tab.id ? "var(--accent)" : "var(--text-secondary)",
-                backgroundColor: "transparent",
-                border: "none",
-                borderBottom: activeTab === tab.id ? "2px solid var(--accent)" : "2px solid transparent",
-                cursor: "pointer",
-                transition: "color 0.15s",
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
+            {saving ? "שומר..." : "שמירה ופרסום"}
+          </button>
         </div>
       </div>
 
