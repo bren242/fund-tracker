@@ -1,7 +1,6 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
 import { useClientKey } from "@/lib/useClientKey";
 import { useBrand } from "@/lib/useBrand";
 
@@ -29,16 +28,6 @@ export default function AppHeader({ fundCount: _fundCount = 84 }: AppHeaderProps
   const clientKey = useClientKey();
   const brand     = useBrand(clientKey);
 
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    let link = document.querySelector('link[rel="icon"]') as HTMLLinkElement | null;
-    if (!link) {
-      link = document.createElement("link");
-      link.rel = "icon";
-      document.head.appendChild(link);
-    }
-    link.href = brand.favicon || "/favicon.svg";
-  }, [brand.favicon]);
 
   const activeTab    = getActiveTab(pathname);
   const onAdmin      = pathname.startsWith("/admin") || pathname.startsWith("/upload");
