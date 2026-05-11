@@ -25,6 +25,30 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: "sharpe", label: "שארפ" },
 ];
 
+/* ── NOX helpers ── */
+const NOX_YEARS = ["2020","2021","2022","2023","2024","2025","ytd2026"] as const;
+
+function calcNoxReturn(fund: Fund, years: string[]): number | null {
+  if (years.length === 0) return null;
+  const getVal = (y: string): number | null => {
+    if (!fund.returns) return null;
+    const key = y === "ytd2026" ? "ytd2026" : `y${y}`;
+    const v = (fund.returns as Record<string, number | null>)[key];
+    return v != null ? v : null;
+  };
+  if (years.length === 1) {
+    const r = getVal(years[0]);
+    return r !== null ? r * 100 : null;
+  }
+  const vals: number[] = [];
+  for (const y of years) {
+    const r = getVal(y);
+    if (r === null) return null;
+    vals.push(r);
+  }
+  return (Math.pow(vals.reduce((acc, r) => acc * (1 + r), 1), 1 / vals.length) - 1) * 100;
+}
+
 /* ── Helpers ── */
 function calcPeriodReturn(fund: Fund, key: SortKey): number | null {
   if (key === "sharpe") return fund.sharpe ?? null;
@@ -163,12 +187,13 @@ function RankBadge({ rank, isBottom }: { rank: number; isBottom: boolean }) {
 }
 
 /* ── Accordion Row ── */
-function FundRow({ fund, rank, sortKey, primary, isBottom }: {
+function FundRow({ fund, rank, sortKey, primary, isBottom, periodValOverride }: {
   fund: Fund; rank: number; sortKey: SortKey; primary: string; isBottom: boolean;
+  periodValOverride?: number | null;
 }) {
   const [open, setOpen] = useState(false);
   const isTop3 = rank <= 3;
-  const periodVal = calcPeriodReturn(fund, sortKey);
+  const periodVal = periodValOverride !== undefined ? periodValOverride : calcPeriodReturn(fund, sortKey);
   const consistency = calcConsistency(fund);
   const sparkData = useMemo(() => getSparklineData(fund, sortKey), [fund, sortKey]);
 
@@ -266,6 +291,12 @@ function AnalysisContent() {
   const [category, setCategory] = useState(ALL);
   const [currencyFilter, setCurrencyFilter] = useState<"all" | "ILS" | "USD">("all");
   const [sortKey, setSortKey] = useState<SortKey>("YTD");
+  const isNox = clientKey === "nox";
+  const [noxYears, setNoxYears] = useState<string[]>(["ytd2026"]);
+  const toggleNoxYear = (y: string) => setNoxYears(prev =>
+    prev.includes(y) ? (prev.length === 1 ? prev : prev.filter(k => k !== y)) : [...prev, y]
+  );
+
   const [showAll, setShowAll] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -345,11 +376,12 @@ function AnalysisContent() {
 
   const sortedFunds = useMemo(() => {
     return [...filteredFunds].sort((a, b) => {
+      if (isNox) return (calcNoxReturn(b, noxYears) ?? -Infinity) - (calcNoxReturn(a, noxYears) ?? -Infinity);
       if (sortKey === "sharpe") return (b.sharpe ?? -Infinity) - (a.sharpe ?? -Infinity);
       if (sortKey === "avg") return (b.avgAnnualReturn ?? -Infinity) - (a.avgAnnualReturn ?? -Infinity);
       return (calcPeriodReturn(b, sortKey) ?? -Infinity) - (calcPeriodReturn(a, sortKey) ?? -Infinity);
     });
-  }, [filteredFunds, sortKey]);
+  }, [filteredFunds, sortKey, isNox, noxYears]);
 
   const searchResult = useMemo(() => {
     if (!searchQuery.trim()) return null;
@@ -388,17 +420,20 @@ function AnalysisContent() {
         {/* FILTER BAR — fixed height 44px */}
         <div ref={filterRowRef} style={{ height: 44, display: "flex", alignItems: "center", padding: "0 28px", gap: 5, overflowX: "auto", scrollbarWidth: "none", direction: "rtl", borderBottom: "0.5px solid #eaecee", flexShrink: 0 } as React.CSSProperties}>
           {/* Sub-tabs */}
-          {[
-            { label: "דירוג",   path: "/analysis",       active: true  },
-            { label: "השוואה",  path: "/compare",        active: false },
-            { label: "גרף",     path: "/charts",         active: false },
-            { label: "עקביות",  path: "/consistency/v2", active: false },
-          ].map(({ label, path, active }) => (
-            <button key={label}
-              onClick={() => { if (!active) navigate(path); }}
-              style={{ padding: "6px 15px", borderRadius: 20, fontSize: 13, border: "none", cursor: active ? "default" : "pointer", whiteSpace: "nowrap", background: active ? primary : "#F4F3EF", color: active ? "#fff" : "#6b7280", fontWeight: active ? 600 : 400, transition: "all 0.12s", flexShrink: 0 }}
-            >{label}</button>
-          ))}
+          {(() => {
+            const f = brand.features;
+            return [
+              { label: "דירוג",   path: "/analysis",       active: true,  locked: false },
+              { label: "השוואה",  path: "/compare",        active: false, locked: f?.comparison === false },
+              { label: "גרף",     path: "/charts",         active: false, locked: f?.chartPage === false },
+              { label: "עקביות",  path: "/consistency/v2", active: false, locked: f?.consistencyAnalysis === false },
+            ].map(({ label, path, active, locked }) => (
+              <button key={label}
+                onClick={() => { if (!active && !locked) navigate(path); }}
+                style={{ padding: "6px 15px", borderRadius: 20, fontSize: 13, border: "none", cursor: active || locked ? "default" : "pointer", whiteSpace: "nowrap", background: active ? primary : "#F4F3EF", color: active ? "#fff" : locked ? "#c4c9d0" : "#6b7280", fontWeight: active ? 600 : 400, transition: "all 0.12s", flexShrink: 0, opacity: locked ? 0.6 : 1 }}
+              >{locked ? `🔒 ${label}` : label}</button>
+            ));
+          })()}
           <div style={{ width: 0.5, height: 22, background: "#e2e8f0", flexShrink: 0, margin: "0 6px" }} />
           {/* Groups */}
           {[ALL, ...filterOptions.groups].map((g) => (
@@ -431,16 +466,31 @@ function AnalysisContent() {
 
         {/* SORT BAR — fixed height 40px */}
         <div ref={sortRowRef} style={{ height: 40, display: "flex", alignItems: "center", padding: "0 28px", justifyContent: "space-between", direction: "rtl", borderBottom: "0.5px solid #eaecee", flexShrink: 0 }}>
-          <div style={{ display: "flex", gap: 3, background: "#f1f3f4", borderRadius: 22, padding: 3, overflow: "hidden" } as React.CSSProperties}>
-            {SORT_OPTIONS.map(({ key, label }) => {
-              const active = sortKey === key;
-              return (
-                <button key={key} onClick={() => { setSortKey(key); setShowAll(false); }} style={{ padding: "6px 14px", borderRadius: 20, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap", border: "none", color: active ? primary : "#6b7280", fontWeight: active ? 700 : 400, background: active ? "#fff" : "transparent", boxShadow: active ? "0 1px 3px rgba(0,0,0,0.1)" : "none", transition: "all 0.12s" }}>
-                  {label}{active ? " ↓" : ""}
-                </button>
-              );
-            })}
-          </div>
+          {isNox ? (
+            /* NOX: year multi-select */
+            <div style={{ display: "flex", gap: 3, background: "#f1f3f4", borderRadius: 22, padding: 3, overflow: "hidden" }}>
+              {NOX_YEARS.map((y) => {
+                const active = noxYears.includes(y);
+                return (
+                  <button key={y} onClick={() => { toggleNoxYear(y); setShowAll(false); }} style={{ padding: "6px 14px", borderRadius: 20, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap", border: "none", color: active ? "#c8a96b" : "#6b7280", fontWeight: active ? 700 : 400, background: active ? "#fff" : "transparent", boxShadow: active ? "0 1px 3px rgba(0,0,0,0.1)" : "none", transition: "all 0.12s" }}>
+                    {y === "ytd2026" ? "YTD 26" : y}{active && noxYears.length === 1 ? " ↓" : ""}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            /* Standard sort options */
+            <div style={{ display: "flex", gap: 3, background: "#f1f3f4", borderRadius: 22, padding: 3, overflow: "hidden" } as React.CSSProperties}>
+              {SORT_OPTIONS.map(({ key, label }) => {
+                const active = sortKey === key;
+                return (
+                  <button key={key} onClick={() => { setSortKey(key); setShowAll(false); }} style={{ padding: "6px 14px", borderRadius: 20, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap", border: "none", color: active ? primary : "#6b7280", fontWeight: active ? 700 : 400, background: active ? "#fff" : "transparent", boxShadow: active ? "0 1px 3px rgba(0,0,0,0.1)" : "none", transition: "all 0.12s" }}>
+                    {label}{active ? " ↓" : ""}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <div style={{ fontSize: 11, color: "#9ca3af", flexShrink: 0, marginRight: 12 }}>
             {sortedFunds.length} קרנות
           </div>
@@ -458,9 +508,9 @@ function AnalysisContent() {
               <div ref={theadRef} style={{ position: "sticky", top: 136, zIndex: 5, display: "grid", gridTemplateColumns: COL, padding: "11px 24px", background: "#fafbfc", borderBottom: "0.5px solid #eaecee", direction: "rtl" }}>
                 {(() => {
                   const latestMonth = getLatestReportMonth(filteredFunds);
-                  const sortLabel = sortKey === "MTD" && latestMonth
-                    ? fmtKey(latestMonth)
-                    : SORT_OPTIONS.find(s => s.key === sortKey)?.label ?? sortKey;
+                  const sortLabel = isNox
+                    ? (noxYears.length === 1 ? (noxYears[0] === "ytd2026" ? "YTD 2026" : noxYears[0]) : `CAGR ${noxYears.length} שנים`)
+                    : (sortKey === "MTD" && latestMonth ? fmtKey(latestMonth) : SORT_OPTIONS.find(s => s.key === sortKey)?.label ?? sortKey);
                   const headers: { label: string; title?: string }[] = [
                     { label: "#" },
                     { label: "קרן" },
@@ -476,7 +526,7 @@ function AnalysisContent() {
 
               {/* TOP 5 */}
               {topRows.map((fund, i) => (
-                <FundRow key={fund.id} fund={fund} rank={i + 1} sortKey={sortKey} primary={primary} isBottom={false} />
+                <FundRow key={fund.id} fund={fund} rank={i + 1} sortKey={sortKey} primary={primary} isBottom={false} periodValOverride={isNox ? calcNoxReturn(fund, noxYears) : undefined} />
               ))}
 
               {/* הראה רשימה מלאה */}
@@ -495,7 +545,7 @@ function AnalysisContent() {
 
               {/* Middle rows — כשפתוח */}
               {showAll && middleRows.map((fund, i) => (
-                <FundRow key={fund.id} fund={fund} rank={TOP_N + i + 1} sortKey={sortKey} primary={primary} isBottom={false} />
+                <FundRow key={fund.id} fund={fund} rank={TOP_N + i + 1} sortKey={sortKey} primary={primary} isBottom={false} periodValOverride={isNox ? calcNoxReturn(fund, noxYears) : undefined} />
               ))}
 
               {/* הסתר */}
@@ -518,7 +568,7 @@ function AnalysisContent() {
                     · · · · ·
                   </div>
                   {bottomRows.map((fund, i) => (
-                    <FundRow key={fund.id} fund={fund} rank={sortedFunds.length - BOTTOM_N + i + 1} sortKey={sortKey} primary={primary} isBottom={true} />
+                    <FundRow key={fund.id} fund={fund} rank={sortedFunds.length - BOTTOM_N + i + 1} sortKey={sortKey} primary={primary} isBottom={true} periodValOverride={isNox ? calcNoxReturn(fund, noxYears) : undefined} />
                   ))}
                 </>
               )}
