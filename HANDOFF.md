@@ -1,44 +1,41 @@
-# HANDOFF.md — סשן 12/05/2026 — UI Session 3ב.5: /charts Quadrant Watermark
+# HANDOFF.md — סשן 12/05/2026 — UI Session 3ב הושלם סופית
 
-## מה הושלם היום
+## מה הושלם היום — Session 3ב.6 (Senior Polish) ✅
 
-### UI Session 3ב.5 — /charts Quadrant Labels as Watermark ✅
+**קובץ:** `app/charts/page.tsx` (commit `cb77fa8`, merge `af99c19`)
 
-**קובץ:** `app/charts/page.tsx` (commit `e07e8d5`, merge `dd158c9`)
+**5 בעיות שתוקנו:**
 
-**הבעיה:** 4 סשנים של תיקוני מיקום שכל אחד שבר משהו אחר. הסיבה: התוויות הפכו מ"רמז ויזואלי" ל"תווית פונקציונלית". חזרה ל-vision המקורי.
+| בעיה | פתרון |
+|------|-------|
+| `?` button חופף "יציבות" | הועבר ל-`top:14, right:14` — הpopover ל-`right:0` (נפתח שמאלה) |
+| ציר X נחתך | `height: min(calc(100vh - 260px), 640px)` — -40px מהקוד הקודם |
+| a-symmetry watermarks | offset אחיד: `top:24 / bottom:60 / side:32` לכל 4 תוויות |
+| Hero ring אגרסיבי | `strokeWidth 2→1.5`, `strokeOpacity 0.55→0.4`; label: `strokeWidth 1.5→1`, `strokeOpacity 0.7→0.5`, `fontWeight 700→600`, `opacity 1→0.85` |
+| אזהרת "מטעה" תמידית | עטוף ב-`showPartialHistory &&` — מוצגת רק כשtoggle פתוח |
 
-**מה בוצע:**
-- **QuadrantLabel → QuadrantWatermark** — component חדש לחלוטין
-- **Opacity 0.22** — לעולם לא מתחרה עם הצירים גם אם נוגעת בהם
-- **ללא נקודה צבעונית** — הוסרה לחלוטין
-- **fontSize 16, fontWeight 500, letterSpacing 3** — watermark feel, לא label feel
-- **QUADRANT_LABELS const** — מערך מרכזי, rendering בלולאה
-- **Positions:** top-right=12/18, top-left=12/18, bottom-right=48/18, bottom-left=48/18 (bottom:48 כי ציר X תופס ~40px)
-- **Popover section 3** — הוסרו dots צבעוניים, עכשיו 4 שורות טקסט פשוטות עם label מודגש
+**הערה:** `currency` field לא מאוכלס ב-data הנוכחי (ILS filter → 0 קרנות) — האזהרה לא תוצג בפועל אבל הלוגיקה נכונה.
 
-**מיפוי סמנטי סופי:**
-- top-right: `איכות` — ירוק עמוק
-- top-left: `יציבות` — כחול-אפור
-- bottom-right: `מומנטום` — זהב
-- bottom-left: `תנודתי` — אדום
-
-**Audit 3ב.5 ✓:**
-- 4 תוויות בDOM עם opacity 0.22 ✅
-- `hasDot: false` — אין נקודה ✅
-- `chartBottom: 874 < 900` ✅
-- xAxis + yAxis גלויים ✅
-- 23 scatter points ✅
+**Audit 3ב.6 ✓:**
+- `?` at `right:14px`, לא חופף watermarks ✅
+- `xLabelBottom=803 < chartBottom=834` — ציר X גלוי ✅
+- 4 watermarks: top:24/bottom:60/side:32 — סימטריה מושלמת ✅
+- Hero ring: `strokeOpacity=0.4, strokeWidth=1.5` ✅
+- Warning: `warningVisible: false` ב-default ✅
+- 1920×1080: `height=640px` (capped) ✅
 - 107/107 | TypeScript clean ✅
 
 ---
 
-## מה הושלם לפני כן (11/05/2026 — Sessions 3ב.1–3ב.3)
+## סשן 3ב — מלא (כל sub-sessions) ✅
 
-### 3ב.3 — Label Positioning (גישה ישנה, הוחלפה ב-3ב.5)
-### 3ב.2 — Controls Row 2 Always Visible + Direction Fix ✅
-### 3ב.1 — Data Trust + Semantic Quadrants + Completeness Filter ✅
-### 3ב/3א — Hero Treatment + Foundation ✅
+| Session | נושא | Commit |
+|---------|------|--------|
+| 3ב.1 | Data trust + Completeness filter + Semantic quadrants | `b482a42` |
+| 3ב.2 | Controls Row 2 always visible + direction fix | `eb99e62` |
+| 3ב.3 | Label positioning attempt (הוחלף ב-3ב.5) | `06e5a91` |
+| 3ב.5 | Watermark philosophy — opacity 0.22, no dot | `e07e8d5` |
+| 3ב.6 | Senior polish — 5 composition issues | `cb77fa8` |
 
 ---
 
@@ -55,10 +52,8 @@
 
 ## מה פתוח לסשן 4
 
-**קבצים:** `/indications`, `/fund-status`  
-**מה נדרש:**
-- top:52 על כל controls
-- סטנדרט pill אחיד
+**קבצים:** `/indications`, `/fund-status`
+**מה נדרש:** top:52 על כל controls + סטנדרט pill אחיד
 
 ---
 
@@ -73,10 +68,10 @@
 
 ## Design Review — /consistency/v2 (4 בעיות פתוחות)
 
-1. **בורר תקופה לא מובן** — "תקופה" vs "חלון" — שינוי copy + tooltip
-2. **12M מחזיר "אין נתונים"** — כי סף מינימום הוא 24M — להוריד ל-12M או להסביר למשתמש
-3. **Checkbox ב-leaderboard** — בלי label / context — לשפר UX
-4. **תאריך משתנה במעבר ל-compare** — race condition שתוקן (commit 4dbeb5f) אבל יש לאמת ב-prod
+1. **בורר תקופה לא מובן** — "תקופה" vs "חלון"
+2. **12M מחזיר "אין נתונים"** — סף מינימום 24M
+3. **Checkbox ב-leaderboard** — בלי context
+4. **תאריך משתנה במעבר ל-compare** — תוקן ב-4dbeb5f, לאמת ב-prod
 
 ---
 
@@ -85,9 +80,9 @@
 | | |
 |---|---|
 | **tests** | 107/107 ✅ |
-| **branch main** | `dd158c9` merge: charts quadrant labels as watermark (session 3ב.5) |
+| **branch main** | `af99c19` merge: charts senior polish — session 3ב.6 |
 | **Vercel** | auto-deploy on push to main |
 
 ---
 
-*Generated: 2026-05-12 | UI Unification Session 3ב.5*
+*Generated: 2026-05-12 | UI Unification Session 3ב.6 — סשן 3ב הושלם סופית*
