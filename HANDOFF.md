@@ -1,6 +1,23 @@
-# HANDOFF.md — סשן 11/05/2026 — UI Session 3ב.1: /charts Trust + Semantic Quadrants
+# HANDOFF.md — סשן 11/05/2026 — UI Sessions 3ב.1+3ב.2: /charts Trust + Fixes
 
 ## מה הושלם היום
+
+### UI Session 3ב.2 — /charts Controls Row 2 + Label Fix ✅
+
+**קובץ:** `app/charts/page.tsx` (commit `eb99e62`)
+
+**מה תוקן:**
+- **Row 2 תמיד גלוי** — הוסר ה-`maxHeight: hasGroupOrCat ? 40 : 0` שהסתיר period/currency/toggle עד בחירת קבוצה. Row 2 עכשיו `height: 44px` תמיד. Classification pills עדיין מותנים ב-`hasGroupOrCat`.
+- **QuadrantLabel direction** — נוסף `direction: "ltr"` מפורש. ה-global `html { direction: rtl }` גרם ל-RTL flex שהפך את סדר dot+text. Offset הוגדל מ-64 ל-80px.
+- **Sticky תקין:** AppHeader top:0 h:52 | Controls top:52 h:88 (44+44) | chart bottom 830 < 900 viewport ✅
+
+**Audit 3ב.2 ✓:**
+- Row 2 גלויה תמיד: toggle + ILS + USD + period selects ✅
+- Labels: dir:ltr, not clipped, כל אחת עם dot ✅
+- Sub-tabs, hero ring, חצבים מסוננת, no "גביע הקדוש" — כל רגרסיה ✅
+- 107/107 | TypeScript clean ✅
+
+---
 
 ### UI Session 3ב.1 — /charts Data Trust + Semantic Quadrants ✅
 
