@@ -777,13 +777,22 @@ function MonthlyRow({ fund, categoryId: _categoryId, odd, password, clientKey, o
     if (!canSave || previewValue === null) return;
     setSaving(true);
     if (isNoxClient) {
+      const savedMonth = selectedMonth;
       const res = await fetch(`/api/funds?action=set-nox-mtd&client=${encodeURIComponent(clientKey)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", "x-admin-password": password },
-        body: JSON.stringify({ fundId: fund.id, month: selectedMonth, mtd: previewValue }),
+        body: JSON.stringify({ fundId: fund.id, month: savedMonth, mtd: previewValue }),
       });
       setSaving(false);
-      if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500); onAfterSave(); }
+      if (res.ok) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2500);
+        setMtdInput("");
+        const yr = parseInt(savedMonth.slice(0, 4));
+        const mo = parseInt(savedMonth.slice(5, 7));
+        setSelectedMonth(mo === 12 ? `${yr + 1}-01` : `${yr}-${String(mo + 1).padStart(2, "0")}`);
+        onAfterSave();
+      }
     } else {
       const res = await fetch(`/api/funds?action=set-monthly-return&client=${encodeURIComponent(clientKey)}`, {
         method: "PATCH",
