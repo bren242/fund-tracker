@@ -593,18 +593,16 @@ function ChartsContent() {
           </div>
         </div>
 
-        {/* ROW 2 (40px) — slide-down when group/category selected */}
+        {/* ROW 2 (44px) — always visible */}
         <div style={{
-          maxHeight: hasGroupOrCat ? 40 : 0,
-          overflow: "hidden",
-          transition: "max-height 200ms cubic-bezier(0.4, 0, 0.2, 1)",
+          height: 44,
           display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "0 28px", direction: "rtl",
-          borderBottom: hasGroupOrCat ? "0.5px solid #eaecee" : "none",
+          borderBottom: "0.5px solid #eaecee",
         }}>
-          {/* Right: Classification pills */}
+          {/* Right: Classification pills — only when group/category selected */}
           <div style={{ display: "flex", gap: 5, alignItems: "center", overflow: "hidden", flexShrink: 1, minWidth: 0 }}>
-            {options.classifications.length >= 2 && [ALL, ...options.classifications].map((cls) => (
+            {hasGroupOrCat && options.classifications.length >= 2 && [ALL, ...options.classifications].map((cls) => (
               <button key={cls} onClick={() => setFilter("classification", cls)} style={pillStyle(classification === cls)}>
                 {cls === ALL ? "הכל" : cls}
               </button>
@@ -821,13 +819,13 @@ function ChartsContent() {
                     {/* Quadrant labels */}
                     <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
                       {/* bottom-right: איכות (high return, low risk) */}
-                      <QuadrantLabel text="איכות" dotColor="rgba(27, 58, 47, 0.7)" textColor="rgba(27, 58, 47, 0.45)" bottom={68} right={64} dotLeft />
+                      <QuadrantLabel text="איכות" dotColor="rgba(27, 58, 47, 0.7)" textColor="rgba(27, 58, 47, 0.45)" bottom={68} right={80} dotLeft />
                       {/* top-right: מומנטום (high return, high risk) */}
-                      <QuadrantLabel text="מומנטום" dotColor="rgba(180, 130, 50, 0.7)" textColor="rgba(180, 130, 50, 0.45)" top={44} right={64} dotLeft />
+                      <QuadrantLabel text="מומנטום" dotColor="rgba(180, 130, 50, 0.7)" textColor="rgba(180, 130, 50, 0.45)" top={44} right={80} dotLeft />
                       {/* bottom-left: יציבות (low return, low risk) */}
-                      <QuadrantLabel text="יציבות" dotColor="rgba(80, 100, 130, 0.7)" textColor="rgba(80, 100, 130, 0.45)" bottom={68} left={64} dotRight />
+                      <QuadrantLabel text="יציבות" dotColor="rgba(80, 100, 130, 0.7)" textColor="rgba(80, 100, 130, 0.45)" bottom={68} left={80} dotRight />
                       {/* top-left: תנודה (low return, high risk) */}
-                      <QuadrantLabel text="תנודה" dotColor="rgba(180, 50, 50, 0.7)" textColor="rgba(180, 50, 50, 0.40)" top={44} left={64} dotRight />
+                      <QuadrantLabel text="תנודה" dotColor="rgba(180, 50, 50, 0.7)" textColor="rgba(180, 50, 50, 0.40)" top={44} left={80} dotRight />
                     </div>
                   </>
                 )}
@@ -906,6 +904,7 @@ function QuadrantLabel({ text, dotColor, textColor, top, bottom, left, right, do
     <div style={{
       position: "absolute", top, bottom, left, right,
       display: "flex", alignItems: "center", gap: 6,
+      direction: "ltr",
       fontSize: 14, fontWeight: 600, letterSpacing: "2px", textTransform: "uppercase",
       color: textColor,
     }}>
