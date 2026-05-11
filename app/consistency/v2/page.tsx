@@ -1,6 +1,8 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { storageRead } from "@/lib/storage";
 import { FundsData, Benchmark } from "@/lib/types";
+import { BrandConfig, DEFAULT_BRAND } from "@/config/brand";
 import {
   getWindowEndMonth,
   buildWindowInfo,
@@ -41,6 +43,14 @@ export default async function ConsistencyV2Page({
   const { client = "green", window: windowParam, fund: fundParam, preselect } = await searchParams;
   const windowSize = [24, 36, 48].includes(Number(windowParam)) ? Number(windowParam) : 24;
 
+  // Guard: redirect non-green clients that haven't enabled consistencyAnalysis
+  if (client !== "green") {
+    const brand = await storageRead<BrandConfig>(`brand:${client}`, DEFAULT_BRAND);
+    if (!brand.features?.consistencyAnalysis) {
+      redirect(`/${client}`);
+    }
+  }
+
   const [fundsData, benchmarks] = await Promise.all([
     storageRead<FundsData>(`funds:${client}`, { lastUpdated: "", categories: [] }),
     storageRead<Benchmark[]>(`benchmarks:${client}`, []),
@@ -69,7 +79,7 @@ export default async function ConsistencyV2Page({
           <Toolbar fundId={fundParam} fundName={fundName} client={client} />
         </Suspense>
         <BackNav client={client} />
-        <PageWrapper dateLabel={dateLabel} idlePath={idlePath}>
+        <PageWrapper dateLabel={dateLabel} idlePath={idlePath} client={client}>
           <SingleView fundId={fundParam} client={client} />
           <PageFooter disclaimer="המידע מובא לצורך ניתוח בלבד ואינו מהווה ייעוץ השקעות, המלצה או חוות דעת." />
         </PageWrapper>
@@ -100,7 +110,7 @@ export default async function ConsistencyV2Page({
   return (
     <>
       <BackNav client={client} />
-      <PageWrapper dateLabel={dateLabel} idlePath={idlePath}>
+      <PageWrapper dateLabel={dateLabel} idlePath={idlePath} client={client}>
         <IdleView top5={top5} totalFunds={totalFunds} windowSize={windowSize} searchPool={allStats} preselectId={preselect} client={client} />
         <PageFooter />
       </PageWrapper>
