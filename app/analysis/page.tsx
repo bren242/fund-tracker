@@ -269,11 +269,44 @@ function AnalysisContent() {
   const [showAll, setShowAll] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const searchRef = useRef<HTMLDivElement>(null);
+  const searchRef   = useRef<HTMLDivElement>(null);
+  const controlsRef = useRef<HTMLDivElement>(null);
+  const filterRowRef = useRef<HTMLDivElement>(null);
+  const sortRowRef  = useRef<HTMLDivElement>(null);
+  const theadRef    = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch(`/api/funds?client=${encodeURIComponent(clientKey)}`).then((r) => r.json()).then(setData);
   }, [clientKey]);
+
+  // DIAGNOSTIC — measure sticky stack heights
+  function measureSticky() {
+    const header   = document.querySelector("[data-app-header]") as HTMLElement | null;
+    const controls = controlsRef.current;
+    const filterRow = filterRowRef.current;
+    const sortRow  = sortRowRef.current;
+    const thead    = theadRef.current;
+    console.group("📐 STICKY DIAGNOSTIC");
+    console.log("AppHeader     height:", header?.getBoundingClientRect().height, "| bottom:", header?.getBoundingClientRect().bottom);
+    console.log("Controls wrap height:", controls?.getBoundingClientRect().height, "| top:", controls?.getBoundingClientRect().top, "| bottom:", controls?.getBoundingClientRect().bottom);
+    console.log("Filter row    height:", filterRow?.getBoundingClientRect().height, "| offsetHeight:", filterRow?.offsetHeight);
+    console.log("Sort row      height:", sortRow?.getBoundingClientRect().height,  "| offsetHeight:", sortRow?.offsetHeight);
+    if (thead) {
+      const r = thead.getBoundingClientRect();
+      const topStyle = getComputedStyle(thead).top;
+      console.log("Thead         height:", r.height, "| top (rect):", r.top, "| top (computed):", topStyle);
+      console.log("Thead visible start:", r.top, " — controls bottom:", controls?.getBoundingClientRect().bottom, " — gap:", r.top - (controls?.getBoundingClientRect().bottom ?? 0));
+    }
+    console.groupEnd();
+  }
+
+  useEffect(() => {
+    if (!data) return;
+    measureSticky();
+    const t = setTimeout(measureSticky, 100);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   const filterOptions = useMemo(() => {
     if (!data) return { groups: [] as string[], categories: [] as string[] };
@@ -350,10 +383,10 @@ function AnalysisContent() {
       <div style={{ minHeight: "100vh", backgroundColor: "#f8f9fa", fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif", ...(brandCssVars(primary, brand.accentColor) as React.CSSProperties) }}>
 
         {/* ── Sticky controls: filter + sort ── */}
-        <div style={{ position: "sticky", top: 52, zIndex: 99, background: "#FAFAF7" }}>
+        <div ref={controlsRef} style={{ position: "sticky", top: 52, zIndex: 99, background: "#FAFAF7" }}>
 
         {/* FILTER BAR — fixed height 44px */}
-        <div style={{ height: 44, display: "flex", alignItems: "center", padding: "0 28px", gap: 5, overflowX: "auto", scrollbarWidth: "none", direction: "rtl", borderBottom: "0.5px solid #eaecee", flexShrink: 0 } as React.CSSProperties}>
+        <div ref={filterRowRef} style={{ height: 44, display: "flex", alignItems: "center", padding: "0 28px", gap: 5, overflowX: "auto", scrollbarWidth: "none", direction: "rtl", borderBottom: "0.5px solid #eaecee", flexShrink: 0 } as React.CSSProperties}>
           {/* Sub-tabs */}
           {[
             { label: "דירוג",   path: "/analysis",       active: true  },
@@ -397,7 +430,7 @@ function AnalysisContent() {
         </div>
 
         {/* SORT BAR — fixed height 40px */}
-        <div style={{ height: 40, display: "flex", alignItems: "center", padding: "0 28px", justifyContent: "space-between", direction: "rtl", borderBottom: "0.5px solid #eaecee", flexShrink: 0 }}>
+        <div ref={sortRowRef} style={{ height: 40, display: "flex", alignItems: "center", padding: "0 28px", justifyContent: "space-between", direction: "rtl", borderBottom: "0.5px solid #eaecee", flexShrink: 0 }}>
           <div style={{ display: "flex", gap: 3, background: "#f1f3f4", borderRadius: 22, padding: 3, overflow: "hidden" } as React.CSSProperties}>
             {SORT_OPTIONS.map(({ key, label }) => {
               const active = sortKey === key;
@@ -422,7 +455,7 @@ function AnalysisContent() {
             <div style={{ background: "#fff", border: "0.5px solid #e8ecee", borderRadius: 16, overflow: "clip", maxWidth: 900, margin: "0 auto" }}>
 
               {/* Header */}
-              <div style={{ position: "sticky", top: 136, zIndex: 5, display: "grid", gridTemplateColumns: COL, padding: "11px 24px", background: "#fafbfc", borderBottom: "0.5px solid #eaecee", direction: "rtl" }}>
+              <div ref={theadRef} style={{ position: "sticky", top: 136, zIndex: 5, display: "grid", gridTemplateColumns: COL, padding: "11px 24px", background: "#fafbfc", borderBottom: "0.5px solid #eaecee", direction: "rtl" }}>
                 {(() => {
                   const latestMonth = getLatestReportMonth(filteredFunds);
                   const sortLabel = sortKey === "MTD" && latestMonth
