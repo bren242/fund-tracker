@@ -1,4 +1,38 @@
-# HANDOFF.md — סשן 10/05/2026 לילה
+# HANDOFF.md — סשן 11/05/2026 — UI Session 3א: /charts Foundation
+
+## מה הושלם היום
+
+### UI Session 3א — /charts Foundation ✅
+
+**קובץ:** `app/charts/page.tsx` — שכתוב מלא
+
+**מה בוצע:**
+- **הוסר header ישן** (brand bar + custom nav) — מחליף ב-AppHeader מהלייאאוט הגלובלי
+- **Controls bar 2 שורות** (sticky top:52, z:99, background:#FAFAF7):
+  - Row 1 (44px): sub-tabs ימין (דירוג/השוואה/גרף✓/עקביות + feature locking) + search + group select + category select + reset (שמאל)
+  - Row 2 (slide-down, maxHeight: 0→40px, 200ms cubic-bezier): classification pills ימין + period selects + currency pills + count שמאל
+  - Row 2 מופיע רק כש-group OR category נבחרו
+- **Meta text** — "47 קרנות · 2020–2025" מתחת לcontrols bar, 12px muted
+- **InsightsBlock שדרוג** — כרטיס אלגנטי: border rgba(27,58,47,0.12), gradient #F4F3EF→#FAF9F6, padding 24px 28px, border-radius 16px, shadow 0 1px 3px; הקרן הבולטת עם רקע כהה יותר + right border ירוק 3px
+- **PrintLegend polish** — column headers uppercase 11px letterSpacing:0.5px color:#6B6B6B; row separator 1px rgba(0,0,0,0.06); hover rgba(27,58,47,0.03); מספרי שורה tabular-nums opacity:0.5
+- **Page gradient** — linear-gradient(180deg, #F4F3EF 0px, #ffffff 600px) בlight mode
+
+**מה לא נגע** (לסשן 3ב):
+- Recharts code (scatter chart, axes, ZAxis, Cell, LabelList)
+- Quadrant labels
+- RankCard component
+- print layout
+
+**אומת:**
+- AppHeader sticky top:0 z:100 h:52px ✅
+- Controls sticky top:52px z:99 ✅
+- Row 2 maxHeight:0 כברירת מחדל, slide-down כשgroup/category ✅
+- InsightsBlock: border-radius 16, gradient bg, featured row ✅
+- 107/107 tests PASS ✅
+
+---
+
+## סשן קודם (10/05/2026 לילה)
 
 ## מה הושלם היום
 
@@ -46,11 +80,20 @@
 
 ---
 
-## מה פתוח לסשן 3
+## מה פתוח לסשן 3ב — /charts Chart Polish
 
-**קבצים:** `/charts`, `/compare`, `/consistency/v2`  
+**קובץ:** `app/charts/page.tsx`
+**מה נדרש (Recharts layer):**
+- Quadrant improvements: better labels, interactive hover
+- Bubble sizing improvements
+- Tooltip polish
+- Potential axis improvements
+
+## מה פתוח לסשן 3ג — /compare + /consistency/v2
+
+**קבצים:** `app/compare/page.tsx`, `app/consistency/v2/...`
 **מה נדרש:**
-- הוסף sub-tabs row (דירוג/השוואה/גרף/עקביות) עם "גרף" / "השוואה" / "עקביות" active
+- הוסף sub-tabs row (דירוג/השוואה/גרף/עקביות) עם "השוואה" / "עקביות" active
 - עדכן כל controls wrapper ל-`top:52`
 - עדכן כל thead / sticky elements בהתאם
 - בדוק print layouts לא נשברו
