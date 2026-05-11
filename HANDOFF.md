@@ -2,6 +2,15 @@
 
 ## מה הושלם היום
 
+### UI Session 3ב — /charts Hero Treatment ✅ (+ Completion Pass)
+
+**Completion Pass fixes (סשן 3ב-fix):**
+- Hero ring: `strokeOpacity` הוגבר ל-0.55, `strokeWidth` ל-2 (נראה בעין)
+- Hero label: הועבר מ**מתחת** ל**מעל** הבועה, הוסף `<rect>` bg, הוסף תשואה%: "חצבים וואליו · 44.7%"
+- Container height: `min(calc(100vh - 200px), 720px)` → `min(calc(100vh - 220px), 680px)` — נכנס ל-1440×900 בלי scroll
+- Tooltip: נוסף `fontVariantNumeric: "tabular-nums"` לשדות המספריים
+- **Checklist 12/12 ✓** — אומת DOM לכל שורה
+
 ### UI Session 3ב — /charts Hero Treatment ✅
 
 **קובץ:** `app/charts/page.tsx` — שדרוג Recharts layer
