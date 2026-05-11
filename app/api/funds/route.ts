@@ -291,6 +291,57 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ success: true });
   }
 
+  // Set a single month's return in monthlyReturns2026 (NOX only)
+  if (url.searchParams.get("action") === "set-nox-monthly-2026") {
+    const body = await req.json();
+    const { fundId, monthKey, value } = body as { fundId: string; monthKey: string; value: number };
+    if (!fundId || !monthKey || !/^\d{2}$/.test(monthKey) || typeof value !== "number") {
+      return NextResponse.json({ error: "Missing fundId, invalid monthKey (MM), or non-numeric value" }, { status: 400 });
+    }
+    let found = false;
+    const categories = (data.categories || []) as Record<string, unknown>[];
+    for (const cat of categories) {
+      const funds = cat.funds as Record<string, unknown>[];
+      const idx = funds.findIndex((f) => f.id === fundId);
+      if (idx >= 0) {
+        const mr = (funds[idx].monthlyReturns2026 as Record<string, number>) ?? {};
+        funds[idx].monthlyReturns2026 = { ...mr, [monthKey]: value };
+        funds[idx].lastUpdatedAt = new Date().toISOString();
+        found = true;
+        break;
+      }
+    }
+    if (!found) return NextResponse.json({ error: "Fund not found" }, { status: 404 });
+    await writeData(clientKey, data);
+    return NextResponse.json({ success: true });
+  }
+
+  // Delete a single month's return from monthlyReturns2026 (NOX only)
+  if (url.searchParams.get("action") === "delete-nox-monthly-2026") {
+    const body = await req.json();
+    const { fundId, monthKey } = body as { fundId: string; monthKey: string };
+    if (!fundId || !monthKey || !/^\d{2}$/.test(monthKey)) {
+      return NextResponse.json({ error: "Missing fundId or invalid monthKey (MM)" }, { status: 400 });
+    }
+    let found = false;
+    const categories = (data.categories || []) as Record<string, unknown>[];
+    for (const cat of categories) {
+      const funds = cat.funds as Record<string, unknown>[];
+      const idx = funds.findIndex((f) => f.id === fundId);
+      if (idx >= 0) {
+        const mr = { ...((funds[idx].monthlyReturns2026 as Record<string, number>) ?? {}) };
+        delete mr[monthKey];
+        funds[idx].monthlyReturns2026 = mr;
+        funds[idx].lastUpdatedAt = new Date().toISOString();
+        found = true;
+        break;
+      }
+    }
+    if (!found) return NextResponse.json({ error: "Fund not found" }, { status: 404 });
+    await writeData(clientKey, data);
+    return NextResponse.json({ success: true });
+  }
+
   // Set delayed flag on a single fund by ID
   if (url.searchParams.get("action") === "set-delayed-flag") {
     const body = await req.json();
