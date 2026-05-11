@@ -291,12 +291,13 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ success: true });
   }
 
-  // Set a single month's return in monthlyReturns2026 (NOX only)
-  if (url.searchParams.get("action") === "set-nox-monthly-2026") {
+  // Save MTD for NOX: compound into ytd2026 and log to noxMtdLog (NOX only)
+  if (url.searchParams.get("action") === "set-nox-mtd") {
+    if (clientKey !== "nox") return NextResponse.json({ error: "Action only valid for NOX client" }, { status: 400 });
     const body = await req.json();
-    const { fundId, monthKey, value } = body as { fundId: string; monthKey: string; value: number };
-    if (!fundId || !monthKey || !/^\d{2}$/.test(monthKey) || typeof value !== "number") {
-      return NextResponse.json({ error: "Missing fundId, invalid monthKey (MM), or non-numeric value" }, { status: 400 });
+    const { fundId, month, mtd } = body as { fundId: string; month: string; mtd: number };
+    if (!fundId || !month || !/^\d{4}-\d{2}$/.test(month) || typeof mtd !== "number") {
+      return NextResponse.json({ error: "Missing fundId, invalid month (YYYY-MM), or non-numeric mtd" }, { status: 400 });
     }
     let found = false;
     const categories = (data.categories || []) as Record<string, unknown>[];
@@ -304,9 +305,16 @@ export async function PATCH(req: NextRequest) {
       const funds = cat.funds as Record<string, unknown>[];
       const idx = funds.findIndex((f) => f.id === fundId);
       if (idx >= 0) {
-        const mr = (funds[idx].monthlyReturns2026 as Record<string, number>) ?? {};
-        funds[idx].monthlyReturns2026 = { ...mr, [monthKey]: value };
-        funds[idx].lastUpdatedAt = new Date().toISOString();
+        const fund = funds[idx] as Record<string, unknown>;
+        const returns = (fund.returns as Record<string, number | null>) ?? {};
+        const ytdCurrent = (returns.ytd2026 as number) ?? 0;
+        const ytdNew = (1 + ytdCurrent) * (1 + mtd) - 1;
+        fund.returns = { ...returns, ytd2026: ytdNew };
+        fund.lastMonth = month;
+        fund.lastUpdatedAt = new Date().toISOString();
+        const log = { ...((fund.noxMtdLog as Record<string, number>) ?? {}) };
+        log[month] = mtd;
+        fund.noxMtdLog = log;
         found = true;
         break;
       }
@@ -316,23 +324,35 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ success: true });
   }
 
-  // Delete a single month's return from monthlyReturns2026 (NOX only)
-  if (url.searchParams.get("action") === "delete-nox-monthly-2026") {
+  // Undo last MTD entry for NOX: reverse compound and remove from log (NOX only)
+  if (url.searchParams.get("action") === "undo-nox-mtd") {
+    if (clientKey !== "nox") return NextResponse.json({ error: "Action only valid for NOX client" }, { status: 400 });
     const body = await req.json();
-    const { fundId, monthKey } = body as { fundId: string; monthKey: string };
-    if (!fundId || !monthKey || !/^\d{2}$/.test(monthKey)) {
-      return NextResponse.json({ error: "Missing fundId or invalid monthKey (MM)" }, { status: 400 });
-    }
+    const { fundId } = body as { fundId: string };
+    if (!fundId) return NextResponse.json({ error: "Missing fundId" }, { status: 400 });
     let found = false;
     const categories = (data.categories || []) as Record<string, unknown>[];
     for (const cat of categories) {
       const funds = cat.funds as Record<string, unknown>[];
       const idx = funds.findIndex((f) => f.id === fundId);
       if (idx >= 0) {
-        const mr = { ...((funds[idx].monthlyReturns2026 as Record<string, number>) ?? {}) };
-        delete mr[monthKey];
-        funds[idx].monthlyReturns2026 = mr;
-        funds[idx].lastUpdatedAt = new Date().toISOString();
+        const fund = funds[idx] as Record<string, unknown>;
+        const log = { ...((fund.noxMtdLog as Record<string, number>) ?? {}) };
+        const sortedKeys = Object.keys(log).sort();
+        if (sortedKeys.length === 0) {
+          return NextResponse.json({ error: "No history to undo" }, { status: 400 });
+        }
+        const lastKey = sortedKeys[sortedKeys.length - 1];
+        const lastMtd = log[lastKey];
+        const returns = (fund.returns as Record<string, number | null>) ?? {};
+        const ytdCurrent = (returns.ytd2026 as number) ?? 0;
+        const ytdRestored = (1 + ytdCurrent) / (1 + lastMtd) - 1;
+        fund.returns = { ...returns, ytd2026: ytdRestored };
+        delete log[lastKey];
+        fund.noxMtdLog = log;
+        const remainingKeys = Object.keys(log).sort();
+        fund.lastMonth = remainingKeys.length > 0 ? remainingKeys[remainingKeys.length - 1] : null;
+        fund.lastUpdatedAt = new Date().toISOString();
         found = true;
         break;
       }
