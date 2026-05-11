@@ -138,7 +138,60 @@
 
 ---
 
-## עדכון אחרון (2026-05-10 — AppHeader redesign + /[client] sticky layout) ✅
+## עדכון אחרון (2026-05-10 לילה — UI Unification Sessions 1+2) ✅
+
+### AppHeader — ארכיטקטורה סופית (components/AppHeader.tsx)
+- **52px, sticky top:0, zIndex:100, background:#ffffff אטום** — אחיד בכל הדפים
+- Logo priority: `logoLight` → `logo` → `<span>` Cormorant Garamond 18px letterSpacing:3px
+- Tabs (קרנות/ניתוח/כלים): active = borderBottom 1.5px solid accentColor (gold underline)
+- activeTab logic: analysis|charts|compare|consistency→"ניתוח" | indications|fund-status→"כלים" | admin|upload→null | rest→"קרנות"
+- Icons: gear (navigate /admin) + printer (window.print()), lucide SVG, 15×15, 32×32 buttons
+- `data-app-header="true"` attribute על ה-wrapper
+- `useClientKey()` uses `useSearchParams()` → חובה `<Suspense>` ב-layout
+
+### /analysis Controls Bar — ארכיטקטורה סופית (app/analysis/page.tsx)
+```
+AppHeader        top:0,   z:100, h:52px   ← background:#ffffff (חובה!)
+Controls wrapper top:52,  z:99,  background:#FAFAF7
+  ├─ ROW 1       h:44px  space-between
+  │   ├─ ימין: sub-tabs עם feature locking (דירוג/השוואה/גרף/עקביות)
+  │   └─ שמאל: NOX year-select | GREEN sort-pills + count
+  └─ ROW 2       h:40px  space-between
+      ├─ ימין: group pills + category pills (כשנבחרה קבוצה)
+      └─ שמאל: currency pills (הכל/ILS/USD)
+Thead            top:136 (52+44+40)  z:5  — סטטי, ללא ResizeObserver
+Table wrapper    overflow:clip       ← חובה! לא hidden
+```
+- Feature locking: `brand.features.comparison/chartPage/consistencyAnalysis === false` → pill נעול
+- NOX: `isNox = clientKey === "nox"`, `noxYears` state, `toggleNoxYear()`
+- **אין ResizeObserver.** אין refs מיותרים. גבהים קבועים = top סטטי.
+
+### /admin Controls Bar (app/admin/page.tsx)
+- sticky top:52, zIndex:99, background:#FAFAF7
+- pill tabs + spacer + status + כפתור "שמירה ופרסום"
+- Tabs: עדכון חודשי | עדכון מטקסט | ניהול קרנות | (super: עוד 7 tabs)
+
+### Credit Exhausted UX (lib/credit-error.ts + app/api/parse/route.ts)
+- `isCreditExhaustedError(status, body)`: מזהה 402 + keywords "credit balance"/"billing"
+- `CREDIT_EXHAUSTED_SENTINEL = "ANTHROPIC_CREDIT_EXHAUSTED"` — flag לfront
+- `creditExhaustedBody()`: response JSON עם הודעה עברית
+- 3 test files, 107/107 tests
+
+### מה פתוח — UI Sessions הבאים
+| סשן | מה נדרש |
+|-----|---------|
+| 3 | /charts, /compare, /consistency/v2 — sub-tabs + top:52 |
+| 4 | /indications, /fund-status — top:52 |
+| 5 | Polish — hover states, אנימציות, מרווחים |
+| Design Review | 4 UX issues בעקביות |
+
+### Tests & Git
+- `npx vitest run` → 107/107 ✅
+- Last commit main: `5c42ed7`
+
+---
+
+## עדכון קודם (2026-05-10 — AppHeader redesign + /[client] sticky layout) ✅
 
 ### AppHeader — Complete Redesign
 - **לפני:** dark nav bar (44px) + print button ב-`app/page.tsx` (עם white gap)

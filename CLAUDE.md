@@ -93,6 +93,45 @@ If `corrections[]` contains `monthly_uncertain` for a year, monthly values for t
 | `PROJECT_STATE.md` | Full feature documentation and QA records |
 | `DEV_STATE.md` | System health and file map |
 
+## UI Unification — AppHeader + Controls (מאי 2026, סשן 1+2)
+
+### AppHeader — הסטנדרט הנוכחי (components/AppHeader.tsx)
+- **גובה:** 52px, sticky top:0, zIndex:100, background:#ffffff אטום (חובה — ללא rgba+blur)
+- **לוגו:** logoLight → logo → `<span>` Cormorant Garamond, fontSize:18, letterSpacing:3px
+- **Tabs:** קרנות/ניתוח/כלים → active: borderBottom 1.5px solid accentColor (gold)
+- **activeTab logic:** analysis/charts/compare/consistency → "ניתוח" | indications/fund-status → "כלים" | admin/upload → null | שאר → "קרנות"
+- **אייקונים:** Settings (gear) + Print — lucide SVG paths, 15×15, iconBtn style
+- **`data-app-header="true"`** — attribute לאיתור DOM אם נדרש
+
+### Sub-tabs (ניווט בתוך ניתוח)
+- מיקום: שורה 1 של controls bar (לא ב-AppHeader!)
+- Pills: דירוג→/analysis | השוואה→/compare | גרף→/charts | עקביות→/consistency/v2
+- Feature locking (NOX): `brand.features.comparison/chartPage/consistencyAnalysis === false` → pill נעול + 🔒
+- אקטיב: `background: primary, color: "#fff"` | לא-אקטיב: `background: "#F4F3EF", color: "#6b7280"`
+
+### /analysis — Controls Bar (app/analysis/page.tsx)
+- **מעטפת sticky:** `position:sticky, top:52, zIndex:99, background:#FAFAF7`
+- **שורה 1 (height:44px, justify-content:space-between):**
+  - ימין: sub-tabs עם feature locking
+  - שמאל: NOX → year multi-select pills | GREEN → sort pills (YTD/MTD/12M/36M/60M/ממוצע/שארפ) + count
+- **שורה 2 (height:40px, justify-content:space-between):**
+  - ימין: group pills (הכל + groups) + category pills (כשנבחרה קבוצה)
+  - שמאל: currency pills (הכל/ILS/USD)
+- **thead top: 136 (= 52+44+40) — סטטי, ללא ResizeObserver**
+- **table wrapper: `overflow:"clip"`** — חובה ל-sticky thead בתוך wrapper
+
+### /admin — Controls Bar (app/admin/page.tsx)
+- **מעטפת sticky:** `position:sticky, top:52, zIndex:99, background:#FAFAF7`
+- **שורה אחת (height:auto, ~46px):** pill tabs + spacer + status message + כפתור שמירה ופרסום
+- Tabs: עדכון חודשי | עדכון מטקסט | ניהול קרנות | (super: היסטוריה/AI/benchmarks/עקביות/אינדיקציה/מיתוג/הגדרות)
+- כפתור שמירה: disabled כשלא dirty, `background:#1B3A2F` כשפעיל
+
+### מה עוד פתוח (סשנים 3-5)
+- **סשן 3:** /charts, /compare, /consistency/v2 — להחיל sub-tabs + top:52 על controls
+- **סשן 4:** /indications, /fund-status — להתאים ל-AppHeader 52px
+- **סשן 5:** polish — hover states, אנימציות, מרווחים סופיים
+- **Design review:** 4 UX issues בעקביות (בורר תקופה, 12M אין נתונים, checkbox, תאריך compare)
+
 ## פיצ'ר עקביות (מאי 2026)
 
 ### מה נבנה
