@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef, Suspense } from "react";
+import { useEffect, useLayoutEffect, useState, useMemo, useRef, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { FundsData, Fund } from "@/lib/types";
 import { useBrand } from "@/lib/useBrand";
@@ -274,9 +274,10 @@ function AnalysisContent() {
   const controlsRef = useRef<HTMLDivElement>(null);
   const [controlsHeight, setControlsHeight] = useState(100);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = controlsRef.current;
     if (!el) return;
+    setControlsHeight(el.offsetHeight);
     const observer = new ResizeObserver(() => { setControlsHeight(el.offsetHeight); });
     observer.observe(el);
     return () => observer.disconnect();
