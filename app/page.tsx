@@ -130,7 +130,7 @@ function ReportContent() {
       </div>
 
       {/* ============ PRINT VERSION (hidden on screen) ============ */}
-      <PrintReport categories={filtered} lastUpdated={data.lastUpdated} brand={brand} printYears={printYearsArray} />
+      <PrintReport categories={filtered} lastUpdated={data.lastUpdated} brand={brand} printYears={printYearsArray} clientKey={clientKey} />
 
     </div>
 

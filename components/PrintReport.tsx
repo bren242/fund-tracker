@@ -33,9 +33,15 @@ interface PrintReportProps {
   brand: BrandConfig;
   /** Array of years to show, e.g. ["2026","2025","2024"]. All years if full array. */
   printYears?: string[];
+  clientKey?: string;
 }
 
-export default function PrintReport({ categories, lastUpdated, brand, printYears }: PrintReportProps) {
+function formatYearMonth(ym: string): string {
+  const [y, m] = ym.split("-");
+  return `${m}/${y}`;
+}
+
+export default function PrintReport({ categories, lastUpdated, brand, printYears, clientKey }: PrintReportProps) {
   // Determine which year columns to show
   const selectedYears = printYears && printYears.length > 0 ? new Set(printYears) : null;
   const yearKeys = selectedYears
@@ -65,6 +71,7 @@ export default function PrintReport({ categories, lastUpdated, brand, printYears
   const thFontSize = isFiltered && yearKeys.length <= 3 ? "7pt" : "6pt";
 
   const rows: React.ReactNode[] = [];
+  const isNox = clientKey === "nox";
 
   let isFirst = true;
   for (const cat of categories) {
@@ -92,13 +99,19 @@ export default function PrintReport({ categories, lastUpdated, brand, printYears
     for (let i = 0; i < cat.funds.length; i++) {
       const f = cat.funds[i];
       const bg = i % 2 === 0 ? "#ffffff" : "#f8f9fb";
+      const monthlyVal = isNox && f.lastMonth
+        ? (f.noxMtdLog?.[f.lastMonth] ?? f.monthlyReturn)
+        : f.monthlyReturn;
+      const updatedDisplay = isNox && f.lastMonth
+        ? formatYearMonth(f.lastMonth)
+        : formatReportDate(f.lastUpdated);
       rows.push(
         <tr key={f.id} style={{ backgroundColor: bg }}>
           <td style={tdStyle({ fontWeight: 600, textAlign: "right", fontSize: baseFontSize })}>{f.name}</td>
           <td style={tdStyle({ textAlign: "right", color: "#5a6577", fontSize: baseFontSize })}>{f.classification}</td>
           <td style={tdStyle({ textAlign: "center", color: "#8893a4", fontSize: baseFontSize })}>{f.manager}</td>
-          <td style={tdStyle({ textAlign: "center", color: "#8893a4", fontSize: baseFontSize })}>{formatReportDate(f.lastUpdated)}</td>
-          <td style={tdStyle({ textAlign: "center", fontWeight: 600, color: returnColor(f.monthlyReturn), fontSize: baseFontSize })}>{pct(f.monthlyReturn)}</td>
+          <td style={tdStyle({ textAlign: "center", color: "#8893a4", fontSize: baseFontSize })}>{updatedDisplay}</td>
+          <td style={tdStyle({ textAlign: "center", fontWeight: 600, color: returnColor(monthlyVal ?? null), fontSize: baseFontSize })}>{pct(monthlyVal)}</td>
           {yearKeys.map((y) => (
             <td key={y.key} style={tdStyle({ textAlign: "center", color: returnColor(f.returns[y.key]), fontSize: baseFontSize })}>{pct(f.returns[y.key])}</td>
           ))}
