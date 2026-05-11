@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef, Suspense } from "react";
+import { useRouter } from "next/navigation";
 import { FundsData, Fund } from "@/lib/types";
 import { useBrand } from "@/lib/useBrand";
 import { useClientKey } from "@/lib/useClientKey";
@@ -257,6 +258,9 @@ function FundRow({ fund, rank, sortKey, primary, isBottom }: {
 function AnalysisContent() {
   const clientKey = useClientKey();
   const brand = useBrand(clientKey);
+  const router = useRouter();
+  const prefix = `/${clientKey}`;
+  const navigate = (path: string) => router.push(`${prefix}${path}`);
   const [data, setData] = useState<FundsData | null>(null);
   const [group, setGroup] = useState(ALL);
   const [category, setCategory] = useState(ALL);
@@ -358,7 +362,7 @@ function AnalysisContent() {
       <div style={{ minHeight: "100vh", backgroundColor: "#f8f9fa", fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif", ...(brandCssVars(primary, brand.accentColor) as React.CSSProperties) }}>
 
         {/* ── Sticky controls: filter + sort ── */}
-        <div style={{ position: "sticky", top: 88, zIndex: 99, background: "#ffffff" }}>
+        <div style={{ position: "sticky", top: 52, zIndex: 99, background: "#FAFAF7" }}>
 
         {/* FILTER BAR */}
         <div
@@ -366,18 +370,31 @@ function AnalysisContent() {
           onMouseLeave={() => setHoveredGroup(null)}
         >
           <div style={{ display: "flex", gap: 5, alignItems: "center", flexWrap: "nowrap", overflowX: "auto", scrollbarWidth: "none", direction: "rtl" }}>
+            {/* Sub-tabs: ניתוח pages */}
+            {[
+              { label: "דירוג",   path: "/analysis",     active: true  },
+              { label: "השוואה",  path: "/compare",      active: false },
+              { label: "גרף",     path: "/charts",       active: false },
+              { label: "עקביות",  path: "/consistency/v2",  active: false },
+            ].map(({ label, path, active }) => (
+              <button key={label}
+                onClick={() => { if (!active) navigate(path); }}
+                style={{ padding: "6px 15px", borderRadius: 20, fontSize: 13, border: "none", cursor: active ? "default" : "pointer", whiteSpace: "nowrap", background: active ? primary : "#F4F3EF", color: active ? "#fff" : "#6b7280", fontWeight: active ? 600 : 400, transition: "all 0.12s" }}
+              >{label}</button>
+            ))}
+            <div style={{ width: 0.5, height: 22, background: "#e2e8f0", flexShrink: 0, margin: "0 6px" }} />
             {[ALL, ...filterOptions.groups].map((g) => (
               <button key={g}
                 onClick={() => { setGroup(g); setCategory(ALL); setShowAll(false); }}
                 onMouseEnter={() => setHoveredGroup(g)}
-                style={{ padding: "6px 15px", borderRadius: 20, fontSize: 13, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: group === g ? primary : "transparent", color: group === g ? "#fff" : "#4a5568", fontWeight: group === g ? 600 : 400, transition: "all 0.12s" }}
+                style={{ padding: "6px 15px", borderRadius: 20, fontSize: 13, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: group === g ? primary : "#F4F3EF", color: group === g ? "#fff" : "#6b7280", fontWeight: group === g ? 600 : 400, transition: "all 0.12s" }}
               >{g}</button>
             ))}
             <div style={{ width: 0.5, height: 22, background: "#e2e8f0", flexShrink: 0, margin: "0 6px" }} />
             {(["all", "ILS", "USD"] as const).map((c) => (
               <button key={c}
                 onClick={() => setCurrencyFilter(c)}
-                style={{ padding: "6px 13px", borderRadius: 20, fontSize: 13, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: currencyFilter === c ? primary : "transparent", color: currencyFilter === c ? "#fff" : "#4a5568", fontWeight: currencyFilter === c ? 600 : 400, transition: "all 0.12s" }}
+                style={{ padding: "6px 13px", borderRadius: 20, fontSize: 13, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: currencyFilter === c ? primary : "#F4F3EF", color: currencyFilter === c ? "#fff" : "#6b7280", fontWeight: currencyFilter === c ? 600 : 400, transition: "all 0.12s" }}
               >{c === "all" ? "הכל" : c}</button>
             ))}
           </div>
