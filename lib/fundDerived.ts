@@ -65,10 +65,12 @@ export function getNoxYtd2026(fund: Fund): number | null {
   return fund.returns?.ytd2026 ?? null;
 }
 
-/** Latest month value for NOX: from monthlyReturns2026 (sorted last), or null if empty. */
+/** Latest month value for NOX: from monthlyReturns2026 (sorted last), fallback to monthlyReturn. */
 export function getNoxLatestMonthly(fund: Fund): number | null {
   const mr = fund.monthlyReturns2026;
-  if (!mr || Object.keys(mr).length === 0) return null;
-  const latestKey = Object.keys(mr).sort().at(-1)!;
-  return mr[latestKey] ?? null;
+  if (mr && Object.keys(mr).length > 0) {
+    const latestKey = Object.keys(mr).sort().at(-1)!;
+    return mr[latestKey] ?? null;
+  }
+  return fund.monthlyReturn ?? null;
 }
