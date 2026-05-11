@@ -1,6 +1,29 @@
-# HANDOFF.md — סשן 11/05/2026 — UI Sessions 3ב.1+3ב.2: /charts Trust + Fixes
+# HANDOFF.md — סשן 11/05/2026 — UI Sessions 3ב.1+3ב.2+3ב.3: /charts Complete
 
 ## מה הושלם היום
+
+### UI Session 3ב.3 — /charts Quadrant Label Positioning ✅
+
+**קובץ:** `app/charts/page.tsx` (commit `06e5a91`)
+
+**מה תוקן:**
+- **מיקום תוויות בתוך plot area** — היו ב-`top:44/bottom:68/left:80/right:80` שגרם לחפיפה עם ציר Y. עכשיו `top:64, bottom:84, left:84, right:84` (margin + 24px clearance).
+- **מיפוי semantics מחדש:**
+  - ימין-עליון (high risk, high return): `מומנטום` — dot זהב
+  - ימין-תחתון (low risk, high return): `איכות` — dot ירוק עמוק
+  - שמאל-עליון (high risk, low return): `תנודתי` — dot אדום
+  - שמאל-תחתון (low risk, low return): `יציבות` — dot כחול-אפור
+- **"תנודה" → "תנודתי"** — בכל label calls + popover section 3
+- **כל 4 תוויות עם `dotLeft`** — dot מופיע מימין לטקסט (ב-`direction:ltr`)
+- **opacity:** text 0.85 (תנודתי: 0.80), dot 1.0
+
+**Audit 3ב.3 ✓:**
+- 4 תוויות בתוך plot area, ללא חפיפה עם ציר Y ✅
+- כל dot מימין לטקסט ✅
+- "תנודתי" בכל המקומות (label + popover) ✅
+- 107/107 | TypeScript clean ✅
+
+---
 
 ### UI Session 3ב.2 — /charts Controls Row 2 + Label Fix ✅
 
@@ -8,14 +31,8 @@
 
 **מה תוקן:**
 - **Row 2 תמיד גלוי** — הוסר ה-`maxHeight: hasGroupOrCat ? 40 : 0` שהסתיר period/currency/toggle עד בחירת קבוצה. Row 2 עכשיו `height: 44px` תמיד. Classification pills עדיין מותנים ב-`hasGroupOrCat`.
-- **QuadrantLabel direction** — נוסף `direction: "ltr"` מפורש. ה-global `html { direction: rtl }` גרם ל-RTL flex שהפך את סדר dot+text. Offset הוגדל מ-64 ל-80px.
+- **QuadrantLabel direction** — נוסף `direction: "ltr"` מפורש. ה-global `html { direction: rtl }` גרם ל-RTL flex שהפך את סדר dot+text.
 - **Sticky תקין:** AppHeader top:0 h:52 | Controls top:52 h:88 (44+44) | chart bottom 830 < 900 viewport ✅
-
-**Audit 3ב.2 ✓:**
-- Row 2 גלויה תמיד: toggle + ILS + USD + period selects ✅
-- Labels: dir:ltr, not clipped, כל אחת עם dot ✅
-- Sub-tabs, hero ring, חצבים מסוננת, no "גביע הקדוש" — כל רגרסיה ✅
-- 107/107 | TypeScript clean ✅
 
 ---
 
@@ -34,59 +51,17 @@
 - Tooltip: מציג "X/Y שנים (Z%)" לקרנות חלקיות
 - Hero + ranks — מחושב מקרנות מלאות בלבד
 
-#### 2. Quadrant Labels
-- **ימין-תחתון (low risk, high return):** `איכות` — dot ירוק עמוק
-- **ימין-עליון (high risk, high return):** `מומנטום` — dot זהב
-- **שמאל-תחתון (low risk, low return):** `יציבות` — dot כחול-אפור
-- **שמאל-עליון (high risk, low return):** `תנודה` — dot אדום
-- font-size 14, font-weight 600, letter-spacing 2px, uppercase
-
-#### 3. Quadrant Radial Gradients
-- 4 רדיאל-גרדיאנטים בפינות הגרף (opacity נמוכה מאוד)
-- רכיב `QuadrantLabel` — helper component מחוץ ל-ChartsContent
-
-#### 4. ChartHelpPopover — 4 מקטעים
-- **צירים** — ציר אופקי/אנכי/גודל נקודה/קווי גרידה
-- **צבעי הבועות** — 4 רמות צבע עם הסבר
-- **אזורי הגרף** — 4 אזורים עם הסבר סמנטי
-- **אמינות נתונים** — הסבר על סינון completeness + toggle
-- width: 420px
-
-#### 5. Terminology Update
+#### 2. Quadrant Labels + Gradients
+- 4 labels semantic עם radial gradients בפינות
+- ChartHelpPopover — 4 מקטעים
 - "גביע הקדוש" → "איכות" בכל מקום
-- InsightsBlock: "אזור איכות — שארפ ≥ percentile 80 ותשואה ≥ percentile 70"
-
-#### 6. Code Quality
-- `ShapeDotProps` interface — ללא `any` ב-Recharts shape renderer
-- `COLORS` as const — single source of truth
-- כל מספרים עם `fontVariantNumeric: "tabular-nums"`
-- Transitions: `200ms cubic-bezier(0.4, 0, 0.2, 1)`
-
-**אומת (Visual Diff Audit 13/13 ✓):**
-- חצבים וואליו נסתר בברירת מחדל ✅
-- Toggle OFF כברירת מחדל ✅  
-- Toggle ON → 47 קרנות + 24 בועות partial עם opacity 0.4 ✅
-- 4 labels בDOM ✅, כל label עם dot ✅
-- 4 radial gradients ✅
-- Popover 4 מקטעים ✅
-- אין "גביע הקדוש" / "סיכון גבוה תשואה נמוכה" ✅
-- Viewport 1440×900: chartBottom=830 < 900 ✅
-- 107/107 tests ✅, TypeScript clean ✅
 
 ---
 
 ## מה הושלם לפני כן (11/05/2026 — Sessions 3א+3ב)
 
 ### UI Session 3ב — /charts Hero Treatment ✅
-- Full-bleed chart container, ResponsiveContainer
-- Semantic bubble colors (4 רמות)
-- Custom shape renderer, Hero ring + label
-- bubbleIn animations, ChartHelpPopover, InsightsBlock
-
 ### UI Session 3א — /charts Foundation ✅
-- הוסר header ישן → AppHeader גלובלי
-- Controls bar 2 שורות (sticky top:52)
-- InsightsBlock שדרוג, PrintLegend polish
 
 ---
 
@@ -138,9 +113,9 @@
 | | |
 |---|---|
 | **tests** | 107/107 ✅ |
-| **branch main** | `831798f` merge: charts trust filter + semantic quadrants |
+| **branch main** | `e6490c8` merge: charts quadrant labels inside plot area (session 3ב.3) |
 | **Vercel** | auto-deploy on push to main |
 
 ---
 
-*Generated: 2026-05-11 | UI Unification Session 3ב.1*
+*Generated: 2026-05-11 | UI Unification Session 3ב.3*
