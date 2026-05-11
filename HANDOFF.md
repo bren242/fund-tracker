@@ -1,72 +1,44 @@
-# HANDOFF.md — סשן 11/05/2026 — UI Sessions 3ב.1+3ב.2+3ב.3: /charts Complete
+# HANDOFF.md — סשן 12/05/2026 — UI Session 3ב.5: /charts Quadrant Watermark
 
 ## מה הושלם היום
 
-### UI Session 3ב.3 — /charts Quadrant Label Positioning ✅
+### UI Session 3ב.5 — /charts Quadrant Labels as Watermark ✅
 
-**קובץ:** `app/charts/page.tsx` (commit `06e5a91`)
+**קובץ:** `app/charts/page.tsx` (commit `e07e8d5`, merge `dd158c9`)
 
-**מה תוקן:**
-- **מיקום תוויות בתוך plot area** — היו ב-`top:44/bottom:68/left:80/right:80` שגרם לחפיפה עם ציר Y. עכשיו `top:64, bottom:84, left:84, right:84` (margin + 24px clearance).
-- **מיפוי semantics מחדש:**
-  - ימין-עליון (high risk, high return): `מומנטום` — dot זהב
-  - ימין-תחתון (low risk, high return): `איכות` — dot ירוק עמוק
-  - שמאל-עליון (high risk, low return): `תנודתי` — dot אדום
-  - שמאל-תחתון (low risk, low return): `יציבות` — dot כחול-אפור
-- **"תנודה" → "תנודתי"** — בכל label calls + popover section 3
-- **כל 4 תוויות עם `dotLeft`** — dot מופיע מימין לטקסט (ב-`direction:ltr`)
-- **opacity:** text 0.85 (תנודתי: 0.80), dot 1.0
+**הבעיה:** 4 סשנים של תיקוני מיקום שכל אחד שבר משהו אחר. הסיבה: התוויות הפכו מ"רמז ויזואלי" ל"תווית פונקציונלית". חזרה ל-vision המקורי.
 
-**Audit 3ב.3 ✓:**
-- 4 תוויות בתוך plot area, ללא חפיפה עם ציר Y ✅
-- כל dot מימין לטקסט ✅
-- "תנודתי" בכל המקומות (label + popover) ✅
+**מה בוצע:**
+- **QuadrantLabel → QuadrantWatermark** — component חדש לחלוטין
+- **Opacity 0.22** — לעולם לא מתחרה עם הצירים גם אם נוגעת בהם
+- **ללא נקודה צבעונית** — הוסרה לחלוטין
+- **fontSize 16, fontWeight 500, letterSpacing 3** — watermark feel, לא label feel
+- **QUADRANT_LABELS const** — מערך מרכזי, rendering בלולאה
+- **Positions:** top-right=12/18, top-left=12/18, bottom-right=48/18, bottom-left=48/18 (bottom:48 כי ציר X תופס ~40px)
+- **Popover section 3** — הוסרו dots צבעוניים, עכשיו 4 שורות טקסט פשוטות עם label מודגש
+
+**מיפוי סמנטי סופי:**
+- top-right: `איכות` — ירוק עמוק
+- top-left: `יציבות` — כחול-אפור
+- bottom-right: `מומנטום` — זהב
+- bottom-left: `תנודתי` — אדום
+
+**Audit 3ב.5 ✓:**
+- 4 תוויות בDOM עם opacity 0.22 ✅
+- `hasDot: false` — אין נקודה ✅
+- `chartBottom: 874 < 900` ✅
+- xAxis + yAxis גלויים ✅
+- 23 scatter points ✅
 - 107/107 | TypeScript clean ✅
 
 ---
 
-### UI Session 3ב.2 — /charts Controls Row 2 + Label Fix ✅
+## מה הושלם לפני כן (11/05/2026 — Sessions 3ב.1–3ב.3)
 
-**קובץ:** `app/charts/page.tsx` (commit `eb99e62`)
-
-**מה תוקן:**
-- **Row 2 תמיד גלוי** — הוסר ה-`maxHeight: hasGroupOrCat ? 40 : 0` שהסתיר period/currency/toggle עד בחירת קבוצה. Row 2 עכשיו `height: 44px` תמיד. Classification pills עדיין מותנים ב-`hasGroupOrCat`.
-- **QuadrantLabel direction** — נוסף `direction: "ltr"` מפורש. ה-global `html { direction: rtl }` גרם ל-RTL flex שהפך את סדר dot+text.
-- **Sticky תקין:** AppHeader top:0 h:52 | Controls top:52 h:88 (44+44) | chart bottom 830 < 900 viewport ✅
-
----
-
-### UI Session 3ב.1 — /charts Data Trust + Semantic Quadrants ✅
-
-**קובץ:** `app/charts/page.tsx` — שכתוב מלא (commit `b482a42`)
-
-**מה בוצע:**
-
-#### 1. Completeness Filter
-- `COMPLETENESS_THRESHOLD = 0.95` — מציג רק קרנות עם ≥95% כיסוי היסטורי
-- Fallback: כשאין `monthlyReturns` → משתמש בכיסוי שנתי (כל שנה עם ערך = 12 חודשים)
-- ברירת מחדל: 23 מתוך 39 קרנות עוברות סינון (2020–2025)
-- Toggle "היסטוריה חלקית" בשורה 2 — OFF כברירת מחדל
-- קרנות חלקיות: `opacity: 0.4` + `strokeDasharray: "4 3"` (stroke מנוקד)
-- Tooltip: מציג "X/Y שנים (Z%)" לקרנות חלקיות
-- Hero + ranks — מחושב מקרנות מלאות בלבד
-
-#### 2. Quadrant Labels + Gradients
-- 4 labels semantic עם radial gradients בפינות
-- ChartHelpPopover — 4 מקטעים
-- "גביע הקדוש" → "איכות" בכל מקום
-
----
-
-## מה הושלם לפני כן (11/05/2026 — Sessions 3א+3ב)
-
-### UI Session 3ב — /charts Hero Treatment ✅
-### UI Session 3א — /charts Foundation ✅
-
----
-
-## מה הושלם לפני כן (10/05/2026)
-*(ראה HANDOFF גרסה קודמת)*
+### 3ב.3 — Label Positioning (גישה ישנה, הוחלפה ב-3ב.5)
+### 3ב.2 — Controls Row 2 Always Visible + Direction Fix ✅
+### 3ב.1 — Data Trust + Semantic Quadrants + Completeness Filter ✅
+### 3ב/3א — Hero Treatment + Foundation ✅
 
 ---
 
@@ -113,9 +85,9 @@
 | | |
 |---|---|
 | **tests** | 107/107 ✅ |
-| **branch main** | `e6490c8` merge: charts quadrant labels inside plot area (session 3ב.3) |
+| **branch main** | `dd158c9` merge: charts quadrant labels as watermark (session 3ב.5) |
 | **Vercel** | auto-deploy on push to main |
 
 ---
 
-*Generated: 2026-05-11 | UI Unification Session 3ב.3*
+*Generated: 2026-05-12 | UI Unification Session 3ב.5*
