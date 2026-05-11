@@ -271,6 +271,16 @@ function AnalysisContent() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const searchRef = useRef<HTMLDivElement>(null);
+  const controlsRef = useRef<HTMLDivElement>(null);
+  const [controlsHeight, setControlsHeight] = useState(100);
+
+  useEffect(() => {
+    const el = controlsRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => { setControlsHeight(el.offsetHeight); });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     fetch(`/api/funds?client=${encodeURIComponent(clientKey)}`).then((r) => r.json()).then(setData);
@@ -362,7 +372,7 @@ function AnalysisContent() {
       <div style={{ minHeight: "100vh", backgroundColor: "#f8f9fa", fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif", ...(brandCssVars(primary, brand.accentColor) as React.CSSProperties) }}>
 
         {/* ── Sticky controls: filter + sort ── */}
-        <div style={{ position: "sticky", top: 52, zIndex: 99, background: "#FAFAF7" }}>
+        <div ref={controlsRef} style={{ position: "sticky", top: 52, zIndex: 99, background: "#FAFAF7" }}>
 
         {/* FILTER BAR */}
         <div
@@ -437,7 +447,7 @@ function AnalysisContent() {
             <div style={{ background: "#fff", border: "0.5px solid #e8ecee", borderRadius: 16, overflow: "clip", maxWidth: 900, margin: "0 auto" }}>
 
               {/* Header */}
-              <div style={{ display: "grid", gridTemplateColumns: COL, padding: "11px 24px", background: "#fafbfc", borderBottom: "0.5px solid #eaecee", direction: "rtl" }}>
+              <div style={{ position: "sticky", top: 52 + controlsHeight, zIndex: 5, display: "grid", gridTemplateColumns: COL, padding: "11px 24px", background: "#fafbfc", borderBottom: "0.5px solid #eaecee", direction: "rtl" }}>
                 {(() => {
                   const latestMonth = getLatestReportMonth(filteredFunds);
                   const sortLabel = sortKey === "MTD" && latestMonth
