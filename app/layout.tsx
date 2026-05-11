@@ -5,11 +5,16 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import AppHeader from "@/components/AppHeader";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "מעקב קרנות השקעה",
-  description: "מערכת מעקב קרנות השקעה",
-  icons: { icon: "/favicon.svg" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const h = await headers();
+  const pathname = h.get("x-pathname") || "";
+  const isNox = pathname.includes("/nox");
+  return {
+    title: isNox ? "NOX Wealth Management" : "GREEN Wealth Management",
+    description: "מערכת מעקב קרנות השקעה",
+    icons: { icon: isNox ? "/branding/nox/favicon.svg" : "/favicon.svg" },
+  };
+}
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const h = await headers();
