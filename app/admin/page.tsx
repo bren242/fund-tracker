@@ -11,7 +11,7 @@ import {
   computeSharpe,
   computeStdDev,
 } from "@/lib/metrics";
-import { getLastUpdated } from "@/lib/fundDerived";
+import { getLastUpdated, getNoxYtd2026 } from "@/lib/fundDerived";
 import { ThemeToggle } from "@/components/ThemeProvider";
 import { useBrand, invalidateBrandCache } from "@/lib/useBrand";
 import { useClientKey, withClient } from "@/lib/useClientKey";
@@ -693,14 +693,27 @@ function MonthlyRow({ fund, categoryId: _categoryId, odd, password, clientKey, o
     return base;
   }, [fund.monthlyReturns, selectedMonth, previewValue]);
 
-  const computed = useMemo(() => ({
-    ytd2026: computeYTDFromMonthlyReturns(previewMr, "2026"),
-    y2025:   computeAnnualReturn(previewMr, 2025),
-    y2024:   computeAnnualReturn(previewMr, 2024),
-    cagr:    computeAvgAnnualReturn(previewMr),
-    sharpe:  computeSharpe(previewMr),
-    stdDev:  computeStdDev(previewMr),
-  }), [previewMr]);
+  const isNoxClient = clientKey === "nox";
+  const computed = useMemo(() => {
+    if (isNoxClient) {
+      return {
+        ytd2026: getNoxYtd2026(fund),
+        y2025:   fund.returns?.y2025 ?? null,
+        y2024:   fund.returns?.y2024 ?? null,
+        cagr:    fund.avgAnnualReturn,
+        sharpe:  fund.sharpe,
+        stdDev:  fund.stdDev,
+      };
+    }
+    return {
+      ytd2026: computeYTDFromMonthlyReturns(previewMr, "2026"),
+      y2025:   computeAnnualReturn(previewMr, 2025),
+      y2024:   computeAnnualReturn(previewMr, 2024),
+      cagr:    computeAvgAnnualReturn(previewMr),
+      sharpe:  computeSharpe(previewMr),
+      stdDev:  computeStdDev(previewMr),
+    };
+  }, [previewMr, isNoxClient, fund]);
 
   const isPreview = previewValue !== null;
   const canSave = isPreview && !saving;

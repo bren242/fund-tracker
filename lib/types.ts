@@ -25,6 +25,7 @@ export interface Fund {
   active?: boolean;
   currency?: "ILS" | "USD";
   monthlyReturns?: Record<string, number>;
+  monthlyReturns2026?: Record<string, number>; // keys: "01".."12", values: decimal (0.012 = 1.2%)
   monthlyDirection?: "LTR" | "RTL" | null;
 }
 

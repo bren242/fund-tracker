@@ -5,7 +5,7 @@ import { Category, Fund } from "@/lib/types";
 import { pct, num, returnColorInline, formatReportDate } from "@/lib/format";
 import FundOnePagerModal from "./FundOnePagerModal";
 import { useBrand } from "@/lib/useBrand";
-import { getYTD, getAnnualReturn, getSharpe, getStdDev, getAvgAnnualReturn, getLatestMonthly, getLastUpdated } from "@/lib/fundDerived";
+import { getYTD, getAnnualReturn, getSharpe, getStdDev, getAvgAnnualReturn, getLatestMonthly, getLastUpdated, getNoxYtd2026, getNoxLatestMonthly } from "@/lib/fundDerived";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type TimeRange     = "ytd" | "12m" | "3y" | "5y" | "max" | "custom";
@@ -140,7 +140,7 @@ function getYearReturn(fund: Fund, year: YearKey): number | null {
 function calcNoxMultiReturn(fund: Fund, years: NoxSelectYear[]): number | null {
   if (years.length === 0) return null;
   const getVal = (y: NoxSelectYear): number | null =>
-    y === "ytd2026" ? getYTD(fund, 2026) : getAnnualReturn(fund, parseInt(y));
+    y === "ytd2026" ? getNoxYtd2026(fund) : getAnnualReturn(fund, parseInt(y));
   if (years.length === 1) return getVal(years[0]);
   const vals: number[] = [];
   for (const y of years) {
@@ -374,8 +374,42 @@ function MonthlyPills({ monthlyReturns }: { monthlyReturns?: Record<string, numb
   );
 }
 
+// ── Monthly2026 Pills (NOX) ────────────────────────────────────────────────
+const MONTH_HE_FULL_SHORT: Record<string, string> = {
+  "01": "ינו", "02": "פבר", "03": "מרץ", "04": "אפר",
+  "05": "מאי", "06": "יוני", "07": "יול", "08": "אוג",
+  "09": "ספט", "10": "אוק", "11": "נוב", "12": "דצמ",
+};
+
+function Monthly2026Pills({ returns2026 }: { returns2026: Record<string, number> }) {
+  const entries = Object.entries(returns2026).sort((a, b) => a[0].localeCompare(b[0]));
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+      {entries.map(([mm, val]) => {
+        const isPos = val > 0.00005;
+        const isNeg = val < -0.00005;
+        return (
+          <div
+            key={mm}
+            title={`${MONTH_HE_FULL_SHORT[mm] || mm} 2026: ${(val * 100).toFixed(2)}%`}
+            style={{
+              padding: "2px 7px", borderRadius: 6, fontSize: 10,
+              fontVariantNumeric: "tabular-nums",
+              backgroundColor: isPos ? "#d1fae5" : isNeg ? "#fee2e2" : "var(--bg-surface-alt)",
+              color: isPos ? "#065f46" : isNeg ? "#991b1b" : "var(--text-muted)",
+              border: `1px solid ${isPos ? "#a7f3d0" : isNeg ? "#fca5a5" : "var(--border-table)"}`,
+            }}
+          >
+            {MONTH_HE_FULL_SHORT[mm] || mm} {isPos ? "+" : ""}{(val * 100).toFixed(1)}%
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Accordion Panel ────────────────────────────────────────────────────────
-function AccordionPanel({ fund }: { fund: Fund }) {
+function AccordionPanel({ fund, isNox }: { fund: Fund; isNox?: boolean }) {
   const cumulative = calcCumulative(fund);
   const derivedStdDev = getStdDev(fund);
   const derivedSharpe = getSharpe(fund);
@@ -415,10 +449,19 @@ function AccordionPanel({ fund }: { fund: Fund }) {
           </div>
 
           {/* Monthly pills */}
-          <div>
-            <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 8 }}>12 חודשים אחרונים</div>
-            <MonthlyPills monthlyReturns={fund.monthlyReturns} />
-          </div>
+          {isNox ? (
+            fund.monthlyReturns2026 && Object.keys(fund.monthlyReturns2026).length > 0 ? (
+              <div>
+                <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 8 }}>חודשי 2026</div>
+                <Monthly2026Pills returns2026={fund.monthlyReturns2026} />
+              </div>
+            ) : null
+          ) : (
+            <div>
+              <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 8 }}>12 חודשים אחרונים</div>
+              <MonthlyPills monthlyReturns={fund.monthlyReturns} />
+            </div>
+          )}
         </div>
       </td>
     </tr>
@@ -429,7 +472,7 @@ function AccordionPanel({ fund }: { fund: Fund }) {
 function FundRowV2({
   fund, even, comparisonEnabled, isSelected, onToggle, selectionDisabled,
   accentColor, periodReturn, annualAvg, isOpen, onToggleAccordion, isFirst,
-  aiAvailable, onOpenAi, consistencyHref, latestMonth, timeRange,
+  aiAvailable, onOpenAi, consistencyHref, latestMonth, timeRange, isNox,
 }: {
   fund: Fund;
   even: boolean;
@@ -449,12 +492,13 @@ function FundRowV2({
   consistencyHref?: string;
   latestMonth: string | null;
   timeRange: TimeRange;
+  isNox?: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
   const bg = even ? "#ffffff" : "#fafafa";
   const classBadge = getClassBadge(fund.classification || "");
   const derivedSharpe = getSharpe(fund);
-  const derivedMonthly = getLatestMonthly(fund);
+  const derivedMonthly = isNox ? getNoxLatestMonthly(fund) : getLatestMonthly(fund);
   const shColor = sharpeColor(derivedSharpe);
 
   // Update-status for lastUpdated column
@@ -686,6 +730,7 @@ export default function FundTableV2({
 
   // Brand — read once per clientKey; used to gate aiReport feature flag
   const brand = useBrand(clientKey || "");
+  const isNox = clientKey === "nox";
 
   // AI One-Pager: available only if (1) brand.features.aiReport is on AND
   //               (2) ANTHROPIC_API_KEY is configured on the server
@@ -1131,6 +1176,7 @@ export default function FundTableV2({
                           onOpenAi={setAiFundId}
                           latestMonth={latestMonth}
                           timeRange={timeRange}
+                          isNox={isNox}
                           consistencyHref={
                             clientKey && (clientKey === "green" || brand.features?.consistencyAnalysis === true)
                               ? (clientKey === "green"
@@ -1141,7 +1187,7 @@ export default function FundTableV2({
                         />
                       );
                       if (isOpen) {
-                        rows.push(<AccordionPanel key={`${fund.id}-panel`} fund={fund} />);
+                        rows.push(<AccordionPanel key={`${fund.id}-panel`} fund={fund} isNox={isNox} />);
                       }
                     });
 
