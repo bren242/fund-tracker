@@ -8,8 +8,9 @@ import { useBrand } from "@/lib/useBrand";
 import { getYTD, getAnnualReturn, getSharpe, getStdDev, getAvgAnnualReturn, getLatestMonthly, getLastUpdated } from "@/lib/fundDerived";
 
 // ── Types ──────────────────────────────────────────────────────────────────
-type TimeRange = "ytd" | "12m" | "3y" | "5y" | "max" | "custom";
-type YearKey   = "2020" | "2021" | "2022" | "2023" | "2024" | "2025" | "ytd2026" | "avg";
+type TimeRange     = "ytd" | "12m" | "3y" | "5y" | "max" | "custom";
+type YearKey       = "2020" | "2021" | "2022" | "2023" | "2024" | "2025" | "ytd2026" | "avg";
+type NoxSelectYear = "2020" | "2021" | "2022" | "2023" | "2024" | "2025" | "ytd2026";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 const MONTH_HE: Record<string, string> = {
@@ -45,6 +46,16 @@ const YEAR_OPTIONS: { key: YearKey; label: string }[] = [
   { key: "2025",    label: "2025" },
   { key: "ytd2026", label: "YTD 2026" },
   { key: "avg",     label: "ממוצע שנתי" },
+];
+
+const NOX_YEAR_OPTIONS: { key: NoxSelectYear; label: string }[] = [
+  { key: "2020",    label: "2020" },
+  { key: "2021",    label: "2021" },
+  { key: "2022",    label: "2022" },
+  { key: "2023",    label: "2023" },
+  { key: "2024",    label: "2024" },
+  { key: "2025",    label: "2025" },
+  { key: "ytd2026", label: "YTD" },
 ];
 
 const TIME_RANGE_OPTIONS: { key: TimeRange; label: string }[] = [
@@ -126,6 +137,20 @@ function getYearReturn(fund: Fund, year: YearKey): number | null {
   return getAnnualReturn(fund, parseInt(year));
 }
 
+function calcNoxMultiReturn(fund: Fund, years: NoxSelectYear[]): number | null {
+  if (years.length === 0) return null;
+  const getVal = (y: NoxSelectYear): number | null =>
+    y === "ytd2026" ? getYTD(fund, 2026) : getAnnualReturn(fund, parseInt(y));
+  if (years.length === 1) return getVal(years[0]);
+  const vals: number[] = [];
+  for (const y of years) {
+    const v = getVal(y);
+    if (v === null) return null;
+    vals.push(v);
+  }
+  return Math.pow(vals.reduce((a, r) => a * (1 + r), 1), 1 / vals.length) - 1;
+}
+
 /** ממוצע שנתי מ-y2020 עד y2025 — שנים עם ערך בלבד (YTD לא נכלל) */
 function calcAnnualAvgFromReturns(fund: Fund): number | null {
   const years = [2020, 2021, 2022, 2023, 2024, 2025] as const;
@@ -172,6 +197,45 @@ function SegmentedControl({ value, onChange }: { value: TimeRange; onChange: (v:
               borderRadius: active ? 3 : 0,
               cursor: "pointer",
               backgroundColor: active ? "#1B3A2F" : "transparent",
+              color: active ? "#ffffff" : "rgba(27, 58, 47, 0.6)",
+              transition: "all 0.12s",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── NOX Year Selector (multi-select) ──────────────────────────────────────
+function NoxYearSelector({ selected, onToggle }: {
+  selected: NoxSelectYear[];
+  onToggle: (y: NoxSelectYear) => void;
+}) {
+  return (
+    <div style={{
+      display: "inline-flex",
+      background: "#F4F3EF",
+      borderRadius: 5,
+      padding: 2,
+      flexShrink: 0,
+    }}>
+      {NOX_YEAR_OPTIONS.map((o) => {
+        const active = selected.includes(o.key);
+        return (
+          <button
+            key={o.key}
+            onClick={() => onToggle(o.key)}
+            style={{
+              padding: "4px 9px", fontSize: 11,
+              fontWeight: active ? 500 : 400,
+              border: "none",
+              borderRadius: active ? 3 : 0,
+              cursor: "pointer",
+              backgroundColor: active ? "#c8a96b" : "transparent",
               color: active ? "#ffffff" : "rgba(27, 58, 47, 0.6)",
               transition: "all 0.12s",
               whiteSpace: "nowrap",
@@ -669,9 +733,13 @@ export default function FundTableV2({
   }, [searchQuery]);
 
   // Year-mode: activated when no fund has monthlyReturns data (e.g. NOX)
-  const [isYearMode, setIsYearMode]     = useState(false);
-  const [selectedYear, setSelectedYear] = useState<YearKey>("2025");
+  const [isYearMode, setIsYearMode]         = useState(false);
+  const [selectedYears, setSelectedYears]   = useState<NoxSelectYear[]>(["ytd2026"]);
   const modeDetected = useRef(false);
+
+  const toggleNoxYear = (y: NoxSelectYear) => setSelectedYears(prev =>
+    prev.includes(y) ? (prev.length === 1 ? prev : prev.filter(k => k !== y)) : [...prev, y]
+  );
   useEffect(() => {
     if (modeDetected.current || categories.length === 0) return;
     const hasMonthly = categories.some(cat =>
@@ -758,9 +826,13 @@ export default function FundTableV2({
   // Column header label for period column
   const periodLabel = useMemo(() => {
     if (isYearMode) {
-      if (selectedYear === "ytd2026") return "YTD 2026";
-      if (selectedYear === "avg")     return "ממוצע שנתי";
-      return selectedYear;
+      if (selectedYears.length === 1) {
+        const y = selectedYears[0];
+        return y === "ytd2026" ? "YTD 2026" : y;
+      }
+      const order: NoxSelectYear[] = ["2020","2021","2022","2023","2024","2025","ytd2026"];
+      const sorted = [...selectedYears].sort((a, b) => order.indexOf(a) - order.indexOf(b));
+      return sorted.map(y => y === "ytd2026" ? "YTD" : y).join(" + ");
     }
     if (timeRange === "custom") {
       const fOpt = MONTH_OPTIONS.find(o => o.value === customFrom);
@@ -772,7 +844,7 @@ export default function FundTableV2({
       "3y": "3 שנים", "5y": "5 שנים", max: "מקס", custom: "",
     };
     return labels[timeRange];
-  }, [isYearMode, selectedYear, timeRange, customFrom, customTo]);
+  }, [isYearMode, selectedYears, timeRange, customFrom, customTo]);
 
   const thBase: React.CSSProperties = {
     position: "sticky",
@@ -874,19 +946,25 @@ export default function FundTableV2({
           {/* Spacer */}
           <div style={{ flex: 1 }} />
 
-          {/* Time range */}
+          {/* Time range / year selector */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
-            <SegmentedControl value={timeRange} onChange={(v) => { setTimeRange(v); resetAccordions(); }} />
-            {timeRange === "custom" && (
+            {isYearMode ? (
+              <NoxYearSelector selected={selectedYears} onToggle={toggleNoxYear} />
+            ) : (
               <>
-                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>מ-</span>
-                <select value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={selectStyle}>
-                  {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>עד</span>
-                <select value={customTo} onChange={e => setCustomTo(e.target.value)} style={selectStyle}>
-                  {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
+                <SegmentedControl value={timeRange} onChange={(v) => { setTimeRange(v); resetAccordions(); }} />
+                {timeRange === "custom" && (
+                  <>
+                    <span style={{ fontSize: 11, color: "var(--text-muted)" }}>מ-</span>
+                    <select value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={selectStyle}>
+                      {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                    <span style={{ fontSize: 11, color: "var(--text-muted)" }}>עד</span>
+                    <select value={customTo} onChange={e => setCustomTo(e.target.value)} style={selectStyle}>
+                      {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -1027,7 +1105,7 @@ export default function FundTableV2({
                     cat.funds.forEach((fund, fi) => {
                       const isOpen = openAccordions.has(fund.id);
                       const periodReturn = isYearMode
-                        ? getYearReturn(fund, selectedYear)
+                        ? calcNoxMultiReturn(fund, selectedYears)
                         : calcRangeReturn(fund.monthlyReturns, rangeFrom, rangeTo);
                       // yearMode: ממוצע שנתי מ-y2020–y2025 (לא תלוי monthlyReturns)
                       const annualAvg = isYearMode
