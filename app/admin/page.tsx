@@ -11,7 +11,7 @@ import {
   computeSharpe,
   computeStdDev,
 } from "@/lib/metrics";
-import { getLastUpdated } from "@/lib/fundDerived";
+import { getLastUpdated, getNoxYtd2026 } from "@/lib/fundDerived";
 import { ThemeToggle } from "@/components/ThemeProvider";
 import { useBrand, invalidateBrandCache } from "@/lib/useBrand";
 import { useClientKey, withClient } from "@/lib/useClientKey";
@@ -644,7 +644,19 @@ function MonthlyRow({ fund, categoryId: _categoryId, odd, password, clientKey, o
   password: string; clientKey: string;
   onAfterSave: () => void;
 }) {
+  const isNoxClient = clientKey === "nox";
+
   const defaultMonth = useMemo(() => {
+    if (isNoxClient) {
+      const mr2026 = fund.monthlyReturns2026 ?? {};
+      const keys = Object.keys(mr2026).sort();
+      if (keys.length === 0) {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      }
+      const latestMo = parseInt(keys.at(-1)!);
+      return latestMo === 12 ? "2027-01" : `2026-${String(latestMo + 1).padStart(2, "0")}`;
+    }
     const latest = computeLatestMonth(fund.monthlyReturns ?? {});
     if (!latest) {
       const d = new Date();
@@ -660,6 +672,11 @@ function MonthlyRow({ fund, categoryId: _categoryId, odd, password, clientKey, o
 
   const [selectedMonth, setSelectedMonth] = useState(defaultMonth);
   const [mtdInput, setMtdInput] = useState(() => {
+    if (isNoxClient) {
+      const mm = defaultMonth.slice(5, 7);
+      const existing = (fund.monthlyReturns2026 as Record<string, number> | undefined)?.[mm];
+      return typeof existing === "number" ? (existing * 100).toFixed(2) : "";
+    }
     const existing = (fund.monthlyReturns as Record<string, number> | undefined)?.[defaultMonth];
     return typeof existing === "number" ? (existing * 100).toFixed(2) : "";
   });
@@ -672,8 +689,14 @@ function MonthlyRow({ fund, categoryId: _categoryId, odd, password, clientKey, o
   useEffect(() => { setCurrVal(fund.currency ?? ""); }, [fund.currency]);
 
   useEffect(() => {
-    const existing = (fund.monthlyReturns as Record<string, number> | undefined)?.[selectedMonth];
-    setMtdInput(typeof existing === "number" ? (existing * 100).toFixed(2) : "");
+    if (isNoxClient) {
+      const mm = selectedMonth.slice(5, 7);
+      const existing = (fund.monthlyReturns2026 as Record<string, number> | undefined)?.[mm];
+      setMtdInput(typeof existing === "number" ? (existing * 100).toFixed(2) : "");
+    } else {
+      const existing = (fund.monthlyReturns as Record<string, number> | undefined)?.[selectedMonth];
+      setMtdInput(typeof existing === "number" ? (existing * 100).toFixed(2) : "");
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMonth]);
 
@@ -693,44 +716,83 @@ function MonthlyRow({ fund, categoryId: _categoryId, odd, password, clientKey, o
     return base;
   }, [fund.monthlyReturns, selectedMonth, previewValue]);
 
-  const computed = useMemo(() => ({
-    ytd2026: computeYTDFromMonthlyReturns(previewMr, "2026"),
-    y2025:   computeAnnualReturn(previewMr, 2025),
-    y2024:   computeAnnualReturn(previewMr, 2024),
-    cagr:    computeAvgAnnualReturn(previewMr),
-    sharpe:  computeSharpe(previewMr),
-    stdDev:  computeStdDev(previewMr),
-  }), [previewMr]);
+  const computed = useMemo(() => {
+    if (isNoxClient) {
+      const base: Record<string, number> = { ...(fund.monthlyReturns2026 ?? {}) };
+      if (previewValue !== null && selectedMonth.startsWith("2026-")) {
+        base[selectedMonth.slice(5, 7)] = previewValue;
+      }
+      const ytd2026 = Object.keys(base).length > 0
+        ? Object.values(base).reduce((acc, r) => acc * (1 + r), 1) - 1
+        : fund.returns?.ytd2026 ?? null;
+      return {
+        ytd2026,
+        y2025: fund.returns?.y2025 ?? null,
+        y2024: fund.returns?.y2024 ?? null,
+        cagr:  fund.avgAnnualReturn,
+        sharpe: fund.sharpe,
+        stdDev: fund.stdDev,
+      };
+    }
+    return {
+      ytd2026: computeYTDFromMonthlyReturns(previewMr, "2026"),
+      y2025:   computeAnnualReturn(previewMr, 2025),
+      y2024:   computeAnnualReturn(previewMr, 2024),
+      cagr:    computeAvgAnnualReturn(previewMr),
+      sharpe:  computeSharpe(previewMr),
+      stdDev:  computeStdDev(previewMr),
+    };
+  }, [previewMr, isNoxClient, fund, selectedMonth, previewValue]);
 
   const isPreview = previewValue !== null;
-  const canSave = isPreview && !saving;
-  const monthHasData = (fund.monthlyReturns as Record<string, number> | undefined)?.[selectedMonth] !== undefined;
+  const canSave = isPreview && !saving && (!isNoxClient || selectedMonth.startsWith("2026-"));
+  const monthHasData = isNoxClient
+    ? (fund.monthlyReturns2026 as Record<string, number> | undefined)?.[selectedMonth.slice(5, 7)] !== undefined
+    : (fund.monthlyReturns as Record<string, number> | undefined)?.[selectedMonth] !== undefined;
 
   async function handleDelete() {
     if (!window.confirm(`למחוק את ${selectedMonth} מ-${fund.name}?`)) return;
     setSaving(true);
-    const res = await fetch(`/api/funds?action=delete-monthly-return&client=${encodeURIComponent(clientKey)}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", "x-admin-password": password },
-      body: JSON.stringify({ fundId: fund.id, month: selectedMonth }),
-    });
-    setSaving(false);
-    if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 2000); onAfterSave(); }
+    if (isNoxClient) {
+      const monthKey = selectedMonth.slice(5, 7);
+      const res = await fetch(`/api/funds?action=delete-nox-monthly-2026&client=${encodeURIComponent(clientKey)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-admin-password": password },
+        body: JSON.stringify({ fundId: fund.id, monthKey }),
+      });
+      setSaving(false);
+      if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 2000); onAfterSave(); }
+    } else {
+      const res = await fetch(`/api/funds?action=delete-monthly-return&client=${encodeURIComponent(clientKey)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-admin-password": password },
+        body: JSON.stringify({ fundId: fund.id, month: selectedMonth }),
+      });
+      setSaving(false);
+      if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 2000); onAfterSave(); }
+    }
   }
 
   async function handleSave() {
     if (!canSave || previewValue === null) return;
     setSaving(true);
-    const res = await fetch(`/api/funds?action=set-monthly-return&client=${encodeURIComponent(clientKey)}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", "x-admin-password": password },
-      body: JSON.stringify({ fundId: fund.id, month: selectedMonth, value: previewValue }),
-    });
-    setSaving(false);
-    if (res.ok) {
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
-      onAfterSave();
+    if (isNoxClient) {
+      const monthKey = selectedMonth.slice(5, 7);
+      const res = await fetch(`/api/funds?action=set-nox-monthly-2026&client=${encodeURIComponent(clientKey)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-admin-password": password },
+        body: JSON.stringify({ fundId: fund.id, monthKey, value: previewValue }),
+      });
+      setSaving(false);
+      if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500); onAfterSave(); }
+    } else {
+      const res = await fetch(`/api/funds?action=set-monthly-return&client=${encodeURIComponent(clientKey)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-admin-password": password },
+        body: JSON.stringify({ fundId: fund.id, month: selectedMonth, value: previewValue }),
+      });
+      setSaving(false);
+      if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500); onAfterSave(); }
     }
   }
 
