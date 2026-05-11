@@ -1,49 +1,17 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useClientKey } from "@/lib/useClientKey";
 import { useBrand } from "@/lib/useBrand";
-import type { AppFeatures } from "@/config/brand";
 
 interface AppHeaderProps {
   fundCount?: number;
 }
 
-type TabKey = "funds" | "analysis" | "tools" | "admin";
-type SubTab = { label: string; path: string; flag?: keyof AppFeatures };
+type TabKey = "funds" | "analysis" | "tools";
 
-const TABS: { key: TabKey; label: string }[] = [
-  { key: "funds",    label: "קרנות" },
-  { key: "analysis", label: "ניתוח" },
-  { key: "tools",    label: "כלים" },
-  { key: "admin",    label: "ניהול" },
-];
-
-const SUB_TABS: Record<TabKey, SubTab[]> = {
-  funds: [],
-  analysis: [
-    { label: "דירוג",   path: "/analysis",    flag: "chartPage" },
-    { label: "גרפים",   path: "/charts",       flag: "chartPage" },
-    { label: "השוואה",  path: "/compare",      flag: "comparison" },
-    { label: "עקביות",  path: "/consistency",  flag: "consistencyAnalysis" },
-  ],
-  tools: [
-    { label: "אינדיקציה",    path: "/indications", flag: "indications" },
-    { label: "סטטוס קרנות", path: "/fund-status",  flag: "fundStatus" },
-  ],
-  admin: [
-    { label: "קרנות",      path: "/admin" },
-    { label: "בנצ'מרקים", path: "/admin/benchmarks", flag: "benchmarks" },
-    { label: "העלאת דוח", path: "/upload",            flag: "desktopUpload" },
-  ],
-};
-
-function filterSubs(subs: SubTab[], features: AppFeatures | undefined): SubTab[] {
-  return subs.filter((s) => !s.flag || (features?.[s.flag] ?? true));
-}
-
-function getActiveTab(pathname: string): TabKey {
+function getActiveTab(pathname: string): TabKey | null {
   if (
     pathname.startsWith("/analysis") || pathname.startsWith("/charts") ||
     pathname.startsWith("/compare")  || pathname.startsWith("/consistency")
@@ -51,14 +19,13 @@ function getActiveTab(pathname: string): TabKey {
   if (pathname.startsWith("/indications") || pathname.startsWith("/fund-status"))
     return "tools";
   if (pathname.startsWith("/admin") || pathname.startsWith("/upload"))
-    return "admin";
+    return null;
   return "funds";
 }
 
 export default function AppHeader({ fundCount: _fundCount = 84 }: AppHeaderProps) {
-  const pathname = usePathname();
-  const router   = useRouter();
-  const [hoveredTab, setHoveredTab] = useState<TabKey | null>(null);
+  const pathname  = usePathname();
+  const router    = useRouter();
   const clientKey = useClientKey();
   const brand     = useBrand(clientKey);
 
@@ -73,36 +40,38 @@ export default function AppHeader({ fundCount: _fundCount = 84 }: AppHeaderProps
     link.href = brand.favicon || "/favicon.svg";
   }, [brand.favicon]);
 
-  const activeTab = getActiveTab(pathname);
-
-  const visibleTabs = TABS.filter((tab) => {
-    const subs = SUB_TABS[tab.key];
-    if (subs.length === 0) return true;
-    return filterSubs(subs, brand.features).length > 0;
-  });
-
-  const visibleSubBar = hoveredTab ?? (filterSubs(SUB_TABS[activeTab], brand.features).length > 0 ? activeTab : null);
-  const subTabs = visibleSubBar ? filterSubs(SUB_TABS[visibleSubBar], brand.features) : [];
-
-  const prefix   = `/${clientKey}`;
-  const navigate = (path: string) => router.push(`${prefix}${path}`);
-  const isSubActive = (path: string) => {
-    const full = `${prefix}${path}`;
-    if (path === "/admin") return pathname === full || pathname === `${prefix}/admin`;
-    return pathname === full || pathname.startsWith(full + "/");
-  };
-
+  const activeTab    = getActiveTab(pathname);
+  const onAdmin      = pathname.startsWith("/admin") || pathname.startsWith("/upload");
+  const prefix       = `/${clientKey}`;
+  const navigate     = (path: string) => router.push(`${prefix}${path}`);
   const accentColor  = brand.accentColor  || "#B8975A";
   const primaryColor = brand.primaryColor || "#1B3A2F";
+  const features     = brand.features;
+
+  // tools tab: show if at least one tool is enabled (default true when no features set)
+  const toolsPath = (features?.indications ?? true) ? "/indications" : "/fund-status";
+  const showTools = (features?.indications ?? true) || (features?.fundStatus ?? true);
+
+  const tabs: { key: TabKey; label: string; path: string }[] = [
+    { key: "funds",    label: "קרנות",  path: "/" },
+    { key: "analysis", label: "ניתוח",  path: "/analysis" },
+    ...(showTools ? [{ key: "tools" as TabKey, label: "כלים", path: toolsPath }] : []),
+  ];
+
+  const iconBtn = (active: boolean) => ({
+    width: 32, height: 32, border: "none", borderRadius: 6,
+    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+    background: active ? "rgba(27,58,47,0.09)" : "transparent",
+    color: active ? primaryColor : "rgba(27,58,47,0.5)",
+    flexShrink: 0, transition: "background 0.12s, color 0.12s",
+  });
 
   return (
     <div
       className="app-header no-print"
       data-app-header="true"
-      onMouseLeave={() => setHoveredTab(null)}
       style={{ position: "sticky", top: 0, zIndex: 100 }}
     >
-      {/* Single row: logo | nav | spacer | print button */}
       <div
         style={{
           height: 52,
@@ -132,136 +101,84 @@ export default function AppHeader({ fundCount: _fundCount = 84 }: AppHeaderProps
         ) : (
           <span style={{
             fontFamily: "'Cormorant Garamond', serif",
-            fontSize: 18,
-            fontWeight: 500,
-            color: primaryColor,
-            letterSpacing: "3px",
-            lineHeight: 1,
-            flexShrink: 0,
+            fontSize: 18, fontWeight: 500, color: primaryColor,
+            letterSpacing: "3px", lineHeight: 1, flexShrink: 0,
           }}>
             {brand.name || clientKey.toUpperCase()}
           </span>
         )}
 
         {/* Nav tabs */}
-        <div style={{ display: "flex", alignItems: "center", gap: 20, flexShrink: 0 }}>
-          {visibleTabs.map((tab) => {
+        <nav style={{ display: "flex", alignItems: "center", gap: 20, flexShrink: 0 }}>
+          {tabs.map((tab) => {
             const isActive = activeTab === tab.key;
             return (
               <button
                 key={tab.key}
-                onClick={() => {
-                  const subs = filterSubs(SUB_TABS[tab.key], brand.features);
-                  if (subs.length > 0) navigate(subs[0].path);
-                  else navigate("/");
-                }}
-                onMouseEnter={() => setHoveredTab(tab.key)}
+                onClick={() => navigate(tab.path)}
                 style={{
-                  background: "none",
-                  border: "none",
+                  background: "none", border: "none",
                   borderBottom: isActive
                     ? `1.5px solid ${accentColor}`
                     : "1.5px solid transparent",
-                  cursor: "pointer",
-                  padding: "4px 0",
+                  cursor: "pointer", padding: "4px 0",
                   fontSize: 13,
                   color: isActive ? primaryColor : "rgba(27, 58, 47, 0.6)",
                   fontWeight: isActive ? 500 : 400,
-                  fontFamily: "inherit",
-                  whiteSpace: "nowrap",
+                  fontFamily: "inherit", whiteSpace: "nowrap",
                   transition: "color 0.12s ease, border-color 0.12s ease",
                   lineHeight: 1.2,
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive) (e.currentTarget as HTMLButtonElement).style.color = primaryColor;
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) (e.currentTarget as HTMLButtonElement).style.color = "rgba(27, 58, 47, 0.6)";
                 }}
               >
                 {tab.label}
               </button>
             );
           })}
-        </div>
+        </nav>
 
         {/* Spacer */}
         <div style={{ flex: 1 }} />
 
-        {/* Print button */}
-        <button
-          onClick={() => typeof window !== "undefined" && window.print()}
-          style={{
-            padding: "5px 11px",
-            border: "0.5px solid rgba(27, 58, 47, 0.27)",
-            background: "white",
-            borderRadius: 5,
-            fontSize: 11,
-            cursor: "pointer",
-            color: primaryColor,
-            fontFamily: "inherit",
-            flexShrink: 0,
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            transition: "background 0.12s",
-          }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#FAFAF7"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "white"; }}
-        >
-          ⎙ הדפסה
-        </button>
-      </div>
+        {/* Action icons: settings + print */}
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          {/* Settings / Admin */}
+          <button
+            onClick={() => navigate("/admin")}
+            title="ניהול"
+            style={iconBtn(onAdmin)}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(27,58,47,0.08)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = onAdmin ? "rgba(27,58,47,0.09)" : "transparent"; }}
+          >
+            {/* Settings — lucide-react SVG paths */}
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
 
-      {/* Sub bar */}
-      {subTabs.length > 0 && (
-        <div
-          style={{
-            height: 36,
-            background: "#f5f5f7",
-            display: "flex",
-            alignItems: "center",
-            padding: "0 32px",
-            direction: "rtl",
-            gap: 4,
-            borderBottom: `1px solid ${accentColor}`,
-          }}
-        >
-          {subTabs.map((sub) => {
-            const isActive = isSubActive(sub.path);
-            return (
-              <button
-                key={sub.path}
-                onClick={() => navigate(sub.path)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: "0 12px",
-                  height: 36,
-                  fontSize: 13,
-                  color: primaryColor,
-                  fontWeight: isActive ? 500 : 400,
-                  borderBottom: isActive
-                    ? `2px solid ${accentColor}`
-                    : "2px solid transparent",
-                  transition: "border 0.12s, color 0.12s",
-                  fontFamily: "inherit",
-                  whiteSpace: "nowrap",
-                }}
-                onMouseEnter={(e) => {
-                  const el = e.currentTarget as HTMLButtonElement;
-                  el.style.fontWeight = "500";
-                  if (!isActive) el.style.borderBottom = `2px solid ${primaryColor}`;
-                }}
-                onMouseLeave={(e) => {
-                  const el = e.currentTarget as HTMLButtonElement;
-                  el.style.fontWeight = isActive ? "500" : "400";
-                  el.style.borderBottom = isActive
-                    ? `2px solid ${accentColor}`
-                    : "2px solid transparent";
-                }}
-              >
-                {sub.label}
-              </button>
-            );
-          })}
+          {/* Print */}
+          <button
+            onClick={() => typeof window !== "undefined" && window.print()}
+            title="הדפסה"
+            style={iconBtn(false)}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(27,58,47,0.08)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
+          >
+            {/* Printer — lucide-react SVG paths */}
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+              <path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/>
+              <rect x="6" y="14" width="12" height="8" rx="1"/>
+            </svg>
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }
