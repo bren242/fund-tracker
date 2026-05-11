@@ -385,8 +385,8 @@ function AnalysisContent() {
         {/* ── Sticky controls: filter + sort ── */}
         <div ref={controlsRef} style={{ position: "sticky", top: 52, zIndex: 99, background: "#FAFAF7" }}>
 
-        {/* FILTER BAR — fixed height 44px */}
-        <div ref={filterRowRef} style={{ height: 44, display: "flex", alignItems: "center", padding: "0 28px", gap: 5, overflowX: "auto", scrollbarWidth: "none", direction: "rtl", borderBottom: "0.5px solid #eaecee", flexShrink: 0 } as React.CSSProperties}>
+        {/* ROW 1 — sub-tabs + groups, fixed height 44px */}
+        <div ref={filterRowRef} style={{ height: 44, display: "flex", alignItems: "center", padding: "0 28px", gap: 5, direction: "rtl", borderBottom: "0.5px solid #eaecee" }}>
           {/* Sub-tabs */}
           {[
             { label: "דירוג",   path: "/analysis",       active: true  },
@@ -407,30 +407,33 @@ function AnalysisContent() {
               style={{ padding: "6px 15px", borderRadius: 20, fontSize: 13, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: group === g ? primary : "#F4F3EF", color: group === g ? "#fff" : "#6b7280", fontWeight: group === g ? 600 : 400, transition: "all 0.12s", flexShrink: 0 }}
             >{g}</button>
           ))}
-          {/* Category pills — inline when a group is selected */}
+        </div>
+
+        {/* ROW 2 — categories + currency, fixed height 40px */}
+        <div ref={sortRowRef} style={{ height: 40, display: "flex", alignItems: "center", padding: "0 28px", gap: 5, direction: "rtl", borderBottom: "0.5px solid #eaecee" }}>
+          {/* Category pills — when a group is selected */}
           {group !== ALL && filterOptions.categories.length > 0 && (
             <>
-              <div style={{ width: 0.5, height: 22, background: "#e2e8f0", flexShrink: 0, margin: "0 6px" }} />
               {[ALL, ...filterOptions.categories].map((cat) => (
                 <button key={cat}
                   onClick={() => setCategory(cat)}
-                  style={{ padding: "6px 13px", borderRadius: 20, fontSize: 13, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: category === cat ? primary : "#F4F3EF", color: category === cat ? "#fff" : "#6b7280", fontWeight: category === cat ? 600 : 400, transition: "all 0.12s", flexShrink: 0 }}
+                  style={{ padding: "5px 13px", borderRadius: 20, fontSize: 12, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: category === cat ? primary : "#F4F3EF", color: category === cat ? "#fff" : "#6b7280", fontWeight: category === cat ? 600 : 400, transition: "all 0.12s", flexShrink: 0 }}
                 >{cat}</button>
               ))}
+              <div style={{ width: 0.5, height: 20, background: "#e2e8f0", flexShrink: 0, margin: "0 6px" }} />
             </>
           )}
-          <div style={{ width: 0.5, height: 22, background: "#e2e8f0", flexShrink: 0, margin: "0 6px" }} />
           {/* Currency */}
           {(["all", "ILS", "USD"] as const).map((c) => (
             <button key={c}
               onClick={() => setCurrencyFilter(c)}
-              style={{ padding: "6px 13px", borderRadius: 20, fontSize: 13, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: currencyFilter === c ? primary : "#F4F3EF", color: currencyFilter === c ? "#fff" : "#6b7280", fontWeight: currencyFilter === c ? 600 : 400, transition: "all 0.12s", flexShrink: 0 }}
+              style={{ padding: "5px 13px", borderRadius: 20, fontSize: 12, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: currencyFilter === c ? primary : "#F4F3EF", color: currencyFilter === c ? "#fff" : "#6b7280", fontWeight: currencyFilter === c ? 600 : 400, transition: "all 0.12s", flexShrink: 0 }}
             >{c === "all" ? "הכל" : c}</button>
           ))}
         </div>
 
         {/* SORT BAR — fixed height 40px */}
-        <div ref={sortRowRef} style={{ height: 40, display: "flex", alignItems: "center", padding: "0 28px", justifyContent: "space-between", direction: "rtl", borderBottom: "0.5px solid #eaecee", flexShrink: 0 }}>
+        <div style={{ height: 40, display: "flex", alignItems: "center", padding: "0 28px", justifyContent: "space-between", direction: "rtl", borderBottom: "0.5px solid #eaecee", flexShrink: 0 }}>
           <div style={{ display: "flex", gap: 3, background: "#f1f3f4", borderRadius: 22, padding: 3, overflow: "hidden" } as React.CSSProperties}>
             {SORT_OPTIONS.map(({ key, label }) => {
               const active = sortKey === key;
@@ -455,7 +458,7 @@ function AnalysisContent() {
             <div style={{ background: "#fff", border: "0.5px solid #e8ecee", borderRadius: 16, overflow: "clip", maxWidth: 900, margin: "0 auto" }}>
 
               {/* Header */}
-              <div ref={theadRef} style={{ position: "sticky", top: 136, zIndex: 5, display: "grid", gridTemplateColumns: COL, padding: "11px 24px", background: "#fafbfc", borderBottom: "0.5px solid #eaecee", direction: "rtl" }}>
+              <div ref={theadRef} style={{ position: "sticky", top: 176, zIndex: 5, display: "grid", gridTemplateColumns: COL, padding: "11px 24px", background: "#fafbfc", borderBottom: "0.5px solid #eaecee", direction: "rtl" }}>
                 {(() => {
                   const latestMonth = getLatestReportMonth(filteredFunds);
                   const sortLabel = sortKey === "MTD" && latestMonth
