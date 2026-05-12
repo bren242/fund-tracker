@@ -11,6 +11,7 @@
 export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
+import { ANTHROPIC_API_URL, ANTHROPIC_API_VERSION, CLAUDE_MODELS } from "@/lib/anthropic-config";
 import { getClientKeyFromRequest } from "@/lib/clientKey";
 import { storageRead } from "@/lib/storage";
 import { computeYTDFromMonthlyReturns } from "@/lib/metrics";
@@ -101,15 +102,15 @@ ${fundLines}
 Return ONLY a valid JSON array with no explanation and no markdown:
 [{"rawLine":"...","fundId":"...or null","fundName":"...","similarity":0.97,"monthlyReturn":0.077}]`;
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const response = await fetch(ANTHROPIC_API_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
+      "anthropic-version": ANTHROPIC_API_VERSION,
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-5",
+      model: CLAUDE_MODELS.SONNET,
       max_tokens: 2048,
       temperature: 0,
       system: systemPrompt,

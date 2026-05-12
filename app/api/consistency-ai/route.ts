@@ -5,6 +5,7 @@
  * builds a Hebrew financial analysis prompt, and returns { analysis: string }.
  */
 import { NextRequest, NextResponse } from "next/server";
+import { ANTHROPIC_API_URL, ANTHROPIC_API_VERSION, CLAUDE_MODELS } from "@/lib/anthropic-config";
 
 /* ── types ──────────────────────────────────────────────────────────────── */
 interface ConsistencyPayload {
@@ -96,15 +97,15 @@ export async function POST(req: NextRequest) {
 
   /* ── call Anthropic REST API ────────────────────────────────────────── */
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch(ANTHROPIC_API_URL, {
       method: "POST",
       headers: {
         "Content-Type":    "application/json",
         "x-api-key":       apiKey,
-        "anthropic-version": "2023-06-01",
+        "anthropic-version": ANTHROPIC_API_VERSION,
       },
       body: JSON.stringify({
-        model:      "claude-sonnet-4-20250514",
+        model:      CLAUDE_MODELS.SONNET,
         max_tokens: 800,
         system:     systemPrompt,
         messages:   [{ role: "user", content: userPrompt }],

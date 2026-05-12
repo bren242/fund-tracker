@@ -6,6 +6,7 @@ import { storageRead, storageWrite, storageAppend } from "@/lib/storage";
 import { ParseDraft, ParseLogEntry, ParsedField, CollisionInfo } from "@/lib/parseTypes";
 import { createHash } from "crypto";
 import { isCreditExhaustedError, CREDIT_EXHAUSTED_SENTINEL, creditExhaustedBody } from "@/lib/credit-error";
+import { ANTHROPIC_API_URL, ANTHROPIC_API_VERSION, CLAUDE_MODELS } from "@/lib/anthropic-config";
 
 const SUPER_ADMIN_PASSWORD = "super2026";
 const DEFAULT_ADMIN_PASSWORD = "admin2026";
@@ -378,15 +379,15 @@ async function callClaude(apiKey: string, systemPrompt: string, userText: string
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch(ANTHROPIC_API_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
+          "anthropic-version": ANTHROPIC_API_VERSION,
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: CLAUDE_MODELS.SONNET,
           max_tokens: 4096,
           temperature: 0,
           system: systemPrompt,
@@ -460,15 +461,15 @@ async function callClaudeVision(
       const controller = new AbortController();
       const timeoutHandle = setTimeout(() => controller.abort(), VISION_TIMEOUT_MS);
 
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch(ANTHROPIC_API_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
+          "anthropic-version": ANTHROPIC_API_VERSION,
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: CLAUDE_MODELS.SONNET,
           max_tokens: 8192,
           temperature: 0,
           system: systemPrompt,
@@ -2927,9 +2928,24 @@ export async function POST(req: NextRequest) {
         if (claudeResult.error === CREDIT_EXHAUSTED_SENTINEL) {
           return NextResponse.json(creditExhaustedBody(), { status: 402 });
         }
-        return NextResponse.json({
-          error: claudeResult.error,
+        let detailedError = "שגיאה בעיבוד הקובץ";
+        try {
+          const errorBody = JSON.parse(claudeResult.error || "{}");
+          if (errorBody?.error?.message) {
+            detailedError = errorBody.error.message;
+          }
+        } catch {
+          // fallback to generic message
+        }
+        console.error("[parse-file] Returning error to client:", {
           fileName: file.name,
+          originalError: claudeResult.error,
+          userMessage: detailedError,
+        });
+        return NextResponse.json({
+          error: detailedError,
+          fileName: file.name,
+          ...(process.env.NODE_ENV === "development" ? { debug: claudeResult.error } : {}),
         }, { status: 502 });
       }
 

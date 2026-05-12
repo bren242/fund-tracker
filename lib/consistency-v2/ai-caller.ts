@@ -6,6 +6,7 @@
  */
 
 import { jsonrepair } from "jsonrepair";
+import { ANTHROPIC_API_URL, ANTHROPIC_API_VERSION, CLAUDE_MODELS } from "@/lib/anthropic-config";
 
 // Fix AI hallucinations: 3+ consecutive identical chars → 2 (e.g. "ממממוצע" → "ממוצע")
 function dedupeChars<T>(value: T): T {
@@ -23,7 +24,7 @@ function dedupeChars<T>(value: T): T {
   return value;
 }
 
-const MODEL    = "claude-sonnet-4-5";
+const MODEL    = CLAUDE_MODELS.SONNET;
 const TEMP     = 0.4;
 const TIMEOUT  = 30_000;
 
@@ -66,12 +67,12 @@ export async function callAI<T>(
 
   let res: Response;
   try {
-    res = await fetch("https://api.anthropic.com/v1/messages", {
+    res = await fetch(ANTHROPIC_API_URL, {
       method:  "POST",
       headers: {
         "Content-Type":      "application/json",
         "x-api-key":         apiKey,
-        "anthropic-version": "2023-06-01",
+        "anthropic-version": ANTHROPIC_API_VERSION,
       },
       body: JSON.stringify({
         model:      MODEL,
