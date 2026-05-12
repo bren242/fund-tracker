@@ -1,4 +1,24 @@
-# HANDOFF.md — סשן 12/05/2026 — Session 3ב.8: useFilters snapshot bug fix
+# HANDOFF.md — סשן 12/05/2026 — Session 3ב.9: Claude model update + centralized config
+
+## מה הושלם היום — Session 3ב.9 ✅
+
+**קבצים:** `lib/anthropic-config.ts` (חדש), `app/api/parse/route.ts`, `app/api/parse/bulk/route.ts`, `app/api/fund-report/route.ts`, `app/api/consistency-ai/route.ts`, `app/api/consistency-compare-ai/route.ts`, `lib/consistency-v2/ai-caller.ts`
+**Commit:** `f623314`, merge `8dbacbb`
+
+**הבעיה:** `/api/parse?action=parse-file` החזיר "AI service error (400)". Root cause: `model: "claude-sonnet-4-5"` deprecated ב-6 קבצים נפרדים. אנתרופיק דחה כל קריאה עם 400, שנעטפה ל-502 ל-UI.
+
+**הפתרון:**
+1. **`lib/anthropic-config.ts`** — קובץ config מרכזי: `ANTHROPIC_API_URL`, `ANTHROPIC_API_VERSION`, `CLAUDE_MODELS.SONNET/OPUS/HAIKU`. עדכון עתידי = שינוי string אחד.
+2. **6 קבצים** — החלפת hard-coded model strings + URL + version לייבוא מ-config.
+3. **Error UX** — parse-file error response מנסה לחלץ את `error.message` מתוך גוף ה-400 של אנתרופיק → הודעה ברורה יותר ל-UI.
+
+**Audit ✓:**
+- `grep claude-sonnet-4-5` → 0 התאמות ✅
+- `grep claude-sonnet-4-20250514` → 0 התאמות ✅
+- `npm test` → 114/114 ✅
+- `tsc --noEmit` → clean ✅
+
+---
 
 ## מה הושלם היום — Session 3ב.8 ✅
 
@@ -32,6 +52,7 @@
 | 3ב.6 | Senior polish — 5 composition issues | `cb77fa8` |
 | 3ב.7 | X-axis label fits inside container | `8a8d2db` |
 | 3ב.8 | useFilters snapshot bug — group filter | `3c428c1` |
+| 3ב.9 | Claude model sonnet-4-6 + centralized config | `f623314` |
 
 ---
 
