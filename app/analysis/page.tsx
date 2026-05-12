@@ -7,7 +7,7 @@ import { useBrand } from "@/lib/useBrand";
 import { useClientKey } from "@/lib/useClientKey";
 import ClientGate from "@/components/ClientGate";
 import { brandCssVars } from "@/lib/colors";
-import { computePeriodWithCoverage } from "@/lib/period-coverage";
+import { computePeriodWithCoverage, type PeriodResult } from "@/lib/period-coverage";
 
 const ALL = "הכל";
 const TOP_N = 5;
@@ -101,6 +101,31 @@ function calcPeriodReturn(fund: Fund, key: SortKey): number | null {
 
   const result = computePeriodWithCoverage(fund.monthlyReturns, p.from, _toYM, p.label, p.months);
   return result.value !== null ? result.value * 100 : null;
+}
+
+function calcPeriodResult(fund: Fund, key: SortKey): PeriodResult | null {
+  if (key === "sharpe" || key === "avg" || key === "MTD") return null;
+  if (!fund.monthlyReturns) return null;
+
+  if (key === "YTD") {
+    return computePeriodWithCoverage(
+      fund.monthlyReturns,
+      `${_now.getFullYear()}-01`,
+      _toYM,
+      "YTD",
+      _now.getMonth() + 1,
+    );
+  }
+
+  const periodMap = {
+    "12M": { from: subtractMonths(_toYM, 12), label: "12M" as const, months: 12 },
+    "36M": { from: subtractMonths(_toYM, 36), label: "3Y" as const,  months: 36 },
+    "60M": { from: subtractMonths(_toYM, 60), label: "5Y" as const,  months: 60 },
+    "MAX": { from: null as null,              label: "MAX" as const,  months: 0  },
+  };
+  const p = periodMap[key as keyof typeof periodMap];
+  if (!p) return null;
+  return computePeriodWithCoverage(fund.monthlyReturns, p.from, _toYM, p.label, p.months);
 }
 
 function calcConsistency(fund: Fund): number | null {
@@ -211,9 +236,10 @@ function RankBadge({ rank, isBottom }: { rank: number; isBottom: boolean }) {
 }
 
 /* ── Accordion Row ── */
-function FundRow({ fund, rank, sortKey, primary, isBottom, periodValOverride, showConsistency = true }: {
+function FundRow({ fund, rank, sortKey, primary, isBottom, periodValOverride, periodResult, showConsistency = true }: {
   fund: Fund; rank: number; sortKey: SortKey; primary: string; isBottom: boolean;
   periodValOverride?: number | null;
+  periodResult?: PeriodResult | null;
   showConsistency?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -256,6 +282,11 @@ function FundRow({ fund, rank, sortKey, primary, isBottom, periodValOverride, sh
 
         <div style={{ textAlign: "center", fontSize: isTop3 ? 26 : 20, fontWeight: 800, color: numColor(periodVal), fontVariantNumeric: "tabular-nums", letterSpacing: "-0.3px" }}>
           {sortKey === "sharpe" ? fmtNum(periodVal) : fmt(periodVal)}
+          {periodResult?.status === "partial" && (
+            <div style={{ fontSize: 11, fontWeight: 400, color: "#f59e0b", marginTop: 2, letterSpacing: 0 }}>
+              {periodResult.effectiveLabel}
+            </div>
+          )}
         </div>
 
         <div style={{ textAlign: "center", fontSize: 13, color: "#1a2e26", fontVariantNumeric: "tabular-nums" }}>{fmtNum(fund.sharpe)}</div>
@@ -525,7 +556,7 @@ function AnalysisContent() {
 
               {/* TOP 5 */}
               {topRows.map((fund, i) => (
-                <FundRow key={fund.id} fund={fund} rank={i + 1} sortKey={sortKey} primary={primary} isBottom={false} periodValOverride={isNox ? calcNoxReturn(fund, noxYears) : undefined} showConsistency={showConsistency} />
+                <FundRow key={fund.id} fund={fund} rank={i + 1} sortKey={sortKey} primary={primary} isBottom={false} periodValOverride={isNox ? calcNoxReturn(fund, noxYears) : undefined} periodResult={isNox ? undefined : calcPeriodResult(fund, sortKey)} showConsistency={showConsistency} />
               ))}
 
               {/* הראה רשימה מלאה */}
@@ -544,7 +575,7 @@ function AnalysisContent() {
 
               {/* Middle rows — כשפתוח */}
               {showAll && middleRows.map((fund, i) => (
-                <FundRow key={fund.id} fund={fund} rank={TOP_N + i + 1} sortKey={sortKey} primary={primary} isBottom={false} periodValOverride={isNox ? calcNoxReturn(fund, noxYears) : undefined} showConsistency={showConsistency} />
+                <FundRow key={fund.id} fund={fund} rank={TOP_N + i + 1} sortKey={sortKey} primary={primary} isBottom={false} periodValOverride={isNox ? calcNoxReturn(fund, noxYears) : undefined} periodResult={isNox ? undefined : calcPeriodResult(fund, sortKey)} showConsistency={showConsistency} />
               ))}
 
               {/* הסתר */}
@@ -567,7 +598,7 @@ function AnalysisContent() {
                     · · · · ·
                   </div>
                   {bottomRows.map((fund, i) => (
-                    <FundRow key={fund.id} fund={fund} rank={sortedFunds.length - BOTTOM_N + i + 1} sortKey={sortKey} primary={primary} isBottom={true} periodValOverride={isNox ? calcNoxReturn(fund, noxYears) : undefined} showConsistency={showConsistency} />
+                    <FundRow key={fund.id} fund={fund} rank={sortedFunds.length - BOTTOM_N + i + 1} sortKey={sortKey} primary={primary} isBottom={true} periodValOverride={isNox ? calcNoxReturn(fund, noxYears) : undefined} periodResult={isNox ? undefined : calcPeriodResult(fund, sortKey)} showConsistency={showConsistency} />
                   ))}
                 </>
               )}
