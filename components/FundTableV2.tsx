@@ -6,6 +6,7 @@ import { pct, num, returnColorInline, formatReportDate } from "@/lib/format";
 import FundOnePagerModal from "./FundOnePagerModal";
 import { useBrand } from "@/lib/useBrand";
 import { getYTD, getAnnualReturn, getSharpe, getStdDev, getAvgAnnualReturn, getLatestMonthly, getLastUpdated } from "@/lib/fundDerived";
+import { computePeriodWithCoverage, type PeriodResult } from "@/lib/period-coverage";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type TimeRange     = "ytd" | "12m" | "3y" | "5y" | "max" | "custom";
@@ -85,6 +86,15 @@ const RANGES: Record<Exclude<TimeRange, "custom">, { from: string | null; to: st
   "3y":  { from: subtractMonths(_toYM, 36),   to: _toYM },
   "5y":  { from: subtractMonths(_toYM, 60),   to: _toYM },
   max:   { from: null,                         to: _toYM },
+};
+
+/** Expected months for each named range (0 = MAX, no expectation) */
+const RANGE_EXPECTED: Record<Exclude<TimeRange, "custom">, { label: "YTD" | "12M" | "3Y" | "5Y" | "MAX"; months: number }> = {
+  ytd:  { label: "YTD", months: _today.getMonth() + 1 },
+  "12m": { label: "12M", months: 12 },
+  "3y":  { label: "3Y",  months: 36 },
+  "5y":  { label: "5Y",  months: 60 },
+  max:   { label: "MAX", months: 0 },
 };
 
 // Month options: 2019-01 → current month
@@ -439,7 +449,7 @@ function AccordionPanel({ fund, isNox }: { fund: Fund; isNox?: boolean }) {
 // ── Fund Row ───────────────────────────────────────────────────────────────
 function FundRowV2({
   fund, even, comparisonEnabled, isSelected, onToggle, selectionDisabled,
-  accentColor, periodReturn, annualAvg, isOpen, onToggleAccordion, isFirst,
+  accentColor, periodReturn, periodResult, annualAvg, isOpen, onToggleAccordion, isFirst,
   aiAvailable, onOpenAi, consistencyHref, latestMonth, timeRange, isNox,
 }: {
   fund: Fund;
@@ -450,6 +460,8 @@ function FundRowV2({
   selectionDisabled?: boolean;
   accentColor?: string;
   periodReturn: number | null;
+  /** Full coverage result for time-range mode — drives sub-label and period CAGR */
+  periodResult?: PeriodResult | null;
   annualAvg?: number | null;
   isOpen: boolean;
   onToggleAccordion: () => void;
@@ -490,29 +502,32 @@ function FundRowV2({
     updateStatus === "stale"   ? { color: "#94a3b8", fontWeight: 400 } :
                                  { color: "#cbd5e1", fontWeight: 400 };
 
-  // MAX sub-label
-  let maxSubLabel: React.ReactNode = null;
-  if (timeRange === "max") {
-    const mr = fund.monthlyReturns;
-    if (mr) {
-      const sorted = Object.keys(mr).filter(k => mr[k as keyof typeof mr] != null).sort();
-      if (sorted.length > 0) {
-        const firstMonth = sorted[0];
-        const monthsCount = sorted.length;
-        const [y, m] = firstMonth.split("-");
-        const fromLabel = `${m}/${y}`;
-        const years = Math.floor(monthsCount / 12);
-        const duration = monthsCount < 12
-          ? (monthsCount === 1 ? "חודש" : `${monthsCount} חודשים`)
-          : years === 1 ? "שנה"
-          : years === 2 ? "שנתיים"
-          : `${years} שנים`;
-        maxSubLabel = (
-          <div style={{ fontSize: "75%", fontWeight: 400, color: "#94a3b8", marginTop: 2, letterSpacing: 0 }}>
-            {duration} · מ-{fromLabel}
-          </div>
-        );
-      }
+  // Period sub-label — driven by coverage result when available
+  let periodSubLabel: React.ReactNode = null;
+  if (periodResult) {
+    if (periodResult.status === "partial") {
+      // Amber label: actual duration + start date
+      periodSubLabel = (
+        <div style={{ fontSize: "75%", fontWeight: 400, color: "#f59e0b", marginTop: 2, letterSpacing: 0 }}>
+          {periodResult.effectiveLabel}
+        </div>
+      );
+    } else if (periodResult.status === "full" && timeRange === "max" && periodResult.effectiveFromYM) {
+      // MAX: grey label showing actual duration + start month (Hebrew style)
+      const months = periodResult.monthsActual;
+      const years = Math.floor(months / 12);
+      const [y, m] = periodResult.effectiveFromYM.split("-");
+      const fromLabel = `${m}/${y}`;
+      const duration = months < 12
+        ? (months === 1 ? "חודש" : `${months} חודשים`)
+        : years === 1 ? "שנה"
+        : years === 2 ? "שנתיים"
+        : `${years} שנים`;
+      periodSubLabel = (
+        <div style={{ fontSize: "75%", fontWeight: 400, color: "#94a3b8", marginTop: 2, letterSpacing: 0 }}>
+          {duration} · מ-{fromLabel}
+        </div>
+      );
     }
   }
 
@@ -646,13 +661,18 @@ function FundRowV2({
       {/* Period return (computed from monthlyReturns) */}
       <td style={{ ...cell, fontSize: 22, fontWeight: 700, letterSpacing: "-0.5px", color: returnColorInline(periodReturn) }}>
         {pct(periodReturn)}
-        {maxSubLabel}
+        {periodSubLabel}
       </td>
 
-      {/* Avg annual — in yearMode computed from y2020-y2025, otherwise derived */}
-      {(() => { const v = annualAvg !== undefined ? annualAvg : getAvgAnnualReturn(fund); return (
-        <td style={{ ...cell, fontSize: 15, fontWeight: 500, color: returnColorInline(v) }}>{pct(v)}</td>
-      ); })()}
+      {/* Avg annual — yearMode: computed from y2020-y2025; time-range mode: period CAGR */}
+      {(() => {
+        const v = annualAvg !== undefined
+          ? annualAvg
+          : periodResult?.cagr ?? getAvgAnnualReturn(fund);
+        return (
+          <td style={{ ...cell, fontSize: 15, fontWeight: 500, color: returnColorInline(v) }}>{pct(v)}</td>
+        );
+      })()}
 
       {/* Sharpe with dot */}
       <td style={{ ...cell, fontSize: 14, fontWeight: 400, color: "#555" }}>
@@ -863,6 +883,15 @@ export default function FundTableV2({
     return labels[timeRange];
   }, [isYearMode, selectedYears, timeRange, customFrom, customTo]);
 
+  // "ממוצע שנתי" column header — shows which period the CAGR is over
+  const avgColumnLabel = useMemo(() => {
+    if (isYearMode || timeRange === "custom") return "ממוצע שנתי";
+    const suffix: Record<Exclude<TimeRange, "custom">, string> = {
+      ytd: "YTD", "12m": "12M", "3y": "3Y", "5y": "5Y", max: "MAX",
+    };
+    return `ממוצע שנתי (${suffix[timeRange]})`;
+  }, [isYearMode, timeRange]);
+
   const thBase: React.CSSProperties = {
     position: "sticky",
     top: 136,
@@ -1059,7 +1088,7 @@ export default function FundTableV2({
                     {periodLabel}
                   </div>
                 </th>
-                <th style={thBase}>ממוצע שנתי</th>
+                <th style={thBase} title="ממוצע שנתי (CAGR) על התקופה הנבחרת">{avgColumnLabel}</th>
                 <th style={thBase}>שארפ</th>
               </tr>
             </thead>
@@ -1121,9 +1150,21 @@ export default function FundTableV2({
 
                     cat.funds.forEach((fund, fi) => {
                       const isOpen = openAccordions.has(fund.id);
+                      // Time-range mode: compute coverage-aware result
+                      const pr = !isYearMode && timeRange !== "custom"
+                        ? computePeriodWithCoverage(
+                            fund.monthlyReturns,
+                            rangeFrom,
+                            rangeTo,
+                            RANGE_EXPECTED[timeRange as Exclude<TimeRange, "custom">].label,
+                            RANGE_EXPECTED[timeRange as Exclude<TimeRange, "custom">].months,
+                          )
+                        : null;
                       const periodReturn = isYearMode
                         ? calcNoxMultiReturn(fund, selectedYears)
-                        : calcRangeReturn(fund.monthlyReturns, rangeFrom, rangeTo);
+                        : pr
+                          ? pr.value
+                          : calcRangeReturn(fund.monthlyReturns, rangeFrom, rangeTo);
                       // yearMode: ממוצע שנתי מ-y2020–y2025 (לא תלוי monthlyReturns)
                       const annualAvg = isYearMode
                         ? calcAnnualAvgFromReturns(fund)
@@ -1140,6 +1181,7 @@ export default function FundTableV2({
                           selectionDisabled={selectionDisabled}
                           accentColor={accentColor}
                           periodReturn={periodReturn}
+                          periodResult={pr}
                           annualAvg={annualAvg}
                           isOpen={isOpen}
                           onToggleAccordion={() => toggleAccordion(fund.id)}
