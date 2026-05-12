@@ -6,6 +6,27 @@ import { Category } from "@/lib/types";
 
 const ALL = "הכל";
 
+/**
+ * Pure helper — builds a new URLSearchParams from `current` by applying `updates`.
+ * Exported for unit testing without React/Next.js dependencies.
+ */
+export function buildFilterParams(
+  current: URLSearchParams,
+  updates: Partial<Record<"group" | "category" | "classification", string>>,
+  all: string,
+): URLSearchParams {
+  const params = new URLSearchParams(current.toString());
+  for (const [field, value] of Object.entries(updates) as [string, string][]) {
+    const urlKey = field === "classification" ? "cls" : field;
+    if (value === all || value === "") {
+      params.delete(urlKey);
+    } else {
+      params.set(urlKey, value);
+    }
+  }
+  return params;
+}
+
 export interface FilterState {
   group: string;
   category: string;
@@ -94,6 +115,17 @@ export function useFilters(categories: Category[]) {
     [searchParams, router, pathname],
   );
 
+  // Batch update — multiple keys in a single router.replace call.
+  // Fixes the snapshot bug: two sequential setFilter calls both read the same
+  // stale searchParams, so the second overwrites the first.
+  const setFilters = useCallback(
+    (updates: Partial<Record<"group" | "category" | "classification", string>>) => {
+      const params = buildFilterParams(new URLSearchParams(searchParams.toString()), updates, ALL);
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    },
+    [searchParams, router, pathname, ALL],
+  );
+
   // Guard: if group/category in URL don't exist in options, clear them
   useEffect(() => {
     if (categories.length === 0) return; // data not loaded yet
@@ -170,6 +202,7 @@ export function useFilters(categories: Category[]) {
     search,
     options,
     setFilter,
+    setFilters,
     clearAll,
     filtered,
     activeFilterCount,
