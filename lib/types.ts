@@ -41,6 +41,9 @@ export interface Benchmark {
   id: string;
   name: string;
   currency: "ILS" | "USD";
+  category?: string;
+  source?: string;
+  lastUpdated?: string;
   returns: {
     ytd2026: number | null;
     y2025: number | null;
