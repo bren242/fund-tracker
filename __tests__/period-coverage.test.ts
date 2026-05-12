@@ -126,4 +126,26 @@ describe("computePeriodWithCoverage", () => {
     expect(r2.status).toBe("insufficient");
     expect(r2.value).toBeNull();
   });
+
+  // Test 8 — YTD in May with 4 months of data → full (4/4 = 100%)
+  it("YTD in May with 4 months of data is full", () => {
+    const mr = makeMonths("2026-01", 4, 0.01); // Jan–Apr 2026
+    // toYearMonth="2026-05" → expectedMonths = 5-1 = 4
+    const result = computePeriodWithCoverage(mr, "2026-01", "2026-05", "YTD", 5);
+    expect(result.status).toBe("full");
+    expect(result.monthsActual).toBe(4);
+    expect(result.monthsExpected).toBe(4);
+    expect(result.coverage).toBeCloseTo(1.0);
+    expect(result.effectiveLabel).toBe("YTD");
+  });
+
+  // Test 9 — YTD in May with 2 months of data → partial (2/4 = 50%)
+  it("YTD in May with 2 months of data is partial", () => {
+    const mr = makeMonths("2026-01", 2, 0.01); // Jan–Feb 2026
+    const result = computePeriodWithCoverage(mr, "2026-01", "2026-05", "YTD", 5);
+    expect(result.status).toBe("partial");
+    expect(result.monthsActual).toBe(2);
+    expect(result.monthsExpected).toBe(4);
+    expect(result.coverage).toBeCloseTo(0.5);
+  });
 });

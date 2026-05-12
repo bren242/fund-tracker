@@ -73,6 +73,7 @@ export function computePeriodWithCoverage(
   expectedMonths: number
 ): PeriodResult {
   const isMax = requestedLabel === "MAX" || fromYearMonth === null;
+  const isYtd = requestedLabel === "YTD";
 
   // Collect keys in window, sorted ascending
   const keys = monthlyReturns
@@ -86,7 +87,13 @@ export function computePeriodWithCoverage(
     : [];
 
   const monthsActual = keys.length;
-  const monthsExpected = isMax ? monthsActual : expectedMonths;
+  // YTD: expected = completed months this year = month part of toYearMonth − 1
+  // e.g. "2026-05" → 4 (Jan–Apr completed; May still in progress)
+  const monthsExpected = isMax
+    ? monthsActual
+    : isYtd
+    ? Math.max(0, parseInt(toYearMonth.split("-")[1]) - 1)
+    : expectedMonths;
   const coverage = monthsExpected === 0 ? 1 : monthsActual / monthsExpected;
 
   // Determine status
