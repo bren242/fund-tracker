@@ -1,5 +1,42 @@
 # Changelog
 
+## 2026-05-12 — Period Coverage Audit & Honest Labeling
+
+### Problem
+- ארביטרז' ואליו הציגה 5Y=193% < 3Y=210% — נראה כבאג מתמטי
+- YTD הציג תווית partial "4M · מ-01/2026" לכל הקרנות הוותיקות
+- "ממוצע שנתי" היה lifetime CAGR קבוע, לא תלוי תקופה נבחרת
+
+### Root Cause Analysis
+- 5Y < 3Y לקרן צעירה (40M) הוא מתמטית לגיטימי — חלון 36M חותך תקופת הפסד ינואר–אפריל 2023
+- YTD expectedMonths היה 5 (חודש נוכחי) במקום 4 (חודשים שהושלמו)
+- אין באג חישובי — כל המספרים compound נכון. אישור מבעל קרן: YTD 2026 = 18.10% נכון
+
+### Fixes
+- **חדש:** `lib/period-coverage.ts` — `computePeriodWithCoverage` עם `CoverageStatus` (full / partial / insufficient)
+- **חדש:** `__tests__/period-coverage.test.ts` — 12 test cases, 126/126 passing
+- **`components/FundTableV2.tsx`** — sub-label לכל periods (לא רק MAX), header דינמי "ממוצע שנתי (3Y)"
+- **`app/analysis/page.tsx`** — partial labels כתומים + MAX sort option + tooltip מתוקן
+- **Iron Rule #12:** כל חישוב period חייב לעבור דרך `computePeriodWithCoverage` (ראה SPEC.md)
+
+### Coverage Logic
+| Coverage | Status | Label |
+|----------|--------|-------|
+| ≥95% | full | label רגיל ("5Y") |
+| 50–94% | partial | כתום ("40M · מ-01/2023") |
+| <50% | insufficient | "—" |
+| YTD | full אם actual = elapsed | expectedMonths = current_month − 1 |
+| MAX | תמיד full | — |
+
+### Verification
+- 126/126 tests passing
+- Byte-identical proof: `Object.is(old, new) = true` לקרנות ותיקות (60M)
+- Production: ארביטרז' ואליו מציגה "40M · מ-01/2023" ב-5Y
+
+**Files:** `lib/period-coverage.ts` (new), `__tests__/period-coverage.test.ts` (new), `components/FundTableV2.tsx`, `app/analysis/page.tsx`
+
+---
+
 ## [unreleased] — 2026-05-10 — AppHeader redesign + /[client] sticky layout
 
 ### Changed

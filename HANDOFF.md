@@ -1,3 +1,30 @@
+# HANDOFF.md — סשן 12/05/2026 — Session 3ב.10: Period Coverage Audit & Honest Labeling
+
+## מה הושלם היום — Session 3ב.10 ✅
+
+**קבצים:** `lib/period-coverage.ts` (חדש), `__tests__/period-coverage.test.ts` (חדש), `components/FundTableV2.tsx`, `app/analysis/page.tsx`
+**Commits:** `f19c689` (honest labels), `957e606` (YTD fix + partial in analysis)
+**Merge:** merged ישיר ל-main, pushed בהצלחה
+
+**הבעיה המקורית:** ארביטרז' ואליו הציגה 5Y=193% < 3Y=210% — נראה כבאג. YTD הציג תווית כתומה "4M · מ-01/2026" לכל הקרנות הוותיקות.
+
+**ממצאים:**
+1. 5Y < 3Y — לגיטימי מתמטית. חלון 36M מתחיל מ-מאי 2023, חותך תקופת הפסד ינואר–אפריל 2023. הקרן צעירה (40M), לא 60M. ✓ אישור מבעל קרן.
+2. YTD partial — באג: `expectedMonths` היה 5 (חודש נוכחי = מאי) במקום 4 (חודשים שהושלמו). 4/5=80% → partial. תוקן ל-month−1.
+
+**הפתרון:**
+1. **`lib/period-coverage.ts`** — `computePeriodWithCoverage()` עם coverage thresholds (95%/50%)
+2. **FundTableV2** — sub-label כתום לכל periods, header דינמי "ממוצע שנתי (5Y)"
+3. **analysis/page.tsx** — `calcPeriodResult()` + sub-label כתום ב-FundRow
+4. **Byte-identical proof:** `Object.is(old, new) = true` לקרנות ותיקות
+
+**מה נותר פתוח:**
+- Debug screen: טבלת monthlyReturns + השוואה compound לשנתי (TODO #15)
+- Benchmarks S&P/Nasdaq (TODO #16)
+- Stage B Phases 2-4 (ראה TODO #4)
+
+---
+
 # HANDOFF.md — סשן 12/05/2026 — Session 3ב.9: Claude model update + centralized config
 
 ## מה הושלם היום — Session 3ב.9 ✅

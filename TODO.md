@@ -1,5 +1,5 @@
 # Fund Tracker — TODO.md
-> עדכון אחרון: 2026-05-09
+> עדכון אחרון: 2026-05-12
 
 ## Pending Work
 
@@ -38,3 +38,7 @@
 13. **[MED] Error UX — 402 credit balance banner** — כשה-Claude API מחזיר 402 (credit balance exhausted), `app/api/parse/route.ts` צריך לתפוס את השגיאה ולהחזיר הודעה ברורה בממשק: "יתרת קרדיט Anthropic אזלה — יש לטעון יתרה ב-console.anthropic.com"
 
 14. **[LOW] Health check endpoint** — `/api/health/anthropic` — פינג ל-Claude API עם prompt קצר, מחזיר `{ status: "ok"|"error", latencyMs, model }`. שימושי לאבחון כשהפרסר לא מגיב.
+
+15. **[MED] Debug screen: תשואות חודשיות** — מסך ניפוי לכל קרן: טבלת monthlyReturns מלאה, חישוב compound לכל שנה, השוואה לערך השנתי השמור (Π(1+rₖ) vs y20XX). שימושי לאיתור אי-התאמות בין monthly לyearly.
+
+16. **[LOW] Benchmarks: S&P 500 ו-Nasdaq** — הכנסת שני מדדי ייחוס גלובליים לממשק ההשוואה ולניתוח עקביות.

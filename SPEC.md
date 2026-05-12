@@ -1,5 +1,5 @@
 # Fund Tracker — SPEC.md
-> מצב נכון ל: 2026-05-10 | Cache v56 | גרסה אחרונה: AppHeader redesign /[client] | Production deploy: 2026-05-10
+> מצב נכון ל: 2026-05-12 | Cache v56 | גרסה אחרונה: Period Coverage + Honest Labeling | Production deploy: 2026-05-12
 > **עדיפות:** Stage B Phases 2-4 (Charts/Compare/Analysis APIs) | Error UX (402 credit banner)
 > **פתוח:** 84 vs 81 inconsistency (3 כפילויות) | Stage B Phases 2-4 עדיין raw fields
 
@@ -81,6 +81,14 @@
 | aspm dec25.pdf | ✅ | 2 קלאסים (Class A + B), ללא YTD (ראה באגים) |
 | Creative Value Feb.pdf | ✅ | 5 ghost entries מסוננים, entry אחד תקין |
 | Noked Bonds March 2026.pdf | ✅ | מרץ=1.19%, YTD=-0.53%, 2025=11.42% |
+
+### Period Coverage & Honest Labeling (`lib/period-coverage.ts`)
+- **`computePeriodWithCoverage()`** — single source of truth לכל חישובי תקופה
+- Coverage thresholds: ≥95% = full, 50–94% = partial (כתום), <50% = insufficient (—)
+- YTD: `expectedMonths = current_month − 1` (חודשים שהושלמו, לא חודש נוכחי)
+- MAX: תמיד full בלי קשר לכמות חודשים
+- **Iron Rule #12:** לא להכניס חישובי period ad-hoc ב-components/pages. הפונקציה היא single source of truth.
+- תיעוד מלא: `docs/period-coverage.md`
 
 ### Admin Panel
 - CRUD מלא לקרנות וקטגוריות
