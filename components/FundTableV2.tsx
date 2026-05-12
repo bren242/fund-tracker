@@ -568,14 +568,18 @@ function FundRowV2({
               className="no-print"
               style={{
                 cursor: selectionDisabled && !isSelected ? "not-allowed" : "pointer",
-                width: 13, height: 13, flexShrink: 0,
-                opacity: hovered ? (selectionDisabled && !isSelected ? 0.35 : 1) : 0,
+                width: 14, height: 14, flexShrink: 0,
+                accentColor: accentColor || "#1B3A2F",
+                opacity: isSelected ? 1 : hovered ? (selectionDisabled ? 0.35 : 1) : 0,
                 transition: "opacity 0.12s",
               }}
               title={selectionDisabled && !isSelected ? "מקסימום 4 קרנות להשוואה" : "בחר להשוואה"}
             />
           )}
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{ flex: 1, minWidth: 0, cursor: comparisonEnabled && !(selectionDisabled && !isSelected) ? "pointer" : "inherit" }}
+            onClick={comparisonEnabled ? (e) => { e.stopPropagation(); if (!(selectionDisabled && !isSelected)) onToggle?.(fund.id); } : undefined}
+          >
             <div style={{ fontWeight: 600, color: "#1D1D1F", fontSize: 16, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fund.name}</div>
             {fund.classification && (
               <div style={{ color: "#86868B", fontSize: 12, fontWeight: 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fund.classification}</div>
