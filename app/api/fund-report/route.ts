@@ -16,6 +16,7 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { getClientKeyFromRequest } from "@/lib/clientKey";
+import { ANTHROPIC_API_URL, ANTHROPIC_API_VERSION, CLAUDE_MODELS } from "@/lib/anthropic-config";
 import { storageRead, storageWrite } from "@/lib/storage";
 import { Fund, Category, FundsData, Benchmark } from "@/lib/types";
 import {
@@ -406,15 +407,15 @@ async function callAnthropic(
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch(ANTHROPIC_API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
+        "anthropic-version": ANTHROPIC_API_VERSION,
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
+        model: CLAUDE_MODELS.SONNET,
         max_tokens: 1500,
         temperature: 0.3,
         system: SYSTEM_PROMPT,
