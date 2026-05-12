@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, Suspense, useRef } from "react";
 import dynamic from "next/dynamic";
 import { FundsData, Fund, Benchmark } from "@/lib/types";
+import { sortBenchmarks } from "@/lib/benchmarkSort";
 import { pct, num, formatDate, formatReportDate } from "@/lib/format";
 import { useBrand } from "@/lib/useBrand";
 import { useClientKey, withClient } from "@/lib/useClientKey";
@@ -305,7 +306,7 @@ function CompareContent() {
       fetch(`/api/benchmarks?client=${encodeURIComponent(clientKey)}`)
         .then((r) => r.json())
         .then((bms: Benchmark[]) => {
-          setAllBenchmarks(bms);
+          setAllBenchmarks(sortBenchmarks(bms));
           if (benchmarkIds.length > 0)
             setSelectedBmIds(benchmarkIds.filter((id) => bms.some((b) => b.id === id)).slice(0, 2));
         });
