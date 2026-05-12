@@ -7,13 +7,14 @@ import { useBrand } from "@/lib/useBrand";
 import { useClientKey } from "@/lib/useClientKey";
 import ClientGate from "@/components/ClientGate";
 import { brandCssVars } from "@/lib/colors";
+import { computePeriodWithCoverage } from "@/lib/period-coverage";
 
 const ALL = "הכל";
 const TOP_N = 5;
 const BOTTOM_N = 3;
 
 /* ── Types ── */
-type SortKey = "MTD" | "YTD" | "12M" | "36M" | "60M" | "avg" | "sharpe";
+type SortKey = "MTD" | "YTD" | "12M" | "36M" | "60M" | "MAX" | "avg" | "sharpe";
 
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: "MTD",    label: "MTD" },
@@ -21,6 +22,7 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: "12M",    label: "12M" },
   { key: "36M",    label: "36M" },
   { key: "60M",    label: "60M" },
+  { key: "MAX",    label: "MAX" },
   { key: "avg",    label: "ממוצע שנתי" },
   { key: "sharpe", label: "שארפ" },
 ];
@@ -50,34 +52,55 @@ function calcNoxReturn(fund: Fund, years: string[]): number | null {
 }
 
 /* ── Helpers ── */
+
+const _now = new Date();
+const _toYM = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, "0")}`;
+
+function subtractMonths(ym: string, n: number): string {
+  const [y, m] = ym.split("-").map(Number);
+  const d = new Date(y, m - 1 - n, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/**
+ * Returns period return as a percentage value (77.0 = 77%), or null if insufficient.
+ * Uses 95%/50% coverage thresholds for honest labeling.
+ * Insufficient → null → sorts to bottom via ?? -Infinity.
+ */
 function calcPeriodReturn(fund: Fund, key: SortKey): number | null {
   if (key === "sharpe") return fund.sharpe ?? null;
   if (key === "avg")    return fund.avgAnnualReturn != null ? fund.avgAnnualReturn * 100 : null;
   if (!fund.monthlyReturns) return null;
 
-  const now = new Date();
-  const entries = Object.entries(fund.monthlyReturns);
-
-  let filtered: number[] = [];
   if (key === "MTD") {
-    const sorted = [...entries].sort(([a], [b]) => a.localeCompare(b));
+    const sorted = Object.entries(fund.monthlyReturns).sort(([a], [b]) => a.localeCompare(b));
     const last = sorted.at(-1);
-    filtered = last ? [last[1]] : [];
-  } else if (key === "YTD") {
-    filtered = entries.filter(([k]) => k.startsWith(`${now.getFullYear()}`)).map(([, v]) => v);
-  } else {
-    const months = key === "12M" ? 12 : key === "36M" ? 36 : 60;
-    const cutoff = new Date(now.getFullYear(), now.getMonth() - months, 1);
-    filtered = entries.filter(([k]) => new Date(k + "-01") >= cutoff).map(([, v]) => v);
+    return last ? last[1] * 100 : null;
   }
 
-  if (filtered.length === 0) return null;
-  if (key === "MTD") return filtered[0] * 100;
-  if (key !== "YTD") {
-    const months = key === "12M" ? 12 : key === "36M" ? 36 : 60;
-    if (filtered.length < months * 0.7) return null;
+  if (key === "YTD") {
+    const year = String(_now.getFullYear());
+    const result = computePeriodWithCoverage(
+      fund.monthlyReturns,
+      `${year}-01`,
+      _toYM,
+      "YTD",
+      _now.getMonth() + 1,
+    );
+    return result.value !== null ? result.value * 100 : null;
   }
-  return (filtered.reduce((acc, r) => acc * (1 + r), 1) - 1) * 100;
+
+  const periodMap: Record<"12M" | "36M" | "60M" | "MAX", { from: string | null; label: "12M" | "3Y" | "5Y" | "MAX"; months: number }> = {
+    "12M": { from: subtractMonths(_toYM, 12), label: "12M", months: 12 },
+    "36M": { from: subtractMonths(_toYM, 36), label: "3Y",  months: 36 },
+    "60M": { from: subtractMonths(_toYM, 60), label: "5Y",  months: 60 },
+    "MAX": { from: null,                       label: "MAX", months: 0  },
+  };
+  const p = periodMap[key as "12M" | "36M" | "60M" | "MAX"];
+  if (!p) return null;
+
+  const result = computePeriodWithCoverage(fund.monthlyReturns, p.from, _toYM, p.label, p.months);
+  return result.value !== null ? result.value * 100 : null;
 }
 
 function calcConsistency(fund: Fund): number | null {
@@ -104,6 +127,7 @@ function getSparklineData(fund: Fund, sortKey: SortKey): number[] {
     const cutoff = new Date(now.getFullYear(), now.getMonth() - 60, 1);
     filtered = entries.filter(([k]) => new Date(k + "-01") >= cutoff);
   } else {
+    // MAX and fallback: all available months
     filtered = entries;
   }
   // cumulative
@@ -347,6 +371,7 @@ function AnalysisContent() {
       if (isNox) return (calcNoxReturn(b, noxYears) ?? -Infinity) - (calcNoxReturn(a, noxYears) ?? -Infinity);
       if (sortKey === "sharpe") return (b.sharpe ?? -Infinity) - (a.sharpe ?? -Infinity);
       if (sortKey === "avg") return (b.avgAnnualReturn ?? -Infinity) - (a.avgAnnualReturn ?? -Infinity);
+      // calcPeriodReturn returns null for insufficient coverage → sorts to bottom via -Infinity
       return (calcPeriodReturn(b, sortKey) ?? -Infinity) - (calcPeriodReturn(a, sortKey) ?? -Infinity);
     });
   }, [filteredFunds, sortKey, isNox, noxYears]);
@@ -422,8 +447,10 @@ function AnalysisContent() {
               <div style={{ display: "flex", gap: 3, background: "#f1f3f4", borderRadius: 22, padding: 3, overflow: "hidden" } as React.CSSProperties}>
                 {SORT_OPTIONS.map(({ key, label }) => {
                   const active = sortKey === key;
+                  const tooltip = key === "avg" ? "ממוצע שנתי (CAGR) על התקופה הנבחרת" : undefined;
                   return (
                     <button key={key} onClick={() => { setSortKey(key); setShowAll(false); }}
+                      title={tooltip}
                       style={{ padding: "5px 12px", borderRadius: 20, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap", border: "none", color: active ? primary : "#6b7280", fontWeight: active ? 700 : 400, background: active ? "#fff" : "transparent", boxShadow: active ? "0 1px 3px rgba(0,0,0,0.1)" : "none", transition: "all 0.12s" }}>
                       {label}{active ? " ↓" : ""}
                     </button>
