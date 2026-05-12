@@ -429,7 +429,7 @@ function ChartsContent() {
 
   const {
     group, category, classification, search,
-    options, setFilter, clearAll, filtered, activeFilterCount, ALL,
+    options, setFilter, setFilters, clearAll, filtered, activeFilterCount, ALL,
   } = useFilters(data?.categories ?? []);
 
   const funds = useMemo(() => filtered.flatMap((cat) => cat.funds), [filtered]);
@@ -566,7 +566,7 @@ function ChartsContent() {
 
             <div style={{ position: "relative" }}>
               <select value={group}
-                onChange={(e) => { setFilter("group", e.target.value); setFilter("category", ALL); }}
+                onChange={(e) => setFilters({ group: e.target.value, category: ALL })}
                 style={{ ...selectStyle, paddingRight: 22, border: group !== ALL ? `1.5px solid ${primary}` : "1px solid #e2e8f0", color: group !== ALL ? primary : "#6b7280", fontWeight: group !== ALL ? 600 : 400, background: group !== ALL ? `${primary}08` : "#fff", appearance: "none", WebkitAppearance: "none" }}
               >
                 <option value={ALL}>כל הקבוצות</option>
