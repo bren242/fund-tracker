@@ -747,7 +747,7 @@ function ChartsContent() {
                     </div>
 
                     <ResponsiveContainer width="100%" height="100%">
-                      <ScatterChart margin={{ top: 40, right: 60, bottom: 60, left: 60 }}>
+                      <ScatterChart margin={{ top: 40, right: 60, bottom: 80, left: 60 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke={dark ? "#2D3748" : "#e5e8ec"} strokeOpacity={0.6} />
                         <XAxis type="number" dataKey="x"
                           tick={{ fontSize: 11, fill: dark ? "#CBD5E1" : "#94a3b8" }}
