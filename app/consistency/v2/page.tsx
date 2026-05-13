@@ -10,6 +10,7 @@ import {
   blendBenchmarkReturns,
   computeCategoryStats,
 } from "@/lib/consistency";
+import SubTabsBar from "@/components/SubTabsBar";
 import Toolbar from "./components/Toolbar";
 import BackNav from "./components/BackNav";
 import PageWrapper from "./components/PageWrapper";
@@ -43,12 +44,12 @@ export default async function ConsistencyV2Page({
   const { client = "green", window: windowParam, fund: fundParam, preselect } = await searchParams;
   const windowSize = [24, 36, 48].includes(Number(windowParam)) ? Number(windowParam) : 24;
 
+  // Always load brand (needed for sub-tabs feature locking)
+  const brand = await storageRead<BrandConfig>(`brand:${client}`, DEFAULT_BRAND);
+
   // Guard: redirect non-green clients that haven't enabled consistencyAnalysis
-  if (client !== "green") {
-    const brand = await storageRead<BrandConfig>(`brand:${client}`, DEFAULT_BRAND);
-    if (!brand.features?.consistencyAnalysis) {
-      redirect(`/${client}`);
-    }
+  if (client !== "green" && !brand.features?.consistencyAnalysis) {
+    redirect(`/${client}`);
   }
 
   const [fundsData, benchmarks] = await Promise.all([
@@ -75,6 +76,7 @@ export default async function ConsistencyV2Page({
 
     return (
       <>
+        <SubTabsBar client={client} active="עקביות" features={brand.features} />
         <Suspense fallback={<div className="v2-toolbar" />}>
           <Toolbar fundId={fundParam} fundName={fundName} client={client} />
         </Suspense>
@@ -109,6 +111,7 @@ export default async function ConsistencyV2Page({
 
   return (
     <>
+      <SubTabsBar client={client} active="עקביות" features={brand.features} />
       <BackNav client={client} />
       <PageWrapper dateLabel={dateLabel} idlePath={idlePath} client={client}>
         <IdleView top5={top5} totalFunds={totalFunds} windowSize={windowSize} searchPool={allStats} preselectId={preselect} client={client} />
