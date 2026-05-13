@@ -8,6 +8,7 @@ import { useClientKey } from "@/lib/useClientKey";
 import ClientGate from "@/components/ClientGate";
 import { brandCssVars } from "@/lib/colors";
 import { computePeriodWithCoverage, type PeriodResult } from "@/lib/period-coverage";
+import { getAvgAnnualReturn } from "@/lib/fundDerived";
 
 const ALL = "הכל";
 const TOP_N = 5;
@@ -69,7 +70,7 @@ function subtractMonths(ym: string, n: number): string {
  */
 function calcPeriodReturn(fund: Fund, key: SortKey): number | null {
   if (key === "sharpe") return fund.sharpe ?? null;
-  if (key === "avg")    return fund.avgAnnualReturn != null ? fund.avgAnnualReturn * 100 : null;
+  if (key === "avg")    { const v = getAvgAnnualReturn(fund); return v != null ? v * 100 : null; }
   if (!fund.monthlyReturns) return null;
 
   if (key === "MTD") {
@@ -308,7 +309,7 @@ function FundRow({ fund, rank, sortKey, primary, isBottom, periodValOverride, pe
                   { label: "12M", value: fmt(calcPeriodReturn(fund, "12M")) },
                   { label: "36M", value: fmt(calcPeriodReturn(fund, "36M")) },
                   { label: "60M", value: fmt(calcPeriodReturn(fund, "60M")) },
-                  { label: "ממוצע שנתי", value: fmt(fund.avgAnnualReturn != null ? fund.avgAnnualReturn * 100 : null) },
+                  { label: "ממוצע שנתי", value: fmt((() => { const v = getAvgAnnualReturn(fund); return v != null ? v * 100 : null; })()) },
                   { label: "שארפ", value: fmtNum(fund.sharpe) },
                   { label: "סטיית תקן", value: fmtNum(fund.stdDev) },
                 ].map(({ label, value }) => (
@@ -401,7 +402,7 @@ function AnalysisContent() {
     return [...filteredFunds].sort((a, b) => {
       if (isNox) return (calcNoxReturn(b, noxYears) ?? -Infinity) - (calcNoxReturn(a, noxYears) ?? -Infinity);
       if (sortKey === "sharpe") return (b.sharpe ?? -Infinity) - (a.sharpe ?? -Infinity);
-      if (sortKey === "avg") return (b.avgAnnualReturn ?? -Infinity) - (a.avgAnnualReturn ?? -Infinity);
+      if (sortKey === "avg") return (getAvgAnnualReturn(b) ?? -Infinity) - (getAvgAnnualReturn(a) ?? -Infinity);
       // calcPeriodReturn returns null for insufficient coverage → sorts to bottom via -Infinity
       return (calcPeriodReturn(b, sortKey) ?? -Infinity) - (calcPeriodReturn(a, sortKey) ?? -Infinity);
     });
