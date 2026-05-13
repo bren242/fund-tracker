@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { storageRead } from "@/lib/storage";
 import { BrandConfig, DEFAULT_BRAND } from "@/config/brand";
-import SubTabsBar from "@/components/SubTabsBar";
 import Toolbar from "../components/Toolbar";
 import BackNav from "../components/BackNav";
 import PageWrapper from "../components/PageWrapper";
@@ -33,7 +32,6 @@ export default async function ComparePage({
 
   return (
     <>
-      <SubTabsBar client={client} active="עקביות" features={brand.features} topOffset={0} />
       <Toolbar isCompare client={client} />
       <BackNav client={client} />
       <PageWrapper dateLabel="השוואת קרנות" idlePath={idlePath} client={client}>
