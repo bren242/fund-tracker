@@ -127,7 +127,9 @@ If `corrections[]` contains `monthly_uncertain` for a year, monthly values for t
 - כפתור שמירה: disabled כשלא dirty, `background:#1B3A2F` כשפעיל
 
 ### מה עוד פתוח (סשנים 3-5)
-- **סשן 3:** /charts, /compare, /consistency/v2 — להחיל sub-tabs + top:52 על controls
+- **סשן 3ג — בוצע (מאי 2026):** /compare — SubTabsBar פעיל + BackNav fix ב-/consistency/v2/compare
+- **סשן 3 — נותר:** /charts — להחיל sub-tabs + top:52 על controls
+- **סשן 3 — pending redesign:** /consistency/v2 — ראה Pending sections למטה
 - **סשן 4:** /indications, /fund-status — להתאים ל-AppHeader 52px
 - **סשן 5:** polish — hover states, אנימציות, מרווחים סופיים
 - **Design review:** 4 UX issues בעקביות (בורר תקופה, 12M אין נתונים, checkbox, תאריך compare)
@@ -170,3 +172,15 @@ If `corrections[]` contains `monthly_uncertain` for a year, monthly values for t
 - חובה npm run build && npm start לפני push לכל פיצ'ר עם useSearchParams
 - npm run dev לא חושף race conditions של hydration
 - useEffect שמנקה state ב-dependency change = anti-pattern. עדיף guards מפורשים.
+
+### Pending: Consistency V2 Redesign
+- /consistency/v2 (main page) — currently hybrid report/dashboard, not consistent with site
+- /consistency/v2/compare — same issue
+- Decision needed: report-style (PDF-oriented) or dashboard-style (sticky nav, filters)?
+- SubTabsBar component is ready in components/ if dashboard direction is chosen
+
+### Pending: Print Buttons Cleanup
+- Multiple print buttons across the app cause UX inconsistency
+- AppHeader printer icon calls window.print() directly — broken on pages with print-only sections
+- Local print buttons (e.g., /compare) call setShowPrint(true) then window.print() — work correctly
+- Decision: remove AppHeader icon globally, or add coordination mechanism?
