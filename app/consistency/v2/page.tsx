@@ -76,7 +76,7 @@ export default async function ConsistencyV2Page({
 
     return (
       <>
-        <SubTabsBar client={client} active="עקביות" features={brand.features} />
+        <SubTabsBar client={client} active="עקביות" features={brand.features} topOffset={0} />
         <Suspense fallback={<div className="v2-toolbar" />}>
           <Toolbar fundId={fundParam} fundName={fundName} client={client} />
         </Suspense>
@@ -111,7 +111,7 @@ export default async function ConsistencyV2Page({
 
   return (
     <>
-      <SubTabsBar client={client} active="עקביות" features={brand.features} />
+      <SubTabsBar client={client} active="עקביות" features={brand.features} topOffset={0} />
       <BackNav client={client} />
       <PageWrapper dateLabel={dateLabel} idlePath={idlePath} client={client}>
         <IdleView top5={top5} totalFunds={totalFunds} windowSize={windowSize} searchPool={allStats} preselectId={preselect} client={client} />

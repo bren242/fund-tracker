@@ -33,7 +33,7 @@ export default async function ComparePage({
 
   return (
     <>
-      <SubTabsBar client={client} active="עקביות" features={brand.features} />
+      <SubTabsBar client={client} active="עקביות" features={brand.features} topOffset={0} />
       <Toolbar isCompare client={client} />
       <BackNav client={client} />
       <PageWrapper dateLabel="השוואת קרנות" idlePath={idlePath} client={client}>

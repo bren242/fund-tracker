@@ -8,6 +8,7 @@ interface SubTabsBarProps {
   features?: AppFeatures | null;
   primaryColor?: string;
   slot?: React.ReactNode;
+  topOffset?: number;
 }
 
 export default function SubTabsBar({
@@ -16,6 +17,7 @@ export default function SubTabsBar({
   features,
   primaryColor = "#1B3A2F",
   slot,
+  topOffset = 52,
 }: SubTabsBarProps) {
   const tabs = [
     { label: "דירוג",  path: `/${client}/analysis`,       locked: false },
@@ -29,7 +31,7 @@ export default function SubTabsBar({
       className="no-print"
       style={{
         position: "sticky",
-        top: 52,
+        top: topOffset,
         zIndex: 99,
         background: "#FAFAF7",
         height: 44,
