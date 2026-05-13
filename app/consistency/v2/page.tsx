@@ -43,12 +43,12 @@ export default async function ConsistencyV2Page({
   const { client = "green", window: windowParam, fund: fundParam, preselect } = await searchParams;
   const windowSize = [24, 36, 48].includes(Number(windowParam)) ? Number(windowParam) : 24;
 
+  // Always load brand (needed for guard)
+  const brand = await storageRead<BrandConfig>(`brand:${client}`, DEFAULT_BRAND);
+
   // Guard: redirect non-green clients that haven't enabled consistencyAnalysis
-  if (client !== "green") {
-    const brand = await storageRead<BrandConfig>(`brand:${client}`, DEFAULT_BRAND);
-    if (!brand.features?.consistencyAnalysis) {
-      redirect(`/${client}`);
-    }
+  if (client !== "green" && !brand.features?.consistencyAnalysis) {
+    redirect(`/${client}`);
   }
 
   const [fundsData, benchmarks] = await Promise.all([

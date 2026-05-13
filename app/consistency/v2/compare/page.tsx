@@ -17,11 +17,11 @@ export default async function ComparePage({
   const { client = "green", funds: fundsParam } = await searchParams;
   const idlePath = "/consistency/v2";
 
-  if (client !== "green") {
-    const brand = await storageRead<BrandConfig>(`brand:${client}`, DEFAULT_BRAND);
-    if (!brand.features?.consistencyAnalysis) {
-      redirect(`/${client}`);
-    }
+  // Always load brand (needed for sub-tabs feature locking + guard)
+  const brand = await storageRead<BrandConfig>(`brand:${client}`, DEFAULT_BRAND);
+
+  if (client !== "green" && !brand.features?.consistencyAnalysis) {
+    redirect(`/${client}`);
   }
 
   const rawIds = (fundsParam ?? "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -33,7 +33,7 @@ export default async function ComparePage({
   return (
     <>
       <Toolbar isCompare client={client} />
-      <BackNav />
+      <BackNav client={client} />
       <PageWrapper dateLabel="השוואת קרנות" idlePath={idlePath} client={client}>
         <CompareView fundIds={fundIds} client={client} />
         <PageFooter disclaimer="המידע מובא לצורך ניתוח בלבד ואינו מהווה ייעוץ השקעות, המלצה או חוות דעת." />

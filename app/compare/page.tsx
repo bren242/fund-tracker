@@ -9,8 +9,8 @@ import { useBrand } from "@/lib/useBrand";
 import { useClientKey, withClient } from "@/lib/useClientKey";
 import { useSearchParams } from "next/navigation";
 import { BrandConfig } from "@/config/brand";
-import BrandLogo from "@/components/BrandLogo";
 import ClientGate from "@/components/ClientGate";
+import SubTabsBar from "@/components/SubTabsBar";
 import CompareSummary from "@/components/CompareSummary"; // print only
 import CompareTable from "@/components/CompareTable";
 import { brandCssVars } from "@/lib/colors";
@@ -380,40 +380,26 @@ function CompareContent() {
       <style>{`@media print { @page { size: A4 portrait; margin: 8mm 10mm 14mm 10mm; } }`}</style>
       <div style={{ minHeight: "100vh", ...brandCssVars(brand.primaryColor, brand.accentColor) } as React.CSSProperties}>
 
+        {/* Sub-tabs row */}
+        <SubTabsBar
+          client={clientKey}
+          active="השוואה"
+          features={brand.features}
+          primaryColor={brand.primaryColor || "#1B3A2F"}
+          slot={
+            <button
+              onClick={() => { setShowPrint(true); setTimeout(() => window.print(), 300); }}
+              style={{ backgroundColor: brand.primaryColor, color: "#fff", fontWeight: 700, padding: "6px 18px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12 }}
+            >
+              הדפסה / PDF
+            </button>
+          }
+        />
+
         {/* ============ SCREEN VERSION ============ */}
         <div className="no-print">
 
-          {/* 1. Topbar */}
-          <div style={{ height: 4, backgroundColor: brand.primaryColor }} />
-          <div style={{ backgroundColor: "var(--bg-surface)", borderBottom: "1px solid var(--border)" }}>
-            <div style={{ maxWidth: 1200, margin: "0 auto", padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                <BrandLogo brand={brand} height={28} variant="light" />
-                <span style={{ fontSize: 14, color: "var(--text-primary)", fontWeight: 600 }}>השוואת קרנות</span>
-                {brand.version && (
-                  <span style={{ fontSize: 10, color: "var(--text-muted)", backgroundColor: "var(--bg-input)", padding: "2px 8px", borderRadius: 4, fontWeight: 500 }}>
-                    v{brand.version}
-                  </span>
-                )}
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <button onClick={() => { setShowPrint(true); setTimeout(() => window.print(), 300); }} style={{
-                  backgroundColor: brand.primaryColor, color: "#fff", fontWeight: 700,
-                  padding: "6px 18px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12,
-                }}>
-                  הדפסה / PDF
-                </button>
-                <a href={withClient("/", clientKey)} style={{
-                  fontSize: 12, color: "var(--text-secondary)", textDecoration: "none",
-                  padding: "5px 10px", borderRadius: 6, border: "1px solid var(--border)",
-                }}>
-                  ← חזור לרשימה
-                </a>
-              </div>
-            </div>
-          </div>
-
-          {/* 2. Hero — segmented control only */}
+          {/* Hero — segmented control only */}
           <div style={{ backgroundColor: "var(--bg-surface)", borderBottom: "1px solid var(--border)" }}>
             <div style={{ maxWidth: 1200, margin: "0 auto", padding: "16px 24px 14px" }}>
 
