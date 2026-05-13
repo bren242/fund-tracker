@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { FundsData, Fund, Benchmark } from "@/lib/types";
 import { sortBenchmarks } from "@/lib/benchmarkSort";
 import { pct, num, formatDate, formatReportDate } from "@/lib/format";
+import { getAvgAnnualReturn } from "@/lib/fundDerived";
 import { useBrand } from "@/lib/useBrand";
 import { useClientKey, withClient } from "@/lib/useClientKey";
 import { useSearchParams } from "next/navigation";
@@ -193,7 +194,7 @@ function FundCompareCard({ fund, color, isWinner, selectedYears, isYearMode }: {
 }) {
   const cumulative = computeCumulative(fund, selectedYears);
   const metrics = [
-    { label: "ממוצע שנתי", value: pct(fund.avgAnnualReturn),  color: retColor(fund.avgAnnualReturn) },
+    { label: "תשואה ממוצעת שנתית", value: pct(getAvgAnnualReturn(fund)), color: retColor(getAvgAnnualReturn(fund)) },
     { label: "שארפ",        value: num(fund.sharpe),           color: sharpeColor(fund.sharpe) },
     { label: "מצטבר",       value: pct(cumulative),            color: retColor(cumulative) },
   ];

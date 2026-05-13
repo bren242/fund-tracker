@@ -179,6 +179,13 @@ If `corrections[]` contains `monthly_uncertain` for a year, monthly values for t
 - Decision needed: report-style (PDF-oriented) or dashboard-style (sticky nav, filters)?
 - SubTabsBar component is ready in components/ if dashboard direction is chosen
 
+### Pending: Backend Cleanup — avgAnnualReturn in KV
+- `app/api/parse/route.ts:296-307` מאחסן ממוצע חשבוני של שנות תשואה ב-KV
+- ה-frontend כעת מתעלם מזה (משתמש ב-`getAvgAnnualReturn` → `computeAvgAnnualReturn`)
+- ערך ה-KV עדיין מהווה fallback כשאין `monthlyReturns`
+- עתיד: לעדכן את parse route לשמור CAGR, להריץ migration על קרנות קיימות
+- עדיפות נמוכה — המצב הנוכחי בטוח
+
 ### Pending: Print Buttons Cleanup
 - Multiple print buttons across the app cause UX inconsistency
 - AppHeader printer icon calls window.print() directly — broken on pages with print-only sections

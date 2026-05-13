@@ -2,6 +2,7 @@
 
 import { Category, Fund } from "@/lib/types";
 import { pct, num, formatDate, formatReportDate } from "@/lib/format";
+import { getAvgAnnualReturn } from "@/lib/fundDerived";
 
 import { BrandConfig } from "@/config/brand";
 import { SECTION_COLORS } from "@/lib/constants";
@@ -115,7 +116,7 @@ export default function PrintReport({ categories, lastUpdated, brand, printYears
           {yearKeys.map((y) => (
             <td key={y.key} style={tdStyle({ textAlign: "center", color: returnColor(f.returns[y.key]), fontSize: baseFontSize })}>{pct(f.returns[y.key])}</td>
           ))}
-          <td style={tdStyle({ textAlign: "center", color: returnColor(f.avgAnnualReturn), fontSize: baseFontSize })}>{pct(f.avgAnnualReturn)}</td>
+          <td style={tdStyle({ textAlign: "center", color: returnColor(getAvgAnnualReturn(f)), fontSize: baseFontSize })}>{pct(getAvgAnnualReturn(f))}</td>
           <td style={tdStyle({ textAlign: "center", fontSize: baseFontSize })}>{num(f.sharpe)}</td>
           <td style={tdStyle({ textAlign: "center", color: returnColor(f.stdDev), fontSize: baseFontSize })}>{pct(f.stdDev)}</td>
           <td style={tdStyle({ textAlign: "center", fontSize: baseFontSize })}>{f.aumMillions != null ? f.aumMillions.toLocaleString() : "—"}</td>
@@ -192,7 +193,7 @@ export default function PrintReport({ categories, lastUpdated, brand, printYears
             {yearKeys.map((y) => (
               <th key={y.key} style={thBase}>{y.label}</th>
             ))}
-            <th style={thBase}>ממוצע שנתי</th>
+            <th style={thBase}>תשואה ממוצעת שנתית</th>
             <th style={thBase}>שארפ</th>
             <th style={thBase}>ס״ת</th>
             <th style={thBase}>AUM (מ׳ ₪)</th>

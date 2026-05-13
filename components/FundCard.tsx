@@ -2,7 +2,7 @@
 
 import { Fund } from "@/lib/types";
 import { pct, num, formatReportDate, returnColorInline } from "@/lib/format";
-import { getLastUpdated } from "@/lib/fundDerived";
+import { getLastUpdated, getAvgAnnualReturn } from "@/lib/fundDerived";
 import { useState, useEffect } from "react";
 
 /* ── Year keys to display ── */
@@ -323,8 +323,8 @@ export default function FundCard({ fund }: { fund: Fund }) {
       }}>
         <MetricCell
           label="ממוצע שנתי"
-          value={pct(fund.avgAnnualReturn)}
-          color={returnColorInline(fund.avgAnnualReturn)}
+          value={pct(getAvgAnnualReturn(fund))}
+          color={returnColorInline(getAvgAnnualReturn(fund))}
         />
         <MetricCell
           label="חודש גרוע"

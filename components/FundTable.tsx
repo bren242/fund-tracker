@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Category, Fund } from "@/lib/types";
 import { pct, num, returnColorInline, formatReportDate } from "@/lib/format";
-import { getLastUpdated } from "@/lib/fundDerived";
+import { getLastUpdated, getAvgAnnualReturn } from "@/lib/fundDerived";
 
 
 type ReturnKey = "ytd2026" | "y2025" | "y2024" | "y2023" | "y2022" | "y2021" | "y2020" | "y2019";
@@ -53,7 +53,7 @@ function getSortValue(fund: Fund, col: SortCol): string | number {
     case "name":           return (fund.name ?? "").toLowerCase();
     case "classification": return (fund.classification ?? "").toLowerCase();
     case "manager":        return (fund.manager ?? "").toLowerCase();
-    case "avgAnnualReturn":return fund.avgAnnualReturn ?? NULL_NUM;
+    case "avgAnnualReturn":return getAvgAnnualReturn(fund) ?? NULL_NUM;
     case "sharpe":         return fund.sharpe ?? NULL_NUM;
     case "stdDev":         return fund.stdDev ?? NULL_NUM;
     case "aumMillions":    return fund.aumMillions ?? NULL_NUM;
@@ -197,7 +197,7 @@ function FundRow({ fund, even, comparisonEnabled, isSelected, onToggle, activeYe
       {activeYears.map((y) => (
         <ReturnCell key={y.key} value={fund.returns[y.key]} />
       ))}
-      <ReturnCell value={fund.avgAnnualReturn} />
+      <ReturnCell value={getAvgAnnualReturn(fund)} />
       <td style={{ padding: "8px 10px", textAlign: "center", borderBottom: "1px solid var(--border-table)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
         {num(fund.sharpe)}
       </td>
@@ -406,7 +406,7 @@ export default function FundTable({ categories, comparisonEnabled, selectedFundI
           {activeYears.map((y) => (
             <SortableHeader key={y.key} label={y.label} col={y.key as SortCol} style={thBase} {...sortProps} />
           ))}
-          <SortableHeader label="ממוצע שנתי"  col="avgAnnualReturn" style={thBase}                                              {...sortProps} />
+          <SortableHeader label="תשואה ממוצעת שנתית"  col="avgAnnualReturn" style={thBase}                                   {...sortProps} />
           <SortableHeader label="שארפ"        col="sharpe"         style={thBase}                                               {...sortProps} />
           <SortableHeader label="ס״ת"         col="stdDev"         style={thBase}                                               {...sortProps} />
           <SortableHeader label="AUM (מ׳ ₪)"  col="aumMillions"    style={thBase}                                               {...sortProps} />

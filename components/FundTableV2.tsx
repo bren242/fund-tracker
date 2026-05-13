@@ -1170,8 +1170,11 @@ export default function FundTableV2({
                           ? pr.value
                           : calcRangeReturn(fund.monthlyReturns, rangeFrom, rangeTo);
                       // yearMode: ממוצע שנתי מ-y2020–y2025 (לא תלוי monthlyReturns)
+                      // ytd: CAGR מתחילת חיי הקרן (לא annualized YTD — זהה ל-MAX מבחינת העמודה)
                       const annualAvg = isYearMode
                         ? calcAnnualAvgFromReturns(fund)
+                        : timeRange === "ytd"
+                        ? getAvgAnnualReturn(fund)
                         : undefined;
 
                       rows.push(
