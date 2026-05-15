@@ -7,9 +7,10 @@ import FundOnePagerModal from "./FundOnePagerModal";
 import { useBrand } from "@/lib/useBrand";
 import { getYTD, getAnnualReturn, getSharpe, getStdDev, getAvgAnnualReturn, getLatestMonthly, getLastUpdated } from "@/lib/fundDerived";
 import { computePeriodWithCoverage, type PeriodResult } from "@/lib/period-coverage";
+import DateRangePicker, { DateRangeValue } from "@/components/DateRangePicker";
+import { type TimeRange, rangeToDateRange, formatMonthHe, DEFAULT_RANGE } from "@/lib/dateRange";
 
 // ── Types ──────────────────────────────────────────────────────────────────
-type TimeRange     = "ytd" | "12m" | "3y" | "5y" | "max" | "custom";
 type YearKey       = "2020" | "2021" | "2022" | "2023" | "2024" | "2025" | "ytd2026" | "avg";
 type NoxSelectYear = "2020" | "2021" | "2022" | "2023" | "2024" | "2025" | "ytd2026";
 
@@ -18,12 +19,6 @@ const MONTH_HE: Record<string, string> = {
   "01": "ינו", "02": "פבר", "03": "מרץ", "04": "אפר",
   "05": "מאי", "06": "יוני", "07": "יול", "08": "אוג",
   "09": "ספט", "10": "אוק", "11": "נוב", "12": "דצמ",
-};
-
-const MONTH_HE_FULL: Record<string, string> = {
-  "01": "ינואר", "02": "פברואר", "03": "מרץ", "04": "אפריל",
-  "05": "מאי", "06": "יוני", "07": "יולי", "08": "אוגוסט",
-  "09": "ספטמבר", "10": "אוקטובר", "11": "נובמבר", "12": "דצמבר",
 };
 
 function fmtUpdateCell(fund: Fund): string {
@@ -59,34 +54,11 @@ const NOX_YEAR_OPTIONS: { key: NoxSelectYear; label: string }[] = [
   { key: "ytd2026", label: "YTD" },
 ];
 
-const TIME_RANGE_OPTIONS: { key: TimeRange; label: string }[] = [
-  { key: "ytd",    label: "YTD" },
-  { key: "12m",   label: "12M" },
-  { key: "3y",    label: "3Y" },
-  { key: "5y",    label: "5Y" },
-  { key: "max",   label: "MAX" },
-  { key: "custom", label: "Custom" },
-];
-
 const TOTAL_COLS = 6; // name | date | monthly | period | avg | sharpe
 
-// ── Date helpers (module-level, evaluated once) ────────────────────────────
+// ── Date helper (module-level) ─────────────────────────────────────────────
 const _today = new Date();
-const _toYM = `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, "0")}`;
-
-function subtractMonths(ym: string, months: number): string {
-  const [y, m] = ym.split("-").map(Number);
-  const d = new Date(y, m - 1 - months, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-
-const RANGES: Record<Exclude<TimeRange, "custom">, { from: string | null; to: string }> = {
-  ytd:  { from: `${_today.getFullYear()}-01`, to: _toYM },
-  "12m": { from: subtractMonths(_toYM, 12),   to: _toYM },
-  "3y":  { from: subtractMonths(_toYM, 36),   to: _toYM },
-  "5y":  { from: subtractMonths(_toYM, 60),   to: _toYM },
-  max:   { from: null,                         to: _toYM },
-};
+const _toYM   = `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, "0")}`;
 
 /** Expected months for each named range (0 = MAX, no expectation) */
 const RANGE_EXPECTED: Record<Exclude<TimeRange, "custom">, { label: "YTD" | "12M" | "3Y" | "5Y" | "MAX"; months: number }> = {
@@ -96,21 +68,6 @@ const RANGE_EXPECTED: Record<Exclude<TimeRange, "custom">, { label: "YTD" | "12M
   "5y":  { label: "5Y",  months: 60 },
   max:   { label: "MAX", months: 0 },
 };
-
-// Month options: 2019-01 → current month
-const MONTH_OPTIONS: { value: string; label: string }[] = (() => {
-  const opts: { value: string; label: string }[] = [];
-  let year = 2019, month = 1;
-  while (
-    year < _today.getFullYear() ||
-    (year === _today.getFullYear() && month <= _today.getMonth() + 1)
-  ) {
-    const mm = String(month).padStart(2, "0");
-    opts.push({ value: `${year}-${mm}`, label: `${MONTH_HE_FULL[mm]} ${year}` });
-    if (++month > 12) { month = 1; year++; }
-  }
-  return opts;
-})();
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function calcRangeReturn(
@@ -190,42 +147,6 @@ function getClassBadge(cls: string): { label: string; bg: string; color: string 
   if (c.includes("אג"))                           return { label: "BOND",  bg: "#fdf5e8", color: "#8a6020" };
   if (c.includes("לונג") || c.includes("long"))  return { label: "LONG",  bg: "#e8f5ee", color: "#1B3A2F" };
   return null;
-}
-
-// ── Segmented Control ──────────────────────────────────────────────────────
-function SegmentedControl({ value, onChange }: { value: TimeRange; onChange: (v: TimeRange) => void }) {
-  return (
-    <div style={{
-      display: "inline-flex",
-      background: "#F4F3EF",
-      borderRadius: 5,
-      padding: 2,
-      flexShrink: 0,
-    }}>
-      {TIME_RANGE_OPTIONS.map((o) => {
-        const active = value === o.key;
-        return (
-          <button
-            key={o.key}
-            onClick={() => onChange(o.key)}
-            style={{
-              padding: "4px 9px", fontSize: 11,
-              fontWeight: active ? 500 : 400,
-              border: "none",
-              borderRadius: active ? 3 : 0,
-              cursor: "pointer",
-              backgroundColor: active ? "#1B3A2F" : "transparent",
-              color: active ? "#ffffff" : "rgba(27, 58, 47, 0.6)",
-              transition: "all 0.12s",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {o.label}
-          </button>
-        );
-      })}
-    </div>
-  );
 }
 
 // ── NOX Year Selector (multi-select) ──────────────────────────────────────
@@ -721,9 +642,10 @@ export default function FundTableV2({
   /** Passed from parent; required for the AI One-Pager feature. */
   clientKey?: string;
 }) {
-  const [timeRange, setTimeRange]             = useState<TimeRange>("3y");
-  const [customFrom, setCustomFrom]           = useState("2022-01");
-  const [customTo, setCustomTo]               = useState(_toYM);
+  const [rangeValue, setRangeValue] = useState<DateRangeValue>({ range: DEFAULT_RANGE });
+  const timeRange  = rangeValue.range;
+  const customFrom = rangeValue.from ?? "2022-01";
+  const customTo   = rangeValue.to   ?? _toYM;
   const [activeFilter, setActiveFilter]       = useState("הכל");
   const [activeClassification, setActiveClassification] = useState<string | null>(null);
   const [hoveredSection, setHoveredSection]   = useState<string | null>(null);
@@ -802,10 +724,10 @@ export default function FundTableV2({
 
   // Range bounds for period calculation
   const { rangeFrom, rangeTo } = useMemo(() => {
-    if (timeRange === "custom") return { rangeFrom: customFrom, rangeTo: customTo };
-    const r = RANGES[timeRange];
-    return { rangeFrom: r.from, rangeTo: r.to };
-  }, [timeRange, customFrom, customTo]);
+    const r = rangeToDateRange(timeRange, latestMonth, customFrom, customTo);
+    if (!r) return { rangeFrom: null as string | null, rangeTo: _toYM };
+    return { rangeFrom: r.from as string | null, rangeTo: r.to };
+  }, [timeRange, latestMonth, customFrom, customTo]);
 
   // Unique section labels
   const sectionLabels = useMemo(() => {
@@ -884,9 +806,7 @@ export default function FundTableV2({
       return sorted.map(y => y === "ytd2026" ? "YTD" : y).join(" + ");
     }
     if (timeRange === "custom") {
-      const fOpt = MONTH_OPTIONS.find(o => o.value === customFrom);
-      const tOpt = MONTH_OPTIONS.find(o => o.value === customTo);
-      return `${fOpt?.label || customFrom} — ${tOpt?.label || customTo}`;
+      return `${formatMonthHe(customFrom)} — ${formatMonthHe(customTo)}`;
     }
     const labels: Record<TimeRange, string> = {
       ytd: "מתחילת שנה", "12m": "12 חודשים",
@@ -917,12 +837,6 @@ export default function FundTableV2({
     letterSpacing: "0.2px",
     padding: "9px 10px",
     borderBottom: "0.5px solid rgba(27, 58, 47, 0.07)",
-  };
-
-  const selectStyle: React.CSSProperties = {
-    padding: "3px 8px", borderRadius: 5, fontSize: 11,
-    border: "1px solid var(--border)", cursor: "pointer",
-    backgroundColor: "var(--bg-input)", color: "var(--text-primary)",
   };
 
   return (
@@ -1009,21 +923,12 @@ export default function FundTableV2({
             {isYearMode ? (
               <NoxYearSelector selected={selectedYears} onToggle={toggleNoxYear} />
             ) : (
-              <>
-                <SegmentedControl value={timeRange} onChange={(v) => { setTimeRange(v); resetAccordions(); }} />
-                {timeRange === "custom" && (
-                  <>
-                    <span style={{ fontSize: 11, color: "var(--text-muted)" }}>מ-</span>
-                    <select value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={selectStyle}>
-                      {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                    <span style={{ fontSize: 11, color: "var(--text-muted)" }}>עד</span>
-                    <select value={customTo} onChange={e => setCustomTo(e.target.value)} style={selectStyle}>
-                      {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                  </>
-                )}
-              </>
+              <DateRangePicker
+                value={rangeValue}
+                onChange={(next) => { setRangeValue(next); resetAccordions(); }}
+                latestAvailableMonth={latestMonth}
+                syncToUrl={true}
+              />
             )}
           </div>
         </div>
@@ -1162,14 +1067,25 @@ export default function FundTableV2({
 
                     cat.funds.forEach((fund, fi) => {
                       const isOpen = openAccordions.has(fund.id);
-                      // Time-range mode: compute coverage-aware result
-                      const pr = !isYearMode && timeRange !== "custom"
+                      // Time-range mode: compute coverage-aware result (including custom)
+                      const customExpectedM = timeRange === "custom" && rangeFrom
+                        ? (() => {
+                            const [fy, fm] = rangeFrom.split("-").map(Number);
+                            const [ty, tm] = rangeTo.split("-").map(Number);
+                            return (ty - fy) * 12 + (tm - fm) + 1;
+                          })()
+                        : 0;
+                      const pr = !isYearMode
                         ? computePeriodWithCoverage(
                             fund.monthlyReturns,
                             rangeFrom,
                             rangeTo,
-                            RANGE_EXPECTED[timeRange as Exclude<TimeRange, "custom">].label,
-                            RANGE_EXPECTED[timeRange as Exclude<TimeRange, "custom">].months,
+                            timeRange === "custom"
+                              ? "custom"
+                              : RANGE_EXPECTED[timeRange as Exclude<TimeRange, "custom">].label,
+                            timeRange === "custom"
+                              ? customExpectedM
+                              : RANGE_EXPECTED[timeRange as Exclude<TimeRange, "custom">].months,
                             fund.startDate ?? undefined,
                           )
                         : null;

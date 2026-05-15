@@ -79,13 +79,23 @@ describe("computePeriodWithCoverage", () => {
     expect(result.cagr).not.toBeNull();
   });
 
-  // Test 3 — very young fund: 20 months in a 60-month window → insufficient
-  it("returns insufficient for <50% coverage (20 of 60 months)", () => {
-    const mr = makeMonths("2025-09", 20, 0.01);
+  // Test 3 — young fund: 20 months in a 60-month window → partial (any data = show value)
+  it("returns partial for < 50% coverage (20 of 60 months) — any data shows value", () => {
+    const mr = makeMonths("2024-09", 20, 0.01); // 2024-09 → 2026-04 = 20 months in window
+    const result = computePeriodWithCoverage(mr, "2021-05", "2026-04", "5Y", 60);
+    expect(result.status).toBe("partial");
+    expect(result.value).not.toBeNull();
+    expect(result.cagr).not.toBeNull();
+    expect(result.monthsActual).toBe(20);
+    expect(result.effectiveLabel).toBe("20M · מ-09/2024");
+  });
+
+  // Test 3b — insufficient only when 0 months in window
+  it("returns insufficient only when 0 months exist in window", () => {
+    const mr = makeMonths("2030-01", 5, 0.01); // all outside window
     const result = computePeriodWithCoverage(mr, "2021-05", "2026-04", "5Y", 60);
     expect(result.status).toBe("insufficient");
     expect(result.value).toBeNull();
-    expect(result.cagr).toBeNull();
     expect(result.effectiveLabel).toBe("");
   });
 
@@ -147,5 +157,29 @@ describe("computePeriodWithCoverage", () => {
     expect(result.monthsActual).toBe(2);
     expect(result.monthsExpected).toBe(4);
     expect(result.coverage).toBeCloseTo(0.5);
+  });
+
+  // Test 10 — חצבים ואליו scenario: 5Y preset with startDate=2024-01 → partial + value
+  it("preset 5Y: fund starting 2024-01 in 2021-05→2026-04 window is partial with value", () => {
+    const mr = makeMonths("2024-01", 28, 0.01); // 28 months
+    const result = computePeriodWithCoverage(mr, "2021-05", "2026-04", "5Y", 60);
+    expect(result.status).toBe("partial");
+    expect(result.value).not.toBeNull();
+    expect(result.monthsActual).toBe(28);
+    expect(result.effectiveLabel).toBe("28M · מ-01/2024");
+  });
+
+  // Test 11 — custom range same window as 5Y: identical value to preset
+  it("custom range with same window as 5Y preset yields same value", () => {
+    const mr = makeMonths("2024-01", 28, 0.01);
+    const presetResult  = computePeriodWithCoverage(mr, "2021-05", "2026-04", "5Y", 60);
+    const customResult  = computePeriodWithCoverage(mr, "2021-05", "2026-04", "custom", 48);
+    expect(presetResult.status).toBe("partial");
+    expect(customResult.status).toBe("partial");
+    expect(presetResult.value).not.toBeNull();
+    expect(customResult.value).not.toBeNull();
+    expect(presetResult.value).toBeCloseTo(customResult.value!, 10);
+    expect(presetResult.monthsActual).toBe(customResult.monthsActual);
+    expect(presetResult.effectiveLabel).toBe(customResult.effectiveLabel);
   });
 });
