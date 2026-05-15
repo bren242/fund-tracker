@@ -200,7 +200,7 @@ function DateRangePickerInner({
               key={preset}
               onClick={() => handlePresetClick(preset)}
               style={{
-                padding: "7px 16px",
+                padding: "5px 12px",
                 borderRadius: 999,
                 border: `0.5px solid ${isActive ? "#1B3A2F" : "rgba(27,58,47,0.2)"}`,
                 backgroundColor: isActive ? "#1B3A2F" : "transparent",
@@ -229,8 +229,8 @@ function DateRangePickerInner({
             backgroundColor: "#fff",
             border: "0.5px solid rgba(27,58,47,0.15)",
             borderRadius: 12,
-            padding: "18px 20px",
-            width: 360,
+            padding: "14px 16px",
+            width: 300,
             boxShadow: "0 8px 32px rgba(0,0,0,0.10)",
           }}
           dir="rtl"
@@ -245,22 +245,22 @@ function DateRangePickerInner({
             }}
           >
             <button
-              onClick={() => setPopoverYear(y => Math.max(y - 1, minYear))}
-              disabled={popoverYear <= minYear}
-              aria-label="שנה קודמת"
-              style={yearNavBtn(popoverYear <= minYear)}
-            >←</button>
+              onClick={() => setPopoverYear(y => Math.min(y + 1, maxYear))}
+              disabled={popoverYear >= maxYear}
+              aria-label="שנה הבאה"
+              style={yearNavBtn(popoverYear >= maxYear)}
+            >→</button>
 
             <span style={{ fontSize: 15, fontWeight: 600, color: "#1B3A2F", letterSpacing: 0.5 }}>
               {popoverYear}
             </span>
 
             <button
-              onClick={() => setPopoverYear(y => Math.min(y + 1, maxYear))}
-              disabled={popoverYear >= maxYear}
-              aria-label="שנה הבאה"
-              style={yearNavBtn(popoverYear >= maxYear)}
-            >→</button>
+              onClick={() => setPopoverYear(y => Math.max(y - 1, minYear))}
+              disabled={popoverYear <= minYear}
+              aria-label="שנה קודמת"
+              style={yearNavBtn(popoverYear <= minYear)}
+            >←</button>
           </div>
 
           {/* Instruction */}
@@ -300,7 +300,7 @@ function DateRangePickerInner({
                   onMouseLeave={() => setHoverMonth(null)}
                   disabled={isDisabled}
                   style={{
-                    padding: "13px 0",
+                    padding: "10px 0",
                     border: "none",
                     borderRadius: 6,
                     backgroundColor: bg,
