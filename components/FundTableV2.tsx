@@ -1067,14 +1067,25 @@ export default function FundTableV2({
 
                     cat.funds.forEach((fund, fi) => {
                       const isOpen = openAccordions.has(fund.id);
-                      // Time-range mode: compute coverage-aware result
-                      const pr = !isYearMode && timeRange !== "custom"
+                      // Time-range mode: compute coverage-aware result (including custom)
+                      const customExpectedM = timeRange === "custom" && rangeFrom
+                        ? (() => {
+                            const [fy, fm] = rangeFrom.split("-").map(Number);
+                            const [ty, tm] = rangeTo.split("-").map(Number);
+                            return (ty - fy) * 12 + (tm - fm) + 1;
+                          })()
+                        : 0;
+                      const pr = !isYearMode
                         ? computePeriodWithCoverage(
                             fund.monthlyReturns,
                             rangeFrom,
                             rangeTo,
-                            RANGE_EXPECTED[timeRange as Exclude<TimeRange, "custom">].label,
-                            RANGE_EXPECTED[timeRange as Exclude<TimeRange, "custom">].months,
+                            timeRange === "custom"
+                              ? "custom"
+                              : RANGE_EXPECTED[timeRange as Exclude<TimeRange, "custom">].label,
+                            timeRange === "custom"
+                              ? customExpectedM
+                              : RANGE_EXPECTED[timeRange as Exclude<TimeRange, "custom">].months,
                             fund.startDate ?? undefined,
                           )
                         : null;

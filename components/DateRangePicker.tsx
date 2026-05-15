@@ -235,20 +235,20 @@ function DateRangePickerInner({
           }}
           dir="rtl"
         >
-          {/* Year navigation — LTR so arrows stay consistent */}
+          {/* Year navigation — RTL inherited: first child = right, last = left.
+               → on right = earlier year; ← on left = later year (Hebrew convention). */}
           <div
             style={{
               display: "flex", alignItems: "center",
               justifyContent: "space-between",
               marginBottom: 10,
-              direction: "ltr",
             }}
           >
             <button
-              onClick={() => setPopoverYear(y => Math.min(y + 1, maxYear))}
-              disabled={popoverYear >= maxYear}
-              aria-label="שנה הבאה"
-              style={yearNavBtn(popoverYear >= maxYear)}
+              onClick={() => setPopoverYear(y => Math.max(y - 1, minYear))}
+              disabled={popoverYear <= minYear}
+              aria-label="שנה קודמת"
+              style={yearNavBtn(popoverYear <= minYear)}
             >→</button>
 
             <span style={{ fontSize: 15, fontWeight: 600, color: "#1B3A2F", letterSpacing: 0.5 }}>
@@ -256,10 +256,10 @@ function DateRangePickerInner({
             </span>
 
             <button
-              onClick={() => setPopoverYear(y => Math.max(y - 1, minYear))}
-              disabled={popoverYear <= minYear}
-              aria-label="שנה קודמת"
-              style={yearNavBtn(popoverYear <= minYear)}
+              onClick={() => setPopoverYear(y => Math.min(y + 1, maxYear))}
+              disabled={popoverYear >= maxYear}
+              aria-label="שנה הבאה"
+              style={yearNavBtn(popoverYear >= maxYear)}
             >←</button>
           </div>
 

@@ -69,7 +69,7 @@ export function computePeriodWithCoverage(
   monthlyReturns: Record<string, number> | undefined,
   fromYearMonth: string | null,
   toYearMonth: string,
-  requestedLabel: "YTD" | "12M" | "3Y" | "5Y" | "MAX",
+  requestedLabel: string,
   expectedMonths: number,
   startDate?: string
 ): PeriodResult {
