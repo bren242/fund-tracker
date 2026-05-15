@@ -4,9 +4,9 @@
  * Fixes the 5Y < 3Y bug: a fund with 40 months of history incorrectly showed
  * a "5Y" return by compounding only the 40 months that existed in that window.
  * This module computes coverage (actual vs expected months) and labels accordingly:
- *   ≥95%  → "full"       — label unchanged ("5Y", "3Y", "12M")
- *   50–94% → "partial"   — amber sub-label with actual duration + start date
- *   <50%  → "insufficient" — value is null (not enough data to be meaningful)
+ *   ≥95%       → "full"       — label unchanged ("5Y", "3Y", "12M")
+ *   1–94%      → "partial"    — amber sub-label with actual duration + start date
+ *   0 months   → "insufficient" — value is null (no data at all)
  *
  * MAX is always treated as "full" regardless of months available.
  */
@@ -107,13 +107,13 @@ export function computePeriodWithCoverage(
     status = monthsActual > 0 ? "full" : "insufficient";
   } else if (coverage >= 0.95) {
     status = "full";
-  } else if (coverage >= 0.5) {
+  } else if (monthsActual > 0) {
     status = "partial";
   } else {
     status = "insufficient";
   }
 
-  if (monthsActual === 0 || status === "insufficient") {
+  if (monthsActual === 0) {
     return {
       value: null,
       monthsExpected,
