@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { FundsData, Fund, Benchmark } from "@/lib/types";
 import { sortBenchmarks } from "@/lib/benchmarkSort";
 import { pct, num, formatDate, formatReportDate } from "@/lib/format";
-import { getAvgAnnualReturn, getLastUpdated } from "@/lib/fundDerived";
+import { getAvgAnnualReturn, getLastUpdated, getLatestMonthAcrossFunds } from "@/lib/fundDerived";
 import { useBrand } from "@/lib/useBrand";
 import { useClientKey, withClient } from "@/lib/useClientKey";
 import { useSearchParams } from "next/navigation";
@@ -38,17 +38,33 @@ function addMonths(base: Date, n: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-/** Converts selected time range to an exact YYYY-MM from/to pair */
-function rangeToDateRange(range: TimeRange, from?: string, to?: string): { from: string; to: string } {
+/** Converts selected time range to an exact YYYY-MM from/to pair.
+ *  When latestAvailableMonth is provided (derived from fund data), it is used
+ *  as `to` and as the anchor for preset offsets — preventing ranges that extend
+ *  past the last month with actual data (which breaks cumulative rows and chart downsampling). */
+function rangeToDateRange(
+  range: TimeRange,
+  from?: string,
+  to?: string,
+  latestAvailableMonth?: string | null,
+): { from: string; to: string } {
   const today = new Date();
   const cur = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+
+  // Anchor: use last month with fund data, fall back to current calendar month
+  const anchor = latestAvailableMonth ?? cur;
+
+  // Parse anchor into a Date for addMonths arithmetic
+  const [anchorY, anchorM] = anchor.split("-").map(Number);
+  const anchorDate = new Date(anchorY, anchorM - 1, 1);
+
   switch (range) {
-    case "ytd":    return { from: `${today.getFullYear()}-01`, to: cur };
-    case "12m":   return { from: addMonths(today, -11), to: cur };  // 12 data points
-    case "3y":    return { from: addMonths(today, -36), to: cur };  // Apr 2023–Apr 2026
-    case "5y":    return { from: addMonths(today, -60), to: cur };  // Apr 2021–Apr 2026
-    case "max":   return { from: "2019-01", to: cur };
-    case "custom": return { from: from || "2022-01", to: to || cur };
+    case "ytd":    return { from: `${anchorY}-01`, to: anchor };
+    case "12m":   return { from: addMonths(anchorDate, -11), to: anchor };
+    case "3y":    return { from: addMonths(anchorDate, -36), to: anchor };
+    case "5y":    return { from: addMonths(anchorDate, -60), to: anchor };
+    case "max":   return { from: "2019-01", to: anchor };
+    case "custom": return { from: from || "2022-01", to: to || anchor };
   }
 }
 
@@ -332,10 +348,16 @@ function CompareContent() {
     modeDetected.current = true;
   }, [funds]);
 
+  // Latest month with actual fund data — used to anchor preset ranges
+  const latestMonth = useMemo(
+    () => getLatestMonthAcrossFunds(funds),
+    [funds],
+  );
+
   // Exact YYYY-MM range for chart (non-year-mode only — year mode uses its own bar chart)
   const chartRange = useMemo(() => {
-    return rangeToDateRange(timeRange, committedFrom, committedTo);
-  }, [timeRange, committedFrom, committedTo]);
+    return rangeToDateRange(timeRange, committedFrom, committedTo, latestMonth);
+  }, [timeRange, committedFrom, committedTo, latestMonth]);
 
   // Year keys for cards/table — first selected year in year mode
   const selectedYears = useMemo(() => {

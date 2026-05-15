@@ -56,3 +56,18 @@ export function getLatestMonthly(fund: Fund): number | null {
   );
 }
 
+/**
+ * Returns the latest YYYY-MM that has data across all provided funds.
+ * Only considers funds with monthlyReturns. Benchmarks are excluded by design.
+ * Returns null if no fund has monthly data.
+ */
+export function getLatestMonthAcrossFunds(funds: Fund[]): string | null {
+  const months: string[] = [];
+  for (const f of funds) {
+    const m = metrics.computeLatestMonth(f.monthlyReturns ?? {});
+    if (m) months.push(m);
+  }
+  if (months.length === 0) return null;
+  return months.sort().at(-1) ?? null;
+}
+
