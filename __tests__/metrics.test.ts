@@ -10,6 +10,7 @@ import {
   computeStartMonth,
   computeLatestMonth,
   hasMinimumHistory,
+  computeCumulativeForRange,
   type MonthlyReturns,
 } from "../lib/metrics";
 
@@ -270,6 +271,31 @@ describe("computeLatestMonth", () => {
 
   it("returns null for empty input", () => {
     expect(computeLatestMonth(empty)).toBeNull();
+  });
+});
+
+// ─── computeCumulativeForRange ────────────────────────────────────────────
+
+describe("computeCumulativeForRange", () => {
+  it("compounds 12 months of 1% each to 1.01^12 - 1", () => {
+    // flat12 covers 2025-01 to 2025-12
+    const result = computeCumulativeForRange(flat12, "2025-01", "2025-12");
+    expect(result).not.toBeNull();
+    expect(result!).toBeCloseTo(Math.pow(1.01, 12) - 1, 6);
+  });
+
+  it("returns null when a month in the range is missing", () => {
+    // partial2025 covers 2025-01 to 2025-11 (no 2025-12)
+    expect(computeCumulativeForRange(partial2025, "2025-01", "2025-12")).toBeNull();
+  });
+
+  it("returns null when monthlyReturns is undefined", () => {
+    expect(computeCumulativeForRange(undefined, "2025-01", "2025-12")).toBeNull();
+  });
+
+  it("returns the single month value for a one-month range", () => {
+    const result = computeCumulativeForRange(flat12, "2025-06", "2025-06");
+    expect(result).toBeCloseTo(0.01, 6);
   });
 });
 

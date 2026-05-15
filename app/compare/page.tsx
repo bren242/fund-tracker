@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { FundsData, Fund, Benchmark } from "@/lib/types";
 import { sortBenchmarks } from "@/lib/benchmarkSort";
 import { pct, num, formatDate, formatReportDate } from "@/lib/format";
-import { getAvgAnnualReturn } from "@/lib/fundDerived";
+import { getAvgAnnualReturn, getLastUpdated } from "@/lib/fundDerived";
 import { useBrand } from "@/lib/useBrand";
 import { useClientKey, withClient } from "@/lib/useClientKey";
 import { useSearchParams } from "next/navigation";
@@ -193,6 +193,7 @@ function FundCompareCard({ fund, color, isWinner, selectedYears, isYearMode }: {
   fund: Fund; color: string; isWinner: boolean; selectedYears: string[]; isYearMode: boolean;
 }) {
   const cumulative = computeCumulative(fund, selectedYears);
+  const lastUpdated = getLastUpdated(fund);
   const metrics = [
     { label: "תשואה ממוצעת שנתית", value: pct(getAvgAnnualReturn(fund)), color: retColor(getAvgAnnualReturn(fund)) },
     { label: "שארפ",        value: num(fund.sharpe),           color: sharpeColor(fund.sharpe) },
@@ -211,7 +212,7 @@ function FundCompareCard({ fund, color, isWinner, selectedYears, isYearMode }: {
       </div>
 
       {/* Name + classification */}
-      <div style={{ marginBottom: fund.lastUpdated ? 8 : 14 }}>
+      <div style={{ marginBottom: lastUpdated ? 8 : 14 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", lineHeight: 1.35, marginBottom: 3 }}>
           {fund.name}
         </div>
@@ -221,9 +222,9 @@ function FundCompareCard({ fund, color, isWinner, selectedYears, isYearMode }: {
       </div>
 
       {/* Update date */}
-      {fund.lastUpdated && (
+      {lastUpdated && (
         <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 10 }}>
-          {isYearMode ? "עודכן לאחרונה" : "מעודכן ל"}: {formatReportDate(fund.lastUpdated)}
+          {isYearMode ? "עודכן לאחרונה" : "מעודכן ל"}: {formatReportDate(lastUpdated)}
         </div>
       )}
 
@@ -540,6 +541,8 @@ function CompareContent() {
               selectedYears={selectedYears}
               benchmarks={selectedBenchmarks}
               fundColors={funds.map((_, i) => i === 0 ? brand.primaryColor : FUND_COLORS[i])}
+              fromYYYYMM={isYearMode ? undefined : chartRange.from}
+              toYYYYMM={isYearMode ? undefined : chartRange.to}
             />
 
             {/* Disclaimer */}
@@ -621,7 +624,7 @@ function ComparePrint({ funds, brand, lastUpdated, mode, selectedYears, chartFro
               <CompareSummary funds={funds} accentColor={brand.primaryColor} compact selectedYears={selectedYears} />
 
               {/* Comparison table */}
-              <CompareTable funds={funds} accentColor={brand.primaryColor} compact selectedYears={selectedYears} benchmarks={benchmarks} />
+              <CompareTable funds={funds} accentColor={brand.primaryColor} compact selectedYears={selectedYears} benchmarks={benchmarks} fromYYYYMM={chartFrom} toYYYYMM={chartTo} />
 
               {/* Divider between table and chart */}
               {mode === "advanced" && (

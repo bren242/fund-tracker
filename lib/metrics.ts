@@ -208,3 +208,42 @@ export function hasMinimumHistory(
 ): boolean {
   return sortedEntries(mr).length >= requiredMonths;
 }
+
+/**
+ * Geometric cumulative return over an exact YYYY-MM range (inclusive on both ends).
+ * Returns null if:
+ *   - monthlyReturns is undefined / empty
+ *   - any month in the range is missing or non-numeric
+ *
+ * @param monthlyReturns  YYYY-MM → number map
+ * @param fromYYYYMM      start month, e.g. "2023-04"
+ * @param toYYYYMM        end month, e.g. "2026-03"
+ */
+export function computeCumulativeForRange(
+  monthlyReturns: Record<string, number> | undefined,
+  fromYYYYMM: string,
+  toYYYYMM: string
+): number | null {
+  if (!monthlyReturns) return null;
+
+  const months: string[] = [];
+  const [fromY, fromM] = fromYYYYMM.split("-").map(Number);
+  const [toY, toM] = toYYYYMM.split("-").map(Number);
+
+  let y = fromY, m = fromM;
+  while (y < toY || (y === toY && m <= toM)) {
+    months.push(`${y}-${String(m).padStart(2, "0")}`);
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+
+  for (const key of months) {
+    if (typeof monthlyReturns[key] !== "number") return null;
+  }
+
+  let cumulative = 1;
+  for (const key of months) {
+    cumulative *= 1 + monthlyReturns[key];
+  }
+  return cumulative - 1;
+}
