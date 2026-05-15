@@ -26,6 +26,24 @@ function sortedEntries(mr: MonthlyReturns): [string, number][] {
     .sort(([a], [b]) => a.localeCompare(b));
 }
 
+/**
+ * Returns a copy of monthlyReturns with all keys before startDate removed.
+ * startDate may be "YYYY-MM-DD" or "YYYY-MM"; only the first 7 chars are used.
+ */
+function filterMonthlyByStartDate(
+  monthlyReturns: Record<string, number> | undefined,
+  startDate: string | undefined
+): Record<string, number> {
+  if (!monthlyReturns) return {};
+  if (!startDate) return monthlyReturns;
+  const startYYYYMM = startDate.slice(0, 7);
+  const filtered: Record<string, number> = {};
+  for (const [key, value] of Object.entries(monthlyReturns)) {
+    if (key >= startYYYYMM) filtered[key] = value;
+  }
+  return filtered;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  Existing (unchanged)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -128,8 +146,8 @@ export function computePeriodReturn(
  * Replaces the old arithmetic mean of yearly returns stored in KV.
  * Returns null if fewer than MIN_MONTHS_FOR_RISK_METRICS months available.
  */
-export function computeAvgAnnualReturn(mr: MonthlyReturns): number | null {
-  const values = sortedEntries(mr).map(([, v]) => v);
+export function computeAvgAnnualReturn(mr: MonthlyReturns, startDate?: string): number | null {
+  const values = sortedEntries(filterMonthlyByStartDate(mr, startDate)).map(([, v]) => v);
   if (values.length < MIN_MONTHS_FOR_RISK_METRICS) return null;
   const compound = values.reduce((acc, r) => acc * (1 + r), 1);
   return Math.pow(compound, 12 / values.length) - 1;
@@ -148,9 +166,10 @@ export function computeAvgAnnualReturn(mr: MonthlyReturns): number | null {
  */
 export function computeSharpe(
   mr: MonthlyReturns,
-  riskFreeAnnual: number = RISK_FREE_RATE_ANNUAL
+  riskFreeAnnual: number = RISK_FREE_RATE_ANNUAL,
+  startDate?: string
 ): number | null {
-  const values = sortedEntries(mr).map(([, v]) => v);
+  const values = sortedEntries(filterMonthlyByStartDate(mr, startDate)).map(([, v]) => v);
   if (values.length < MIN_MONTHS_FOR_RISK_METRICS) return null;
 
   const n = values.length;
@@ -171,8 +190,8 @@ export function computeSharpe(
  * Formula: sampleStdDev(monthly) × √12  (N−1 denominator).
  * Returns null if fewer than MIN_MONTHS_FOR_RISK_METRICS months available.
  */
-export function computeStdDev(mr: MonthlyReturns): number | null {
-  const values = sortedEntries(mr).map(([, v]) => v);
+export function computeStdDev(mr: MonthlyReturns, startDate?: string): number | null {
+  const values = sortedEntries(filterMonthlyByStartDate(mr, startDate)).map(([, v]) => v);
   if (values.length < MIN_MONTHS_FOR_RISK_METRICS) return null;
 
   const n = values.length;
@@ -194,8 +213,8 @@ export function computeStartMonth(mr: MonthlyReturns): string | null {
  * The most recent YYYY-MM key present in monthlyReturns.
  * Returns null if monthlyReturns is empty.
  */
-export function computeLatestMonth(mr: MonthlyReturns): string | null {
-  const entries = sortedEntries(mr);
+export function computeLatestMonth(mr: MonthlyReturns, startDate?: string): string | null {
+  const entries = sortedEntries(filterMonthlyByStartDate(mr, startDate));
   return entries.length > 0 ? entries[entries.length - 1][0] : null;
 }
 
@@ -222,12 +241,18 @@ export function hasMinimumHistory(
 export function computeCumulativeForRange(
   monthlyReturns: Record<string, number> | undefined,
   fromYYYYMM: string,
-  toYYYYMM: string
+  toYYYYMM: string,
+  startDate?: string
 ): number | null {
   if (!monthlyReturns) return null;
 
+  // If fund started after the requested from, advance the window start
+  const effectiveFrom = startDate && startDate.slice(0, 7) > fromYYYYMM
+    ? startDate.slice(0, 7)
+    : fromYYYYMM;
+
   const months: string[] = [];
-  const [fromY, fromM] = fromYYYYMM.split("-").map(Number);
+  const [fromY, fromM] = effectiveFrom.split("-").map(Number);
   const [toY, toM] = toYYYYMM.split("-").map(Number);
 
   let y = fromY, m = fromM;

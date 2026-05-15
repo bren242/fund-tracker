@@ -33,16 +33,16 @@ export function getAnnualReturn(fund: Fund, year: number): number | null {
 }
 
 export function getSharpe(fund: Fund): number | null {
-  return metrics.computeSharpe(fund.monthlyReturns ?? {}) ?? fund.sharpe ?? null;
+  return metrics.computeSharpe(fund.monthlyReturns ?? {}, undefined, fund.startDate ?? undefined) ?? fund.sharpe ?? null;
 }
 
 export function getStdDev(fund: Fund): number | null {
-  return metrics.computeStdDev(fund.monthlyReturns ?? {}) ?? fund.stdDev ?? null;
+  return metrics.computeStdDev(fund.monthlyReturns ?? {}, fund.startDate ?? undefined) ?? fund.stdDev ?? null;
 }
 
 export function getAvgAnnualReturn(fund: Fund): number | null {
   return (
-    metrics.computeAvgAnnualReturn(fund.monthlyReturns ?? {}) ??
+    metrics.computeAvgAnnualReturn(fund.monthlyReturns ?? {}, fund.startDate ?? undefined) ??
     fund.avgAnnualReturn ??
     null
   );

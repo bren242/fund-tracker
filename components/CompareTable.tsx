@@ -175,9 +175,9 @@ export default function CompareTable({ funds, accentColor, compact, selectedYear
   const cumulativeRow: MetricRow | null = fromYYYYMM && toYYYYMM
     ? {
         label: "תשואה מצטברת לתקופה",
-        getValue: (f) => pct(computeCumulativeForRange(f.monthlyReturns, fromYYYYMM, toYYYYMM)),
-        getRaw: (f) => computeCumulativeForRange(f.monthlyReturns, fromYYYYMM, toYYYYMM),
-        getColor: (f) => returnColor(computeCumulativeForRange(f.monthlyReturns, fromYYYYMM, toYYYYMM)),
+        getValue: (f) => pct(computeCumulativeForRange(f.monthlyReturns, fromYYYYMM, toYYYYMM, f.startDate ?? undefined)),
+        getRaw: (f) => computeCumulativeForRange(f.monthlyReturns, fromYYYYMM, toYYYYMM, f.startDate ?? undefined),
+        getColor: (f) => returnColor(computeCumulativeForRange(f.monthlyReturns, fromYYYYMM, toYYYYMM, f.startDate ?? undefined)),
         getBmValue: (b) => bmPct(computeCumulativeForRange(b.monthlyReturns, fromYYYYMM, toYYYYMM)),
         getBmRaw: (b) => computeCumulativeForRange(b.monthlyReturns, fromYYYYMM, toYYYYMM),
         getBmColor: (b) => returnColor(computeCumulativeForRange(b.monthlyReturns, fromYYYYMM, toYYYYMM)),
