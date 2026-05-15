@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { FundsData, Fund, Benchmark } from "@/lib/types";
 import { sortBenchmarks } from "@/lib/benchmarkSort";
 import { pct, num, formatDate, formatReportDate } from "@/lib/format";
-import { getAvgAnnualReturn } from "@/lib/fundDerived";
+import { getAvgAnnualReturn, getLastUpdated, getLatestMonthly, getLatestMonthAcrossFunds } from "@/lib/fundDerived";
 import { useBrand } from "@/lib/useBrand";
 import { useClientKey, withClient } from "@/lib/useClientKey";
 import { useSearchParams } from "next/navigation";
@@ -38,17 +38,33 @@ function addMonths(base: Date, n: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-/** Converts selected time range to an exact YYYY-MM from/to pair */
-function rangeToDateRange(range: TimeRange, from?: string, to?: string): { from: string; to: string } {
+/** Converts selected time range to an exact YYYY-MM from/to pair.
+ *  When latestAvailableMonth is provided (derived from fund data), it is used
+ *  as `to` and as the anchor for preset offsets — preventing ranges that extend
+ *  past the last month with actual data (which breaks cumulative rows and chart downsampling). */
+function rangeToDateRange(
+  range: TimeRange,
+  from?: string,
+  to?: string,
+  latestAvailableMonth?: string | null,
+): { from: string; to: string } {
   const today = new Date();
   const cur = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+
+  // Anchor: use last month with fund data, fall back to current calendar month
+  const anchor = latestAvailableMonth ?? cur;
+
+  // Parse anchor into a Date for addMonths arithmetic
+  const [anchorY, anchorM] = anchor.split("-").map(Number);
+  const anchorDate = new Date(anchorY, anchorM - 1, 1);
+
   switch (range) {
-    case "ytd":    return { from: `${today.getFullYear()}-01`, to: cur };
-    case "12m":   return { from: addMonths(today, -11), to: cur };  // 12 data points
-    case "3y":    return { from: addMonths(today, -36), to: cur };  // Apr 2023–Apr 2026
-    case "5y":    return { from: addMonths(today, -60), to: cur };  // Apr 2021–Apr 2026
-    case "max":   return { from: "2019-01", to: cur };
-    case "custom": return { from: from || "2022-01", to: to || cur };
+    case "ytd":    return { from: `${anchorY}-01`, to: anchor };
+    case "12m":   return { from: addMonths(anchorDate, -11), to: anchor };
+    case "3y":    return { from: addMonths(anchorDate, -36), to: anchor };
+    case "5y":    return { from: addMonths(anchorDate, -60), to: anchor };
+    case "max":   return { from: "2019-01", to: anchor };
+    case "custom": return { from: from || "2022-01", to: to || anchor };
   }
 }
 
@@ -77,7 +93,7 @@ function computeWinnerIdx(funds: Fund[], selectedYears: string[]): number {
   if (funds.length < 2) return 0;
   const scores = new Array(funds.length).fill(0);
   const metrics: Array<{ get: (f: Fund) => number | null; low?: boolean }> = [
-    { get: (f) => f.monthlyReturn },
+    { get: (f) => getLatestMonthly(f) },
     { get: (f) => f.avgAnnualReturn },
     { get: (f) => f.sharpe },
     { get: (f) => f.stdDev, low: true },
@@ -193,6 +209,7 @@ function FundCompareCard({ fund, color, isWinner, selectedYears, isYearMode }: {
   fund: Fund; color: string; isWinner: boolean; selectedYears: string[]; isYearMode: boolean;
 }) {
   const cumulative = computeCumulative(fund, selectedYears);
+  const lastUpdated = getLastUpdated(fund);
   const metrics = [
     { label: "תשואה ממוצעת שנתית", value: pct(getAvgAnnualReturn(fund)), color: retColor(getAvgAnnualReturn(fund)) },
     { label: "שארפ",        value: num(fund.sharpe),           color: sharpeColor(fund.sharpe) },
@@ -211,7 +228,7 @@ function FundCompareCard({ fund, color, isWinner, selectedYears, isYearMode }: {
       </div>
 
       {/* Name + classification */}
-      <div style={{ marginBottom: fund.lastUpdated ? 8 : 14 }}>
+      <div style={{ marginBottom: lastUpdated ? 8 : 14 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", lineHeight: 1.35, marginBottom: 3 }}>
           {fund.name}
         </div>
@@ -221,9 +238,9 @@ function FundCompareCard({ fund, color, isWinner, selectedYears, isYearMode }: {
       </div>
 
       {/* Update date */}
-      {fund.lastUpdated && (
+      {lastUpdated && (
         <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 10 }}>
-          {isYearMode ? "עודכן לאחרונה" : "מעודכן ל"}: {formatReportDate(fund.lastUpdated)}
+          {isYearMode ? "עודכן לאחרונה" : "מעודכן ל"}: {formatReportDate(lastUpdated)}
         </div>
       )}
 
@@ -331,10 +348,16 @@ function CompareContent() {
     modeDetected.current = true;
   }, [funds]);
 
+  // Latest month with actual fund data — used to anchor preset ranges
+  const latestMonth = useMemo(
+    () => getLatestMonthAcrossFunds(funds),
+    [funds],
+  );
+
   // Exact YYYY-MM range for chart (non-year-mode only — year mode uses its own bar chart)
   const chartRange = useMemo(() => {
-    return rangeToDateRange(timeRange, committedFrom, committedTo);
-  }, [timeRange, committedFrom, committedTo]);
+    return rangeToDateRange(timeRange, committedFrom, committedTo, latestMonth);
+  }, [timeRange, committedFrom, committedTo, latestMonth]);
 
   // Year keys for cards/table — first selected year in year mode
   const selectedYears = useMemo(() => {
@@ -540,6 +563,8 @@ function CompareContent() {
               selectedYears={selectedYears}
               benchmarks={selectedBenchmarks}
               fundColors={funds.map((_, i) => i === 0 ? brand.primaryColor : FUND_COLORS[i])}
+              fromYYYYMM={isYearMode ? undefined : chartRange.from}
+              toYYYYMM={isYearMode ? undefined : chartRange.to}
             />
 
             {/* Disclaimer */}
@@ -621,7 +646,7 @@ function ComparePrint({ funds, brand, lastUpdated, mode, selectedYears, chartFro
               <CompareSummary funds={funds} accentColor={brand.primaryColor} compact selectedYears={selectedYears} />
 
               {/* Comparison table */}
-              <CompareTable funds={funds} accentColor={brand.primaryColor} compact selectedYears={selectedYears} benchmarks={benchmarks} />
+              <CompareTable funds={funds} accentColor={brand.primaryColor} compact selectedYears={selectedYears} benchmarks={benchmarks} fromYYYYMM={chartFrom} toYYYYMM={chartTo} />
 
               {/* Divider between table and chart */}
               {mode === "advanced" && (

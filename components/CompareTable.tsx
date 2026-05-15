@@ -2,7 +2,8 @@
 
 import { Fund, Benchmark } from "@/lib/types";
 import { pct, num, formatReportDate } from "@/lib/format";
-import { getAvgAnnualReturn } from "@/lib/fundDerived";
+import { getAvgAnnualReturn, getLastUpdated, getLatestMonthly } from "@/lib/fundDerived";
+import { computeCumulativeForRange } from "@/lib/metrics";
 
 interface CompareTableProps {
   funds: Fund[];
@@ -11,6 +12,8 @@ interface CompareTableProps {
   selectedYears?: string[];
   benchmarks?: Benchmark[];
   fundColors?: string[];
+  fromYYYYMM?: string;
+  toYYYYMM?: string;
 }
 
 function returnColor(v: number | null): string {
@@ -69,8 +72,8 @@ const METRICS: MetricRow[] = [
   { label: "סיווג", getValue: (f) => f.classification || "—", isInfo: true, hideBenchmark: true },
   { label: "מנהל", getValue: (f) => f.manager || "—", isInfo: true, hideBenchmark: true },
   {
-    label: "תשואה חודשית", getValue: (f) => pct(f.monthlyReturn),
-    getRaw: (f) => f.monthlyReturn, getColor: (f) => returnColor(f.monthlyReturn),
+    label: "תשואה חודשית", getValue: (f) => pct(getLatestMonthly(f)),
+    getRaw: (f) => getLatestMonthly(f), getColor: (f) => returnColor(getLatestMonthly(f)),
     getBmValue: (b) => bmPct(getBmMonthlyReturn(b)),
     getBmRaw: (b) => getBmMonthlyReturn(b), getBmColor: (b) => returnColor(getBmMonthlyReturn(b)),
   },
@@ -157,7 +160,7 @@ function getBestIdx(funds: Fund[], metric: MetricRow): number | null {
 const BM_COLORS    = ["#0891b2", "#f59e0b"];
 const BM_BG_COLORS = ["rgba(107, 79, 160, 0.08)", "rgba(8, 145, 178, 0.08)"];
 
-export default function CompareTable({ funds, accentColor, compact, selectedYears, benchmarks = [], fundColors }: CompareTableProps) {
+export default function CompareTable({ funds, accentColor, compact, selectedYears, benchmarks = [], fundColors, fromYYYYMM, toYYYYMM }: CompareTableProps) {
   if (funds.length < 2) return null;
 
   const hasBm = benchmarks.length > 0;
@@ -167,6 +170,23 @@ export default function CompareTable({ funds, accentColor, compact, selectedYear
   const visibleMetrics = selectedYears && selectedYears.length > 0
     ? METRICS.filter((m) => !m.yearKey || selectedYears.includes(m.yearKey))
     : METRICS;
+
+  // Inject cumulative row after "תשואה חודשית" (index 2) when range is provided
+  const cumulativeRow: MetricRow | null = fromYYYYMM && toYYYYMM
+    ? {
+        label: "תשואה מצטברת לתקופה",
+        getValue: (f) => pct(computeCumulativeForRange(f.monthlyReturns, fromYYYYMM, toYYYYMM, f.startDate ?? undefined)),
+        getRaw: (f) => computeCumulativeForRange(f.monthlyReturns, fromYYYYMM, toYYYYMM, f.startDate ?? undefined),
+        getColor: (f) => returnColor(computeCumulativeForRange(f.monthlyReturns, fromYYYYMM, toYYYYMM, f.startDate ?? undefined)),
+        getBmValue: (b) => bmPct(computeCumulativeForRange(b.monthlyReturns, fromYYYYMM, toYYYYMM)),
+        getBmRaw: (b) => computeCumulativeForRange(b.monthlyReturns, fromYYYYMM, toYYYYMM),
+        getBmColor: (b) => returnColor(computeCumulativeForRange(b.monthlyReturns, fromYYYYMM, toYYYYMM)),
+      }
+    : null;
+
+  const finalMetrics: MetricRow[] = cumulativeRow
+    ? [...visibleMetrics.slice(0, 3), cumulativeRow, ...visibleMetrics.slice(3)]
+    : visibleMetrics;
 
   // Compute benchmark stats based on visible year keys
   const visibleYearKeys = visibleMetrics.filter((m) => m.yearKey).map((m) => m.yearKey!);
@@ -224,7 +244,7 @@ export default function CompareTable({ funds, accentColor, compact, selectedYear
           </tr>
         </thead>
         <tbody>
-          {visibleMetrics.map((metric, rowIdx) => {
+          {finalMetrics.map((metric, rowIdx) => {
             const bestIdx = getBestIdx(funds, metric);
             const bg = rowIdx % 2 === 0 ? "#ffffff" : "#f8f9fb";
 
@@ -255,9 +275,9 @@ export default function CompareTable({ funds, accentColor, compact, selectedYear
                     }}>
                       {val}
                       {isBest && <span style={{ marginRight: 3, fontSize: fs.star, color: accentColor }}> ★</span>}
-                      {metric.label === "תשואה חודשית" && f.lastUpdated && (
+                      {metric.label === "תשואה חודשית" && getLastUpdated(f) && (
                         <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
-                          {formatReportDate(f.lastUpdated)}
+                          {formatReportDate(getLastUpdated(f)!)}
                         </div>
                       )}
                     </td>

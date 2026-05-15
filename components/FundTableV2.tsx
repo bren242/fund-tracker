@@ -116,11 +116,18 @@ const MONTH_OPTIONS: { value: string; label: string }[] = (() => {
 function calcRangeReturn(
   monthlyReturns: Record<string, number> | undefined,
   fromYearMonth: string | null,
-  toYearMonth: string
+  toYearMonth: string,
+  startDate?: string
 ): number | null {
   if (!monthlyReturns) return null;
+  const startYYYYMM = startDate ? startDate.slice(0, 7) : null;
   const keys = Object.keys(monthlyReturns)
-    .filter(k => (fromYearMonth === null || k >= fromYearMonth) && k <= toYearMonth)
+    .filter(k => {
+      if (fromYearMonth !== null && k < fromYearMonth) return false;
+      if (startYYYYMM !== null && k < startYYYYMM) return false;
+      if (k > toYearMonth) return false;
+      return true;
+    })
     .sort();
   if (keys.length === 0) return null;
   return keys.reduce((acc, k) => acc * (1 + monthlyReturns[k]), 1) - 1;
@@ -128,8 +135,9 @@ function calcRangeReturn(
 
 function calcCumulative(fund: Fund): number | null {
   if (fund.monthlyReturns) {
+    const startYYYYMM = fund.startDate ? fund.startDate.slice(0, 7) : null;
     const keys = Object.keys(fund.monthlyReturns)
-      .filter(k => typeof fund.monthlyReturns![k] === "number")
+      .filter(k => typeof fund.monthlyReturns![k] === "number" && (startYYYYMM === null || k >= startYYYYMM))
       .sort();
     if (keys.length > 0)
       return keys.reduce((acc, k) => acc * (1 + fund.monthlyReturns![k]), 1) - 1;
@@ -1162,13 +1170,14 @@ export default function FundTableV2({
                             rangeTo,
                             RANGE_EXPECTED[timeRange as Exclude<TimeRange, "custom">].label,
                             RANGE_EXPECTED[timeRange as Exclude<TimeRange, "custom">].months,
+                            fund.startDate ?? undefined,
                           )
                         : null;
                       const periodReturn = isYearMode
                         ? calcNoxMultiReturn(fund, selectedYears)
                         : pr
                           ? pr.value
-                          : calcRangeReturn(fund.monthlyReturns, rangeFrom, rangeTo);
+                          : calcRangeReturn(fund.monthlyReturns, rangeFrom, rangeTo, fund.startDate ?? undefined);
                       // yearMode: ממוצע שנתי מ-y2020–y2025 (לא תלוי monthlyReturns)
                       // ytd: CAGR מתחילת חיי הקרן (לא annualized YTD — זהה ל-MAX מבחינת העמודה)
                       const annualAvg = isYearMode

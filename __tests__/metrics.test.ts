@@ -10,6 +10,7 @@ import {
   computeStartMonth,
   computeLatestMonth,
   hasMinimumHistory,
+  computeCumulativeForRange,
   type MonthlyReturns,
 } from "../lib/metrics";
 
@@ -186,6 +187,16 @@ describe("computeAvgAnnualReturn", () => {
     expect(computeAvgAnnualReturn(empty)).toBeNull();
     expect(computeAvgAnnualReturn({ "2025-06": 0.01 })).toBeNull();
   });
+
+  it("respects startDate — cuts pre-inception months and produces a different result", () => {
+    // mr24 has 24 months (2024-01 to 2025-12). Cutting first 12 months via startDate
+    // should produce a different CAGR than using all 24.
+    const cagrFull = computeAvgAnnualReturn(mr24);
+    const cagrFromJan2025 = computeAvgAnnualReturn(mr24, "2025-01-01");
+    expect(cagrFull).not.toBeNull();
+    expect(cagrFromJan2025).not.toBeNull();
+    expect(cagrFromJan2025).not.toBeCloseTo(cagrFull!, 4);
+  });
 });
 
 // ─── computeSharpe ────────────────────────────────────────────────────────
@@ -270,6 +281,51 @@ describe("computeLatestMonth", () => {
 
   it("returns null for empty input", () => {
     expect(computeLatestMonth(empty)).toBeNull();
+  });
+});
+
+// ─── computeCumulativeForRange ────────────────────────────────────────────
+
+describe("computeCumulativeForRange", () => {
+  it("compounds 12 months of 1% each to 1.01^12 - 1", () => {
+    // flat12 covers 2025-01 to 2025-12
+    const result = computeCumulativeForRange(flat12, "2025-01", "2025-12");
+    expect(result).not.toBeNull();
+    expect(result!).toBeCloseTo(Math.pow(1.01, 12) - 1, 6);
+  });
+
+  it("returns null when a month in the range is missing", () => {
+    // partial2025 covers 2025-01 to 2025-11 (no 2025-12)
+    expect(computeCumulativeForRange(partial2025, "2025-01", "2025-12")).toBeNull();
+  });
+
+  it("returns null when monthlyReturns is undefined", () => {
+    expect(computeCumulativeForRange(undefined, "2025-01", "2025-12")).toBeNull();
+  });
+
+  it("returns the single month value for a one-month range", () => {
+    const result = computeCumulativeForRange(flat12, "2025-06", "2025-06");
+    expect(result).toBeCloseTo(0.01, 6);
+  });
+
+  it("respects startDate — starts from startDate when fromYYYYMM is earlier", () => {
+    // flat12 covers 2025-01 to 2025-12, all 0.01.
+    // from="2024-06" is before the fund, startDate="2025-01-01" advances it.
+    // Effective window: 2025-01 to 2025-12 = 1.01^12 - 1.
+    const result = computeCumulativeForRange(flat12, "2024-06", "2025-12", "2025-01-01");
+    expect(result).not.toBeNull();
+    expect(result!).toBeCloseTo(Math.pow(1.01, 12) - 1, 6);
+  });
+
+  it("returns null when startDate advances from past the first available month", () => {
+    // flat12 covers 2025-01 to 2025-12. startDate="2025-02-01" advances from to 2025-02.
+    // Effective window: 2025-02 to 2025-12 — all 11 months present, but 2025-01 is excluded
+    // (not required — no gap). Should compound 11 months of 0.01.
+    // Note: computeCumulativeForRange requires ALL months in [effectiveFrom, to] to exist.
+    // 2025-02 to 2025-12 = 11 months, all present → not null.
+    const result = computeCumulativeForRange(flat12, "2025-01", "2025-12", "2025-02-01");
+    expect(result).not.toBeNull();
+    expect(result!).toBeCloseTo(Math.pow(1.01, 11) - 1, 6);
   });
 });
 

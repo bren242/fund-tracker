@@ -70,16 +70,21 @@ export function computePeriodWithCoverage(
   fromYearMonth: string | null,
   toYearMonth: string,
   requestedLabel: "YTD" | "12M" | "3Y" | "5Y" | "MAX",
-  expectedMonths: number
+  expectedMonths: number,
+  startDate?: string
 ): PeriodResult {
   const isMax = requestedLabel === "MAX" || fromYearMonth === null;
   const isYtd = requestedLabel === "YTD";
+
+  // Effective floor: the later of fromYearMonth and fund startDate
+  const startYYYYMM = startDate ? startDate.slice(0, 7) : null;
 
   // Collect keys in window, sorted ascending
   const keys = monthlyReturns
     ? Object.keys(monthlyReturns)
         .filter((k) => {
           if (fromYearMonth !== null && k < fromYearMonth) return false;
+          if (startYYYYMM !== null && k < startYYYYMM) return false;
           if (k > toYearMonth) return false;
           return typeof monthlyReturns[k] === "number";
         })

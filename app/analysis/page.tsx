@@ -87,6 +87,7 @@ function calcPeriodReturn(fund: Fund, key: SortKey): number | null {
       _toYM,
       "YTD",
       _now.getMonth() + 1,
+      fund.startDate ?? undefined,
     );
     return result.value !== null ? result.value * 100 : null;
   }
@@ -100,7 +101,7 @@ function calcPeriodReturn(fund: Fund, key: SortKey): number | null {
   const p = periodMap[key as "12M" | "36M" | "60M" | "MAX"];
   if (!p) return null;
 
-  const result = computePeriodWithCoverage(fund.monthlyReturns, p.from, _toYM, p.label, p.months);
+  const result = computePeriodWithCoverage(fund.monthlyReturns, p.from, _toYM, p.label, p.months, fund.startDate ?? undefined);
   return result.value !== null ? result.value * 100 : null;
 }
 
@@ -115,6 +116,7 @@ function calcPeriodResult(fund: Fund, key: SortKey): PeriodResult | null {
       _toYM,
       "YTD",
       _now.getMonth() + 1,
+      fund.startDate ?? undefined,
     );
   }
 
@@ -126,7 +128,7 @@ function calcPeriodResult(fund: Fund, key: SortKey): PeriodResult | null {
   };
   const p = periodMap[key as keyof typeof periodMap];
   if (!p) return null;
-  return computePeriodWithCoverage(fund.monthlyReturns, p.from, _toYM, p.label, p.months);
+  return computePeriodWithCoverage(fund.monthlyReturns, p.from, _toYM, p.label, p.months, fund.startDate ?? undefined);
 }
 
 function calcConsistency(fund: Fund): number | null {
