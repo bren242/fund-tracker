@@ -15,6 +15,8 @@ import SubTabsBar from "@/components/SubTabsBar";
 import CompareSummary from "@/components/CompareSummary"; // print only
 import CompareTable from "@/components/CompareTable";
 import { brandCssVars } from "@/lib/colors";
+import DateRangePicker, { DateRangeValue } from "@/components/DateRangePicker";
+import { rangeToDateRange, DEFAULT_RANGE } from "@/lib/dateRange";
 
 const CompareCharts  = dynamic(() => import("@/components/CompareCharts"),  { ssr: false });
 const CompareYearBars = dynamic(() => import("@/components/CompareYearBars"), { ssr: false });
@@ -22,8 +24,9 @@ const CompareYearBars = dynamic(() => import("@/components/CompareYearBars"), { 
 // ── Palette ──────────────────────────────────────────────────────────────────
 const FUND_COLORS = ["#1B3A2F", "#B8975A", "#2563eb", "#9333ea"];
 
-// ── Time range ───────────────────────────────────────────────────────────────
-type TimeRange = "ytd" | "12m" | "3y" | "5y" | "max" | "custom";
+// ── fallback "now" for when latestMonth not yet loaded ────────────────────────
+const _today = new Date();
+const _toYM  = `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, "0")}`;
 
 const ALL_YEAR_KEYS = ["ytd2026", "y2025", "y2024", "y2023", "y2022", "y2021", "y2020", "y2019"];
 
@@ -31,42 +34,6 @@ const YEAR_KEY_TO_NUM: Record<string, number> = {
   ytd2026: 2026, y2025: 2025, y2024: 2024, y2023: 2023,
   y2022: 2022,   y2021: 2021, y2020: 2020, y2019: 2019,
 };
-
-/** Returns a date n months offset from base — safe across month-length differences */
-function addMonths(base: Date, n: number): string {
-  const d = new Date(base.getFullYear(), base.getMonth() + n, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-
-/** Converts selected time range to an exact YYYY-MM from/to pair.
- *  When latestAvailableMonth is provided (derived from fund data), it is used
- *  as `to` and as the anchor for preset offsets — preventing ranges that extend
- *  past the last month with actual data (which breaks cumulative rows and chart downsampling). */
-function rangeToDateRange(
-  range: TimeRange,
-  from?: string,
-  to?: string,
-  latestAvailableMonth?: string | null,
-): { from: string; to: string } {
-  const today = new Date();
-  const cur = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
-
-  // Anchor: use last month with fund data, fall back to current calendar month
-  const anchor = latestAvailableMonth ?? cur;
-
-  // Parse anchor into a Date for addMonths arithmetic
-  const [anchorY, anchorM] = anchor.split("-").map(Number);
-  const anchorDate = new Date(anchorY, anchorM - 1, 1);
-
-  switch (range) {
-    case "ytd":    return { from: `${anchorY}-01`, to: anchor };
-    case "12m":   return { from: addMonths(anchorDate, -11), to: anchor };
-    case "3y":    return { from: addMonths(anchorDate, -36), to: anchor };
-    case "5y":    return { from: addMonths(anchorDate, -60), to: anchor };
-    case "max":   return { from: "2019-01", to: anchor };
-    case "custom": return { from: from || "2022-01", to: to || anchor };
-  }
-}
 
 /** Maps a YYYY-MM date range to the annual year keys needed by CompareTable */
 function dateRangeToYearKeys(from: string, to: string): string[] {
@@ -126,46 +93,6 @@ function sharpeColor(s: number | null): string {
   return "#dc2626";
 }
 
-// ── Month options for custom range ───────────────────────────────────────────
-const _today = new Date();
-const _toYM = `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, "0")}`;
-const MONTHS_HE = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
-const CUSTOM_YEARS = Array.from({ length: _today.getFullYear() - 2019 + 1 }, (_, i) => String(2019 + i));
-
-// ── Segmented Control ─────────────────────────────────────────────────────────
-const RANGE_OPTIONS: { key: TimeRange; label: string }[] = [
-  { key: "ytd",    label: "מתחילת שנה" },
-  { key: "12m",    label: "12 חודשים" },
-  { key: "3y",     label: "3Y" },
-  { key: "5y",     label: "5Y" },
-  { key: "max",    label: "MAX" },
-  { key: "custom", label: "Custom" },
-];
-
-function SegmentedControl({ value, onChange, accentColor }: {
-  value: TimeRange; onChange: (v: TimeRange) => void; accentColor: string;
-}) {
-  return (
-    <div style={{ display: "inline-flex", borderRadius: 8, border: "1px solid var(--border)", overflow: "hidden" }}>
-      {RANGE_OPTIONS.map((o, i) => {
-        const active = value === o.key;
-        return (
-          <button key={o.key} onClick={() => onChange(o.key)} style={{
-            padding: "6px 13px", fontSize: 12, fontWeight: active ? 700 : 400,
-            border: "none",
-            borderRight: i < RANGE_OPTIONS.length - 1 ? "1px solid var(--border)" : "none",
-            cursor: "pointer",
-            backgroundColor: active ? accentColor : "var(--bg-surface)",
-            color: active ? "#fff" : "var(--text-secondary)",
-            transition: "all 0.12s", whiteSpace: "nowrap",
-          }}>
-            {o.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 // ── Year Buttons (year-mode — NOX) ───────────────────────────────────────────
 const YEAR_BTN_OPTIONS: { key: string; label: string }[] = [
@@ -282,12 +209,8 @@ function CompareContent() {
   const comparisonEnabled = brand.features?.comparison ?? true;
 
   // Time range
-  const [timeRange,     setTimeRange]     = useState<TimeRange>("3y");
-  const [customFrom,    setCustomFrom]    = useState("2022-01");
-  const [customTo,      setCustomTo]      = useState(_toYM);
-  const [committedFrom, setCommittedFrom] = useState("2022-01");
-  const [committedTo,   setCommittedTo]   = useState(_toYM);
-  const [showPrint,     setShowPrint]     = useState(false);
+  const [rangeValue, setRangeValue] = useState<DateRangeValue>({ range: DEFAULT_RANGE });
+  const [showPrint,  setShowPrint]  = useState(false);
 
   // Year mode: when no fund has monthlyReturns (e.g. NOX)
   const [isYearMode, setIsYearMode]             = useState(false);
@@ -309,12 +232,6 @@ function CompareContent() {
     const yearNum = (k: string) => (k === "ytd2026" ? 2026 : parseInt(k));
     return [...selectedYearKeys].sort((a, b) => yearNum(a) - yearNum(b));
   }, [selectedYearKeys]);
-
-  const selectStyle: React.CSSProperties = {
-    padding: "4px 8px", borderRadius: 5, fontSize: 11,
-    border: "1px solid var(--border)", cursor: "pointer",
-    backgroundColor: "var(--bg-input)", color: "var(--text-primary)",
-  };
 
   useEffect(() => {
     fetch(`/api/funds?client=${encodeURIComponent(clientKey)}`)
@@ -356,8 +273,9 @@ function CompareContent() {
 
   // Exact YYYY-MM range for chart (non-year-mode only — year mode uses its own bar chart)
   const chartRange = useMemo(() => {
-    return rangeToDateRange(timeRange, committedFrom, committedTo, latestMonth);
-  }, [timeRange, committedFrom, committedTo, latestMonth]);
+    const r = rangeToDateRange(rangeValue.range, latestMonth, rangeValue.from, rangeValue.to);
+    return r ?? { from: "2019-01", to: latestMonth ?? _toYM };
+  }, [rangeValue, latestMonth]);
 
   // Year keys for cards/table — first selected year in year mode
   const selectedYears = useMemo(() => {
@@ -435,44 +353,14 @@ function CompareContent() {
                 {isYearMode ? (
                   <YearButtons values={selectedYearKeys} onToggle={toggleYear} accentColor={brand.primaryColor} />
                 ) : (
-                  <SegmentedControl value={timeRange} onChange={(range) => {
-                    if (range === "custom") {
-                      // Initialize custom selectors from the current chart range — don't jump to hardcoded 2022-01
-                      setCustomFrom(chartRange.from);
-                      setCustomTo(chartRange.to);
-                      setCommittedFrom(chartRange.from);
-                      setCommittedTo(chartRange.to);
-                    }
-                    setTimeRange(range);
-                  }} accentColor={brand.primaryColor} />
+                  <DateRangePicker
+                    value={rangeValue}
+                    onChange={setRangeValue}
+                    latestAvailableMonth={latestMonth}
+                    syncToUrl={true}
+                  />
                 )}
               </div>
-
-              {/* Custom range row */}
-              {!isYearMode && timeRange === "custom" && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, flexWrap: "wrap" }} dir="rtl">
-                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>מ-</span>
-                  <select value={customFrom.slice(5, 7)} onChange={(e) => setCustomFrom(`${customFrom.slice(0, 4)}-${e.target.value}`)} style={selectStyle}>
-                    {MONTHS_HE.map((name, i) => <option key={i} value={String(i + 1).padStart(2, "0")}>{name}</option>)}
-                  </select>
-                  <select value={customFrom.slice(0, 4)} onChange={(e) => setCustomFrom(`${e.target.value}-${customFrom.slice(5, 7)}`)} style={selectStyle}>
-                    {CUSTOM_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                  </select>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>עד</span>
-                  <select value={customTo.slice(5, 7)} onChange={(e) => setCustomTo(`${customTo.slice(0, 4)}-${e.target.value}`)} style={selectStyle}>
-                    {MONTHS_HE.map((name, i) => <option key={i} value={String(i + 1).padStart(2, "0")}>{name}</option>)}
-                  </select>
-                  <select value={customTo.slice(0, 4)} onChange={(e) => setCustomTo(`${e.target.value}-${customTo.slice(5, 7)}`)} style={selectStyle}>
-                    {CUSTOM_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                  </select>
-                  <button
-                    onClick={() => { setCommittedFrom(customFrom); setCommittedTo(customTo); }}
-                    style={{ padding: "5px 16px", borderRadius: 6, fontSize: 12, cursor: "pointer", backgroundColor: brand.primaryColor, color: "#fff", border: "none", fontWeight: 600 }}
-                  >
-                    הצג
-                  </button>
-                </div>
-              )}
             </div>
           </div>
 

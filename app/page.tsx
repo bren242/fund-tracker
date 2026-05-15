@@ -15,42 +15,11 @@ import ClientGate from "@/components/ClientGate";
 import { brandCssVars } from "@/lib/colors";
 
 const PRINT_YEAR_OPTIONS = ["2026", "2025", "2024", "2023", "2022", "2021", "2020"];
-const ALL_YEARS_SET = new Set(PRINT_YEAR_OPTIONS);
-
-
-const SCREEN_YEAR_OPTIONS = ["2026", "2025", "2024", "2023", "2022", "2021", "2020", "2019"];
-const MONTHS_HE = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
-const yearSelectStyle: React.CSSProperties = {
-  padding: "3px 8px", borderRadius: 5, fontSize: 11, cursor: "pointer",
-  border: "1px solid var(--border)", backgroundColor: "var(--bg-input)",
-  color: "var(--text-primary)",
-};
 
 function ReportContent() {
   const clientKey = useClientKey();
   const [data, setData] = useState<FundsData | null>(null);
   const brand = useBrand(clientKey);
-
-  // Screen year filter (separate from print years)
-  const [yearFilterMode, setYearFilterMode] = useState<"all" | "single" | "range">("all");
-  const [filterSingleYear, setFilterSingleYear] = useState("2025");
-  const [filterFromYear,   setFilterFromYear]   = useState("2020");
-  const [filterFromMonth,  setFilterFromMonth]  = useState("0");  // 0-indexed
-  const [filterToYear,     setFilterToYear]     = useState("2025");
-  const [filterToMonth,    setFilterToMonth]    = useState("11"); // 0-indexed
-
-  // Compute which years to show on screen
-  const screenVisibleYears: string[] | null = (() => {
-    if (yearFilterMode === "all") return null; // null = show all (FundTable default)
-    if (yearFilterMode === "single") return [filterSingleYear];
-    // range mode: show years from filterFromYear to filterToYear
-    const from = parseInt(filterFromYear);
-    const to   = parseInt(filterToYear);
-    if (from > to) return [filterFromYear];
-    const years: string[] = [];
-    for (let y = to; y >= from; y--) years.push(String(y)); // desc order
-    return years;
-  })();
 
   const router = useRouter();
 
@@ -78,10 +47,7 @@ function ReportContent() {
   // Chart page feature flag
   const chartPageEnabled = brand.features?.chartPage ?? true;
 
-  // Print years now derived from screen filter (same source, no separate print picker)
-  const printYearsArray = screenVisibleYears
-    ? screenVisibleYears.filter((y) => PRINT_YEAR_OPTIONS.includes(y))
-    : PRINT_YEAR_OPTIONS;
+  const printYearsArray = PRINT_YEAR_OPTIONS;
 
   useEffect(() => {
     fetch(`/api/funds?client=${encodeURIComponent(clientKey)}`)
