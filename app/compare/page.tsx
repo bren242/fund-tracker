@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { FundsData, Fund, Benchmark } from "@/lib/types";
 import { sortBenchmarks } from "@/lib/benchmarkSort";
 import { pct, num, formatDate, formatReportDate } from "@/lib/format";
-import { getAvgAnnualReturn, getLastUpdated, getLatestMonthAcrossFunds } from "@/lib/fundDerived";
+import { getAvgAnnualReturn, getLastUpdated, getLatestMonthly, getLatestMonthAcrossFunds } from "@/lib/fundDerived";
 import { useBrand } from "@/lib/useBrand";
 import { useClientKey, withClient } from "@/lib/useClientKey";
 import { useSearchParams } from "next/navigation";
@@ -93,7 +93,7 @@ function computeWinnerIdx(funds: Fund[], selectedYears: string[]): number {
   if (funds.length < 2) return 0;
   const scores = new Array(funds.length).fill(0);
   const metrics: Array<{ get: (f: Fund) => number | null; low?: boolean }> = [
-    { get: (f) => f.monthlyReturn },
+    { get: (f) => getLatestMonthly(f) },
     { get: (f) => f.avgAnnualReturn },
     { get: (f) => f.sharpe },
     { get: (f) => f.stdDev, low: true },

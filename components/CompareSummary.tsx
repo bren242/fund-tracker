@@ -1,7 +1,7 @@
 "use client";
 
 import { Fund } from "@/lib/types";
-import { getAvgAnnualReturn } from "@/lib/fundDerived";
+import { getAvgAnnualReturn, getLatestMonthly } from "@/lib/fundDerived";
 
 interface CompareSummaryProps {
   funds: Fund[];
@@ -18,7 +18,7 @@ type MetricDef = {
 };
 
 const METRICS: MetricDef[] = [
-  { label: "תשואה חודשית", getValue: (f) => f.monthlyReturn },
+  { label: "תשואה חודשית", getValue: (f) => getLatestMonthly(f) },
   { label: "מצטבר 2026", getValue: (f) => f.returns.ytd2026, yearKey: "ytd2026" },
   { label: "2025", getValue: (f) => f.returns.y2025, yearKey: "y2025" },
   { label: "2024", getValue: (f) => f.returns.y2024, yearKey: "y2024" },

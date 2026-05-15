@@ -2,7 +2,7 @@
 
 import { Fund, Benchmark } from "@/lib/types";
 import { pct, num, formatReportDate } from "@/lib/format";
-import { getAvgAnnualReturn, getLastUpdated } from "@/lib/fundDerived";
+import { getAvgAnnualReturn, getLastUpdated, getLatestMonthly } from "@/lib/fundDerived";
 import { computeCumulativeForRange } from "@/lib/metrics";
 
 interface CompareTableProps {
@@ -72,8 +72,8 @@ const METRICS: MetricRow[] = [
   { label: "סיווג", getValue: (f) => f.classification || "—", isInfo: true, hideBenchmark: true },
   { label: "מנהל", getValue: (f) => f.manager || "—", isInfo: true, hideBenchmark: true },
   {
-    label: "תשואה חודשית", getValue: (f) => pct(f.monthlyReturn),
-    getRaw: (f) => f.monthlyReturn, getColor: (f) => returnColor(f.monthlyReturn),
+    label: "תשואה חודשית", getValue: (f) => pct(getLatestMonthly(f)),
+    getRaw: (f) => getLatestMonthly(f), getColor: (f) => returnColor(getLatestMonthly(f)),
     getBmValue: (b) => bmPct(getBmMonthlyReturn(b)),
     getBmRaw: (b) => getBmMonthlyReturn(b), getBmColor: (b) => returnColor(getBmMonthlyReturn(b)),
   },
