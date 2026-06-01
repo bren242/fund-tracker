@@ -24,7 +24,7 @@ export const MIN_MONTHS_FOR_RISK_METRICS = 12;
 export const SECTION_COLORS: Record<string, string> = {
   "bond-hedged": "#1a3a5f",
   "multi-strategy": "#2d5016",
-  "equity-hedged": "#7c2d12",
+  "equity-hedged": "#1a4971",
   "blended": "#4a1d6e",
   "real-estate": "#064e3b",
   "open-trust": "#1a3a5f",

@@ -51,15 +51,16 @@ export default function PrintReport({ categories, lastUpdated, brand, printYears
 
   const isFiltered = yearKeys.length < ALL_YEAR_KEYS.length;
 
-  // Base columns: name, classification, manager, date, monthly = 5
+  // Base columns: name, classification, manager, inception, date, monthly = 6
   // Tail columns: avg, sharpe, stddev, aum = 4
-  const colCount = 5 + yearKeys.length + 4;
+  const colCount = 6 + yearKeys.length + 4;
 
   // Dynamic column widths — distribute extra space when fewer year cols
   const extraPct = isFiltered ? Math.min((ALL_YEAR_KEYS.length - yearKeys.length) * 2, 16) : 0;
   const nameWidth = `${9 + extraPct * 0.3}%`;
   const classWidth = `${8 + extraPct * 0.15}%`;
   const managerWidth = `${7 + extraPct * 0.1}%`;
+  const inceptionWidth = "5%";
   const dateWidth = `${5 + extraPct * 0.05}%`;
   const monthlyWidth = `${5 + extraPct * 0.05}%`;
   const yearWidth = isFiltered ? `${5.5 + extraPct * 0.1}%` : "5.5%";
@@ -111,6 +112,9 @@ export default function PrintReport({ categories, lastUpdated, brand, printYears
           <td style={tdStyle({ fontWeight: 600, textAlign: "right", fontSize: baseFontSize })}>{f.name}</td>
           <td style={tdStyle({ textAlign: "right", color: "#5a6577", fontSize: baseFontSize })}>{f.classification}</td>
           <td style={tdStyle({ textAlign: "center", color: "#8893a4", fontSize: baseFontSize })}>{f.manager}</td>
+          <td style={tdStyle({ textAlign: "center", color: "#8893a4", fontSize: baseFontSize })}>
+            {f.startDate ? `${f.startDate.slice(5, 7)}/${f.startDate.slice(0, 4)}` : "—"}
+          </td>
           <td style={tdStyle({ textAlign: "center", color: "#8893a4", fontSize: baseFontSize })}>{updatedDisplay}</td>
           <td style={tdStyle({ textAlign: "center", fontWeight: 600, color: returnColor(monthlyVal ?? null), fontSize: baseFontSize })}>{pct(monthlyVal)}</td>
           {yearKeys.map((y) => (
@@ -151,6 +155,7 @@ export default function PrintReport({ categories, lastUpdated, brand, printYears
           <col style={{ width: nameWidth }} />
           <col style={{ width: classWidth }} />
           <col style={{ width: managerWidth }} />
+          <col style={{ width: inceptionWidth }} />
           <col style={{ width: dateWidth }} />
           <col style={{ width: monthlyWidth }} />
           {yearKeys.map((y) => (
@@ -171,13 +176,13 @@ export default function PrintReport({ categories, lastUpdated, brand, printYears
                 </td>
                 <td style={{ textAlign: "center", verticalAlign: "middle" }}>
                   <span style={{ fontSize: "11pt", color: brand.primaryColor, fontWeight: 700 }}>
-                    {brand.mainTitle}{yearLabel ? ` — ${yearLabel}` : ""}
+                    {brand.mainTitle}
                   </span>
                 </td>
                 <td style={{ width: "120px", textAlign: "left", verticalAlign: "middle", padding: "6px 8px" }}>
                   {(brand.logoLight || brand.logo) && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={brand.logoLight || brand.logo} alt={brand.name || ""} style={{ maxHeight: 32, width: "auto", objectFit: "contain" }} />
+                    <img src={brand.logoLight || brand.logo} alt={brand.name || ""} style={{ maxHeight: 44, width: "auto", objectFit: "contain" }} />
                   )}
                 </td>
               </tr></tbody></table>
@@ -188,12 +193,13 @@ export default function PrintReport({ categories, lastUpdated, brand, printYears
             <th style={{ ...thBase, textAlign: "right", paddingRight: 8 }}>שם קרן</th>
             <th style={{ ...thBase, textAlign: "right" }}>סיווג</th>
             <th style={thBase}>מנהל</th>
+            <th style={thBase}>תאריך הקמה</th>
             <th style={thBase}>מועד עדכון</th>
             <th style={thBase}>חודשי</th>
             {yearKeys.map((y) => (
               <th key={y.key} style={thBase}>{y.label}</th>
             ))}
-            <th style={thBase}>תשואה ממוצעת שנתית</th>
+            <th style={thBase}>תשואה שנתית ממוצעת מהקמה</th>
             <th style={thBase}>שארפ</th>
             <th style={thBase}>ס״ת</th>
             <th style={thBase}>AUM (מ׳ ₪)</th>

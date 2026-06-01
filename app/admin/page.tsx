@@ -583,9 +583,9 @@ function MonthlyDataTab({ data, password, clientKey, onAfterSave }: {
             <div style={{ backgroundColor: "var(--bg-section)", color: "#fff", padding: "7px 16px", borderRadius: "10px 10px 0 0", fontWeight: 600, fontSize: 12 }}>
               {cat.name} <span style={{ fontWeight: 400, fontSize: 10, opacity: 0.7 }}>({visibleFunds.length})</span>
             </div>
-            <div style={{ backgroundColor: "var(--bg-surface)", borderRadius: "0 0 10px 10px", overflow: "hidden", border: "1px solid var(--border)", borderTop: "none" }}>
+            <div style={{ backgroundColor: "var(--bg-surface)", borderRadius: "0 0 10px 10px", border: "1px solid var(--border)", borderTop: "none" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                <thead>
+                <thead style={{ position: "sticky", top: 98, zIndex: 2 }}>
                   <tr style={{ backgroundColor: "var(--bg-surface-alt)" }}>
                     <th style={thStyle(190)}>שם קרן</th>
                     <th style={thStyle(80)}>מטבע</th>
@@ -681,6 +681,7 @@ function MonthlyRow({ fund, categoryId: _categoryId, odd, password, clientKey, o
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [lastSavedInfo, setLastSavedInfo] = useState<{ month: string; value: number } | null>(null);
   const [currVal, setCurrVal] = useState(fund.currency ?? "");
   const [currSaving, setCurrSaving] = useState(false);
   const [currSaved, setCurrSaved] = useState(false);
@@ -788,6 +789,7 @@ function MonthlyRow({ fund, categoryId: _categoryId, odd, password, clientKey, o
       if (res.ok) {
         setSaved(true);
         setTimeout(() => setSaved(false), 2500);
+        setLastSavedInfo({ month: savedMonth, value: previewValue });
         setMtdInput("");
         const yr = parseInt(savedMonth.slice(0, 4));
         const mo = parseInt(savedMonth.slice(5, 7));
@@ -997,6 +999,11 @@ function MonthlyRow({ fund, categoryId: _categoryId, odd, password, clientKey, o
         <div style={{ fontSize: 9.5, color: "var(--text-muted)", marginTop: 4, whiteSpace: "nowrap", textAlign: "center" }}>
           {latestUpdated ? formatReportDate(latestUpdated) : "—"}
         </div>
+        {lastSavedInfo && (
+          <div style={{ fontSize: 9, color: "#059669", fontWeight: 600, marginTop: 2, whiteSpace: "nowrap", textAlign: "center" }}>
+            ✓ {lastSavedInfo.month.slice(5, 7)}/{lastSavedInfo.month.slice(0, 4)}: {lastSavedInfo.value >= 0 ? "+" : ""}{(lastSavedInfo.value * 100).toFixed(2)}%
+          </div>
+        )}
       </td>
     </tr>
   );

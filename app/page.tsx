@@ -47,7 +47,7 @@ function ReportContent() {
   // Chart page feature flag
   const chartPageEnabled = brand.features?.chartPage ?? true;
 
-  const printYearsArray = PRINT_YEAR_OPTIONS;
+  const printYearsArray = clientKey === "nox" ? PRINT_YEAR_OPTIONS.slice(0, 5) : PRINT_YEAR_OPTIONS;
 
   useEffect(() => {
     fetch(`/api/funds?client=${encodeURIComponent(clientKey)}`)

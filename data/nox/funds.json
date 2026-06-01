@@ -1088,84 +1088,6 @@
       ]
     },
     {
-      "id": "real-estate",
-      "name": "אחר",
-      "parentSection": "אחר",
-      "funds": [
-        {
-          "id": "fund-48",
-          "name": "גרניט",
-          "classification": "סיסטמטי",
-          "startDate": "2013-10-01",
-          "manager": "מנשה שמש ואוריאל גלר",
-          "lastReportDate": "2026-02-28",
-          "monthlyReturn": 0.0149,
-          "returns": {
-            "ytd2026": 0.0053,
-            "y2025": 0.0441,
-            "y2024": -0.0135,
-            "y2023": 0.1172,
-            "y2022": 0.0343,
-            "y2021": 0.1269,
-            "y2020": 0.0461,
-            "y2019": null
-          },
-          "avgAnnualReturn": 0.0662,
-          "sharpe": 0.72,
-          "stdDev": 0.0642,
-          "aumMillions": 226
-        },
-        {
-          "id": "fund-49",
-          "name": "גרניט סלקט",
-          "classification": "סיסטמטי",
-          "startDate": "2013-10-01",
-          "manager": "מנשה שמש ואוריאל גלר",
-          "lastReportDate": "2026-02-28",
-          "monthlyReturn": 0.0238,
-          "returns": {
-            "ytd2026": 0.0046,
-            "y2025": 0.063,
-            "y2024": -0.0613,
-            "y2023": 0.2328,
-            "y2022": 0.0591,
-            "y2021": 0.2607,
-            "y2020": 0.0461,
-            "y2019": null
-          },
-          "avgAnnualReturn": 0.1263,
-          "sharpe": 0.82,
-          "stdDev": 0.1315,
-          "aumMillions": 46
-        },
-        {
-          "id": "fund-1774670543294",
-          "name": "ניסיון",
-          "classification": "ניסיון",
-          "manager": "אייל",
-          "startDate": null,
-          "lastReportDate": null,
-          "monthlyReturn": 1.22,
-          "returns": {
-            "ytd2026": 0.11,
-            "y2025": null,
-            "y2024": null,
-            "y2023": null,
-            "y2022": null,
-            "y2021": null,
-            "y2020": null,
-            "y2019": null
-          },
-          "avgAnnualReturn": null,
-          "sharpe": 11,
-          "stdDev": 0.01,
-          "aumMillions": 11,
-          "active": false,
-          "visibleInReport": true
-        }
-      ]
-    },
-    {
       "id": "open-trust",
       "name": "קרנות גידור מניות ואג\"ח חו\"ל",
       "parentSection": "קרנות גידור מניות ואג\"ח חו\"ל",
@@ -1926,6 +1848,84 @@
           "sharpe": 75,
           "stdDev": null,
           "aumMillions": null
+        }
+      ]
+    },
+    {
+      "id": "real-estate",
+      "name": "אחר",
+      "parentSection": "אחר",
+      "funds": [
+        {
+          "id": "fund-48",
+          "name": "גרניט",
+          "classification": "סיסטמטי",
+          "startDate": "2013-10-01",
+          "manager": "מנשה שמש ואוריאל גלר",
+          "lastReportDate": "2026-02-28",
+          "monthlyReturn": 0.0149,
+          "returns": {
+            "ytd2026": 0.0053,
+            "y2025": 0.0441,
+            "y2024": -0.0135,
+            "y2023": 0.1172,
+            "y2022": 0.0343,
+            "y2021": 0.1269,
+            "y2020": 0.0461,
+            "y2019": null
+          },
+          "avgAnnualReturn": 0.0662,
+          "sharpe": 0.72,
+          "stdDev": 0.0642,
+          "aumMillions": 226
+        },
+        {
+          "id": "fund-49",
+          "name": "גרניט סלקט",
+          "classification": "סיסטמטי",
+          "startDate": "2013-10-01",
+          "manager": "מנשה שמש ואוריאל גלר",
+          "lastReportDate": "2026-02-28",
+          "monthlyReturn": 0.0238,
+          "returns": {
+            "ytd2026": 0.0046,
+            "y2025": 0.063,
+            "y2024": -0.0613,
+            "y2023": 0.2328,
+            "y2022": 0.0591,
+            "y2021": 0.2607,
+            "y2020": 0.0461,
+            "y2019": null
+          },
+          "avgAnnualReturn": 0.1263,
+          "sharpe": 0.82,
+          "stdDev": 0.1315,
+          "aumMillions": 46
+        },
+        {
+          "id": "fund-1774670543294",
+          "name": "ניסיון",
+          "classification": "ניסיון",
+          "manager": "אייל",
+          "startDate": null,
+          "lastReportDate": null,
+          "monthlyReturn": 1.22,
+          "returns": {
+            "ytd2026": 0.11,
+            "y2025": null,
+            "y2024": null,
+            "y2023": null,
+            "y2022": null,
+            "y2021": null,
+            "y2020": null,
+            "y2019": null
+          },
+          "avgAnnualReturn": null,
+          "sharpe": 11,
+          "stdDev": 0.01,
+          "aumMillions": 11,
+          "active": false,
+          "visibleInReport": true
         }
       ]
     }
