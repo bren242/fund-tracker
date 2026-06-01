@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
  * One-time changelog modal — shown once per session for NOX only.
  * Dismissed via sessionStorage flag (versioned so we can reset with a new release).
  */
-const DISMISS_KEY = "nox-changelog-seen-apr2026";
+const DISMISS_KEY = "nox-changelog-seen-jun2026";
 const NOX_PRIMARY = "#1a365d";
 const NOX_GOLD    = "#c8a96b";
 
@@ -64,7 +64,7 @@ export default function NoxChangelogModal({ clientKey }: { clientKey: string }) 
               letterSpacing: 0.2,
             }}
           >
-            עדכון מערכת — אפריל 2026
+            עדכון מערכת — יוני 2026
           </div>
 
           <ul
@@ -78,10 +78,11 @@ export default function NoxChangelogModal({ clientKey }: { clientKey: string }) 
             }}
           >
             {[
-              "ממשק מחודש ומהיר יותר",
-              "דף קרנות עם פילטור לפי שנה (2020–YTD 2026)",
-              "השוואת עד 4 קרנות עם גרף שנתי",
-              "ממשק עדכון חודשי משופר",
+              "דוח הדפסה: עמודת תאריך הקמה",
+              "דוח הדפסה: 5 שנים בלבד (YTD + 4 אחורה)",
+              "דוח הדפסה: צבעי קטגוריות מעודכנים, קטגוריית 'אחר' אחרונה",
+              "עדכון חודשי: אישור ✓ עם הערך שנשמר לאחר הזנה",
+              "עדכון חודשי: כותרות עמודות נשארות גלויות בגלילה",
             ].map((item) => (
               <li key={item} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
                 <span style={{ color: NOX_GOLD, fontWeight: 700, marginTop: 1 }}>•</span>
