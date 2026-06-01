@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useClientKey, withClient } from "@/lib/useClientKey";
 import { useBrand } from "@/lib/useBrand";
-import { Indication } from "@/lib/types";
+import { Indication, Category } from "@/lib/types";
 import ClientGate from "@/components/ClientGate";
 import BrandLogo from "@/components/BrandLogo";
 import { ThemeToggle } from "@/components/ThemeProvider";
@@ -23,23 +23,50 @@ function GreenLogoInline() {
   );
 }
 
+type IndicationGroup = { name: string; items: Indication[] };
+
+function buildGroups(selectedList: Indication[], categories: Category[]): IndicationGroup[] {
+  const fundCatMap = new Map<string, string>();
+  for (const cat of categories) {
+    for (const fund of cat.funds) {
+      fundCatMap.set(fund.id, cat.name);
+    }
+  }
+
+  const groups: IndicationGroup[] = [];
+  for (const cat of categories) {
+    const items = selectedList.filter((ind) => fundCatMap.get(ind.fundId) === cat.name);
+    if (items.length > 0) groups.push({ name: cat.name, items });
+  }
+
+  // Uncategorized fallback
+  const grouped = new Set(groups.flatMap((g) => g.items.map((i) => i.id)));
+  const rest = selectedList.filter((i) => !grouped.has(i.id));
+  if (rest.length > 0) groups.push({ name: "אחר", items: rest });
+
+  return groups;
+}
+
 /* ── Shared card content (used in hidden div + modal mirror) */
-function CardContent({ selectedList, primary, accent, reportMonth, footerDisclaimer }: {
-  selectedList: Indication[];
+function CardContent({ groups, primary, accent, reportMonth, footerDisclaimer }: {
+  groups: IndicationGroup[];
   primary: string;
   accent: string;
   reportMonth: string;
   footerDisclaimer?: string;
 }) {
+  const allItems = groups.flatMap((g) => g.items);
+  const multiGroup = groups.length > 1;
+
   return (
     <div style={{ width: 1080, backgroundColor: "#f5f0e8", fontFamily: "Arial, sans-serif", direction: "rtl" }}>
 
-      {/* פס בז' עליון — לוגו בלבד, ללא רקע */}
+      {/* פס בז' עליון — לוגו בלבד */}
       <div style={{ backgroundColor: "#f5f0e8", padding: "16px 40px 12px", display: "flex", justifyContent: "center", alignItems: "center" }}>
         <GreenLogoInline />
       </div>
 
-      {/* פס ירוק — כותרת בלבד */}
+      {/* פס ירוק — כותרת */}
       <div style={{ backgroundColor: "#1B3A2F", padding: "10px 40px 14px" }}>
         <div style={{ color: "#B8975A", fontSize: 18, fontWeight: 700, textAlign: "center" }}>מעקב קרנות השקעה</div>
         <div style={{ color: "#a0b8a8", fontSize: 10, textAlign: "center", marginTop: 3 }}>נתונים אינדיקטיביים · {reportMonth}</div>
@@ -62,37 +89,50 @@ function CardContent({ selectedList, primary, accent, reportMonth, footerDisclai
           <div style={{ fontSize: 13, color: "#5a7a6a", fontWeight: 700, textAlign: "center" }}>YTD</div>
         </div>
 
-        {/* שורות */}
-        {selectedList.map((ind, idx) => (
-          <div
-            key={ind.id}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "minmax(200px, auto) 140px 140px",
-              gap: 4,
-              padding: "7px 8px",
-              backgroundColor: idx % 2 === 0 ? "rgba(27,58,47,0.05)" : "transparent",
-              borderRadius: 4,
-              alignItems: "center",
-            }}
-          >
-            {/* שם קרן + badge מטבע */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8, direction: "rtl" }}>
-              <span style={{ fontSize: 10, backgroundColor: "#dde8e3", color: "#1B3A2F", padding: "2px 7px", borderRadius: 10, fontWeight: 700, whiteSpace: "nowrap" }}>
-                {ind.currency}
-              </span>
-              <span style={{ fontSize: 15, color: "#1B3A2F", fontWeight: 500 }}>{ind.fundName}</span>
-            </div>
-
-            {/* חודש — ללא סימן, צבע בלבד */}
-            <div style={{ fontSize: 16, fontWeight: 700, color: ind.monthReturn >= 0 ? "#1a6640" : "#b91c1c", textAlign: "center" }}>
-              {Math.abs(ind.monthReturn * 100).toFixed(2)}%
-            </div>
-
-            {/* YTD — ללא סימן, צבע בלבד */}
-            <div style={{ fontSize: 16, fontWeight: 700, color: ind.ytd >= 0 ? "#1a6640" : "#b91c1c", textAlign: "center" }}>
-              {Math.abs(ind.ytd * 100).toFixed(2)}%
-            </div>
+        {/* קבוצות */}
+        {groups.map((group, gi) => (
+          <div key={group.name}>
+            {multiGroup && (
+              <div style={{
+                padding: "6px 8px 4px",
+                marginTop: gi > 0 ? 8 : 0,
+                fontSize: 11,
+                fontWeight: 700,
+                color: "#B8975A",
+                borderBottom: "1px solid #d4c9b0",
+                marginBottom: 2,
+                letterSpacing: "0.5px",
+              }}>
+                {group.name}
+              </div>
+            )}
+            {group.items.map((ind, idx) => (
+              <div
+                key={ind.id}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "minmax(200px, auto) 140px 140px",
+                  gap: 4,
+                  padding: "7px 8px",
+                  backgroundColor: idx % 2 === 0 ? "rgba(27,58,47,0.05)" : "transparent",
+                  borderRadius: 4,
+                  alignItems: "center",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8, direction: "rtl" }}>
+                  <span style={{ fontSize: 10, backgroundColor: "#dde8e3", color: "#1B3A2F", padding: "2px 7px", borderRadius: 10, fontWeight: 700, whiteSpace: "nowrap" }}>
+                    {ind.currency}
+                  </span>
+                  <span style={{ fontSize: 15, color: "#1B3A2F", fontWeight: 500 }}>{ind.fundName}</span>
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: ind.monthReturn >= 0 ? "#1a6640" : "#b91c1c", textAlign: "center" }}>
+                  {Math.abs(ind.monthReturn * 100).toFixed(2)}%
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: ind.ytd >= 0 ? "#1a6640" : "#b91c1c", textAlign: "center" }}>
+                  {Math.abs(ind.ytd * 100).toFixed(2)}%
+                </div>
+              </div>
+            ))}
           </div>
         ))}
 
@@ -126,6 +166,7 @@ function OutputContent() {
   const brand = useBrand(clientKey);
 
   const [indications, setIndications] = useState<Indication[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
@@ -142,14 +183,16 @@ function OutputContent() {
   const ACCENT = brand.accentColor || "#B8975A";
 
   useEffect(() => {
-    fetch(`/api/indications?client=${encodeURIComponent(clientKey)}`)
-      .then((r) => r.json())
-      .then((arr: Indication[]) => {
-        const sorted = [...arr].sort((a, b) => b.monthReturn - a.monthReturn);
-        setIndications(sorted);
-        setSelected(new Set(sorted.map((i) => i.id)));
-        setLoading(false);
-      });
+    Promise.all([
+      fetch(`/api/indications?client=${encodeURIComponent(clientKey)}`).then((r) => r.json()),
+      fetch(`/api/funds?client=${encodeURIComponent(clientKey)}`).then((r) => r.json()),
+    ]).then(([arr, fundsData]: [Indication[], { categories?: Category[] }]) => {
+      const sorted = [...arr].sort((a, b) => b.monthReturn - a.monthReturn);
+      setIndications(sorted);
+      setCategories(fundsData.categories || []);
+      setSelected(new Set(sorted.map((i) => i.id)));
+      setLoading(false);
+    });
   }, [clientKey]);
 
   // Recalculate card height when selection changes
@@ -174,6 +217,7 @@ function OutputContent() {
   const clearAll = () => setSelected(new Set());
 
   const selectedList = indications.filter((i) => selected.has(i.id));
+  const groups = buildGroups(selectedList, categories);
 
   // Most common reportMonth among selected
   const reportMonth = selectedList.length > 0
@@ -327,7 +371,7 @@ function OutputContent() {
       {/* Hidden card for html2canvas — 1080px, off-screen */}
       <div style={{ position: "absolute", left: -9999, top: 0, width: 1080, pointerEvents: "none" }}>
         <div ref={cardRef} style={{ width: 1080 }}>
-          <CardContent selectedList={selectedList} primary={PRIMARY} accent={ACCENT} reportMonth={reportMonth} footerDisclaimer={brand.footerDisclaimer} />
+          <CardContent groups={groups} primary={PRIMARY} accent={ACCENT} reportMonth={reportMonth} footerDisclaimer={brand.footerDisclaimer} />
         </div>
       </div>
 
@@ -363,7 +407,7 @@ function OutputContent() {
                   position: "absolute", top: 0, right: 0,
                 }}>
                   {/* Mirror of hidden card */}
-                  <CardContent selectedList={selectedList} primary={PRIMARY} accent={ACCENT} reportMonth={reportMonth} footerDisclaimer={brand.footerDisclaimer} />
+                  <CardContent groups={groups} primary={PRIMARY} accent={ACCENT} reportMonth={reportMonth} footerDisclaimer={brand.footerDisclaimer} />
                 </div>
               </div>
             </div>
