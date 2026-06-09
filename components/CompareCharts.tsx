@@ -154,7 +154,7 @@ export default function CompareCharts({
           )}
         </div>
         {/* Chart */}
-        <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
+        <div style={{ display: "flex", justifyContent: "center", width: "100%", direction: "ltr" }}>
           <LineChart width={555} height={300} data={lineData} margin={{ top: 8, right: 20, left: 4, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#dfe3e8" />
             <XAxis dataKey="year" tick={{ fontSize: 7.5, fill: "#5a6577" }} interval={xInterval} tickFormatter={formatXLabel} />
