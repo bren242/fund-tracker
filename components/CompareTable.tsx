@@ -43,19 +43,43 @@ function bmPct(v: number | null): string {
   return `${(v * 100).toFixed(2)}%`;
 }
 
-/** Compute avg, stdDev, sharpe for a benchmark from its visible annual returns */
-function computeBmStats(b: Benchmark, visibleYearKeys: string[]) {
+/**
+ * Compute stats for a benchmark.
+ * avg  — arithmetic mean of visible annual returns (same basis as fund avgAnnualReturn)
+ * std  — annualized monthly std (monthly_std × √12), requires ≥12 months; else null
+ * sharpe — avg/std using monthly-based std; null when std is null
+ *
+ * std/sharpe are intentionally null when monthly history is insufficient:
+ * annual-return std (~23%) is a different measure than monthly-annualized std (~3%) and
+ * cannot be meaningfully compared to fund.stdDev values in the same table column.
+ */
+function computeBmStats(b: Benchmark, visibleYearKeys: string[], fromYYYYMM?: string, toYYYYMM?: string) {
+  // ── avg: from annual returns (consistent with fund avgAnnualReturn display) ──
   const yearKeys = visibleYearKeys.filter((k) => k !== "ytd2026" && k.startsWith("y"));
-  const vals: number[] = [];
+  const annualVals: number[] = [];
   for (const k of yearKeys) {
     const v = b.returns[k as keyof typeof b.returns];
-    if (v !== null && v !== undefined) vals.push(v);
+    if (v !== null && v !== undefined) annualVals.push(v);
   }
-  if (vals.length === 0) return { avg: null as number | null, std: null as number | null, sharpe: null as number | null };
-  const avg = vals.reduce((a, x) => a + x, 0) / vals.length;
-  const variance = vals.reduce((sum, v) => sum + (v - avg) ** 2, 0) / vals.length;
-  const std = Math.sqrt(variance);
-  const sharpe = std > 0 ? avg / std : null;
+  const avg = annualVals.length > 0 ? annualVals.reduce((a, x) => a + x, 0) / annualVals.length : null;
+
+  // ── std/sharpe: from monthly returns only — requires ≥12 months ──
+  const MIN_MONTHS = 12;
+  const mr = b.monthlyReturns;
+  const monthlyVals = mr
+    ? Object.entries(mr)
+        .filter(([k]) => (!fromYYYYMM || k >= fromYYYYMM) && (!toYYYYMM || k <= toYYYYMM))
+        .map(([, v]) => v)
+    : [];
+
+  if (monthlyVals.length < MIN_MONTHS) {
+    return { avg, std: null as number | null, sharpe: null as number | null };
+  }
+
+  const monthlyAvg = monthlyVals.reduce((a, x) => a + x, 0) / monthlyVals.length;
+  const variance   = monthlyVals.reduce((s, v) => s + (v - monthlyAvg) ** 2, 0) / monthlyVals.length;
+  const std        = Math.sqrt(variance) * Math.sqrt(12); // annualized
+  const sharpe     = std > 0 ? (avg ?? monthlyAvg * 12) / std : null;
   return { avg, std, sharpe };
 }
 
@@ -195,7 +219,7 @@ export default function CompareTable({ funds, accentColor, compact, selectedYear
   const visibleYearKeys = visibleMetrics.filter((m) => m.yearKey).map((m) => m.yearKey!);
   const bmStatsMap = new Map<string, ReturnType<typeof computeBmStats>>();
   benchmarks.forEach((bm) => {
-    bmStatsMap.set(bm.id, computeBmStats(bm, visibleYearKeys));
+    bmStatsMap.set(bm.id, computeBmStats(bm, visibleYearKeys, fromYYYYMM, toYYYYMM));
   });
 
   // Dynamic sizing based on column count
