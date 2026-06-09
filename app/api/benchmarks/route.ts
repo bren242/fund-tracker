@@ -23,6 +23,43 @@ async function readBenchmarks(clientKey: string): Promise<Benchmark[]> {
   return storageRead<Benchmark[]>(`benchmarks:${clientKey}`, []);
 }
 
+// ─── Auto-compute returns from monthly data ───────────────────────────────────
+// Historical years: only updates if all 12 months are present (safe for partial data)
+// Current year: always computes YTD from whatever months exist
+function recomputeReturns(bm: Benchmark): void {
+  const mr = bm.monthlyReturns || {};
+  const currentYear = new Date().getFullYear();
+
+  const historicalYears = [2019, 2020, 2021, 2022, 2023, 2024, 2025] as const;
+  for (const year of historicalYears) {
+    let compound = 1;
+    let count = 0;
+    for (let m = 1; m <= 12; m++) {
+      const key = `${year}-${String(m).padStart(2, "0")}`;
+      if (typeof mr[key] === "number") {
+        compound *= (1 + mr[key]);
+        count++;
+      }
+    }
+    if (count === 12) {
+      const k = `y${year}` as keyof typeof bm.returns;
+      bm.returns[k] = Math.round((compound - 1) * 10000) / 10000;
+    }
+    // count < 12 → leave existing value unchanged (safe for S&P 500 etc.)
+  }
+
+  // Current year YTD
+  const ytdMonths = Object.entries(mr)
+    .filter(([k]) => k.startsWith(`${currentYear}-`))
+    .sort(([a], [b]) => a.localeCompare(b));
+  if (ytdMonths.length > 0) {
+    let cumulative = 1;
+    for (const [, v] of ytdMonths) cumulative *= (1 + v);
+    const ytdKey = `ytd${currentYear}` as keyof typeof bm.returns;
+    bm.returns[ytdKey] = Math.round((cumulative - 1) * 10000) / 10000;
+  }
+}
+
 // GET — list benchmarks
 export async function GET(req: NextRequest) {
   const clientKey = getClientKeyFromRequest(req.url);
@@ -107,24 +144,26 @@ export async function POST(req: NextRequest) {
       };
     }
 
-    // Auto-calculate YTD from monthly returns for current year
-    const mr = benchmarks[idx].monthlyReturns || {};
-    const currentYear = new Date().getFullYear().toString();
-    const ytdMonths = Object.entries(mr)
-      .filter(([k]) => k.startsWith(currentYear))
-      .sort(([a], [b]) => a.localeCompare(b));
-
-    if (ytdMonths.length > 0) {
-      let cumulative = 1;
-      for (const [, v] of ytdMonths) {
-        cumulative *= (1 + v);
-      }
-      const ytdKey = `ytd${currentYear}` as keyof typeof benchmarks[number]["returns"];
-      benchmarks[idx].returns[ytdKey] = Math.round((cumulative - 1) * 10000) / 10000;
-    }
+    recomputeReturns(benchmarks[idx]);
 
     await storageWrite(`benchmarks:${clientKey}`, benchmarks);
     return NextResponse.json({ success: true, benchmark: benchmarks[idx] });
+  }
+
+  // RECALCULATE-ALL — recompute annual + YTD for every benchmark from its monthlyReturns
+  if (action === "recalculate-all") {
+    const auth2 = await isAuthorized(req, clientKey);
+    if (!auth2) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    let updated = 0;
+    for (const bm of benchmarks) {
+      if (Object.keys(bm.monthlyReturns || {}).length > 0) {
+        recomputeReturns(bm);
+        updated++;
+      }
+    }
+    await storageWrite(`benchmarks:${clientKey}`, benchmarks);
+    return NextResponse.json({ success: true, updated });
   }
 
   // DELETE

@@ -2525,15 +2525,30 @@ function BenchmarkTab({ password, clientKey, onStatus }: {
     }
   };
 
+  const handleRecalculateAll = async () => {
+    const res = await fetch(`/api/benchmarks?action=recalculate-all&client=${encodeURIComponent(clientKey)}`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      onStatus(`✓ חישובים עודכנו — ${data.updated} מדדים`);
+      loadBenchmarks();
+    } else {
+      onStatus("❌ שגיאה בעדכון חישובים");
+    }
+  };
+
   const YEAR_KEYS = [
     { key: "ytd2026", label: "מצטבר 2026", editable: false },
-    { key: "y2025", label: "2025", editable: true },
-    { key: "y2024", label: "2024", editable: true },
-    { key: "y2023", label: "2023", editable: true },
-    { key: "y2022", label: "2022", editable: true },
-    { key: "y2021", label: "2021", editable: true },
-    { key: "y2020", label: "2020", editable: true },
-    { key: "y2019", label: "2019", editable: true },
+    { key: "y2025", label: "2025", editable: false },
+    { key: "y2024", label: "2024", editable: false },
+    { key: "y2023", label: "2023", editable: false },
+    { key: "y2022", label: "2022", editable: false },
+    { key: "y2021", label: "2021", editable: false },
+    { key: "y2020", label: "2020", editable: false },
+    { key: "y2019", label: "2019", editable: false },
   ] as const;
 
   const MONTHS_2026 = [
@@ -2594,6 +2609,18 @@ function BenchmarkTab({ password, clientKey, onStatus }: {
               padding: "7px 18px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12,
             }}>+ הוסף</button>
         </div>
+      </div>
+
+      {/* Recalculate button */}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+        <button onClick={handleRecalculateAll}
+          style={{
+            padding: "6px 14px", borderRadius: 6, fontSize: 11, cursor: "pointer",
+            border: "1px solid var(--border)", backgroundColor: "var(--bg-surface)",
+            color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 5,
+          }}>
+          🔄 עדכן חישובים מחודשיות
+        </button>
       </div>
 
       {/* Benchmark list */}
