@@ -34,7 +34,7 @@ function truncate(s: string, n = 22): string {
 }
 
 export default function CompareYearBars({ funds, yearKeys, accentColor }: CompareYearBarsProps) {
-  if (funds.length < 2 || yearKeys.length === 0) return null;
+  if (funds.length < 1 || yearKeys.length === 0) return null;
 
   const data = funds.map((f) => {
     const row: Record<string, string | number | null> = { name: truncate(f.name) };

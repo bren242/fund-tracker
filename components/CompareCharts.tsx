@@ -111,7 +111,8 @@ function buildLineData(funds: Fund[], benchmarks: Benchmark[], from: string, to:
 export default function CompareCharts({
   funds, accentColor, compact, benchmarks = [], from, to,
 }: CompareChartsProps) {
-  if (funds.length < 2) return null;
+  if (funds.length === 0 && benchmarks.length === 0) return null;
+  if (funds.length + benchmarks.length < 2) return null;
 
   const today = new Date();
   const defaultTo     = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
