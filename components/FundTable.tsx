@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Category, Fund } from "@/lib/types";
 import { pct, num, returnColorInline, formatReportDate } from "@/lib/format";
-import { getLastUpdated, getAvgAnnualReturn } from "@/lib/fundDerived";
+import { getLastUpdated, getAvgAnnualReturn, getStdDev, getSharpe } from "@/lib/fundDerived";
 
 
 type ReturnKey = "ytd2026" | "y2025" | "y2024" | "y2023" | "y2022" | "y2021" | "y2020" | "y2019";
@@ -54,8 +54,8 @@ function getSortValue(fund: Fund, col: SortCol): string | number {
     case "classification": return (fund.classification ?? "").toLowerCase();
     case "manager":        return (fund.manager ?? "").toLowerCase();
     case "avgAnnualReturn":return getAvgAnnualReturn(fund) ?? NULL_NUM;
-    case "sharpe":         return fund.sharpe ?? NULL_NUM;
-    case "stdDev":         return fund.stdDev ?? NULL_NUM;
+    case "sharpe":         return getSharpe(fund) ?? NULL_NUM;
+    case "stdDev":         return getStdDev(fund) ?? NULL_NUM;
     case "aumMillions":    return fund.aumMillions ?? NULL_NUM;
     case "monthlyReturn":  return fund.monthlyReturn ?? NULL_NUM;
     default:               return fund.returns[col as ReturnKey] ?? NULL_NUM;
@@ -199,9 +199,9 @@ function FundRow({ fund, even, comparisonEnabled, isSelected, onToggle, activeYe
       ))}
       <ReturnCell value={getAvgAnnualReturn(fund)} />
       <td style={{ padding: "8px 10px", textAlign: "center", borderBottom: "1px solid var(--border-table)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
-        {num(fund.sharpe)}
+        {num(getSharpe(fund))}
       </td>
-      <ReturnCell value={fund.stdDev} />
+      <ReturnCell value={getStdDev(fund)} />
       <td style={{ padding: "8px 10px", textAlign: "center", borderBottom: "1px solid var(--border-table)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
         {fund.aumMillions != null ? fund.aumMillions.toLocaleString() : "—"}
       </td>

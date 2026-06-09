@@ -1,7 +1,7 @@
 "use client";
 
 import { Fund } from "@/lib/types";
-import { getAvgAnnualReturn, getLatestMonthly } from "@/lib/fundDerived";
+import { getAvgAnnualReturn, getLatestMonthly, getStdDev, getSharpe } from "@/lib/fundDerived";
 
 interface CompareSummaryProps {
   funds: Fund[];
@@ -28,8 +28,8 @@ const METRICS: MetricDef[] = [
   { label: "2020", getValue: (f) => f.returns.y2020, yearKey: "y2020" },
   { label: "2019", getValue: (f) => f.returns.y2019, yearKey: "y2019" },
   { label: "תשואה ממוצעת שנתית", getValue: (f) => getAvgAnnualReturn(f) },
-  { label: "שארפ", getValue: (f) => f.sharpe },
-  { label: "סטיית תקן", getValue: (f) => f.stdDev, lowerIsBetter: true },
+  { label: "שארפ", getValue: (f) => getSharpe(f) },
+  { label: "סטיית תקן", getValue: (f) => getStdDev(f), lowerIsBetter: true },
 ];
 
 function computeWinner(funds: Fund[], selectedYears?: string[]): { fund: Fund; wins: number; total: number } | null {

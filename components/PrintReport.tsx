@@ -2,7 +2,7 @@
 
 import { Category, Fund } from "@/lib/types";
 import { pct, num, formatDate, formatReportDate } from "@/lib/format";
-import { getAvgAnnualReturn } from "@/lib/fundDerived";
+import { getAvgAnnualReturn, getStdDev, getSharpe } from "@/lib/fundDerived";
 
 import { BrandConfig } from "@/config/brand";
 import { SECTION_COLORS } from "@/lib/constants";
@@ -121,8 +121,8 @@ export default function PrintReport({ categories, lastUpdated, brand, printYears
             <td key={y.key} style={tdStyle({ textAlign: "center", color: returnColor(f.returns[y.key]), fontSize: baseFontSize })}>{pct(f.returns[y.key])}</td>
           ))}
           <td style={tdStyle({ textAlign: "center", color: returnColor(getAvgAnnualReturn(f)), fontSize: baseFontSize })}>{pct(getAvgAnnualReturn(f))}</td>
-          <td style={tdStyle({ textAlign: "center", fontSize: baseFontSize })}>{num(f.sharpe)}</td>
-          <td style={tdStyle({ textAlign: "center", color: returnColor(f.stdDev), fontSize: baseFontSize })}>{pct(f.stdDev)}</td>
+          <td style={tdStyle({ textAlign: "center", fontSize: baseFontSize })}>{num(getSharpe(f))}</td>
+          <td style={tdStyle({ textAlign: "center", color: returnColor(getStdDev(f)), fontSize: baseFontSize })}>{pct(getStdDev(f))}</td>
           <td style={tdStyle({ textAlign: "center", fontSize: baseFontSize })}>{f.aumMillions != null ? f.aumMillions.toLocaleString() : "—"}</td>
         </tr>
       );

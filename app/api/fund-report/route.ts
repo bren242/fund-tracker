@@ -24,6 +24,7 @@ import {
   blendBenchmarkReturns,
   calcConsistencyVsBenchmark,
 } from "@/lib/consistency";
+import { getStdDev, getSharpe, getAvgAnnualReturn } from "@/lib/fundDerived";
 
 /* ──────────────────────────────────────────────────────────────────── */
 /*  Types                                                                */
@@ -567,8 +568,8 @@ export async function GET(req: NextRequest) {
     },
     category: { id: category.id, name: category.name },
     metrics: {
-      cumulative, sharpe: fund.sharpe, stdDev: fund.stdDev,
-      avgAnnualReturn: fund.avgAnnualReturn,
+      cumulative, sharpe: getSharpe(fund), stdDev: getStdDev(fund),
+      avgAnnualReturn: getAvgAnnualReturn(fund),
       consistencyScore:  consistency?.score ?? null,
       consistencyWins:   consistency?.wins  ?? null,
       consistencyTotal:  consistency?.total ?? null,

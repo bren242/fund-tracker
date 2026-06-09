@@ -2,7 +2,7 @@
 
 import { Fund, Benchmark } from "@/lib/types";
 import { pct, num, formatReportDate } from "@/lib/format";
-import { getAvgAnnualReturn, getLastUpdated, getLatestMonthly } from "@/lib/fundDerived";
+import { getAvgAnnualReturn, getLastUpdated, getLatestMonthly, getStdDev, getSharpe } from "@/lib/fundDerived";
 import { computeCumulativeForRange, computeYTDFromMonthlyReturns } from "@/lib/metrics";
 
 interface CompareTableProps {
@@ -156,8 +156,8 @@ const METRICS: MetricRow[] = [
     yearKey: "y2019",
   },
   { label: "תשואה ממוצעת שנתית", getValue: (f) => pct(getAvgAnnualReturn(f)), getRaw: (f) => getAvgAnnualReturn(f), getColor: (f) => returnColor(getAvgAnnualReturn(f)), bmStatKey: "avg" as const },
-  { label: "שארפ", getValue: (f) => num(f.sharpe), getRaw: (f) => f.sharpe, bmStatKey: "sharpe" as const },
-  { label: "סטיית תקן", getValue: (f) => pct(f.stdDev), getRaw: (f) => f.stdDev, getColor: (f) => returnColor(f.stdDev), lowerIsBetter: true, bmStatKey: "std" as const },
+  { label: "שארפ", getValue: (f) => num(getSharpe(f)), getRaw: (f) => getSharpe(f), bmStatKey: "sharpe" as const },
+  { label: "סטיית תקן", getValue: (f) => pct(getStdDev(f)), getRaw: (f) => getStdDev(f), getColor: (f) => returnColor(getStdDev(f)), lowerIsBetter: true, bmStatKey: "std" as const },
   { label: "AUM (מ׳ ₪)", getValue: (f) => f.aumMillions != null ? f.aumMillions.toLocaleString() : "—", isInfo: true, hideBenchmark: true },
 ];
 
