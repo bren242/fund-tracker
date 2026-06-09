@@ -134,11 +134,11 @@ export default function CompareCharts({
   /* ── Print / compact ── */
   if (compact) {
     return (
-      <div style={{ pageBreakInside: "avoid", breakInside: "avoid" }}>
-        <h4 style={{ fontSize: "9pt", fontWeight: 600, color: "#1a1f2b", margin: "0 0 6px", textAlign: "right" }}>
+      <div style={{ pageBreakInside: "avoid", breakInside: "avoid", width: "100%" }}>
+        <h4 style={{ fontSize: "9pt", fontWeight: 600, color: "#1a1f2b", margin: "0 0 6px", textAlign: "center" }}>
           השוואת תשואות (%)
         </h4>
-        <div style={{ display: "flex", justifyContent: "center" }}>
+        <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
           <LineChart width={540} height={240} data={lineData} margin={{ top: 8, right: 16, left: 6, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e8eaed" />
             <XAxis dataKey="year" tick={{ fontSize: 7, fill: "#5a6577" }} interval={xInterval} tickFormatter={formatXLabel} />
