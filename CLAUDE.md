@@ -58,28 +58,28 @@ If `corrections[]` contains `monthly_uncertain` for a year, monthly values for t
 5. **No blind iteration** — If stuck >2 attempts, stop, summarize, change approach
 6. **Print is sacred** — Never break print layouts (see AI_DEV_RULES.md for patterns)
 
-## Current Status (2026-04-04)
-- **v1.5 deployed** — Monthly Direction Control
+## Current Status (2026-06-09)
+- **v1.6 deployed** — Compare page fixes + Benchmark historical data
 - **All yearly values correct** (2019-2025 + YTD 2026)
-- **Monthly safety layers active:**
-  - `corrections[]` + `monthly_uncertain` visible in draft review UI (red banner + tags)
-  - Auto-apply blocked (client + server) for uncertain drafts
-  - Existing monthly values protected from uncertain overwrite (default "keep")
-  - Compound validation (Π(1+rₖ) vs yearly, ±1%) runs for **all** drafts — merges fund history + draft values
-  - Validation is detection-only for clean drafts (warning, not blocking)
-  - History cross-check: flags monthly values that differ from existing same-month history by >0.5% (detection-only)
-- **Monthly Direction Control:**
-  - Per-fund `monthlyDirection: "LTR" | "RTL" | null` setting
-  - When RTL: monthly values reversed before validation/diff/apply (normalization layer)
-  - Direction selector in diff review when direction is null and draft has monthly fields
-  - Badge shown when direction already set
-  - Does NOT auto-clear `monthly_uncertain` — direction improves interpretation, not parser certainty
+- **Compare page fixes (2026-06-09):**
+  - YTD 2026: always computed live from monthlyReturns (was reading stale stored field)
+  - Benchmark std/sharpe: now computed from full monthly history (was filtered to selected period → too few months → "—")
+  - Benchmark avg: now uses all available years (2019-2025), not just visible range years
+  - Fund monthly returns: נוקד אקוויטי corrected (Jan 6.21%, Feb 3.68%)
+  - `recomputeYearReturn()` added to funds API — auto-updates stored ytd/yearly on monthly write
+- **Benchmark historical monthly data imported (2026-06-09):**
+  - All 6 benchmarks: 110-149 months loaded from CSV files
+  - ת"א 125: 148 months → ytd=21.22%, std=14.08%, sharpe=1.23
+  - SME 60: 111 months → ytd=18.49%
+  - Nasdaq 100: 149 months → ytd=20.13%
+  - S&P 500: 149 months → ytd=10.73% (April corrected from 4.66% to 10.42%)
+  - Scripts: `scripts/import-benchmarks-from-files.ts` — add May entries each month, re-run
 - **No open bugs**
 
 ## Next Focus
-- Monitor direction normalization in production
-- Consider retroactive validation of existing monthly history
-- Batch processing of multiple fund reports
+- Add missing May 2026 values: bm-telbond-maagar, bm-sme60, bm-sp500, bm-nasdaq100 (when known)
+- Monitor compare page benchmark stats in production
+- Design review: 4 UX issues in consistency (see CLAUDE.md section)
 
 ## Key Files
 | File | Purpose |
