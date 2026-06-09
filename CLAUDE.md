@@ -59,26 +59,24 @@ If `corrections[]` contains `monthly_uncertain` for a year, monthly values for t
 6. **Print is sacred** — Never break print layouts (see AI_DEV_RULES.md for patterns)
 
 ## Current Status (2026-06-09)
-- **v1.6 deployed** — Compare page fixes + Benchmark historical data
+- **v1.7 deployed** — Compare page UX overhaul + live stdDev/sharpe
 - **All yearly values correct** (2019-2025 + YTD 2026)
-- **Compare page fixes (2026-06-09):**
-  - YTD 2026: always computed live from monthlyReturns (was reading stale stored field)
-  - Benchmark std/sharpe: now computed from full monthly history (was filtered to selected period → too few months → "—")
-  - Benchmark avg: now uses all available years (2019-2025), not just visible range years
-  - Fund monthly returns: נוקד אקוויטי corrected (Jan 6.21%, Feb 3.68%)
-  - `recomputeYearReturn()` added to funds API — auto-updates stored ytd/yearly on monthly write
+- **stdDev/sharpe live computation (2026-06-09):**
+  - All display components (FundTable, CompareTable, CompareSummary, PrintReport, fund-report API) use `getStdDev(f)` / `getSharpe(f)` from `lib/fundDerived.ts`
+  - Live computation from `monthlyReturns` with stored-value fallback
+- **Compare page UX overhaul (2026-06-09):**
+  - Inline `FundPickerBar` — add/remove funds without leaving the page
+  - sessionStorage restores last selection on direct navigation
+  - Empty state (⟷ icon + guidance) when no funds selected
+  - Single fund + benchmark: `totalCols < 2` guard replaces `funds.length < 2` in CompareTable, CompareCharts, CompareYearBars
+  - No winner badge when only 1 fund
 - **Benchmark historical monthly data imported (2026-06-09):**
   - All 6 benchmarks: 110-149 months loaded from CSV files
-  - ת"א 125: 148 months → ytd=21.22%, std=14.08%, sharpe=1.23
-  - SME 60: 111 months → ytd=18.49%
-  - Nasdaq 100: 149 months → ytd=20.13%
-  - S&P 500: 149 months → ytd=10.73% (April corrected from 4.66% to 10.42%)
   - Scripts: `scripts/import-benchmarks-from-files.ts` — add May entries each month, re-run
 - **No open bugs**
 
 ## Next Focus
 - Add missing May 2026 values: bm-telbond-maagar, bm-sme60, bm-sp500, bm-nasdaq100 (when known)
-- Monitor compare page benchmark stats in production
 - Design review: 4 UX issues in consistency (see CLAUDE.md section)
 
 ## Key Files
