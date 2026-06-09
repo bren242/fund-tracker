@@ -4,6 +4,7 @@ import { Fund, Benchmark } from "@/lib/types";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
+import { formatMonthHe } from "@/lib/dateRange";
 
 interface CompareChartsProps {
   funds: Fund[];
@@ -133,22 +134,37 @@ export default function CompareCharts({
 
   /* ── Print / compact ── */
   if (compact) {
+    const periodLabel = effectiveFrom && effectiveTo
+      ? `${formatMonthHe(effectiveFrom)} – ${formatMonthHe(effectiveTo)}`
+      : null;
+
     return (
-      <div style={{ pageBreakInside: "avoid", breakInside: "avoid", width: "100%" }}>
-        <h4 style={{ fontSize: "9pt", fontWeight: 600, color: "#1a1f2b", margin: "0 0 6px", textAlign: "center" }}>
-          השוואת תשואות (%)
-        </h4>
+      <div style={{
+        pageBreakInside: "avoid", breakInside: "avoid", width: "100%",
+        backgroundColor: "#f8f9fa", border: "1px solid #e4e7ec",
+        borderRadius: 6, padding: "12px 14px", marginTop: 4,
+      }}>
+        {/* Section header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
+          <h4 style={{ fontSize: "9pt", fontWeight: 700, color: "#1a1f2b", margin: 0 }}>
+            השוואת תשואות (%)
+          </h4>
+          {periodLabel && (
+            <span style={{ fontSize: "7pt", color: "#8893a4" }}>תקופה: {periodLabel}</span>
+          )}
+        </div>
+        {/* Chart */}
         <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
-          <LineChart width={540} height={240} data={lineData} margin={{ top: 8, right: 16, left: 6, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e8eaed" />
-            <XAxis dataKey="year" tick={{ fontSize: 7, fill: "#5a6577" }} interval={xInterval} tickFormatter={formatXLabel} />
-            <YAxis tick={{ fontSize: 7, fill: "#8893a4" }} unit="%" width={30} />
-            <Legend wrapperStyle={{ fontSize: 7, paddingTop: 4 }} />
+          <LineChart width={555} height={300} data={lineData} margin={{ top: 8, right: 20, left: 4, bottom: 4 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#dfe3e8" />
+            <XAxis dataKey="year" tick={{ fontSize: 7.5, fill: "#5a6577" }} interval={xInterval} tickFormatter={formatXLabel} />
+            <YAxis tick={{ fontSize: 7.5, fill: "#8893a4" }} unit="%" width={32} />
+            <Legend wrapperStyle={{ fontSize: 7.5, paddingTop: 6 }} />
             {funds.map((f, i) => (
               <Line key={f.id} type="monotone" dataKey={`fund_${f.id}`} name={f.name}
                 stroke={fundColors[i]} strokeWidth={2}
                 strokeDasharray={fundIsEstimated[i] ? "5 3" : undefined}
-                dot={showDots ? { r: 2, fill: fundColors[i] } : false}
+                dot={showDots ? { r: 2.5, fill: fundColors[i] } : false}
                 connectNulls={true} />
             ))}
             {benchmarks.map((bm, i) => (

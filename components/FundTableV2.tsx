@@ -305,7 +305,7 @@ function MonthlyPills({ monthlyReturns }: { monthlyReturns?: Record<string, numb
               border: `1px solid ${isPos ? "#a7f3d0" : isNeg ? "#fca5a5" : "var(--border-table)"}`,
             }}
           >
-            {monthLabel}{yearLabel} {isPos ? "+" : ""}{(val * 100).toFixed(1)}%
+            {monthLabel}{yearLabel} {isPos ? "+" : ""}{(val * 100).toFixed(2)}%
           </div>
         );
       })}
