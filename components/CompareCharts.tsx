@@ -153,28 +153,26 @@ export default function CompareCharts({
             <span style={{ fontSize: "7pt", color: "#8893a4" }}>תקופה: {periodLabel}</span>
           )}
         </div>
-        {/* Chart — ResponsiveContainer fills full card width */}
-        <div style={{ width: "100%", height: 300, direction: "ltr" }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={lineData} margin={{ top: 8, right: 20, left: 4, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#dfe3e8" />
-              <XAxis dataKey="year" tick={{ fontSize: 7.5, fill: "#5a6577" }} interval={xInterval} tickFormatter={formatXLabel} />
-              <YAxis tick={{ fontSize: 7.5, fill: "#8893a4" }} unit="%" width={32} />
-              <Legend wrapperStyle={{ fontSize: 7.5, paddingTop: 6 }} />
-              {funds.map((f, i) => (
-                <Line key={f.id} type="monotone" dataKey={`fund_${f.id}`} name={f.name}
-                  stroke={fundColors[i]} strokeWidth={2}
-                  strokeDasharray={fundIsEstimated[i] ? "5 3" : undefined}
-                  dot={showDots ? { r: 2.5, fill: fundColors[i] } : false}
-                  connectNulls={true} />
-              ))}
-              {benchmarks.map((bm, i) => (
-                <Line key={bm.id} type="monotone" dataKey={`bm_${bm.id}`} name={bm.name}
-                  stroke={bmColors[i]} strokeWidth={1.5} strokeDasharray="6 3"
-                  dot={false} connectNulls={false} />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
+        {/* Chart — fixed width centered via margin auto (ResponsiveContainer fails in print) */}
+        <div style={{ width: 560, margin: "0 auto", direction: "ltr" }}>
+          <LineChart width={560} height={300} data={lineData} margin={{ top: 8, right: 20, left: 4, bottom: 4 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#dfe3e8" />
+            <XAxis dataKey="year" tick={{ fontSize: 7.5, fill: "#5a6577" }} interval={xInterval} tickFormatter={formatXLabel} />
+            <YAxis tick={{ fontSize: 7.5, fill: "#8893a4" }} unit="%" width={32} />
+            <Legend wrapperStyle={{ fontSize: 7.5, paddingTop: 6 }} />
+            {funds.map((f, i) => (
+              <Line key={f.id} type="monotone" dataKey={`fund_${f.id}`} name={f.name}
+                stroke={fundColors[i]} strokeWidth={2}
+                strokeDasharray={fundIsEstimated[i] ? "5 3" : undefined}
+                dot={showDots ? { r: 2.5, fill: fundColors[i] } : false}
+                connectNulls={true} />
+            ))}
+            {benchmarks.map((bm, i) => (
+              <Line key={bm.id} type="monotone" dataKey={`bm_${bm.id}`} name={bm.name}
+                stroke={bmColors[i]} strokeWidth={1.5} strokeDasharray="6 3"
+                dot={false} connectNulls={false} />
+            ))}
+          </LineChart>
         </div>
       </div>
     );
