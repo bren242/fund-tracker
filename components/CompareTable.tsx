@@ -3,7 +3,7 @@
 import { Fund, Benchmark } from "@/lib/types";
 import { pct, num, formatReportDate } from "@/lib/format";
 import { getAvgAnnualReturn, getLastUpdated, getLatestMonthly } from "@/lib/fundDerived";
-import { computeCumulativeForRange } from "@/lib/metrics";
+import { computeCumulativeForRange, computeYTDFromMonthlyReturns } from "@/lib/metrics";
 
 interface CompareTableProps {
   funds: Fund[];
@@ -78,10 +78,13 @@ const METRICS: MetricRow[] = [
     getBmRaw: (b) => getBmMonthlyReturn(b), getBmColor: (b) => returnColor(getBmMonthlyReturn(b)),
   },
   {
-    label: "מצטבר 2026", getValue: (f) => pct(f.returns.ytd2026),
-    getRaw: (f) => f.returns.ytd2026, getColor: (f) => returnColor(f.returns.ytd2026),
-    getBmValue: (b) => bmPct(b.returns.ytd2026),
-    getBmRaw: (b) => b.returns.ytd2026, getBmColor: (b) => returnColor(b.returns.ytd2026),
+    label: "מצטבר 2026",
+    getValue: (f) => { const v = computeYTDFromMonthlyReturns(f.monthlyReturns ?? {}, "2026") ?? f.returns.ytd2026; return pct(v); },
+    getRaw:   (f) => computeYTDFromMonthlyReturns(f.monthlyReturns ?? {}, "2026") ?? f.returns.ytd2026,
+    getColor: (f) => returnColor(computeYTDFromMonthlyReturns(f.monthlyReturns ?? {}, "2026") ?? f.returns.ytd2026),
+    getBmValue: (b) => { const v = computeYTDFromMonthlyReturns(b.monthlyReturns ?? {}, "2026") ?? b.returns.ytd2026; return bmPct(v); },
+    getBmRaw:   (b) => computeYTDFromMonthlyReturns(b.monthlyReturns ?? {}, "2026") ?? b.returns.ytd2026,
+    getBmColor: (b) => returnColor(computeYTDFromMonthlyReturns(b.monthlyReturns ?? {}, "2026") ?? b.returns.ytd2026),
     yearKey: "ytd2026",
   },
   {

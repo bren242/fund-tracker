@@ -17,6 +17,7 @@ import CompareTable from "@/components/CompareTable";
 import { brandCssVars } from "@/lib/colors";
 import DateRangePicker, { DateRangeValue } from "@/components/DateRangePicker";
 import { rangeToDateRange, DEFAULT_RANGE } from "@/lib/dateRange";
+import { computeYTDFromMonthlyReturns } from "@/lib/metrics";
 
 const CompareCharts  = dynamic(() => import("@/components/CompareCharts"),  { ssr: false });
 const CompareYearBars = dynamic(() => import("@/components/CompareYearBars"), { ssr: false });
@@ -49,7 +50,12 @@ function dateRangeToYearKeys(from: string, to: string): string[] {
 function computeCumulative(fund: Fund, selectedYears: string[]): number | null {
   const vals: number[] = [];
   for (const k of selectedYears) {
-    const v = (fund.returns as Record<string, number | null>)[k];
+    let v: number | null;
+    if (k === "ytd2026") {
+      v = computeYTDFromMonthlyReturns(fund.monthlyReturns ?? {}, "2026") ?? (fund.returns as Record<string, number | null>)[k];
+    } else {
+      v = (fund.returns as Record<string, number | null>)[k];
+    }
     if (v != null) vals.push(v);
   }
   if (vals.length === 0) return null;

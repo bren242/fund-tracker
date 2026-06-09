@@ -15,6 +15,34 @@ async function writeData(clientKey: string, data: unknown) {
   await storageWrite(`funds:${clientKey}`, data);
 }
 
+/** After any monthly return change, recompute the stored ytd/annual key so legacy fields stay fresh */
+function recomputeYearReturn(fund: Record<string, unknown>, affectedYear: string): void {
+  const mr = (fund.monthlyReturns as Record<string, number>) ?? {};
+  const returns = (fund.returns as Record<string, number | null>) ?? {};
+  const currentYear = new Date().getFullYear().toString();
+
+  const ytdMonths = Object.entries(mr)
+    .filter(([k]) => k.startsWith(`${affectedYear}-`))
+    .sort(([a], [b]) => a.localeCompare(b));
+
+  if (affectedYear === currentYear) {
+    // Always recompute YTD for current year
+    if (ytdMonths.length > 0) {
+      let cumulative = 1;
+      for (const [, v] of ytdMonths) cumulative *= (1 + v);
+      returns[`ytd${affectedYear}`] = Math.round((cumulative - 1) * 10000) / 10000;
+    } else {
+      returns[`ytd${affectedYear}`] = null;
+    }
+  } else if (ytdMonths.length === 12) {
+    // Historical year: only update when all 12 months present
+    let cumulative = 1;
+    for (const [, v] of ytdMonths) cumulative *= (1 + v);
+    returns[`y${affectedYear}`] = Math.round((cumulative - 1) * 10000) / 10000;
+  }
+  fund.returns = returns;
+}
+
 function getAdminPassword(data: Record<string, unknown>): string {
   return (data.adminPassword as string) || DEFAULT_ADMIN_PASSWORD;
 }
@@ -256,6 +284,7 @@ export async function PATCH(req: NextRequest) {
         const mr = (funds[idx].monthlyReturns as Record<string, number>) ?? {};
         funds[idx].monthlyReturns = { ...mr, [month]: value };
         funds[idx].lastUpdatedAt = new Date().toISOString();
+        recomputeYearReturn(funds[idx], month.slice(0, 4));
         found = true;
         break;
       }
@@ -282,6 +311,7 @@ export async function PATCH(req: NextRequest) {
         delete mr[month];
         funds[idx].monthlyReturns = mr;
         funds[idx].lastUpdatedAt = new Date().toISOString();
+        recomputeYearReturn(funds[idx], month.slice(0, 4));
         found = true;
         break;
       }
