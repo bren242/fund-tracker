@@ -163,6 +163,7 @@ const METRICS: MetricRow[] = [
 
 function getBestIdx(funds: Fund[], metric: MetricRow): number | null {
   if (metric.isInfo || !metric.getRaw) return null;
+  if (funds.length < 2) return null; // no winner concept with a single fund
 
   let bestIdx: number | null = null;
   let bestVal = metric.lowerIsBetter ? Infinity : -Infinity;
@@ -183,10 +184,10 @@ const BM_COLORS    = ["#0891b2", "#f59e0b"];
 const BM_BG_COLORS = ["rgba(107, 79, 160, 0.08)", "rgba(8, 145, 178, 0.08)"];
 
 export default function CompareTable({ funds, accentColor, compact, selectedYears, benchmarks = [], fundColors, fromYYYYMM, toYYYYMM }: CompareTableProps) {
-  if (funds.length < 2) return null;
-
   const hasBm = benchmarks.length > 0;
   const totalCols = funds.length + benchmarks.length;
+  // Need at least 2 columns (funds + benchmarks combined) to show a meaningful comparison
+  if (totalCols < 2) return null;
 
   // Filter metrics based on selected years
   const visibleMetrics = selectedYears && selectedYears.length > 0

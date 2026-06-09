@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, Suspense, useRef } from "react";
+import { useEffect, useState, useMemo, Suspense, useRef, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { FundsData, Fund, Benchmark } from "@/lib/types";
 import { sortBenchmarks } from "@/lib/benchmarkSort";
@@ -8,7 +8,7 @@ import { pct, num, formatDate, formatReportDate } from "@/lib/format";
 import { getAvgAnnualReturn, getLastUpdated, getLatestMonthly, getLatestMonthAcrossFunds } from "@/lib/fundDerived";
 import { useBrand } from "@/lib/useBrand";
 import { useClientKey, withClient } from "@/lib/useClientKey";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { BrandConfig } from "@/config/brand";
 import ClientGate from "@/components/ClientGate";
 import SubTabsBar from "@/components/SubTabsBar";
@@ -19,24 +19,22 @@ import DateRangePicker, { DateRangeValue } from "@/components/DateRangePicker";
 import { rangeToDateRange, DEFAULT_RANGE } from "@/lib/dateRange";
 import { computeYTDFromMonthlyReturns } from "@/lib/metrics";
 
-const CompareCharts  = dynamic(() => import("@/components/CompareCharts"),  { ssr: false });
+const CompareCharts   = dynamic(() => import("@/components/CompareCharts"),   { ssr: false });
 const CompareYearBars = dynamic(() => import("@/components/CompareYearBars"), { ssr: false });
 
-// ── Palette ──────────────────────────────────────────────────────────────────
+// ── Palette ───────────────────────────────────────────────────────────────────
 const FUND_COLORS = ["#1B3A2F", "#B8975A", "#2563eb", "#9333ea"];
 
-// ── fallback "now" for when latestMonth not yet loaded ────────────────────────
+// ── fallback "now" ────────────────────────────────────────────────────────────
 const _today = new Date();
 const _toYM  = `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, "0")}`;
 
 const ALL_YEAR_KEYS = ["ytd2026", "y2025", "y2024", "y2023", "y2022", "y2021", "y2020", "y2019"];
-
 const YEAR_KEY_TO_NUM: Record<string, number> = {
   ytd2026: 2026, y2025: 2025, y2024: 2024, y2023: 2023,
   y2022: 2022,   y2021: 2021, y2020: 2020, y2019: 2019,
 };
 
-/** Maps a YYYY-MM date range to the annual year keys needed by CompareTable */
 function dateRangeToYearKeys(from: string, to: string): string[] {
   const fromYear = parseInt(from.slice(0, 4));
   const toYear   = parseInt(to.slice(0, 4));
@@ -99,8 +97,7 @@ function sharpeColor(s: number | null): string {
   return "#dc2626";
 }
 
-
-// ── Year Buttons (year-mode — NOX) ───────────────────────────────────────────
+// ── Year Buttons (NOX) ────────────────────────────────────────────────────────
 const YEAR_BTN_OPTIONS: { key: string; label: string }[] = [
   { key: "2020",    label: "2020" },
   { key: "2021",    label: "2021" },
@@ -141,12 +138,12 @@ function YearButtons({ values, onToggle, accentColor }: {
 function FundCompareCard({ fund, color, isWinner, selectedYears, isYearMode }: {
   fund: Fund; color: string; isWinner: boolean; selectedYears: string[]; isYearMode: boolean;
 }) {
-  const cumulative = computeCumulative(fund, selectedYears);
+  const cumulative  = computeCumulative(fund, selectedYears);
   const lastUpdated = getLastUpdated(fund);
   const metrics = [
     { label: "תשואה ממוצעת שנתית", value: pct(getAvgAnnualReturn(fund)), color: retColor(getAvgAnnualReturn(fund)) },
-    { label: "שארפ",        value: num(fund.sharpe),           color: sharpeColor(fund.sharpe) },
-    { label: "מצטבר",       value: pct(cumulative),            color: retColor(cumulative) },
+    { label: "שארפ",   value: num(fund.sharpe),  color: sharpeColor(fund.sharpe) },
+    { label: "מצטבר",  value: pct(cumulative),   color: retColor(cumulative) },
   ];
 
   return (
@@ -155,29 +152,20 @@ function FundCompareCard({ fund, color, isWinner, selectedYears, isYearMode }: {
       border: "1px solid var(--border)", borderLeft: `3px solid ${color}`,
       padding: "16px 18px", boxShadow: "var(--shadow-card)",
     }}>
-      {/* Winner badge or spacer — fixed height so all cards align */}
       <div style={{ height: 22, marginBottom: 6 }}>
         {isWinner && <span style={{ fontSize: 11, fontWeight: 700, color, letterSpacing: 0.3 }}>↑ מובילה</span>}
       </div>
-
-      {/* Name + classification */}
       <div style={{ marginBottom: lastUpdated ? 8 : 14 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", lineHeight: 1.35, marginBottom: 3 }}>
           {fund.name}
         </div>
-        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-          {fund.classification || "—"}
-        </div>
+        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{fund.classification || "—"}</div>
       </div>
-
-      {/* Update date */}
       {lastUpdated && (
         <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 10 }}>
           {isYearMode ? "עודכן לאחרונה" : "מעודכן ל"}: {formatReportDate(lastUpdated)}
         </div>
       )}
-
-      {/* 3 metrics */}
       <div style={{ display: "flex", borderTop: "1px solid var(--border)", paddingTop: 10 }}>
         {metrics.map((m, i) => (
           <div key={m.label} style={{
@@ -196,13 +184,158 @@ function FundCompareCard({ fund, color, isWinner, selectedYears, isYearMode }: {
   );
 }
 
+// ── Fund Picker Bar ───────────────────────────────────────────────────────────
+function FundPickerBar({ fundIds, funds, allFunds, onAdd, onRemove, primaryColor }: {
+  fundIds: string[];
+  funds: Fund[];
+  allFunds: Fund[];
+  onAdd: (id: string) => void;
+  onRemove: (id: string) => void;
+  primaryColor: string;
+}) {
+  const [open, setOpen]     = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch("");
+      }
+    }
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, []);
+
+  const available = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    return allFunds.filter((f) =>
+      !fundIds.includes(f.id) &&
+      (!q || f.name.toLowerCase().includes(q) || (f.classification ?? "").toLowerCase().includes(q))
+    );
+  }, [allFunds, fundIds, search]);
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }} dir="rtl">
+
+      {/* Selected fund chips */}
+      {funds.map((f, i) => (
+        <div key={f.id} style={{
+          display: "inline-flex", alignItems: "center", gap: 4,
+          backgroundColor: `${FUND_COLORS[i % FUND_COLORS.length]}15`,
+          border: `1.5px solid ${FUND_COLORS[i % FUND_COLORS.length]}`,
+          borderRadius: 20, padding: "4px 6px 4px 4px",
+          fontSize: 12, fontWeight: 600, color: FUND_COLORS[i % FUND_COLORS.length],
+          maxWidth: 210,
+        }}>
+          <span style={{
+            width: 8, height: 8, borderRadius: "50%",
+            backgroundColor: FUND_COLORS[i % FUND_COLORS.length],
+            flexShrink: 0, display: "inline-block",
+          }} />
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 150 }}>
+            {f.name}
+          </span>
+          <button
+            onClick={() => onRemove(f.id)}
+            title="הסר קרן"
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              color: FUND_COLORS[i % FUND_COLORS.length], fontSize: 16,
+              lineHeight: 1, padding: "0 2px", opacity: 0.65, flexShrink: 0,
+              display: "flex", alignItems: "center",
+            }}
+          >×</button>
+        </div>
+      ))}
+
+      {/* Add button + dropdown */}
+      {fundIds.length < 4 && (
+        <div ref={ref} style={{ position: "relative" }}>
+          <button
+            onClick={() => setOpen((o) => !o)}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 4,
+              padding: "5px 13px", borderRadius: 20, fontSize: 12,
+              border: `1.5px dashed ${primaryColor}70`,
+              backgroundColor: open ? `${primaryColor}08` : "transparent",
+              color: primaryColor, cursor: "pointer", fontWeight: 500,
+              transition: "all 0.12s", whiteSpace: "nowrap",
+            }}
+          >
+            <span style={{ fontSize: 17, lineHeight: 1, fontWeight: 300, marginTop: -1 }}>+</span>
+            הוסף קרן
+          </button>
+
+          {open && (
+            <div style={{
+              position: "absolute", top: "calc(100% + 6px)", right: 0,
+              backgroundColor: "#ffffff", border: "1px solid #e2e8f0",
+              borderRadius: 10, boxShadow: "0 8px 28px rgba(0,0,0,0.13)",
+              zIndex: 300, width: 290,
+            }}>
+              <div style={{ padding: "8px 8px 4px" }}>
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder="חיפוש קרן..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Escape") { setOpen(false); setSearch(""); } }}
+                  style={{
+                    width: "100%", padding: "7px 10px", borderRadius: 8,
+                    border: "1px solid #e2e8f0", fontSize: 13, outline: "none",
+                    direction: "rtl", boxSizing: "border-box", fontFamily: "inherit",
+                  }}
+                />
+              </div>
+              <div style={{ maxHeight: 264, overflowY: "auto" }}>
+                {available.length === 0 ? (
+                  <div style={{ padding: "14px", fontSize: 12, color: "#9ca3af", textAlign: "center" }}>
+                    {search
+                      ? "לא נמצאו תוצאות"
+                      : allFunds.length === 0
+                        ? "טוען..."
+                        : "כל הקרנות כבר נבחרו"}
+                  </div>
+                ) : (
+                  available.map((f, idx) => (
+                    <div
+                      key={f.id}
+                      onClick={() => { onAdd(f.id); setOpen(false); setSearch(""); }}
+                      style={{
+                        padding: "8px 14px", direction: "rtl", cursor: "pointer",
+                        borderTop: idx === 0 ? "none" : "0.5px solid #f0f2f4",
+                        transition: "background 0.1s",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#f7f9fb")}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                    >
+                      <div style={{ fontSize: 13, fontWeight: 500, color: "#1a1f2b" }}>{f.name}</div>
+                      {f.classification && (
+                        <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 1 }}>{f.classification}</div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Compare Content ───────────────────────────────────────────────────────────
 function CompareContent() {
-  const clientKey   = useClientKey();
-  const brand       = useBrand(clientKey);
+  const clientKey    = useClientKey();
+  const brand        = useBrand(clientKey);
+  const router       = useRouter();
   const searchParams = useSearchParams();
-  const fundsParam  = searchParams.get("funds") || "";
-  const fundIds     = useMemo(() => fundsParam.split(",").filter(Boolean), [fundsParam]);
+  const fundsParam   = searchParams.get("funds") || "";
+  const fundIds      = useMemo(() => fundsParam.split(",").filter(Boolean), [fundsParam]);
 
   const [data, setData]                   = useState<FundsData | null>(null);
   const [allBenchmarks, setAllBenchmarks] = useState<Benchmark[]>([]);
@@ -214,11 +347,9 @@ function CompareContent() {
   const benchmarksEnabled = brand.features?.benchmarks ?? false;
   const comparisonEnabled = brand.features?.comparison ?? true;
 
-  // Time range
   const [rangeValue, setRangeValue] = useState<DateRangeValue>({ range: DEFAULT_RANGE });
   const [showPrint,  setShowPrint]  = useState(false);
 
-  // Year mode: when no fund has monthlyReturns (e.g. NOX)
   const [isYearMode, setIsYearMode]             = useState(false);
   const [selectedYearKeys, setSelectedYearKeys] = useState<YearBtnKey[]>(["2025"]);
   const modeDetected = useRef(false);
@@ -226,19 +357,19 @@ function CompareContent() {
   const toggleYear = (k: YearBtnKey) => {
     setSelectedYearKeys((prev) => {
       if (prev.includes(k)) {
-        if (prev.length === 1) return prev; // must keep at least one
+        if (prev.length === 1) return prev;
         return prev.filter((x) => x !== k);
       }
       return [...prev, k];
     });
   };
 
-  // Chronologically sorted (for chart legend + stable cards/table reference)
   const sortedYearKeys = useMemo(() => {
     const yearNum = (k: string) => (k === "ytd2026" ? 2026 : parseInt(k));
     return [...selectedYearKeys].sort((a, b) => yearNum(a) - yearNum(b));
   }, [selectedYearKeys]);
 
+  // ── Data fetching ──────────────────────────────────────────────────────────
   useEffect(() => {
     fetch(`/api/funds?client=${encodeURIComponent(clientKey)}`)
       .then((r) => r.json())
@@ -252,8 +383,16 @@ function CompareContent() {
             setSelectedBmIds(benchmarkIds.filter((id) => bms.some((b) => b.id === id)).slice(0, 2));
         });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientKey, benchmarksEnabled]);
 
+  // ── All funds flat — for the picker dropdown ───────────────────────────────
+  const allFundsFlat = useMemo(() => {
+    if (!data) return [] as Fund[];
+    return data.categories.flatMap((cat) => cat.funds.filter((f) => f.active !== false));
+  }, [data]);
+
+  // ── Resolve fund objects from URL ids ─────────────────────────────────────
   const funds: Fund[] = useMemo(() => {
     if (!data || fundIds.length === 0) return [];
     const all: Fund[] = [];
@@ -263,27 +402,65 @@ function CompareContent() {
     return fundIds.map((id) => all.find((f) => f.id === id)).filter(Boolean) as Fund[];
   }, [data, fundIds]);
 
-  // Detect year-mode once funds arrive (no monthly data → NOX)
+  // ── SessionStorage: restore on mount when URL has no funds ────────────────
+  useEffect(() => {
+    if (fundsParam === "") {
+      try {
+        const saved = sessionStorage.getItem(`compare-funds-${clientKey}`);
+        if (saved && saved.length > 0) {
+          router.replace(withClient(`/compare?funds=${encodeURIComponent(saved)}`, clientKey));
+        }
+      } catch { /* sessionStorage unavailable (SSR, privacy mode) */ }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally empty — run once on mount only
+
+  // ── SessionStorage: persist on change ─────────────────────────────────────
+  useEffect(() => {
+    if (fundIds.length === 0) return;
+    try { sessionStorage.setItem(`compare-funds-${clientKey}`, fundIds.join(",")); }
+    catch { /* ignore */ }
+  }, [fundIds, clientKey]);
+
+  // ── Fund management ────────────────────────────────────────────────────────
+  const updateFundIds = useCallback((newIds: string[]) => {
+    try {
+      if (newIds.length > 0) sessionStorage.setItem(`compare-funds-${clientKey}`, newIds.join(","));
+      else sessionStorage.removeItem(`compare-funds-${clientKey}`);
+    } catch { /* ignore */ }
+    // Preserve existing search params (date range, benchmarks, etc.)
+    const params = new URLSearchParams(
+      typeof window !== "undefined" ? window.location.search : ""
+    );
+    if (newIds.length > 0) params.set("funds", newIds.join(","));
+    else params.delete("funds");
+    const qs = params.toString();
+    router.replace(withClient(`/compare${qs ? `?${qs}` : ""}`, clientKey));
+  }, [clientKey, router]);
+
+  const removeFund = useCallback((id: string) => {
+    updateFundIds(fundIds.filter((x) => x !== id));
+  }, [fundIds, updateFundIds]);
+
+  const addFund = useCallback((id: string) => {
+    if (!fundIds.includes(id) && fundIds.length < 4) updateFundIds([...fundIds, id]);
+  }, [fundIds, updateFundIds]);
+
+  // ── Year mode detection ────────────────────────────────────────────────────
   useEffect(() => {
     if (modeDetected.current || funds.length === 0) return;
-    const hasMonthly = funds.some(f => f.monthlyReturns && Object.keys(f.monthlyReturns).length > 0);
+    const hasMonthly = funds.some((f) => f.monthlyReturns && Object.keys(f.monthlyReturns).length > 0);
     if (!hasMonthly) setIsYearMode(true);
     modeDetected.current = true;
   }, [funds]);
 
-  // Latest month with actual fund data — used to anchor preset ranges
-  const latestMonth = useMemo(
-    () => getLatestMonthAcrossFunds(funds),
-    [funds],
-  );
+  const latestMonth = useMemo(() => getLatestMonthAcrossFunds(funds), [funds]);
 
-  // Exact YYYY-MM range for chart (non-year-mode only — year mode uses its own bar chart)
   const chartRange = useMemo(() => {
     const r = rangeToDateRange(rangeValue.range, latestMonth, rangeValue.from, rangeValue.to);
     return r ?? { from: "2019-01", to: latestMonth ?? _toYM };
   }, [rangeValue, latestMonth]);
 
-  // Year keys for cards/table — first selected year in year mode
   const selectedYears = useMemo(() => {
     if (isYearMode) {
       const k = selectedYearKeys[0];
@@ -304,6 +481,7 @@ function CompareContent() {
 
   const winnerIdx = useMemo(() => computeWinnerIdx(funds, selectedYears), [funds, selectedYears]);
 
+  // ── Guards ─────────────────────────────────────────────────────────────────
   if (!data)
     return <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>טוען נתונים...</div>;
 
@@ -315,29 +493,29 @@ function CompareContent() {
       </div>
     );
 
-  if (funds.length < 2)
-    return (
-      <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>
-        <p>יש לבחור לפחות 2 קרנות להשוואה.</p>
-        <a href={withClient("/", clientKey)} style={{ color: "var(--accent)" }}>חזור לדוח</a>
-      </div>
-    );
+  const primary = brand.primaryColor || "#1B3A2F";
 
   return (
     <ClientGate clientKey={clientKey}>
       <style>{`@media print { @page { size: A4 portrait; margin: 8mm 10mm 14mm 10mm; } }`}</style>
       <div style={{ minHeight: "100vh", ...brandCssVars(brand.primaryColor, brand.accentColor) } as React.CSSProperties}>
 
-        {/* Sub-tabs row */}
+        {/* Sub-tabs + print button */}
         <SubTabsBar
           client={clientKey}
           active="השוואה"
           features={brand.features}
-          primaryColor={brand.primaryColor || "#1B3A2F"}
+          primaryColor={primary}
           slot={
             <button
-              onClick={() => { setShowPrint(true); setTimeout(() => window.print(), 300); }}
-              style={{ backgroundColor: brand.primaryColor, color: "#fff", fontWeight: 700, padding: "6px 18px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12 }}
+              onClick={() => { if (funds.length < 2) return; setShowPrint(true); setTimeout(() => window.print(), 300); }}
+              style={{
+                backgroundColor: primary, color: "#fff", fontWeight: 700,
+                padding: "6px 18px", borderRadius: 6, border: "none",
+                cursor: funds.length >= 2 ? "pointer" : "default",
+                fontSize: 12, opacity: funds.length < 2 ? 0.4 : 1,
+                transition: "opacity 0.15s",
+              }}
             >
               הדפסה / PDF
             </button>
@@ -347,141 +525,176 @@ function CompareContent() {
         {/* ============ SCREEN VERSION ============ */}
         <div className="no-print">
 
-          {/* Hero — segmented control only */}
+          {/* Controls bar: fund picker (right) + date range (left) */}
           <div style={{ backgroundColor: "var(--bg-surface)", borderBottom: "1px solid var(--border)" }}>
-            <div style={{ maxWidth: 1200, margin: "0 auto", padding: "16px 24px 14px" }}>
+            <div style={{ maxWidth: 1200, margin: "0 auto", padding: "12px 24px" }}>
+              <div style={{
+                display: "flex", alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap", gap: 10,
+              }} dir="rtl">
 
-              {/* Title + Segmented Control / Year Buttons */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }} dir="rtl">
-                <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>
-                  תשואות שנתיות לאורך זמן
-                </span>
-                {isYearMode ? (
-                  <YearButtons values={selectedYearKeys} onToggle={toggleYear} accentColor={brand.primaryColor} />
-                ) : (
-                  <DateRangePicker
-                    value={rangeValue}
-                    onChange={setRangeValue}
-                    latestAvailableMonth={latestMonth}
-                    syncToUrl={true}
-                  />
+                <FundPickerBar
+                  fundIds={fundIds}
+                  funds={funds}
+                  allFunds={allFundsFlat}
+                  onAdd={addFund}
+                  onRemove={removeFund}
+                  primaryColor={primary}
+                />
+
+                {/* Date range / year selector — only relevant when there are funds */}
+                {funds.length > 0 && (
+                  isYearMode ? (
+                    <YearButtons values={selectedYearKeys} onToggle={toggleYear} accentColor={primary} />
+                  ) : (
+                    <DateRangePicker
+                      value={rangeValue}
+                      onChange={setRangeValue}
+                      latestAvailableMonth={latestMonth}
+                      syncToUrl={true}
+                    />
+                  )
                 )}
               </div>
             </div>
           </div>
 
-          {/* 3. Content — chart + cards + table, all same padding */}
           <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}>
 
-            {/* Chart — bar chart in year mode, line chart otherwise */}
-            {isYearMode ? (
-              <CompareYearBars
-                funds={funds}
-                yearKeys={sortedYearKeys}
-                accentColor={brand.primaryColor}
-              />
-            ) : (
-              <CompareCharts
-                funds={funds}
-                accentColor={brand.primaryColor}
-                from={chartRange.from}
-                to={chartRange.to}
-                benchmarks={selectedBenchmarks}
-              />
-            )}
-
-            {/* Fund cards */}
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: `repeat(${Math.min(funds.length, 4)}, 1fr)`,
-              gap: 16,
-              marginTop: 28,
-              marginBottom: 24,
-            }}>
-              {funds.map((fund, i) => (
-                <FundCompareCard
-                  key={fund.id}
-                  fund={fund}
-                  color={FUND_COLORS[i % FUND_COLORS.length]}
-                  isWinner={i === winnerIdx}
-                  selectedYears={selectedYears}
-                  isYearMode={isYearMode}
-                />
-              ))}
-            </div>
-
-            {/* Benchmark selector */}
-            {benchmarksEnabled && allBenchmarks.length > 0 && (
-              <div style={{
-                backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
-                borderRadius: 10, padding: "12px 16px", marginBottom: 20,
-              }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>📊 מדדי ייחוס (עד 2)</span>
-                  {selectedBmIds.length > 0 && (
-                    <button onClick={() => setSelectedBmIds([])} style={{
-                      fontSize: 10, padding: "3px 10px", borderRadius: 4,
-                      border: "1px solid var(--border)", backgroundColor: "var(--bg-surface-alt)",
-                      color: "var(--text-secondary)", cursor: "pointer",
-                    }}>נקה</button>
-                  )}
+            {/* ── Empty state ── */}
+            {funds.length === 0 && (
+              <div style={{ textAlign: "center", padding: "80px 20px", color: "var(--text-muted)" }}>
+                <div style={{ fontSize: 36, marginBottom: 14, opacity: 0.3 }}>⟷</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8 }}>
+                  כלי ההשוואה
                 </div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {allBenchmarks.map((bm) => {
-                    const active = selectedBmIds.includes(bm.id);
-                    const atMax  = selectedBmIds.length >= 2 && !active;
-                    return (
-                      <button key={bm.id} onClick={() => toggleBenchmark(bm.id)} disabled={atMax} style={{
-                        padding: "5px 14px", borderRadius: 6, fontSize: 12,
-                        cursor: atMax ? "default" : "pointer",
-                        border: `1px solid ${active ? "#6366f1" : "var(--border)"}`,
-                        backgroundColor: active ? "#6366f115" : "var(--bg-surface)",
-                        color: active ? "#6366f1" : atMax ? "var(--text-muted)" : "var(--text-secondary)",
-                        fontWeight: active ? 700 : 400, opacity: atMax ? 0.4 : 1, transition: "all 0.15s",
-                      }}>
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, direction: "ltr" }}>
-                          <span>{bm.currency === "USD" ? "$" : "₪"}</span>
-                          <span>{bm.name}</span>
-                        </span>
-                      </button>
-                    );
-                  })}
+                <div style={{ fontSize: 13 }}>
+                  לחץ על{" "}
+                  <strong style={{ color: primary }}>+ הוסף קרן</strong>
+                  {" "}כדי להתחיל
+                </div>
+                <div style={{ fontSize: 11, marginTop: 6, opacity: 0.6 }}>
+                  ניתן להשוות עד 4 קרנות ולהוסיף מדדי ייחוס
                 </div>
               </div>
             )}
 
-            {/* 4. Compare table */}
-            <CompareTable
-              funds={funds}
-              accentColor={brand.primaryColor}
-              selectedYears={selectedYears}
-              benchmarks={selectedBenchmarks}
-              fundColors={funds.map((_, i) => i === 0 ? brand.primaryColor : FUND_COLORS[i])}
-              fromYYYYMM={isYearMode ? undefined : chartRange.from}
-              toYYYYMM={isYearMode ? undefined : chartRange.to}
-            />
+            {/* ── Content (1+ funds) ── */}
+            {funds.length > 0 && (
+              <>
+                {/* Chart */}
+                {isYearMode ? (
+                  <CompareYearBars funds={funds} yearKeys={sortedYearKeys} accentColor={primary} />
+                ) : (
+                  <CompareCharts
+                    funds={funds} accentColor={primary}
+                    from={chartRange.from} to={chartRange.to}
+                    benchmarks={selectedBenchmarks}
+                  />
+                )}
 
-            {/* Disclaimer */}
-            {brand.footerDisclaimer && (
-              <div style={{ marginBottom: 20 }}>
+                {/* Fund cards */}
                 <div style={{
-                  backgroundColor: "var(--bg-surface-alt)", borderRadius: 8, padding: "12px 18px",
-                  fontSize: 10, color: "var(--text-muted)", lineHeight: 1.6,
-                  border: "1px solid var(--border)", whiteSpace: "pre-line",
+                  display: "grid",
+                  gridTemplateColumns: `repeat(${Math.min(funds.length, 4)}, 1fr)`,
+                  gap: 16, marginTop: 28, marginBottom: 24,
                 }}>
-                  {brand.footerDisclaimer}
+                  {funds.map((fund, i) => (
+                    <FundCompareCard
+                      key={fund.id}
+                      fund={fund}
+                      color={FUND_COLORS[i % FUND_COLORS.length]}
+                      isWinner={funds.length >= 2 && i === winnerIdx}
+                      selectedYears={selectedYears}
+                      isYearMode={isYearMode}
+                    />
+                  ))}
                 </div>
-              </div>
-            )}
 
-            <div style={{ textAlign: "center", padding: "8px 0 20px", fontSize: 10, color: "var(--text-muted)" }}>
-              {brand.showCredit && brand.creditText ? `All rights reserved — ${brand.creditText}` : brand.fullName ? `© ${brand.fullName}` : ""}
-            </div>
+                {/* Benchmark selector */}
+                {benchmarksEnabled && allBenchmarks.length > 0 && (
+                  <div style={{
+                    backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
+                    borderRadius: 10, padding: "12px 16px", marginBottom: 20,
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>📊 מדדי ייחוס (עד 2)</span>
+                      {selectedBmIds.length > 0 && (
+                        <button onClick={() => setSelectedBmIds([])} style={{
+                          fontSize: 10, padding: "3px 10px", borderRadius: 4,
+                          border: "1px solid var(--border)", backgroundColor: "var(--bg-surface-alt)",
+                          color: "var(--text-secondary)", cursor: "pointer",
+                        }}>נקה</button>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {allBenchmarks.map((bm) => {
+                        const active = selectedBmIds.includes(bm.id);
+                        const atMax  = selectedBmIds.length >= 2 && !active;
+                        return (
+                          <button key={bm.id} onClick={() => toggleBenchmark(bm.id)} disabled={atMax} style={{
+                            padding: "5px 14px", borderRadius: 6, fontSize: 12,
+                            cursor: atMax ? "default" : "pointer",
+                            border: `1px solid ${active ? "#6366f1" : "var(--border)"}`,
+                            backgroundColor: active ? "#6366f115" : "var(--bg-surface)",
+                            color: active ? "#6366f1" : atMax ? "var(--text-muted)" : "var(--text-secondary)",
+                            fontWeight: active ? 700 : 400, opacity: atMax ? 0.4 : 1, transition: "all 0.15s",
+                          }}>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, direction: "ltr" }}>
+                              <span>{bm.currency === "USD" ? "$" : "₪"}</span>
+                              <span>{bm.name}</span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Comparison table */}
+                <CompareTable
+                  funds={funds}
+                  accentColor={primary}
+                  selectedYears={selectedYears}
+                  benchmarks={selectedBenchmarks}
+                  fundColors={funds.map((_, i) => i === 0 ? primary : FUND_COLORS[i])}
+                  fromYYYYMM={isYearMode ? undefined : chartRange.from}
+                  toYYYYMM={isYearMode ? undefined : chartRange.to}
+                />
+
+                {/* Disclaimer */}
+                {brand.footerDisclaimer && (
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{
+                      backgroundColor: "var(--bg-surface-alt)", borderRadius: 8, padding: "12px 18px",
+                      fontSize: 10, color: "var(--text-muted)", lineHeight: 1.6,
+                      border: "1px solid var(--border)", whiteSpace: "pre-line",
+                    }}>
+                      {brand.footerDisclaimer}
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ textAlign: "center", padding: "8px 0 20px", fontSize: 10, color: "var(--text-muted)" }}>
+                  {brand.showCredit && brand.creditText
+                    ? `All rights reserved — ${brand.creditText}`
+                    : brand.fullName ? `© ${brand.fullName}` : ""}
+                </div>
+              </>
+            )}
           </div>
         </div>
 
         {/* ============ PRINT VERSION ============ */}
-        {showPrint && <ComparePrint funds={funds} brand={brand} lastUpdated={data.lastUpdated} mode={mode} selectedYears={selectedYears} chartFrom={chartRange.from} chartTo={chartRange.to} benchmarks={selectedBenchmarks} />}
+        {showPrint && funds.length >= 2 && (
+          <ComparePrint
+            funds={funds} brand={brand} lastUpdated={data.lastUpdated}
+            mode={mode} selectedYears={selectedYears}
+            chartFrom={chartRange.from} chartTo={chartRange.to}
+            benchmarks={selectedBenchmarks}
+          />
+        )}
       </div>
     </ClientGate>
   );
@@ -506,7 +719,6 @@ function ComparePrint({ funds, brand, lastUpdated, mode, selectedYears, chartFro
     <div className="print-only" style={{ width: "100%", background: "white", color: "#1a1f2b" }}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "8pt", lineHeight: 1.4 }}>
         <thead>
-          {/* === HEADER ROW 1: Logo + Date === */}
           <tr>
             <td style={{ padding: "6px 8px 4px", background: "white" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}><tbody><tr>
@@ -522,7 +734,6 @@ function ComparePrint({ funds, brand, lastUpdated, mode, selectedYears, chartFro
               </tr></tbody></table>
             </td>
           </tr>
-          {/* === HEADER ROW 2: Title === */}
           <tr>
             <td style={{ padding: "2px 0 8px", borderBottom: `2px solid ${brand.secondaryColor}`, background: "white", textAlign: "center" }}>
               <span style={{ fontSize: "14pt", color: brand.primaryColor, fontWeight: 700, letterSpacing: "0.5px" }}>
@@ -530,19 +741,13 @@ function ComparePrint({ funds, brand, lastUpdated, mode, selectedYears, chartFro
               </span>
             </td>
           </tr>
-          {/* Spacer */}
           <tr><td style={{ height: 8, padding: 0, border: "none", background: "white", lineHeight: 0, fontSize: 0 }} /></tr>
         </thead>
         <tbody>
           <tr>
             <td style={{ padding: 0 }}>
-              {/* Compact summary strip */}
               <CompareSummary funds={funds} accentColor={brand.primaryColor} compact selectedYears={selectedYears} />
-
-              {/* Comparison table */}
               <CompareTable funds={funds} accentColor={brand.primaryColor} compact selectedYears={selectedYears} benchmarks={benchmarks} fromYYYYMM={chartFrom} toYYYYMM={chartTo} />
-
-              {/* Divider between table and chart */}
               {mode === "advanced" && (
                 <>
                   <div style={{ borderTop: "1px solid #dfe3e8", margin: "10px 0" }} />
@@ -554,7 +759,6 @@ function ComparePrint({ funds, brand, lastUpdated, mode, selectedYears, chartFro
         </tbody>
       </table>
 
-      {/* Fixed print footer */}
       <div className="print-footer" style={{ borderTop: "1px solid #ccc" }}>
         {brand.footerDisclaimer && (
           <div style={{ padding: "3px 8px", fontSize: "4.5pt", color: "#666", lineHeight: 1.3, background: "white" }}>
