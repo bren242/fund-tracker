@@ -16,7 +16,7 @@ import CompareSummary from "@/components/CompareSummary"; // print only
 import CompareTable from "@/components/CompareTable";
 import { brandCssVars } from "@/lib/colors";
 import DateRangePicker, { DateRangeValue } from "@/components/DateRangePicker";
-import { rangeToDateRange, DEFAULT_RANGE } from "@/lib/dateRange";
+import { rangeToDateRange, DEFAULT_RANGE, PRESET_LABELS, formatMonthHe } from "@/lib/dateRange";
 import { computeYTDFromMonthlyReturns } from "@/lib/metrics";
 
 const CompareCharts   = dynamic(() => import("@/components/CompareCharts"),   { ssr: false });
@@ -651,6 +651,16 @@ function CompareContent() {
                     </div>
                   </div>
                 )}
+
+                {/* Period label above table */}
+                <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                    {isYearMode
+                      ? `תקופה: ${selectedYearKeys[0] === "ytd2026" ? "YTD 2026" : selectedYearKeys[0]}`
+                      : `תקופה: ${PRESET_LABELS[rangeValue.range]}  ·  ${formatMonthHe(chartRange.from)} – ${formatMonthHe(chartRange.to)}`
+                    }
+                  </span>
+                </div>
 
                 {/* Comparison table */}
                 <CompareTable
