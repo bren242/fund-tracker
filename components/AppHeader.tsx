@@ -53,9 +53,11 @@ export default function AppHeader({ fundCount: _fundCount = 84 }: AppHeaderProps
     ...(features?.fundStatus  !== false ? [{ label: "סטטוס קרנות",   path: "/fund-status" }] : []),
   ];
 
+  // "ניתוח" sub-tabs already exist as pills in the controls bar on every analysis page.
+  // Showing a dropdown there creates a duplicate floating overlay — remove it.
+  // Only "כלים" gets a dropdown (no dedicated sub-nav row on tools pages).
   const dropdownItems: Partial<Record<TabKey, { label: string; path: string }[]>> = {
-    analysis: analysisItems,
-    tools:    toolsItems,
+    tools: toolsItems,
   };
 
   // ── Hover handlers ─────────────────────────────────────────────────────────
