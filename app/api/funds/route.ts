@@ -321,7 +321,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ success: true });
   }
 
-  // Save MTD for NOX: compound into ytd2026 and log to noxMtdLog (NOX only)
+  // Save MTD for NOX: update log and recompute ytd from scratch (NOX only)
   if (url.searchParams.get("action") === "set-nox-mtd") {
     if (clientKey !== "nox") return NextResponse.json({ error: "Action only valid for NOX client" }, { status: 400 });
     const body = await req.json();
@@ -337,14 +337,21 @@ export async function PATCH(req: NextRequest) {
       if (idx >= 0) {
         const fund = funds[idx] as Record<string, unknown>;
         const returns = (fund.returns as Record<string, number | null>) ?? {};
-        const ytdCurrent = (returns.ytd2026 as number) ?? 0;
-        const ytdNew = (1 + ytdCurrent) * (1 + mtd) - 1;
-        fund.returns = { ...returns, ytd2026: ytdNew };
+        const log = { ...((fund.noxMtdLog as Record<string, number>) ?? {}), [month]: mtd };
+        fund.noxMtdLog = log;
+        // Recompute ytd purely from log entries for the affected year — no dirty-base bug
+        const affectedYear = month.slice(0, 4);
+        const currentYear = new Date().getFullYear().toString();
+        const yearEntries = Object.entries(log)
+          .filter(([k]) => k.startsWith(affectedYear))
+          .sort(([a], [b]) => a.localeCompare(b));
+        let ytd = 1;
+        for (const [, v] of yearEntries) ytd *= (1 + v);
+        ytd -= 1;
+        const ytdKey = affectedYear === currentYear ? `ytd${affectedYear}` : `y${affectedYear}`;
+        fund.returns = { ...returns, [ytdKey]: Math.round(ytd * 10000) / 10000 };
         fund.lastMonth = month;
         fund.lastUpdatedAt = new Date().toISOString();
-        const log = { ...((fund.noxMtdLog as Record<string, number>) ?? {}) };
-        log[month] = mtd;
-        fund.noxMtdLog = log;
         found = true;
         break;
       }
@@ -354,7 +361,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ success: true });
   }
 
-  // Undo last MTD entry for NOX: reverse compound and remove from log (NOX only)
+  // Undo last MTD entry for NOX: remove from log and recompute ytd from remaining entries (NOX only)
   if (url.searchParams.get("action") === "undo-nox-mtd") {
     if (clientKey !== "nox") return NextResponse.json({ error: "Action only valid for NOX client" }, { status: 400 });
     const body = await req.json();
@@ -373,13 +380,24 @@ export async function PATCH(req: NextRequest) {
           return NextResponse.json({ error: "No history to undo" }, { status: 400 });
         }
         const lastKey = sortedKeys[sortedKeys.length - 1];
-        const lastMtd = log[lastKey];
-        const returns = (fund.returns as Record<string, number | null>) ?? {};
-        const ytdCurrent = (returns.ytd2026 as number) ?? 0;
-        const ytdRestored = (1 + ytdCurrent) / (1 + lastMtd) - 1;
-        fund.returns = { ...returns, ytd2026: ytdRestored };
+        const affectedYear = lastKey.slice(0, 4);
         delete log[lastKey];
         fund.noxMtdLog = log;
+        // Recompute ytd from remaining entries for that year
+        const returns = (fund.returns as Record<string, number | null>) ?? {};
+        const currentYear = new Date().getFullYear().toString();
+        const ytdKey = affectedYear === currentYear ? `ytd${affectedYear}` : `y${affectedYear}`;
+        const yearEntries = Object.entries(log)
+          .filter(([k]) => k.startsWith(affectedYear))
+          .sort(([a], [b]) => a.localeCompare(b));
+        if (yearEntries.length === 0) {
+          fund.returns = { ...returns, [ytdKey]: null };
+        } else {
+          let ytd = 1;
+          for (const [, v] of yearEntries) ytd *= (1 + v);
+          ytd -= 1;
+          fund.returns = { ...returns, [ytdKey]: Math.round(ytd * 10000) / 10000 };
+        }
         const remainingKeys = Object.keys(log).sort();
         fund.lastMonth = remainingKeys.length > 0 ? remainingKeys[remainingKeys.length - 1] : null;
         fund.lastUpdatedAt = new Date().toISOString();
@@ -390,6 +408,50 @@ export async function PATCH(req: NextRequest) {
     if (!found) return NextResponse.json({ error: "Fund not found" }, { status: 404 });
     await writeData(clientKey, data);
     return NextResponse.json({ success: true });
+  }
+
+  // One-time migration: recompute ytd for all NOX funds from noxMtdLog (super admin only)
+  if (url.searchParams.get("action") === "fix-nox-ytd") {
+    if (clientKey !== "nox") return NextResponse.json({ error: "NOX only" }, { status: 400 });
+    const auth = isAuthorized(req, data);
+    if (auth !== "super") return NextResponse.json({ error: "Super admin only" }, { status: 403 });
+    const currentYear = new Date().getFullYear().toString();
+    const categories = (data.categories || []) as Record<string, unknown>[];
+    const fixed: string[] = [];
+    for (const cat of categories) {
+      const funds = cat.funds as Record<string, unknown>[];
+      for (const fund of funds) {
+        const log = (fund.noxMtdLog as Record<string, number> | undefined) ?? {};
+        if (Object.keys(log).length === 0) continue;
+        const returns = { ...((fund.returns as Record<string, number | null>) ?? {}) };
+        // Group log entries by year and recompute each year's return
+        const byYear: Record<string, [string, number][]> = {};
+        for (const [k, v] of Object.entries(log)) {
+          const yr = k.slice(0, 4);
+          if (!byYear[yr]) byYear[yr] = [];
+          byYear[yr].push([k, v]);
+        }
+        let changed = false;
+        for (const [yr, entries] of Object.entries(byYear)) {
+          entries.sort(([a], [b]) => a.localeCompare(b));
+          let ytd = 1;
+          for (const [, v] of entries) ytd *= (1 + v);
+          ytd -= 1;
+          const ytdKey = yr === currentYear ? `ytd${yr}` : `y${yr}`;
+          const rounded = Math.round(ytd * 10000) / 10000;
+          if (returns[ytdKey] !== rounded) {
+            returns[ytdKey] = rounded;
+            changed = true;
+          }
+        }
+        if (changed) {
+          fund.returns = returns;
+          fixed.push((fund.name as string) || (fund.id as string));
+        }
+      }
+    }
+    await writeData(clientKey, data);
+    return NextResponse.json({ success: true, fixed, count: fixed.length });
   }
 
   // Set delayed flag on a single fund by ID

@@ -719,8 +719,15 @@ function MonthlyRow({ fund, categoryId: _categoryId, odd, password, clientKey, o
     if (isNoxClient) {
       let ytd2026: number | null;
       if (previewValue !== null) {
-        const ytdCurrent = fund.returns?.ytd2026 ?? 0;
-        ytd2026 = (1 + ytdCurrent) * (1 + previewValue) - 1;
+        // Mirror server logic: recompute from log (excluding selected month) + preview value
+        const affectedYear = selectedMonth.slice(0, 4);
+        const entries = Object.entries(fund.noxMtdLog ?? {})
+          .filter(([k]) => k.startsWith(affectedYear) && k !== selectedMonth)
+          .sort(([a], [b]) => a.localeCompare(b));
+        let compound = 1;
+        for (const [, v] of entries) compound *= (1 + v);
+        compound *= (1 + previewValue);
+        ytd2026 = Math.round((compound - 1) * 10000) / 10000;
       } else {
         ytd2026 = fund.returns?.ytd2026 ?? null;
       }
@@ -741,10 +748,11 @@ function MonthlyRow({ fund, categoryId: _categoryId, odd, password, clientKey, o
       sharpe:  computeSharpe(previewMr),
       stdDev:  computeStdDev(previewMr),
     };
-  }, [previewMr, isNoxClient, fund, previewValue]);
+  }, [previewMr, isNoxClient, fund, previewValue, selectedMonth]);
 
   const isPreview = previewValue !== null;
-  const canSave = isPreview && !saving && (!isNoxClient || selectedMonth.startsWith("2026-"));
+  const currentYear = new Date().getFullYear().toString();
+  const canSave = isPreview && !saving && (!isNoxClient || selectedMonth.startsWith(currentYear));
   const monthHasData = !isNoxClient &&
     (fund.monthlyReturns as Record<string, number> | undefined)?.[selectedMonth] !== undefined;
   const canUndo = isNoxClient && fund.noxMtdLog != null && Object.keys(fund.noxMtdLog).length > 0;
