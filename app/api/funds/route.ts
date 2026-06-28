@@ -350,6 +350,7 @@ export async function PATCH(req: NextRequest) {
         ytd -= 1;
         const ytdKey = affectedYear === currentYear ? `ytd${affectedYear}` : `y${affectedYear}`;
         fund.returns = { ...returns, [ytdKey]: Math.round(ytd * 10000) / 10000 };
+        fund.monthlyReturn = mtd;
         fund.lastMonth = month;
         fund.lastUpdatedAt = new Date().toISOString();
         found = true;
@@ -399,7 +400,9 @@ export async function PATCH(req: NextRequest) {
           fund.returns = { ...returns, [ytdKey]: Math.round(ytd * 10000) / 10000 };
         }
         const remainingKeys = Object.keys(log).sort();
-        fund.lastMonth = remainingKeys.length > 0 ? remainingKeys[remainingKeys.length - 1] : null;
+        const prevKey = remainingKeys.length > 0 ? remainingKeys[remainingKeys.length - 1] : null;
+        fund.monthlyReturn = prevKey !== null ? log[prevKey] : null;
+        fund.lastMonth = prevKey;
         fund.lastUpdatedAt = new Date().toISOString();
         found = true;
         break;

@@ -366,7 +366,7 @@ function AdminContent() {
               ...(isNox ? [] : [{ id: "bulk-text" as const, label: "עדכון מטקסט" }]),
               { id: "funds" as const, label: "ניהול קרנות" },
               ...(role === "super" ? [
-                { id: "monthly-history" as const, label: "היסטוריה חודשית" },
+                ...(!isNox ? [{ id: "monthly-history" as const, label: "היסטוריה חודשית" }] : []),
                 ...(brand.features?.aiParser ? [{ id: "ai-parser" as const, label: "קליטת נתונים" }] : []),
                 ...(brand.features?.benchmarks ? [{ id: "benchmarks" as const, label: "מדדי ייחוס" }] : []),
                 ...(brand.features?.consistencyAnalysis ? [{ id: "consistency" as const, label: "עקביות" }] : []),

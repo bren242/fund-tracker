@@ -635,7 +635,9 @@ function AnalysisContent() {
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, textAlign: "center" }}>
                     {[
-                      { label: SORT_OPTIONS.find(s => s.key === sortKey)?.label ?? sortKey, value: sortKey === "sharpe" ? fmtNum(searchResult.fund.sharpe) : (calcPeriodReturn(searchResult.fund, sortKey) !== null ? fmt(calcPeriodReturn(searchResult.fund, sortKey)) : "—") },
+                      isNox
+                        ? { label: noxYears.length === 1 ? (noxYears[0] === "ytd2026" ? "YTD 2026" : noxYears[0]) : `CAGR ${noxYears.length}Y`, value: fmt(calcNoxReturn(searchResult.fund, noxYears)) }
+                        : { label: SORT_OPTIONS.find(s => s.key === sortKey)?.label ?? sortKey, value: sortKey === "sharpe" ? fmtNum(searchResult.fund.sharpe) : (calcPeriodReturn(searchResult.fund, sortKey) !== null ? fmt(calcPeriodReturn(searchResult.fund, sortKey)) : "—") },
                       { label: "שארפ", value: fmtNum(searchResult.fund.sharpe) },
                       { label: "עקביות", value: calcConsistency(searchResult.fund) !== null ? `${calcConsistency(searchResult.fund)}%` : "—" },
                     ].map(({ label, value }) => (
@@ -646,7 +648,9 @@ function AnalysisContent() {
                     ))}
                   </div>
                   {(() => {
-                    const latestKey = Object.keys(searchResult.fund.monthlyReturns ?? {}).filter(k => /^\d{4}-\d{2}$/.test(k)).sort().at(-1);
+                    const latestKey = isNox
+                      ? (searchResult.fund.lastMonth ?? null)
+                      : (Object.keys(searchResult.fund.monthlyReturns ?? {}).filter(k => /^\d{4}-\d{2}$/.test(k)).sort().at(-1) ?? null);
                     return (
                       <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 8, textAlign: "center" }}>
                         עדכון אחרון: {latestKey ? `${latestKey.slice(5)}/${latestKey.slice(0, 4)}` : "—"}
